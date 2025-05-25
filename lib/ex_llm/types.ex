@@ -29,18 +29,32 @@ defmodule ExLLM.Types do
 
   @type stream :: Enumerable.t()
 
+  @type cost_result :: %{
+          provider: String.t(),
+          model: String.t(),
+          input_tokens: non_neg_integer(),
+          output_tokens: non_neg_integer(),
+          total_tokens: non_neg_integer(),
+          input_cost: float(),
+          output_cost: float(),
+          total_cost: float(),
+          currency: String.t(),
+          pricing: %{input: float(), output: float()}
+        }
+
   defmodule LLMResponse do
     @moduledoc """
-    Standard response format from LLM adapters.
+    Standard response format from LLM adapters with integrated cost calculation.
     """
-    defstruct [:content, :model, :usage, :finish_reason, :id]
+    defstruct [:content, :model, :usage, :finish_reason, :id, :cost]
 
     @type t :: %__MODULE__{
             content: String.t(),
             model: String.t() | nil,
             usage: ExLLM.Types.token_usage() | nil,
             finish_reason: String.t() | nil,
-            id: String.t() | nil
+            id: String.t() | nil,
+            cost: ExLLM.Types.cost_result() | nil
           }
   end
 

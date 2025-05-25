@@ -281,12 +281,21 @@ defmodule ExLLM.Adapters.Anthropic do
           }
       end
 
+    # Calculate cost if we have usage data
+    cost =
+      if usage && response["model"] do
+        ExLLM.Cost.calculate("anthropic", response["model"], usage)
+      else
+        nil
+      end
+
     %Types.LLMResponse{
       content: content,
       model: response["model"],
       usage: usage,
       finish_reason: response["stop_reason"],
-      id: response["id"]
+      id: response["id"],
+      cost: cost
     }
   end
 

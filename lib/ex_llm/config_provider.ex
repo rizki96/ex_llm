@@ -86,14 +86,24 @@ defmodule ExLLM.ConfigProvider do
     end
 
     defp get_known_config(:openai, :api_key), do: System.get_env("OPENAI_API_KEY")
-    defp get_known_config(:openai, :base_url), do: System.get_env("OPENAI_BASE_URL", "https://api.openai.com/v1")
-    defp get_known_config(:openai, :model), do: System.get_env("OPENAI_MODEL", "gpt-4-turbo-preview")
+
+    defp get_known_config(:openai, :base_url),
+      do: System.get_env("OPENAI_BASE_URL", "https://api.openai.com/v1")
+
+    defp get_known_config(:openai, :model),
+      do: System.get_env("OPENAI_MODEL", "gpt-4-turbo-preview")
 
     defp get_known_config(:anthropic, :api_key), do: System.get_env("ANTHROPIC_API_KEY")
-    defp get_known_config(:anthropic, :base_url), do: System.get_env("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
-    defp get_known_config(:anthropic, :model), do: System.get_env("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
 
-    defp get_known_config(:ollama, :base_url), do: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434")
+    defp get_known_config(:anthropic, :base_url),
+      do: System.get_env("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
+
+    defp get_known_config(:anthropic, :model),
+      do: System.get_env("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+
+    defp get_known_config(:ollama, :base_url),
+      do: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434")
+
     defp get_known_config(:ollama, :model), do: System.get_env("OLLAMA_MODEL", "llama2")
     defp get_known_config(_, _), do: nil
 

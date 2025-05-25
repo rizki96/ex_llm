@@ -96,7 +96,7 @@ defmodule ExLLM do
       end)
   """
 
-  alias ExLLM.Types
+  alias ExLLM.{Cost, Types}
 
   @providers %{
     anthropic: ExLLM.Adapters.Anthropic
@@ -268,6 +268,67 @@ defmodule ExLLM do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  @doc """
+  Calculate cost for token usage.
+
+  ## Parameters
+  - `provider` - LLM provider name
+  - `model` - Model name
+  - `token_usage` - Map with `:input_tokens` and `:output_tokens`
+
+  ## Returns
+  Cost calculation result or error map.
+
+  ## Examples
+
+      usage = %{input_tokens: 1000, output_tokens: 500}
+      cost = ExLLM.calculate_cost("openai", "gpt-4", usage)
+      # => %{total_cost: 0.06, ...}
+  """
+  @spec calculate_cost(provider(), String.t(), Types.token_usage()) ::
+          Types.cost_result() | %{error: String.t()}
+  def calculate_cost(provider, model, token_usage) do
+    Cost.calculate(to_string(provider), model, token_usage)
+  end
+
+  @doc """
+  Estimate token count for text.
+
+  ## Parameters
+  - `text` - Text to analyze (string, message map, or list)
+
+  ## Returns
+  Estimated token count.
+
+  ## Examples
+
+      tokens = ExLLM.estimate_tokens("Hello, world!")
+      # => 4
+  """
+  @spec estimate_tokens(String.t() | map() | [map()]) :: non_neg_integer()
+  def estimate_tokens(text) do
+    Cost.estimate_tokens(text)
+  end
+
+  @doc """
+  Format cost for display.
+
+  ## Parameters
+  - `cost` - Cost in dollars
+
+  ## Returns
+  Formatted cost string.
+
+  ## Examples
+
+      ExLLM.format_cost(0.0035)
+      # => "$0.350¢"
+  """
+  @spec format_cost(float()) :: String.t()
+  def format_cost(cost) do
+    Cost.format(cost)
   end
 
   @doc """

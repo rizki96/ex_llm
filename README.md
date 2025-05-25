@@ -1,11 +1,13 @@
 # ExLLM
 
-A unified Elixir client for Large Language Models, providing a consistent interface across multiple LLM providers.
+A unified Elixir client for Large Language Models with integrated cost tracking, providing a consistent interface across multiple LLM providers.
 
 ## Features
 
 - **Unified API**: Single interface for multiple LLM providers
 - **Streaming Support**: Real-time streaming responses via Server-Sent Events
+- **Cost Tracking**: Automatic cost calculation for all API calls
+- **Token Estimation**: Heuristic-based token counting for cost prediction
 - **Configurable**: Flexible configuration system with multiple providers
 - **Type Safety**: Comprehensive typespecs and structured data
 - **Error Handling**: Consistent error patterns across all providers
@@ -46,18 +48,28 @@ config :ex_llm,
 ### Basic Usage
 
 ```elixir
-# Simple chat completion
+# Simple chat completion with automatic cost tracking
 messages = [
   %{role: "user", content: "Hello, how are you?"}
 ]
 
 {:ok, response} = ExLLM.chat(:anthropic, messages)
 IO.puts(response.content)
+IO.puts("Cost: #{ExLLM.format_cost(response.cost.total_cost)}")
 
 # Streaming chat
 ExLLM.stream_chat(:anthropic, messages, fn chunk ->
   IO.write(chunk.content)
 end)
+
+# Estimate tokens before making a request
+tokens = ExLLM.estimate_tokens(messages)
+IO.puts("Estimated tokens: #{tokens}")
+
+# Calculate cost for specific usage
+usage = %{input_tokens: 1000, output_tokens: 500}
+cost = ExLLM.calculate_cost(:openai, "gpt-4", usage)
+IO.puts("Total cost: #{ExLLM.format_cost(cost.total_cost)}")
 ```
 
 ### Advanced Usage
@@ -99,9 +111,15 @@ Enum.each(models, &IO.puts(&1.name))
 ```elixir
 %ExLLM.Types.LLMResponse{
   content: "Hello! I'm doing well, thank you for asking.",
-  tokens_used: %{input: 12, output: 15},
+  usage: %{input_tokens: 12, output_tokens: 15},
   model: "claude-3-5-sonnet-20241022",
-  finish_reason: "end_turn"
+  finish_reason: "end_turn",
+  cost: %{
+    total_cost: 0.000261,
+    input_cost: 0.000036,
+    output_cost: 0.000225,
+    currency: "USD"
+  }
 }
 ```
 
@@ -125,6 +143,66 @@ Enum.each(models, &IO.puts(&1.name))
   supports_streaming: true
 }
 ```
+
+## Cost Tracking
+
+ExLLM automatically tracks costs for all API calls when usage data is available:
+
+### Automatic Cost Calculation
+
+```elixir
+{:ok, response} = ExLLM.chat(:anthropic, messages)
+
+# Access cost information
+if response.cost do
+  IO.puts("Input tokens: #{response.cost.input_tokens}")
+  IO.puts("Output tokens: #{response.cost.output_tokens}") 
+  IO.puts("Total cost: #{ExLLM.format_cost(response.cost.total_cost)}")
+end
+```
+
+### Token Estimation
+
+```elixir
+# Estimate tokens before making a request
+messages = [
+  %{role: "system", content: "You are a helpful assistant."},
+  %{role: "user", content: "Explain quantum computing in simple terms."}
+]
+
+estimated_tokens = ExLLM.estimate_tokens(messages)
+# Use this to predict costs before making the actual API call
+```
+
+### Cost Comparison
+
+```elixir
+# Compare costs across different providers
+usage = %{input_tokens: 1000, output_tokens: 2000}
+
+providers = [
+  {:openai, "gpt-4"},
+  {:openai, "gpt-3.5-turbo"},
+  {:anthropic, "claude-3-5-sonnet-20241022"},
+  {:anthropic, "claude-3-haiku-20240307"}
+]
+
+Enum.each(providers, fn {provider, model} ->
+  cost = ExLLM.calculate_cost(provider, model, usage)
+  unless cost[:error] do
+    IO.puts("#{provider}/#{model}: #{ExLLM.format_cost(cost.total_cost)}")
+  end
+end)
+```
+
+### Supported Pricing
+
+ExLLM includes up-to-date pricing (as of January 2025) for:
+- OpenAI: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo, GPT-4o series
+- Anthropic: Claude 3 series (Opus, Sonnet, Haiku), Claude 3.5, Claude 4
+- Google Gemini: Pro, Ultra, Nano
+- AWS Bedrock: Various models including Claude, Titan, Llama 2
+- Ollama: Local models (free - $0.00)
 
 ## Configuration
 
