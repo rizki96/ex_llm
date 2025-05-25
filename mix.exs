@@ -14,7 +14,7 @@ defmodule ExLLM.MixProject do
       package: package(),
       deps: deps(),
       docs: docs(),
-      source_url: "https://github.com/your-username/ex_llm"
+      source_url: "https://github.com/azmaveth/ex_llm"
     ]
   end
 
@@ -31,10 +31,10 @@ defmodule ExLLM.MixProject do
       files: ~w(lib .formatter.exs mix.exs README.md LICENSE),
       licenses: ["MIT"],
       links: %{
-        "GitHub" => "https://github.com/your-username/ex_llm",
+        "GitHub" => "https://github.com/azmaveth/ex_llm",
         "Docs" => "https://hexdocs.pm/ex_llm"
       },
-      maintainers: ["Your Name"]
+      maintainers: ["azmaveth"]
     ]
   end
 
@@ -66,7 +66,7 @@ defmodule ExLLM.MixProject do
     [
       main: "ExLLM",
       source_ref: "v#{@version}",
-      source_url: "https://github.com/your-username/ex_llm",
+      source_url: "https://github.com/azmaveth/ex_llm",
       extras: ["README.md"]
     ]
   end
