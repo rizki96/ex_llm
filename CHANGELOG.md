@@ -22,11 +22,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Token usage tracking
   - Session persistence (save/load)
   - Export to markdown/JSON formats
+- Local model support via Bumblebee integration
+- `ExLLM.Adapters.Local` with the following features:
+  - Support for Phi-2, Llama 2, Mistral, GPT-Neo, and Flan-T5
+  - Hardware acceleration (Metal, CUDA, ROCm, CPU)
+  - Model lifecycle management with ModelLoader GenServer
+  - Zero-cost inference (no API fees)
+  - Privacy-preserving local execution
 - New public API functions in main ExLLM module:
   - Context management: `prepare_messages/2`, `validate_context/2`, `context_window_size/2`, `context_stats/1`
   - Session management: `new_session/2`, `chat_with_session/2`, `save_session/2`, `load_session/1`, etc.
 - Automatic context management in `chat/3` and `stream_chat/3`
-- Comprehensive test coverage for context and session management
+- Optional dependencies (Bumblebee, Nx, EXLA) for local model support
+- Application supervisor for managing ModelLoader lifecycle
+- Comprehensive test coverage for all new features
 
 ### Changed
 - Updated `chat/3` and `stream_chat/3` to automatically apply context truncation
