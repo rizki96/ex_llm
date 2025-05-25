@@ -1,0 +1,63 @@
+defmodule ExLLM.MixProject do
+  use Mix.Project
+
+  @version "0.1.0"
+  @description "Unified Elixir client library for Large Language Models (LLMs)"
+
+  def project do
+    [
+      app: :ex_llm,
+      version: @version,
+      elixir: "~> 1.14",
+      start_permanent: Mix.env() == :prod,
+      description: @description,
+      package: package(),
+      deps: deps(),
+      docs: docs(),
+      source_url: "https://github.com/your-username/ex_llm"
+    ]
+  end
+
+  def application do
+    [
+      extra_applications: [:logger]
+    ]
+  end
+
+  defp package do
+    [
+      name: "ex_llm",
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE),
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => "https://github.com/your-username/ex_llm",
+        "Docs" => "https://hexdocs.pm/ex_llm"
+      },
+      maintainers: ["Your Name"]
+    ]
+  end
+
+  defp deps do
+    [
+      # HTTP client for API calls
+      {:req, "~> 0.4.0"},
+
+      # JSON encoding/decoding
+      {:jason, "~> 1.4"},
+
+      # Development and documentation
+      {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+      {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false}
+    ]
+  end
+
+  defp docs do
+    [
+      main: "ExLLM",
+      source_ref: "v#{@version}",
+      source_url: "https://github.com/your-username/ex_llm",
+      extras: ["README.md"]
+    ]
+  end
+end
