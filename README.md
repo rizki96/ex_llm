@@ -68,7 +68,7 @@ Add `ex_llm` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.1.0"},
+    {:ex_llm, "~> 0.2.0"},
     
     # Optional: For local model support
     {:bumblebee, "~> 0.5", optional: true},
@@ -447,7 +447,7 @@ Add the optional instructor dependency:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.1.0"},
+    {:ex_llm, "~> 0.2.0"},
     {:instructor, "~> 0.1.0"}  # Optional: for structured outputs
   ]
 end
@@ -706,7 +706,7 @@ ExLLM supports running models locally using Bumblebee and EXLA/EMLX backends. Th
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.1.0"},
+    {:ex_llm, "~> 0.2.0"},
     {:bumblebee, "~> 0.5"},
     {:nx, "~> 0.7"},
     {:exla, "~> 0.7"}  # or {:emlx, "~> 0.1"} for Apple Silicon
@@ -889,13 +889,21 @@ open doc/index.html
 
 Visit the [GitHub repository](https://github.com/azmaveth/ex_llm) to see the detailed roadmap and progress tracking.
 
+### Recently Completed ✅
+- [x] OpenAI adapter implementation
+- [x] Ollama adapter implementation
+- [x] AWS Bedrock adapter with multi-provider support
+- [x] Google Gemini adapter
+- [x] Structured outputs via Instructor integration
+- [x] Comprehensive cost tracking across all providers
+
 ### Near-term Goals
-- [ ] OpenAI adapter implementation
-- [ ] Ollama adapter implementation
-- [ ] AWS Bedrock adapter
-- [ ] Google Gemini adapter
-- [ ] Function calling support
-- [ ] Vision/multimodal support
+- [ ] Function calling support for compatible models
+- [ ] Vision/multimodal support for compatible models
+- [ ] Embeddings API support
+- [ ] Enhanced streaming with token-level callbacks
+- [ ] Response caching with configurable TTL
+- [ ] Request retry logic with exponential backoff
 
 ### Long-term Vision
 - Become the go-to LLM client library for Elixir
