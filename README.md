@@ -10,6 +10,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 - **Token Estimation**: Heuristic-based token counting for cost prediction
 - **Context Management**: Automatic message truncation to fit model context windows
 - **Session Management**: Built-in conversation state tracking and persistence
+- **Structured Outputs**: Schema validation and retries via instructor_ex integration
 - **Configurable**: Flexible configuration system with multiple providers
 - **Type Safety**: Comprehensive typespecs and structured data
 - **Error Handling**: Consistent error patterns across all providers
@@ -394,6 +395,191 @@ tokens = ExLLM.session_token_usage(session)
 
 # Clear session messages
 clean_session = ExLLM.clear_session(session)
+```
+
+## Structured Outputs
+
+ExLLM integrates with [instructor_ex](https://github.com/thmsmlr/instructor_ex) to provide structured output validation. This allows you to define expected response structures using Ecto schemas and automatically validate LLM responses.
+
+### Installation
+
+Add the optional instructor dependency:
+
+```elixir
+def deps do
+  [
+    {:ex_llm, "~> 0.1.0"},
+    {:instructor, "~> 0.1.0"}  # Optional: for structured outputs
+  ]
+end
+```
+
+### Basic Usage
+
+```elixir
+# Define your schema
+defmodule EmailClassification do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @llm_doc "Classification of an email as spam or not spam"
+  
+  @primary_key false
+  embedded_schema do
+    field :classification, Ecto.Enum, values: [:spam, :not_spam]
+    field :confidence, :float
+    field :reason, :string
+  end
+
+  @impl true
+  def validate_changeset(changeset) do
+    changeset
+    |> Ecto.Changeset.validate_required([:classification, :confidence, :reason])
+    |> Ecto.Changeset.validate_number(:confidence, 
+        greater_than_or_equal_to: 0.0,
+        less_than_or_equal_to: 1.0
+      )
+  end
+end
+
+# Use with ExLLM
+messages = [%{role: "user", content: "Is this spam? 'You won a million dollars!'"}]
+
+{:ok, result} = ExLLM.chat(:anthropic, messages,
+  response_model: EmailClassification,
+  max_retries: 3  # Automatically retry on validation errors
+)
+
+IO.inspect(result)
+# %EmailClassification{
+#   classification: :spam,
+#   confidence: 0.95,
+#   reason: "Classic lottery scam pattern"
+# }
+```
+
+### With Simple Type Specifications
+
+```elixir
+# Define expected structure without Ecto
+response_model = %{
+  name: :string,
+  age: :integer,
+  email: :string,
+  tags: {:array, :string}
+}
+
+messages = [%{role: "user", content: "Extract: John Doe, 30 years old, john@example.com, likes elixir and coding"}]
+
+{:ok, result} = ExLLM.chat(:anthropic, messages,
+  response_model: response_model
+)
+
+IO.inspect(result)
+# %{
+#   name: "John Doe",
+#   age: 30,
+#   email: "john@example.com",
+#   tags: ["elixir", "coding"]
+# }
+```
+
+### Advanced Example
+
+```elixir
+defmodule UserProfile do
+  use Ecto.Schema
+  use Instructor.Validator
+
+  @llm_doc """
+  User profile extraction from text.
+  Extract all available information about the user.
+  """
+
+  embedded_schema do
+    field :name, :string
+    field :email, :string
+    field :age, :integer
+    field :location, :string
+    embeds_many :interests, Interest do
+      field :name, :string
+      field :level, Ecto.Enum, values: [:beginner, :intermediate, :expert]
+    end
+  end
+
+  @impl true
+  def validate_changeset(changeset) do
+    changeset
+    |> Ecto.Changeset.validate_required([:name])
+    |> Ecto.Changeset.validate_format(:email, ~r/@/)
+    |> Ecto.Changeset.validate_number(:age, greater_than: 0, less_than: 150)
+  end
+end
+
+# Complex extraction with nested structures
+text = """
+Hi, I'm Jane Smith, a 28-year-old software engineer from Seattle.
+You can reach me at jane.smith@tech.com. I'm an expert in Elixir,
+intermediate in Python, and just starting to learn Rust.
+"""
+
+{:ok, profile} = ExLLM.chat(:anthropic, 
+  [%{role: "user", content: "Extract user profile: #{text}"}],
+  response_model: UserProfile,
+  max_retries: 3
+)
+```
+
+### Using the Instructor Module Directly
+
+```elixir
+# Direct usage of ExLLM.Instructor
+{:ok, result} = ExLLM.Instructor.chat(:anthropic, messages,
+  response_model: EmailClassification,
+  max_retries: 3,
+  temperature: 0.1  # Lower temperature for more consistent structure
+)
+
+# Parse an existing response
+{:ok, response} = ExLLM.chat(:anthropic, messages)
+{:ok, structured} = ExLLM.Instructor.parse_response(response, UserProfile)
+
+# Check if instructor is available
+if ExLLM.Instructor.available?() do
+  # Use structured outputs
+else
+  # Fall back to regular parsing
+end
+```
+
+### Supported Providers
+
+Structured outputs work with providers that have instructor adapters:
+- `:anthropic` - Anthropic Claude
+- `:openai` - OpenAI GPT models (coming soon)
+- `:ollama` - Local Ollama models (coming soon)
+- `:gemini` - Google Gemini (coming soon)
+
+### Error Handling
+
+```elixir
+case ExLLM.chat(:anthropic, messages, response_model: UserProfile) do
+  {:ok, profile} ->
+    # Successfully validated structure
+    IO.inspect(profile)
+    
+  {:error, :instructor_not_available} ->
+    # Instructor library not installed
+    IO.puts("Please install instructor to use structured outputs")
+    
+  {:error, {:validation_failed, errors}} ->
+    # Validation failed after retries
+    IO.inspect(errors)
+    
+  {:error, reason} ->
+    # Other error
+    IO.inspect(reason)
+end
 ```
 
 ## Configuration

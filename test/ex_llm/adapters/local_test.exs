@@ -75,9 +75,8 @@ defmodule ExLLM.Adapters.LocalTest do
       assert function_exported?(Local, :list_models, 1)
     end
 
-    test "context windows are set appropriately" do
-      # Test would verify get_context_window if it were public
-      assert function_exported?(Local, :default_model, 0)
+    test "default model is available" do
+      assert Local.default_model() == "microsoft/phi-2"
     end
   end
 end

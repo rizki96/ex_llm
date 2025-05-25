@@ -41,10 +41,13 @@ defmodule ExLLM.MixProject do
   defp deps do
     [
       # HTTP client for API calls
-      {:req, "~> 0.4.0"},
+      {:req, "~> 0.5.0"},
 
       # JSON encoding/decoding
       {:jason, "~> 1.4"},
+
+      # Optional dependency for structured outputs
+      {:instructor, "~> 0.1.0", optional: true},
 
       # Optional dependencies for local model support
       # Comment these out if you have compilation issues

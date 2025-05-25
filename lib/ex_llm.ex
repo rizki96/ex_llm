@@ -128,9 +128,12 @@ defmodule ExLLM do
     - `:sliding_window` - Keep most recent messages
     - `:smart` - Preserve system messages and recent context
   - `:preserve_messages` - Number of recent messages to always preserve (default: 5)
+  - `:response_model` - Ecto schema or type spec for structured output (requires instructor)
+  - `:max_retries` - Number of retries for structured output validation
 
   ## Returns
-  `{:ok, %ExLLM.Types.LLMResponse{}}` on success, `{:error, reason}` on failure.
+  `{:ok, %ExLLM.Types.LLMResponse{}}` on success, or `{:ok, struct}` when using
+  response_model. Returns `{:error, reason}` on failure.
 
   ## Examples
 
@@ -153,27 +156,44 @@ defmodule ExLLM do
         max_tokens: 4000,
         strategy: :smart
       )
+
+      # With structured output (requires instructor)
+      {:ok, classification} = ExLLM.chat(:anthropic, messages,
+        response_model: EmailClassification,
+        max_retries: 3
+      )
   """
   @spec chat(provider(), messages(), options()) ::
-          {:ok, Types.LLMResponse.t()} | {:error, term()}
+          {:ok, Types.LLMResponse.t() | struct() | map()} | {:error, term()}
   def chat(provider, messages, options \\ []) do
-    case get_adapter(provider) do
-      {:ok, adapter} ->
-        # Apply context management if enabled
-        prepared_messages = prepare_messages_for_provider(provider, messages, options)
-        
-        result = adapter.chat(prepared_messages, options)
-        
-        # Track costs if enabled
-        if Keyword.get(options, :track_cost, true) and match?({:ok, _}, result) do
-          {:ok, response} = result
-          track_response_cost(provider, response, options)
-        end
-        
-        result
+    # Check if structured output is requested
+    if Keyword.has_key?(options, :response_model) do
+      # Delegate to Instructor module if available
+      if Code.ensure_loaded?(ExLLM.Instructor) and ExLLM.Instructor.available?() do
+        ExLLM.Instructor.chat(provider, messages, options)
+      else
+        {:error, :instructor_not_available}
+      end
+    else
+      # Regular chat flow
+      case get_adapter(provider) do
+        {:ok, adapter} ->
+          # Apply context management if enabled
+          prepared_messages = prepare_messages_for_provider(provider, messages, options)
+          
+          result = adapter.chat(prepared_messages, options)
+          
+          # Track costs if enabled
+          if Keyword.get(options, :track_cost, true) and match?({:ok, _}, result) do
+            {:ok, response} = result
+            track_response_cost(provider, response, options)
+          end
+          
+          result
 
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 

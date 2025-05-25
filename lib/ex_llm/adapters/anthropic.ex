@@ -10,7 +10,7 @@ defmodule ExLLM.Adapters.Anthropic do
 
       # Set environment variables
       export ANTHROPIC_API_KEY="your-api-key"
-      export ANTHROPIC_MODEL="claude-sonnet-4-20250514"  # optional
+      export ANTHROPIC_MODEL="claude-3-5-sonnet-20241022"  # optional
 
       # Use with default environment provider
       ExLLM.Adapters.Anthropic.chat(messages, config_provider: ExLLM.ConfigProvider.Env)
@@ -20,7 +20,7 @@ defmodule ExLLM.Adapters.Anthropic do
       config = %{
         anthropic: %{
           api_key: "your-api-key",
-          model: "claude-sonnet-4-20250514",
+          model: "claude-3-5-sonnet-20241022",
           base_url: "https://api.anthropic.com/v1"  # optional
         }
       }
@@ -49,7 +49,7 @@ defmodule ExLLM.Adapters.Anthropic do
   alias ExLLM.{ConfigProvider, Error, Types}
 
   @default_base_url "https://api.anthropic.com/v1"
-  @default_model "claude-sonnet-4-20250514"
+  @default_model "claude-3-5-sonnet-20241022"
 
   @impl true
   def chat(messages, options \\ []) do
@@ -169,15 +169,39 @@ defmodule ExLLM.Adapters.Anthropic do
     # Anthropic doesn't have a public models endpoint, so we return common models
     models = [
       %Types.Model{
+        id: "claude-opus-4-20250514",
+        name: "Claude Opus 4",
+        description: "Most capable Claude model with advanced reasoning",
+        context_window: 200_000
+      },
+      %Types.Model{
         id: "claude-sonnet-4-20250514",
         name: "Claude Sonnet 4",
         description: "Latest Claude model with advanced reasoning capabilities",
         context_window: 200_000
       },
       %Types.Model{
+        id: "claude-3-7-sonnet-20250219",
+        name: "Claude 3.7 Sonnet",
+        description: "Enhanced Sonnet model with improved capabilities",
+        context_window: 200_000
+      },
+      %Types.Model{
         id: "claude-3-5-sonnet-20241022",
         name: "Claude 3.5 Sonnet",
         description: "High-performance model balancing speed and capability",
+        context_window: 200_000
+      },
+      %Types.Model{
+        id: "claude-3-5-haiku-20241022",
+        name: "Claude 3.5 Haiku",
+        description: "Fast and efficient model for simple tasks",
+        context_window: 200_000
+      },
+      %Types.Model{
+        id: "claude-3-opus-20240229",
+        name: "Claude 3 Opus",
+        description: "Most capable Claude 3 model",
         context_window: 200_000
       },
       %Types.Model{
