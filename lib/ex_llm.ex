@@ -21,9 +21,11 @@ defmodule ExLLM do
   ## Supported Providers
 
   - `:anthropic` - Anthropic Claude models
-  - `:openai` - OpenAI GPT models  
-  - `:ollama` - Local Ollama models
-  - More providers coming soon!
+  - `:openai` - OpenAI GPT models
+  - `:ollama` - Local models via Ollama
+  - `:bedrock` - AWS Bedrock (multiple providers)
+  - `:gemini` - Google Gemini models
+  - `:local` - Local models via Bumblebee (Phi-2, Llama 2, Mistral, etc.)
 
   ## Features
 
@@ -40,16 +42,22 @@ defmodule ExLLM do
 
   ### Environment Variables
 
-      export OPENAI_API_KEY="sk-..."
       export ANTHROPIC_API_KEY="api-..."
-      export OLLAMA_BASE_URL="http://localhost:11434"
+      export OPENAI_API_KEY="sk-..."
+      export OLLAMA_API_BASE="http://localhost:11434"
+      export GOOGLE_API_KEY="your-key"
+      export AWS_ACCESS_KEY_ID="your-key"
+      export AWS_SECRET_ACCESS_KEY="your-secret"
 
   ### Static Configuration
 
       config = %{
+        anthropic: %{api_key: "api-...", model: "claude-3-5-sonnet-20241022"},
         openai: %{api_key: "sk-...", model: "gpt-4"},
-        anthropic: %{api_key: "api-...", model: "claude-3"},
-        ollama: %{base_url: "http://localhost:11434", model: "llama2"}
+        ollama: %{base_url: "http://localhost:11434", model: "llama2"},
+        bedrock: %{access_key_id: "...", secret_access_key: "...", region: "us-east-1"},
+        gemini: %{api_key: "...", model: "gemini-pro"},
+        local: %{model: "microsoft/phi-2"}
       }
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
@@ -58,7 +66,7 @@ defmodule ExLLM do
       defmodule MyConfigProvider do
         @behaviour ExLLM.ConfigProvider
         
-        def get([:openai, :api_key]), do: MyApp.get_secret("openai_key")
+        def get([:anthropic, :api_key]), do: MyApp.get_secret("anthropic_key")
         def get(_), do: nil
         
         def get_all(), do: %{}
@@ -67,7 +75,7 @@ defmodule ExLLM do
   ## Examples
 
       # Simple chat
-      {:ok, response} = ExLLM.chat(:openai, [
+      {:ok, response} = ExLLM.chat(:anthropic, [
         %{role: "user", content: "What is Elixir?"}
       ])
 
@@ -79,7 +87,7 @@ defmodule ExLLM do
       )
 
       # Streaming
-      {:ok, stream} = ExLLM.stream_chat(:openai, messages)
+      {:ok, stream} = ExLLM.stream_chat(:anthropic, messages)
       for chunk <- stream do
         if chunk.content, do: IO.write(chunk.content)
       end
@@ -90,7 +98,7 @@ defmodule ExLLM do
       end
 
       # List available models
-      {:ok, models} = ExLLM.list_models(:openai)
+      {:ok, models} = ExLLM.list_models(:anthropic)
       Enum.each(models, fn model ->
         IO.puts(model.name)
       end)
@@ -101,12 +109,14 @@ defmodule ExLLM do
 
   @providers %{
     anthropic: ExLLM.Adapters.Anthropic,
-    local: ExLLM.Adapters.Local
-    # openai: ExLLM.Adapters.OpenAI,
-    # ollama: ExLLM.Adapters.Ollama
+    local: ExLLM.Adapters.Local,
+    openai: ExLLM.Adapters.OpenAI,
+    ollama: ExLLM.Adapters.Ollama,
+    bedrock: ExLLM.Adapters.Bedrock,
+    gemini: ExLLM.Adapters.Gemini
   }
 
-  @type provider :: :anthropic | :openai | :ollama | :local
+  @type provider :: :anthropic | :openai | :ollama | :local | :bedrock | :gemini
   @type messages :: [Types.message()]
   @type options :: keyword()
 

@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- OpenAI adapter with GPT-4 and GPT-3.5 support
+- Ollama adapter for local model inference
+- AWS Bedrock adapter with full multi-provider support (Anthropic, Amazon Titan, Meta Llama, Cohere, AI21, Mistral)
+  - Complete AWS credential chain support (environment vars, profiles, instance metadata, ECS task roles)
+  - Provider-specific request/response formatting
+  - Native streaming support
+  - Dynamic model listing via AWS Bedrock API
+- Google Gemini adapter with Pro, Ultra, and Nano models
 - Context management functionality to automatically handle LLM context windows
 - `ExLLM.Context` module with the following features:
   - Automatic message truncation to fit within model context windows
@@ -42,7 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced documentation with context management and session examples
 - ExLLM is now a comprehensive all-in-one solution including cost tracking, context management, and session handling
 
-## [0.1.0] - 2025-01-24
+## [0.1.0] - 2025-05-24
 
 ### Added
 - Initial release with unified LLM interface

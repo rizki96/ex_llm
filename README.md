@@ -2,6 +2,8 @@
 
 A unified Elixir client for Large Language Models with integrated cost tracking, providing a consistent interface across multiple LLM providers.
 
+> ⚠️ **Alpha Quality Software**: This library is in early development. APIs may change without notice until version 1.0.0 is released. Use in production at your own risk.
+
 ## Features
 
 - **Unified API**: Single interface for multiple LLM providers
@@ -18,10 +20,46 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 
 ## Supported Providers
 
-- **Anthropic Claude** (claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022, etc.)
-- **Local Models** (Phi-2, Llama 2, Mistral, GPT-Neo, Flan-T5 via Bumblebee)
-- **OpenAI** (coming soon)
-- **Ollama** (coming soon)
+- **Anthropic Claude** - Full support for all Claude models
+  - claude-3-5-sonnet-20241022
+  - claude-3-5-haiku-20241022
+  - claude-3-opus-20240229
+  - claude-3-sonnet-20240229
+  - claude-3-haiku-20240307
+  - claude-sonnet-4-20250514
+
+- **OpenAI** - GPT-4 and GPT-3.5 models
+  - gpt-4-turbo
+  - gpt-4
+  - gpt-4-32k
+  - gpt-3.5-turbo
+  - gpt-3.5-turbo-16k
+
+- **Ollama** - Local model runner
+  - Any model available in your Ollama installation
+  - Automatic model discovery
+  - No API costs
+
+- **AWS Bedrock** - Multi-provider access
+  - Anthropic Claude (via Bedrock)
+  - Amazon Titan
+  - Meta Llama 2
+  - Cohere Command
+  - AI21 Jurassic
+  - Mistral/Mixtral
+
+- **Google Gemini** - Gemini models
+  - gemini-pro
+  - gemini-pro-vision
+  - gemini-ultra
+  - gemini-nano
+
+- **Local Models** via Bumblebee/EXLA
+  - microsoft/phi-2 (default)
+  - meta-llama/Llama-2-7b-hf
+  - mistralai/Mistral-7B-v0.1
+  - EleutherAI/gpt-neo-1.3B
+  - google/flan-t5-base
 
 ## Installation
 
@@ -269,12 +307,13 @@ end)
 
 ### Supported Pricing
 
-ExLLM includes up-to-date pricing (as of January 2025) for:
-- OpenAI: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo, GPT-4o series
-- Anthropic: Claude 3 series (Opus, Sonnet, Haiku), Claude 3.5, Claude 4
-- Google Gemini: Pro, Ultra, Nano
-- AWS Bedrock: Various models including Claude, Titan, Llama 2
-- Ollama: Local models (free - $0.00)
+ExLLM includes pricing data (as of January 2025) for all supported providers:
+- **Anthropic**: Claude 3 series (Opus, Sonnet, Haiku), Claude 3.5, Claude 4
+- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo, GPT-4o series
+- **Google Gemini**: Pro, Ultra, Nano
+- **AWS Bedrock**: Various models including Claude, Titan, Llama 2
+- **Ollama**: Local models (free - $0.00)
+- **Local Models**: Free ($0.00) - no API costs
 
 ## Context Management
 
@@ -556,9 +595,11 @@ end
 
 Structured outputs work with providers that have instructor adapters:
 - `:anthropic` - Anthropic Claude
-- `:openai` - OpenAI GPT models (coming soon)
-- `:ollama` - Local Ollama models (coming soon)
-- `:gemini` - Google Gemini (coming soon)
+- `:openai` - OpenAI GPT models
+- `:ollama` - Local Ollama models
+- `:gemini` - Google Gemini
+- `:bedrock` - AWS Bedrock models
+- `:local` - Local Bumblebee models
 
 ### Error Handling
 
@@ -786,22 +827,112 @@ end
 
 Then register it in the main ExLLM module.
 
-## Testing
+## Requirements
 
-Run the test suite:
+- Elixir ~> 1.14
+- Erlang/OTP ~> 25.0
+- For local models (optional):
+  - Bumblebee ~> 0.5
+  - Nx ~> 0.7
+  - EXLA ~> 0.7 (for GPU acceleration)
+  - EMLX ~> 0.1 (for Apple Silicon)
+
+## Development
+
+### Setup
 
 ```bash
+# Clone the repository
+git clone https://github.com/azmaveth/ex_llm.git
+cd ex_llm
+
+# Install dependencies
+mix deps.get
+mix deps.compile
+
+# Run tests
 mix test
+
+# Run quality checks
+mix format --check-formatted
+mix credo
+mix dialyzer
 ```
+
+### Testing
+
+```bash
+# Run all tests
+mix test
+
+# Run specific test files
+mix test test/ex_llm_test.exs
+
+# Run only integration tests
+mix test test/*_integration_test.exs
+
+# Run tests with coverage
+mix test --cover
+```
+
+### Documentation
+
+```bash
+# Generate docs
+mix docs
+
+# Open in browser
+open doc/index.html
+```
+
+## Roadmap
+
+See [TASKS.md](TASKS.md) for detailed roadmap and progress tracking.
+
+### Near-term Goals
+- [ ] OpenAI adapter implementation
+- [ ] Ollama adapter implementation
+- [ ] AWS Bedrock adapter
+- [ ] Google Gemini adapter
+- [ ] Function calling support
+- [ ] Vision/multimodal support
+
+### Long-term Vision
+- Become the go-to LLM client library for Elixir
+- Support all major LLM providers
+- Provide best-in-class developer experience
+- Maintain comprehensive documentation
 
 ## Contributing
 
+We welcome contributions! Please see our contributing guidelines:
+
 1. Fork the repository
-2. Create a feature branch
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
 3. Make your changes
-4. Add tests
-5. Run `mix format` and `mix credo`
-6. Submit a pull request
+4. Add tests for new functionality
+5. Ensure all tests pass (`mix test`)
+6. Format your code (`mix format`)
+7. Run linter (`mix credo`)
+8. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+9. Push to the branch (`git push origin feature/amazing-feature`)
+10. Open a Pull Request
+
+### Commit Message Convention
+
+We use [Conventional Commits](https://www.conventionalcommits.org/):
+- `feat:` for new features
+- `fix:` for bug fixes
+- `docs:` for documentation changes
+- `chore:` for maintenance tasks
+- `test:` for test additions/changes
+
+## Acknowledgments
+
+- Built with [Req](https://github.com/wojtekmach/req) for HTTP client functionality
+- Local model support via [Bumblebee](https://github.com/elixir-nx/bumblebee)
+- Structured outputs via [Instructor](https://github.com/thmsmlr/instructor_ex)
+- Inspired by the need for a unified LLM interface in Elixir
 
 ## License
 
