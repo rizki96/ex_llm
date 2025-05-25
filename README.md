@@ -887,7 +887,7 @@ open doc/index.html
 
 ## Roadmap
 
-See [TASKS.md](TASKS.md) for detailed roadmap and progress tracking.
+Visit the [GitHub repository](https://github.com/azmaveth/ex_llm) to see the detailed roadmap and progress tracking.
 
 ### Near-term Goals
 - [ ] OpenAI adapter implementation
