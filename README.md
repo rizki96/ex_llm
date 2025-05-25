@@ -40,13 +40,16 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - Automatic model discovery
   - No API costs
 
-- **AWS Bedrock** - Multi-provider access
-  - Anthropic Claude (via Bedrock)
-  - Amazon Titan
-  - Meta Llama 2
-  - Cohere Command
-  - AI21 Jurassic
-  - Mistral/Mixtral
+- **AWS Bedrock** - Multi-provider access with comprehensive model support
+  - **Anthropic Claude**: All Claude 4, 3.7, 3.5, 3, and 2.x models
+  - **Amazon Nova**: Micro, Lite (default), Pro, Premier
+  - **Amazon Titan**: Lite, Express text models
+  - **Meta Llama**: Llama 4 (Maverick, Scout), Llama 3.3, 3.2, and 2 series
+  - **Cohere**: Command, Command Light, Command R, Command R+
+  - **AI21 Labs**: Jamba 1.5 (Large, Mini), Jamba Instruct, Jurassic 2
+  - **Mistral**: Pixtral Large 2025-02, Mistral 7B, Mixtral 8x7B
+  - **Writer**: Palmyra X4, Palmyra X5
+  - **DeepSeek**: DeepSeek R1
 
 - **Google Gemini** - Gemini models
   - gemini-pro
@@ -89,6 +92,13 @@ config :ex_llm,
   anthropic: [
     api_key: System.get_env("ANTHROPIC_API_KEY"),
     base_url: "https://api.anthropic.com"
+  ],
+  bedrock: [
+    # AWS credentials (optional - uses credential chain by default)
+    access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
+    secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY"),
+    region: System.get_env("AWS_REGION") || "us-east-1",
+    model: "nova-lite"  # Default model (cost-effective)
   ]
 ```
 

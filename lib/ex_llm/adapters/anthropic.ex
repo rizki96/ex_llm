@@ -49,7 +49,7 @@ defmodule ExLLM.Adapters.Anthropic do
   alias ExLLM.{ConfigProvider, Error, Types}
 
   @default_base_url "https://api.anthropic.com/v1"
-  @default_model "claude-3-5-sonnet-20241022"
+  @default_model "claude-sonnet-4-20250514"
 
   @impl true
   def chat(messages, options \\ []) do

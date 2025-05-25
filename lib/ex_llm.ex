@@ -190,15 +190,15 @@ defmodule ExLLM do
         {:ok, adapter} ->
           # Apply context management if enabled
           prepared_messages = prepare_messages_for_provider(provider, messages, options)
-          
+
           result = adapter.chat(prepared_messages, options)
-          
+
           # Track costs if enabled
           if Keyword.get(options, :track_cost, true) and match?({:ok, _}, result) do
             {:ok, response} = result
             track_response_cost(provider, response, options)
           end
-          
+
           result
 
         {:error, reason} ->
@@ -252,7 +252,7 @@ defmodule ExLLM do
       {:ok, adapter} ->
         # Apply context management if enabled
         prepared_messages = prepare_messages_for_provider(provider, messages, options)
-        
+
         adapter.stream_chat(prepared_messages, options)
 
       {:error, reason} ->
@@ -551,34 +551,36 @@ defmodule ExLLM do
   def chat_with_session(session, content, options \\ []) do
     # Add user message to session
     session = Session.add_message(session, "user", content)
-    
+
     # Get provider from session
     provider = String.to_atom(session.llm_backend || "anthropic")
-    
+
     # Get messages for chat
     messages = Session.get_messages(session)
-    
+
     # Merge session context with options
-    merged_options = Keyword.merge(
-      Map.to_list(session.context || %{}),
-      options
-    )
-    
+    merged_options =
+      Keyword.merge(
+        Map.to_list(session.context || %{}),
+        options
+      )
+
     # Send chat request
     case chat(provider, messages, merged_options) do
       {:ok, response} ->
         # Add assistant response to session
         session = Session.add_message(session, "assistant", response.content)
-        
+
         # Update token usage if available
-        session = if response.usage do
-          Session.update_token_usage(session, response.usage)
-        else
-          session
-        end
-        
+        session =
+          if response.usage do
+            Session.update_token_usage(session, response.usage)
+          else
+            session
+          end
+
         {:ok, {response, session}}
-        
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -716,20 +718,24 @@ defmodule ExLLM do
 
   defp prepare_messages_for_provider(provider, messages, options) do
     # Get model from options or use default
-    model = case Keyword.get(options, :model) do
-      nil -> 
-        case default_model(provider) do
-          {:error, _} -> nil
-          model -> model
-        end
-      model -> model
-    end
-    
+    model =
+      case Keyword.get(options, :model) do
+        nil ->
+          case default_model(provider) do
+            {:error, _} -> nil
+            model -> model
+          end
+
+        model ->
+          model
+      end
+
     # Add provider and model info to options for context management
-    context_options = options
-    |> Keyword.put(:provider, to_string(provider))
-    |> Keyword.put_new(:model, model)
-    
+    context_options =
+      options
+      |> Keyword.put(:provider, to_string(provider))
+      |> Keyword.put_new(:model, model)
+
     Context.prepare_messages(messages, context_options)
   end
 
@@ -739,14 +745,14 @@ defmodule ExLLM do
       %{input_tokens: _, output_tokens: _} = usage ->
         model = Keyword.get(options, :model) || default_model(provider)
         cost_info = calculate_cost(provider, model, usage)
-        
+
         # Log cost info if logger is available
         if function_exported?(Logger, :info, 1) do
           Logger.info("LLM cost: #{format_cost(cost_info.total_cost)} for #{provider}/#{model}")
         end
-        
+
         cost_info
-        
+
       _ ->
         nil
     end

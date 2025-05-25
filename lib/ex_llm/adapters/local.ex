@@ -1,30 +1,30 @@
 defmodule ExLLM.Adapters.Local do
   @moduledoc """
   Local LLM adapter using Bumblebee for on-device inference.
-  
+
   This adapter enables running language models locally using Bumblebee and EXLA/EMLX backends.
   It supports Apple Silicon (via EMLX), NVIDIA GPUs (via CUDA), and CPU inference.
-  
+
   ## Configuration
-  
+
   The local adapter doesn't require API keys but may need backend configuration:
-  
+
       # For Apple Silicon (automatic detection)
       {:ok, response} = ExLLM.chat(:local, messages)
       
       # With specific model
       {:ok, response} = ExLLM.chat(:local, messages, model: "microsoft/phi-2")
-  
+
   ## Available Models
-  
+
   - `microsoft/phi-2` - Phi-2 (2.7B) - Default
   - `meta-llama/Llama-2-7b-hf` - Llama 2 (7B)
   - `mistralai/Mistral-7B-v0.1` - Mistral (7B)
   - `EleutherAI/gpt-neo-1.3B` - GPT-Neo (1.3B)
   - `google/flan-t5-base` - Flan-T5 Base
-  
+
   ## Features
-  
+
   - On-device inference with no API calls
   - Automatic hardware acceleration detection
   - Support for Apple Silicon, NVIDIA GPUs, and CPUs
@@ -50,7 +50,8 @@ defmodule ExLLM.Adapters.Local do
     if bumblebee_available?() do
       do_chat(messages, opts)
     else
-      {:error, "Bumblebee is not available. Please add {:bumblebee, \"~> 0.5\"} to your dependencies."}
+      {:error,
+       "Bumblebee is not available. Please add {:bumblebee, \"~> 0.5\"} to your dependencies."}
     end
   end
 
@@ -59,7 +60,8 @@ defmodule ExLLM.Adapters.Local do
     if bumblebee_available?() do
       do_stream_chat(messages, opts)
     else
-      {:error, "Bumblebee is not available. Please add {:bumblebee, \"~> 0.5\"} to your dependencies."}
+      {:error,
+       "Bumblebee is not available. Please add {:bumblebee, \"~> 0.5\"} to your dependencies."}
     end
   end
 
@@ -111,37 +113,41 @@ defmodule ExLLM.Adapters.Local do
   defp do_stream_chat(messages, opts) do
     # For now, use chat with streaming enabled
     opts = Keyword.put(opts, :stream, true)
-    
+
     case do_chat(messages, opts) do
       {:ok, chunks} when is_list(chunks) ->
         # Convert to stream format expected by ExLLM
-        stream = Stream.map(chunks, fn chunk ->
-          case chunk do
-            {:data, %{"content" => content}} ->
-              %Types.StreamChunk{
-                content: content,
-                finish_reason: nil
-              }
-            {:error, reason} ->
-              %Types.StreamChunk{
-                content: "Error: #{inspect(reason)}",
-                finish_reason: "error"
-              }
-          end
-        end)
+        stream =
+          Stream.map(chunks, fn chunk ->
+            case chunk do
+              {:data, %{"content" => content}} ->
+                %Types.StreamChunk{
+                  content: content,
+                  finish_reason: nil
+                }
+
+              {:error, reason} ->
+                %Types.StreamChunk{
+                  content: "Error: #{inspect(reason)}",
+                  finish_reason: "error"
+                }
+            end
+          end)
+
         {:ok, stream}
 
       {:ok, response} ->
         # Single response, wrap in stream
-        stream = Stream.iterate(
-          %Types.StreamChunk{
-            content: response.content,
-            finish_reason: "stop"
-          },
-          fn _ -> nil end
-        )
-        |> Stream.take(1)
-        
+        stream =
+          Stream.iterate(
+            %Types.StreamChunk{
+              content: response.content,
+              finish_reason: "stop"
+            },
+            fn _ -> nil end
+          )
+          |> Stream.take(1)
+
         {:ok, stream}
 
       error ->
@@ -155,17 +161,20 @@ defmodule ExLLM.Adapters.Local do
     acceleration = ModelLoader.get_acceleration_info()
 
     # Convert to ExLLM Model format
-    models = Enum.map(@available_models, fn model_id ->
-      is_loaded = model_id in loaded
-      
-      %Types.Model{
-        id: model_id,
-        name: humanize_model_name(model_id),
-        description: "#{humanize_model_name(model_id)} - #{if is_loaded, do: "Loaded", else: "Available"} (#{acceleration.name})",
-        context_window: get_context_window(model_id),
-        pricing: %{input: 0.0, output: 0.0}  # Local models are free
-      }
-    end)
+    models =
+      Enum.map(@available_models, fn model_id ->
+        is_loaded = model_id in loaded
+
+        %Types.Model{
+          id: model_id,
+          name: humanize_model_name(model_id),
+          description:
+            "#{humanize_model_name(model_id)} - #{if is_loaded, do: "Loaded", else: "Available"} (#{acceleration.name})",
+          context_window: get_context_window(model_id),
+          # Local models are free
+          pricing: %{input: 0.0, output: 0.0}
+        }
+      end)
 
     {:ok, models}
   end
@@ -205,7 +214,7 @@ defmodule ExLLM.Adapters.Local do
     |> Enum.map_join("\n", fn msg ->
       role = to_string(msg["role"] || msg[:role])
       content = msg["content"] || msg[:content]
-      
+
       case role do
         "system" -> "<<SYS>>\n#{content}\n<</SYS>>\n\n"
         "user" -> "[INST] #{content} [/INST]"
@@ -220,7 +229,7 @@ defmodule ExLLM.Adapters.Local do
     |> Enum.map_join("\n", fn msg ->
       role = to_string(msg["role"] || msg[:role])
       content = msg["content"] || msg[:content]
-      
+
       case role do
         "user" -> "[INST] #{content} [/INST]"
         "assistant" -> content
@@ -234,34 +243,36 @@ defmodule ExLLM.Adapters.Local do
 
     if opts.stream do
       # Stream the response
-      stream_task = Task.async(fn ->
-        try do
-          # Use the Nx.Serving with conditional compilation
-          apply(Nx.Serving, :run, [serving, %{text: prompt}])
-          |> Stream.map(fn chunk ->
-            {:data, %{"content" => chunk.text}}
-          end)
-          |> Enum.to_list()
-        rescue
-          e ->
-            Logger.error("Error during generation: #{inspect(e)}")
-            [{:error, "Generation failed: #{inspect(e)}"}]
-        end
-      end)
+      stream_task =
+        Task.async(fn ->
+          try do
+            # Use the Nx.Serving with conditional compilation
+            apply(Nx.Serving, :run, [serving, %{text: prompt}])
+            |> Stream.map(fn chunk ->
+              {:data, %{"content" => chunk.text}}
+            end)
+            |> Enum.to_list()
+          rescue
+            e ->
+              Logger.error("Error during generation: #{inspect(e)}")
+              [{:error, "Generation failed: #{inspect(e)}"}]
+          end
+        end)
 
       {:ok, Task.await(stream_task, :infinity)}
     else
       # Non-streaming response
       try do
         result = apply(Nx.Serving, :run, [serving, %{text: prompt}])
-        
+
         response = %Types.LLMResponse{
           content: result.text,
-          usage: nil,  # TODO: Extract token usage if available
+          # TODO: Extract token usage if available
+          usage: nil,
           model: opts[:model] || default_model(),
           finish_reason: "stop"
         }
-        
+
         {:ok, response}
       rescue
         e ->
@@ -292,7 +303,6 @@ defmodule ExLLM.Adapters.Local do
       _ -> 2_048
     end
   end
-
 
   # Conditional compilation helpers
 

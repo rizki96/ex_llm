@@ -14,49 +14,150 @@ defmodule ExLLM.Context do
   @default_max_tokens 4_096
   @reserve_tokens 500
 
-  # Model context windows (as of January 2025)
+  # Model context windows (as of May 2025)
   @model_contexts %{
     "anthropic" => %{
-      "claude-3-5-sonnet-20241022" => 200_000,
-      "claude-3-5-haiku-20241022" => 200_000,
-      "claude-3-opus-20240229" => 200_000,
-      "claude-3-sonnet-20240229" => 200_000,
-      "claude-3-haiku-20240307" => 200_000,
+      # Claude 4 series
+      "claude-opus-4-20250514" => 200_000,
+      "claude-opus-4-0" => 200_000,
       "claude-sonnet-4-20250514" => 200_000,
-      "claude-4" => 200_000
+      "claude-sonnet-4-0" => 200_000,
+
+      # Claude 3.7 series
+      "claude-3-7-sonnet-20250219" => 200_000,
+      "claude-3-7-sonnet-latest" => 200_000,
+
+      # Claude 3.5 series
+      "claude-3-5-sonnet-20241022" => 200_000,
+      "claude-3-5-sonnet-latest" => 200_000,
+      "claude-3-5-haiku-20241022" => 200_000,
+      "claude-3-5-haiku-latest" => 200_000,
+
+      # Claude 3 series
+      "claude-3-opus-20240229" => 200_000,
+      "claude-3-opus-latest" => 200_000,
+      "claude-3-haiku-20240307" => 200_000
     },
     "openai" => %{
-      "gpt-4-turbo" => 128_000,
-      "gpt-4-turbo-preview" => 128_000,
-      "gpt-4" => 8_192,
-      "gpt-4-32k" => 32_768,
-      "gpt-3.5-turbo" => 16_385,
-      "gpt-3.5-turbo-16k" => 16_385,
+      # GPT-4.1 series - 1M context
+      "gpt-4.1" => 1_000_000,
+      "gpt-4.1-2025-04-14" => 1_000_000,
+      "gpt-4.1-mini" => 1_000_000,
+      "gpt-4.1-mini-2025-04-14" => 1_000_000,
+      "gpt-4.1-nano" => 1_000_000,
+      "gpt-4.1-nano-2025-04-14" => 1_000_000,
+
+      # GPT-4.5 preview
+      "gpt-4.5-preview" => 128_000,
+      "gpt-4.5-preview-2025-02-27" => 128_000,
+
+      # GPT-4o series
       "gpt-4o" => 128_000,
-      "gpt-4o-mini" => 128_000
+      "gpt-4o-2024-08-06" => 128_000,
+      "gpt-4o-mini" => 128_000,
+      "gpt-4o-mini-2024-07-18" => 128_000,
+
+      # O-series reasoning models
+      "o1" => 200_000,
+      "o1-2024-12-17" => 200_000,
+      "o1-pro" => 200_000,
+      "o1-pro-2025-03-19" => 200_000,
+      "o3" => 200_000,
+      "o3-2025-04-16" => 200_000,
+      "o4-mini" => 128_000,
+      "o4-mini-2025-04-16" => 128_000,
+      "o3-mini" => 200_000,
+      "o3-mini-2025-01-31" => 200_000,
+      "o1-mini" => 200_000,
+      "o1-mini-2024-09-12" => 200_000
     },
     "gemini" => %{
-      "gemini-pro" => 32_768,
-      "gemini-pro-vision" => 32_768,
-      "gemini-ultra" => 1_048_576,
-      "gemini-nano" => 32_768
+      # Gemini 2.5 series
+      "gemini-2.5-flash-preview-05-20" => 1_048_576,
+      "gemini-2.5-pro-preview-05-06" => 1_048_576,
+
+      # Gemini 2.0 series
+      "gemini-2.0-flash" => 1_048_576,
+      "gemini-2.0-flash-lite" => 1_048_576,
+
+      # Gemini 1.5 series
+      "gemini-1.5-flash" => 1_048_576,
+      "gemini-1.5-pro" => 2_097_152
     },
     "bedrock" => %{
+      # Anthropic models
+      "claude-opus-4" => 200_000,
+      "claude-opus-4-20250514" => 200_000,
+      "claude-sonnet-4" => 200_000,
+      "claude-sonnet-4-20250514" => 200_000,
+      "claude-3-7-sonnet" => 200_000,
+      "claude-3-7-sonnet-20250219" => 200_000,
+      "claude-3-5-sonnet" => 200_000,
+      "claude-3-5-sonnet-20241022" => 200_000,
+      "claude-3-5-haiku" => 200_000,
+      "claude-3-5-haiku-20241022" => 200_000,
+      "claude-3-opus" => 200_000,
+      "claude-3-opus-20240229" => 200_000,
+      "claude-3-sonnet" => 200_000,
+      "claude-3-sonnet-20240229" => 200_000,
+      "claude-3-haiku" => 200_000,
+      "claude-3-haiku-20240307" => 200_000,
       "claude-instant-v1" => 100_000,
       "claude-v2" => 200_000,
       "claude-v2.1" => 200_000,
-      "claude-3-sonnet" => 200_000,
-      "claude-3-haiku" => 200_000,
+
+      # Amazon Nova models
+      "nova-micro" => 128_000,
+      "nova-lite" => 300_000,
+      "nova-pro" => 300_000,
+      "nova-premier" => 1_000_000,
+      "nova-sonic" => 300_000,
+
+      # Amazon Titan models
       "titan-lite" => 4_096,
       "titan-express" => 8_192,
-      "llama2-13b" => 4_096,
-      "llama2-70b" => 4_096,
-      "command" => 4_096,
-      "command-light" => 4_096,
+
+      # AI21 Labs models
+      "jamba-1.5-large" => 256_000,
+      "jamba-1.5-mini" => 256_000,
+      "jamba-instruct" => 256_000,
       "jurassic-2-mid" => 8_192,
       "jurassic-2-ultra" => 8_192,
+
+      # Cohere models
+      "command" => 4_096,
+      "command-light" => 4_096,
+      "command-r-plus" => 128_000,
+      "command-r" => 128_000,
+
+      # DeepSeek models
+      "deepseek-r1" => 128_000,
+
+      # Meta Llama models
+      "llama-4-maverick-17b" => 128_000,
+      "llama-4-scout-17b" => 128_000,
+      "llama-3.3-70b" => 128_000,
+      "llama-3.3-70b-instruct" => 128_000,
+      "llama-3.2-1b" => 128_000,
+      "llama-3.2-1b-instruct" => 128_000,
+      "llama-3.2-3b" => 128_000,
+      "llama-3.2-3b-instruct" => 128_000,
+      "llama-3.2-11b" => 128_000,
+      "llama-3.2-11b-instruct" => 128_000,
+      "llama-3.2-90b" => 128_000,
+      "llama-3.2-90b-instruct" => 128_000,
+      "llama2-13b" => 4_096,
+      "llama2-70b" => 4_096,
+
+      # Mistral models
+      "pixtral-large" => 128_000,
+      "pixtral-large-2025-02" => 128_000,
       "mistral-7b" => 32_768,
-      "mixtral-8x7b" => 32_768
+      "mixtral-8x7b" => 32_768,
+
+      # Writer models
+      "palmyra-x4" => 128_000,
+      "palmyra-x5" => 128_000
     },
     "ollama" => %{
       "llama2" => 4_096,
@@ -112,12 +213,14 @@ defmodule ExLLM.Context do
 
     # Calculate available tokens, but ensure we have at least some room
     # For very small max_tokens, reduce the reserve proportionally
-    actual_reserve = if max_tokens < 1000 do
-      div(max_tokens, 4)  # Reserve 25% for small contexts
-    else
-      reserve_tokens
-    end
-    
+    actual_reserve =
+      if max_tokens < 1000 do
+        # Reserve 25% for small contexts
+        div(max_tokens, 4)
+      else
+        reserve_tokens
+      end
+
     available_tokens = max(50, max_tokens - actual_reserve)
 
     # Add system prompt if provided
@@ -284,15 +387,17 @@ defmodule ExLLM.Context do
   def validate_context(messages, options \\ []) do
     token_count = calculate_total_tokens(messages)
     max_tokens = determine_max_tokens(options)
-    
+
     if token_count <= max_tokens do
       {:ok, token_count}
     else
-      {:error, {:context_too_large, %{
-        tokens: token_count,
-        max_tokens: max_tokens,
-        overflow: token_count - max_tokens
-      }}}
+      {:error,
+       {:context_too_large,
+        %{
+          tokens: token_count,
+          max_tokens: max_tokens,
+          overflow: token_count - max_tokens
+        }}}
     end
   end
 
@@ -327,18 +432,20 @@ defmodule ExLLM.Context do
   def stats(messages) do
     message_count = length(messages)
     total_tokens = calculate_total_tokens(messages)
-    
-    by_role = Enum.reduce(messages, %{}, fn msg, acc ->
-      role = to_string(msg.role)
-      Map.update(acc, role, 1, &(&1 + 1))
-    end)
-    
-    avg_tokens = if message_count > 0 do
-      div(total_tokens, message_count)
-    else
-      0
-    end
-    
+
+    by_role =
+      Enum.reduce(messages, %{}, fn msg, acc ->
+        role = to_string(msg.role)
+        Map.update(acc, role, 1, &(&1 + 1))
+      end)
+
+    avg_tokens =
+      if message_count > 0 do
+        div(total_tokens, message_count)
+      else
+        0
+      end
+
     %{
       message_count: message_count,
       total_tokens: total_tokens,
@@ -360,12 +467,12 @@ defmodule ExLLM.Context do
   @spec truncate_messages([Types.message()], keyword()) :: [Types.message()]
   def truncate_messages(messages, options \\ []) do
     max_tokens = Keyword.get(options, :max_tokens, 4096)
-    
+
     # If single message exceeds limit, truncate its content
     if length(messages) == 1 do
       [message] = messages
       tokens = Cost.estimate_tokens(message.content)
-      
+
       if tokens > max_tokens do
         # Rough approximation: 4 chars per token
         max_chars = max_tokens * 3
@@ -385,7 +492,8 @@ defmodule ExLLM.Context do
   defp calculate_total_tokens(messages) do
     Enum.reduce(messages, 0, fn msg, acc ->
       content_tokens = Cost.estimate_tokens(msg.content)
-      role_tokens = 3  # Approximate tokens for role metadata
+      # Approximate tokens for role metadata
+      role_tokens = 3
       acc + content_tokens + role_tokens
     end)
   end
@@ -424,7 +532,8 @@ defmodule ExLLM.Context do
       messages
       |> Enum.reverse()
       |> Enum.reduce({[], 0}, fn msg, {kept, tokens} ->
-        msg_tokens = Cost.estimate_tokens(msg.content) + 3  # content + role tokens
+        # content + role tokens
+        msg_tokens = Cost.estimate_tokens(msg.content) + 3
 
         if tokens + msg_tokens <= available_tokens do
           {[msg | kept], tokens + msg_tokens}
@@ -440,13 +549,15 @@ defmodule ExLLM.Context do
     {system_msgs, other_msgs} = Enum.split_with(messages, &(&1.role == "system"))
 
     # Always preserve system messages if requested
-    system_tokens = if preserve_system do
-      Enum.reduce(system_msgs, 0, fn msg, acc ->
-        acc + Cost.estimate_tokens(msg.content) + 3
-      end)
-    else
-      0
-    end
+    system_tokens =
+      if preserve_system do
+        Enum.reduce(system_msgs, 0, fn msg, acc ->
+          acc + Cost.estimate_tokens(msg.content) + 3
+        end)
+      else
+        0
+      end
+
     remaining_tokens = max(0, available_tokens - system_tokens)
 
     # Smart strategy: keep first few and last several messages

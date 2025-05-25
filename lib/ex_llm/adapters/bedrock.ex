@@ -39,12 +39,13 @@ defmodule ExLLM.Adapters.Bedrock do
   ## Available Models
 
   Common model aliases:
-  - "claude-3-sonnet" - Anthropic Claude 3 Sonnet
-  - "claude-3-haiku" - Anthropic Claude 3 Haiku
-  - "titan-lite" - Amazon Titan Lite
-  - "titan-express" - Amazon Titan Express
-  - "llama2-70b" - Meta Llama 2 70B
-  - "mistral-7b" - Mistral 7B
+  - "nova-lite" - Amazon Nova Lite (cost-effective default)
+  - "nova-pro" - Amazon Nova Pro
+  - "claude-opus-4" - Anthropic Claude 4 Opus
+  - "claude-3-5-sonnet" - Anthropic Claude 3.5 Sonnet
+  - "llama-3.3-70b" - Meta Llama 3.3 70B
+  - "palmyra-x5" - Writer Palmyra X5
+  - "deepseek-r1" - DeepSeek R1
   """
   @behaviour ExLLM.Adapter
 
@@ -55,26 +56,77 @@ defmodule ExLLM.Adapters.Bedrock do
   # Model ID mappings for different providers
   @model_mappings %{
     # Anthropic
+    "claude-opus-4" => "anthropic.claude-opus-4-20250514-v1:0",
+    "claude-opus-4-20250514" => "anthropic.claude-opus-4-20250514-v1:0",
+    "claude-sonnet-4" => "anthropic.claude-sonnet-4-20250514-v1:0",
+    "claude-sonnet-4-20250514" => "anthropic.claude-sonnet-4-20250514-v1:0",
+    "claude-3-7-sonnet" => "anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "claude-3-7-sonnet-20250219" => "anthropic.claude-3-7-sonnet-20250219-v1:0",
+    "claude-3-5-sonnet" => "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "claude-3-5-sonnet-20241022" => "anthropic.claude-3-5-sonnet-20241022-v2:0",
+    "claude-3-5-haiku" => "anthropic.claude-3-5-haiku-20241022-v1:0",
+    "claude-3-5-haiku-20241022" => "anthropic.claude-3-5-haiku-20241022-v1:0",
+    "claude-3-opus" => "anthropic.claude-3-opus-20240229-v1:0",
+    "claude-3-opus-20240229" => "anthropic.claude-3-opus-20240229-v1:0",
+    "claude-3-sonnet" => "anthropic.claude-3-sonnet-20240229-v1:0",
+    "claude-3-sonnet-20240229" => "anthropic.claude-3-sonnet-20240229-v1:0",
+    "claude-3-haiku" => "anthropic.claude-3-haiku-20240307-v1:0",
+    "claude-3-haiku-20240307" => "anthropic.claude-3-haiku-20240307-v1:0",
     "claude-instant-v1" => "anthropic.claude-instant-v1",
     "claude-v2" => "anthropic.claude-v2",
     "claude-v2.1" => "anthropic.claude-v2:1",
-    "claude-3-sonnet" => "anthropic.claude-3-sonnet-20240229-v1:0",
-    "claude-3-haiku" => "anthropic.claude-3-haiku-20240307-v1:0",
-    # Amazon
+
+    # Amazon Nova
+    "nova-micro" => "amazon.nova-micro-v1:0",
+    "nova-lite" => "amazon.nova-lite-v1:0",
+    "nova-pro" => "amazon.nova-pro-v1:0",
+    "nova-premier" => "amazon.nova-premier-v1:0",
+
+    # Amazon Titan
     "titan-lite" => "amazon.titan-text-lite-v1",
     "titan-express" => "amazon.titan-text-express-v1",
-    # Meta
-    "llama2-13b" => "meta.llama2-13b-chat-v1",
-    "llama2-70b" => "meta.llama2-70b-chat-v1",
+
+    # AI21 Labs
+    "jamba-1.5-large" => "ai21.jamba-1-5-large-v1:0",
+    "jamba-1.5-mini" => "ai21.jamba-1-5-mini-v1:0",
+    "jamba-instruct" => "ai21.jamba-instruct-v1:0",
+    "jurassic-2-mid" => "ai21.j2-mid-v1",
+    "jurassic-2-ultra" => "ai21.j2-ultra-v1",
+
     # Cohere
     "command" => "cohere.command-text-v14",
     "command-light" => "cohere.command-light-text-v14",
-    # AI21
-    "jurassic-2-mid" => "ai21.j2-mid-v1",
-    "jurassic-2-ultra" => "ai21.j2-ultra-v1",
+    "command-r-plus" => "cohere.command-r-plus-v1:0",
+    "command-r" => "cohere.command-r-v1:0",
+
+    # DeepSeek
+    "deepseek-r1" => "deepseek.deepseek-r1",
+
+    # Meta Llama
+    "llama-4-maverick-17b" => "meta.llama-4-maverick-17b-instruct-v1:0",
+    "llama-4-scout-17b" => "meta.llama-4-scout-17b-instruct-v1:0",
+    "llama-3.3-70b" => "meta.llama3-3-70b-instruct-v1:0",
+    "llama-3.3-70b-instruct" => "meta.llama3-3-70b-instruct-v1:0",
+    "llama-3.2-1b" => "meta.llama3-2-1b-instruct-v1:0",
+    "llama-3.2-1b-instruct" => "meta.llama3-2-1b-instruct-v1:0",
+    "llama-3.2-3b" => "meta.llama3-2-3b-instruct-v1:0",
+    "llama-3.2-3b-instruct" => "meta.llama3-2-3b-instruct-v1:0",
+    "llama-3.2-11b" => "meta.llama3-2-11b-instruct-v1:0",
+    "llama-3.2-11b-instruct" => "meta.llama3-2-11b-instruct-v1:0",
+    "llama-3.2-90b" => "meta.llama3-2-90b-instruct-v1:0",
+    "llama-3.2-90b-instruct" => "meta.llama3-2-90b-instruct-v1:0",
+    "llama2-13b" => "meta.llama2-13b-chat-v1",
+    "llama2-70b" => "meta.llama2-70b-chat-v1",
+
     # Mistral
+    "pixtral-large" => "mistral.pixtral-large-2025-02-v1:0",
+    "pixtral-large-2025-02" => "mistral.pixtral-large-2025-02-v1:0",
     "mistral-7b" => "mistral.mistral-7b-instruct-v0:2",
-    "mixtral-8x7b" => "mistral.mixtral-8x7b-instruct-v0:1"
+    "mixtral-8x7b" => "mistral.mixtral-8x7b-instruct-v0:1",
+
+    # Writer
+    "palmyra-x4" => "writer.palmyra-x4-v1:0",
+    "palmyra-x5" => "writer.palmyra-x5-v1:0"
   }
 
   @impl true
@@ -97,8 +149,8 @@ defmodule ExLLM.Adapters.Bedrock do
   end
 
   @impl true
-  def configured?() do
-    case get_aws_credentials() do
+  def configured?(options \\ []) do
+    case get_aws_credentials(options) do
       {:ok, _} -> true
       _ -> false
     end
@@ -106,13 +158,13 @@ defmodule ExLLM.Adapters.Bedrock do
 
   @impl true
   def default_model() do
-    "claude-3-sonnet"
+    "nova-lite"
   end
 
   @impl true
-  def list_models() do
+  def list_models(options \\ []) do
     # List available models from Bedrock
-    with {:ok, client} <- get_bedrock_client([]) do
+    with {:ok, client} <- get_bedrock_client(options) do
       case list_foundation_models(client) do
         {:ok, models} -> {:ok, format_model_list(models)}
         error -> error
@@ -122,7 +174,7 @@ defmodule ExLLM.Adapters.Bedrock do
 
   # Private functions
 
-  defp get_aws_credentials(options \\ []) do
+  defp get_aws_credentials(options) do
     config = get_config(options)
 
     cond do
@@ -214,6 +266,12 @@ defmodule ExLLM.Adapters.Bedrock do
         "mistral" ->
           build_mistral_request(messages, options)
 
+        "writer" ->
+          build_writer_request(messages, options)
+
+        "deepseek" ->
+          build_deepseek_request(messages, options)
+
         _ ->
           {:error, "Unsupported model provider: #{provider}"}
       end
@@ -279,6 +337,22 @@ defmodule ExLLM.Adapters.Bedrock do
     %{
       prompt: format_mistral_prompt(messages),
       max_tokens: Keyword.get(options, :max_tokens, 1_000),
+      temperature: Keyword.get(options, :temperature, 0.7)
+    }
+  end
+
+  defp build_writer_request(messages, options) do
+    %{
+      messages: format_messages_for_anthropic(messages),
+      max_tokens: Keyword.get(options, :max_tokens, 4_096),
+      temperature: Keyword.get(options, :temperature, 0.7)
+    }
+  end
+
+  defp build_deepseek_request(messages, options) do
+    %{
+      messages: format_messages_for_anthropic(messages),
+      max_tokens: Keyword.get(options, :max_tokens, 4_096),
       temperature: Keyword.get(options, :temperature, 0.7)
     }
   end
@@ -406,6 +480,14 @@ defmodule ExLLM.Adapters.Bedrock do
               # Mistral format
               body["outputs"] |> List.first() |> Map.get("text", "")
 
+            "writer" ->
+              # Writer format (similar to Anthropic)
+              body["content"] |> List.first() |> Map.get("text", "")
+
+            "deepseek" ->
+              # DeepSeek format (similar to Anthropic)
+              body["content"] |> List.first() |> Map.get("text", "")
+
             _ ->
               # Try to find common fields
               body["text"] || body["content"] || body["output"] || ""
@@ -458,6 +540,43 @@ defmodule ExLLM.Adapters.Bedrock do
             %{
               delta: data["text"] || "",
               finish_reason: if(data["finish_reason"], do: "stop", else: nil)
+            }
+
+          "ai21" ->
+            # Parse AI21 streaming format
+            %{
+              delta:
+                data["completions"] |> List.first() |> Map.get("data", %{}) |> Map.get("text", ""),
+              finish_reason: if(data["is_finished"], do: "stop", else: nil)
+            }
+
+          "mistral" ->
+            # Parse Mistral streaming format
+            %{
+              delta: data["outputs"] |> List.first() |> Map.get("text", ""),
+              finish_reason: if(data["stop"], do: "stop", else: nil)
+            }
+
+          "writer" ->
+            # Parse Writer streaming format (similar to Anthropic)
+            if data["type"] == "content_block_delta" do
+              %{
+                delta: data["delta"]["text"],
+                finish_reason: nil
+              }
+            else
+              %{
+                delta: "",
+                finish_reason: data["type"]
+              }
+            end
+
+          "deepseek" ->
+            # Parse DeepSeek streaming format
+            %{
+              delta:
+                data["choices"] |> List.first() |> Map.get("delta", %{}) |> Map.get("content", ""),
+              finish_reason: data["choices"] |> List.first() |> Map.get("finish_reason")
             }
 
           _ ->

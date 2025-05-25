@@ -1,20 +1,20 @@
 defmodule ExLLM.Local.EXLAConfig do
   @moduledoc """
   Configuration module for EXLA/EMLX backend optimization.
-  
+
   Provides optimal settings for CPU and GPU inference, including Apple Silicon support.
   This module automatically detects available hardware acceleration and configures
   the appropriate backend for best performance.
-  
+
   ## Supported Backends
-  
+
   - **EMLX** - Apple Silicon (Metal) acceleration
   - **CUDA** - NVIDIA GPU acceleration
   - **ROCm** - AMD GPU acceleration  
   - **CPU** - Optimized CPU inference
-  
+
   ## Features
-  
+
   - Automatic hardware detection
   - Mixed precision support
   - Memory optimization
@@ -26,7 +26,7 @@ defmodule ExLLM.Local.EXLAConfig do
 
   @doc """
   Configure EXLA/EMLX backend with optimal settings based on available hardware.
-  
+
   Returns `{:ok, backend}` where backend is `:emlx`, `:cuda`, `:rocm`, `:cpu`, or `:binary`.
   """
   def configure_backend() do
@@ -41,7 +41,11 @@ defmodule ExLLM.Local.EXLAConfig do
         backend_opts = determine_backend_options()
 
         Application.put_env(:nx, :default_backend, {EXLA.Backend, backend_opts})
-        Application.put_env(:nx, :default_defn_options, compiler: EXLA, client: backend_opts[:client])
+
+        Application.put_env(:nx, :default_defn_options,
+          compiler: EXLA,
+          client: backend_opts[:client]
+        )
 
         Logger.info("EXLA backend configured: #{inspect(backend_opts)}")
         {:ok, backend_opts}
@@ -54,7 +58,7 @@ defmodule ExLLM.Local.EXLAConfig do
 
   @doc """
   Get optimal compiler options for model serving.
-  
+
   Returns keyword list of options for Bumblebee serving configuration.
   """
   def serving_options() do
@@ -104,7 +108,7 @@ defmodule ExLLM.Local.EXLAConfig do
 
   @doc """
   Determine optimal backend options based on available hardware.
-  
+
   Returns a map of backend configuration options.
   """
   def determine_backend_options() do
@@ -143,7 +147,7 @@ defmodule ExLLM.Local.EXLAConfig do
 
   @doc """
   Get information about available acceleration.
-  
+
   Returns a map with acceleration details including type, name, and capabilities.
   """
   def acceleration_info() do
@@ -241,7 +245,11 @@ defmodule ExLLM.Local.EXLAConfig do
 
   defp check_cuda_runtime() do
     try do
-      {output, 0} = System.cmd("nvidia-smi", ["--query-gpu=name", "--format=csv,noheader"], stderr_to_stdout: true)
+      {output, 0} =
+        System.cmd("nvidia-smi", ["--query-gpu=name", "--format=csv,noheader"],
+          stderr_to_stdout: true
+        )
+
       String.trim(output) != ""
     rescue
       _ -> false
@@ -250,7 +258,11 @@ defmodule ExLLM.Local.EXLAConfig do
 
   defp cuda_device_count() do
     try do
-      {output, 0} = System.cmd("nvidia-smi", ["--query-gpu=count", "--format=csv,noheader"], stderr_to_stdout: true)
+      {output, 0} =
+        System.cmd("nvidia-smi", ["--query-gpu=count", "--format=csv,noheader"],
+          stderr_to_stdout: true
+        )
+
       String.to_integer(String.trim(output))
     rescue
       _ -> 0
@@ -260,7 +272,9 @@ defmodule ExLLM.Local.EXLAConfig do
   defp cuda_memory_info() do
     try do
       {output, 0} =
-        System.cmd("nvidia-smi", ["--query-gpu=memory.total", "--format=csv,noheader,nounits"], stderr_to_stdout: true)
+        System.cmd("nvidia-smi", ["--query-gpu=memory.total", "--format=csv,noheader,nounits"],
+          stderr_to_stdout: true
+        )
 
       memory_mb = String.to_integer(String.trim(output))
       %{total_mb: memory_mb, total_gb: Float.round(memory_mb / 1_024, 2)}

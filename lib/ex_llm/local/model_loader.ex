@@ -1,12 +1,12 @@
 defmodule ExLLM.Local.ModelLoader do
   @moduledoc """
   Handles loading and caching of Bumblebee models for local inference.
-  
+
   This GenServer manages the lifecycle of loaded models, ensuring efficient
   memory usage and providing fast access to cached models.
-  
+
   ## Features
-  
+
   - Automatic model downloading from HuggingFace
   - Model caching to avoid reloading
   - Memory management with model unloading
@@ -28,9 +28,9 @@ defmodule ExLLM.Local.ModelLoader do
 
   @doc """
   Load a model by name or path. Returns {:ok, model_info} or {:error, reason}.
-  
+
   ## Examples
-  
+
       {:ok, model} = ModelLoader.load_model("microsoft/phi-2")
       {:ok, model} = ModelLoader.load_model("/path/to/local/model")
   """
@@ -162,12 +162,13 @@ defmodule ExLLM.Local.ModelLoader do
           # Create serving for text generation with optimized settings
           serving_opts = EXLAConfig.serving_options()
 
-          serving = create_text_generation_serving(
-            model_info,
-            tokenizer,
-            generation_config,
-            Keyword.merge(serving_opts, stream: true)
-          )
+          serving =
+            create_text_generation_serving(
+              model_info,
+              tokenizer,
+              generation_config,
+              Keyword.merge(serving_opts, stream: true)
+            )
 
           model_data = %{
             model_info: model_info,

@@ -1,6 +1,6 @@
 defmodule ExLLM.LocalIntegrationTest do
   use ExUnit.Case, async: false
-  
+
   describe "local adapter integration" do
     test "local adapter is registered" do
       providers = ExLLM.supported_providers()
@@ -41,13 +41,14 @@ defmodule ExLLM.LocalIntegrationTest do
         %{role: "assistant", content: "Hi there!"},
         %{role: "user", content: "How are you?"}
       ]
-      
-      prepared = ExLLM.prepare_messages(messages, 
-        provider: "local",
-        model: "microsoft/phi-2",
-        max_tokens: 1000
-      )
-      
+
+      prepared =
+        ExLLM.prepare_messages(messages,
+          provider: "local",
+          model: "microsoft/phi-2",
+          max_tokens: 1000
+        )
+
       assert is_list(prepared)
       assert length(prepared) <= length(messages)
     end

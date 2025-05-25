@@ -18,7 +18,7 @@ defmodule ExLLM.Adapters.LocalTest do
   describe "chat/2" do
     test "returns error when Bumblebee is not available" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       assert {:error, message} = Local.chat(messages)
       assert message =~ "Bumblebee is not available"
     end
@@ -27,7 +27,7 @@ defmodule ExLLM.Adapters.LocalTest do
       # This test would only run if Bumblebee is available
       # For now, we're testing the error case
       messages = [%{role: "user", content: "Test message"}]
-      
+
       result = Local.chat(messages, model: "microsoft/phi-2")
       assert {:error, _} = result
     end
@@ -36,7 +36,7 @@ defmodule ExLLM.Adapters.LocalTest do
   describe "stream_chat/2" do
     test "returns error when Bumblebee is not available" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       assert {:error, message} = Local.stream_chat(messages)
       assert message =~ "Bumblebee is not available"
     end

@@ -176,16 +176,17 @@ defmodule ExLLM.Instructor do
   if @instructor_available do
     defp do_structured_chat(provider, messages, options) do
       response_model = Keyword.fetch!(options, :response_model)
-      
+
       # Convert ExLLM provider to instructor adapter
-      adapter = case provider do
-        :anthropic -> Instructor.Adapters.Anthropic
-        :openai -> Instructor.Adapters.OpenAI
-        :ollama -> Instructor.Adapters.Ollama
-        :gemini -> Instructor.Adapters.Gemini
-        :local -> {:error, :unsupported_provider_for_instructor}
-        _ -> {:error, :unsupported_provider_for_instructor}
-      end
+      adapter =
+        case provider do
+          :anthropic -> Instructor.Adapters.Anthropic
+          :openai -> Instructor.Adapters.OpenAI
+          :ollama -> Instructor.Adapters.Ollama
+          :gemini -> Instructor.Adapters.Gemini
+          :local -> {:error, :unsupported_provider_for_instructor}
+          _ -> {:error, :unsupported_provider_for_instructor}
+        end
 
       case adapter do
         {:error, reason} ->
@@ -193,35 +194,37 @@ defmodule ExLLM.Instructor do
 
         _adapter_module ->
           # Prepare instructor options
-          instructor_opts = options
-          |> Keyword.take([:model, :temperature, :max_tokens, :max_retries])
-          |> Keyword.put(:response_model, response_model)
-          |> Keyword.put(:messages, prepare_messages_for_instructor(messages))
-          
+          instructor_opts =
+            options
+            |> Keyword.take([:model, :temperature, :max_tokens, :max_retries])
+            |> Keyword.put(:response_model, response_model)
+            |> Keyword.put(:messages, prepare_messages_for_instructor(messages))
+
           # Get configuration from ExLLM's config provider
           config_opts = get_provider_config(provider, options)
-          
+
           # Merge configurations (config_opts first, then instructor_opts to allow overrides)
           final_opts = Keyword.merge(config_opts, instructor_opts)
-          
+
           # Ensure we have an adapter specified for instructor
-          final_opts = case provider do
-            :anthropic -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Anthropic)
-            :openai -> Keyword.put(final_opts, :adapter, Instructor.Adapters.OpenAI)
-            :ollama -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Ollama)
-            :gemini -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Gemini)
-            _ -> final_opts
-          end
-          
+          final_opts =
+            case provider do
+              :anthropic -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Anthropic)
+              :openai -> Keyword.put(final_opts, :adapter, Instructor.Adapters.OpenAI)
+              :ollama -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Ollama)
+              :gemini -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Gemini)
+              _ -> final_opts
+            end
+
           # Call instructor
           case apply(Instructor, :chat_completion, [final_opts]) do
             {:ok, result} ->
               {:ok, result}
-              
+
             {:error, errors} when is_list(errors) ->
               # Convert instructor validation errors to ExLLM format
               {:error, format_validation_errors(errors)}
-              
+
             {:error, reason} ->
               {:error, reason}
           end
@@ -231,7 +234,7 @@ defmodule ExLLM.Instructor do
     defp do_parse_response(%Types.LLMResponse{content: content}, response_model) do
       # Extract JSON from the content (handle markdown-wrapped JSON)
       json_content = extract_json_from_content(content)
-      
+
       # Try to parse the content as JSON and validate against the model
       with {:ok, json} <- Jason.decode(json_content),
            {:ok, validated} <- validate_against_model(json, response_model) do
@@ -239,17 +242,19 @@ defmodule ExLLM.Instructor do
       else
         {:error, %Jason.DecodeError{} = error} ->
           {:error, {:json_decode_error, Exception.message(error)}}
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
-    
+
     defp extract_json_from_content(content) do
       # Try to extract JSON from markdown code blocks
       case Regex.run(~r/```(?:json)?\s*\n?(.*?)\n?```/s, content) do
-        [_, json] -> String.trim(json)
-        nil -> 
+        [_, json] ->
+          String.trim(json)
+
+        nil ->
           # Try to find JSON object or array directly
           case Regex.run(~r/(\{[\s\S]*\}|\[[\s\S]*\])/s, content) do
             [_, json] -> json
@@ -269,32 +274,32 @@ defmodule ExLLM.Instructor do
 
     defp get_provider_config(provider, options) do
       config_provider = Keyword.get(options, :config_provider, ExLLM.ConfigProvider.Env)
-      
+
       case provider do
         :anthropic ->
           [
             api_key: config_provider.get(:anthropic, :api_key),
             model: config_provider.get(:anthropic, :model) || "claude-3-haiku-20240307"
           ]
-          
+
         :openai ->
           [
             api_key: config_provider.get(:openai, :api_key),
             model: config_provider.get(:openai, :model) || "gpt-4"
           ]
-          
+
         :ollama ->
           [
             base_url: config_provider.get(:ollama, :base_url) || "http://localhost:11434",
             model: config_provider.get(:ollama, :model) || "llama2"
           ]
-          
+
         :gemini ->
           [
             api_key: config_provider.get(:gemini, :api_key),
             model: config_provider.get(:gemini, :model) || "gemini-pro"
           ]
-          
+
         _ ->
           []
       end
@@ -305,7 +310,7 @@ defmodule ExLLM.Instructor do
       # Ecto schema validation
       if function_exported?(response_model, :changeset, 2) do
         changeset = apply(response_model, :changeset, [struct(response_model), data])
-        
+
         if changeset.valid? do
           {:ok, Ecto.Changeset.apply_changes(changeset)}
         else
@@ -322,18 +327,19 @@ defmodule ExLLM.Instructor do
     end
 
     defp validate_simple_types(data, type_spec) do
-      result = Enum.reduce_while(type_spec, %{}, fn {key, type}, acc ->
-        str_key = to_string(key)
-        
-        case validate_type(Map.get(data, str_key), type) do
-          {:ok, value} ->
-            {:cont, Map.put(acc, key, value)}
-            
-          {:error, reason} ->
-            {:halt, {:error, {key, reason}}}
-        end
-      end)
-      
+      result =
+        Enum.reduce_while(type_spec, %{}, fn {key, type}, acc ->
+          str_key = to_string(key)
+
+          case validate_type(Map.get(data, str_key), type) do
+            {:ok, value} ->
+              {:cont, Map.put(acc, key, value)}
+
+            {:error, reason} ->
+              {:halt, {:error, {key, reason}}}
+          end
+        end)
+
       case result do
         {:error, _} = error -> error
         validated -> {:ok, validated}
@@ -345,33 +351,37 @@ defmodule ExLLM.Instructor do
     defp validate_type(value, :float) when is_float(value), do: {:ok, value}
     defp validate_type(value, :float) when is_integer(value), do: {:ok, value * 1.0}
     defp validate_type(value, :boolean) when is_boolean(value), do: {:ok, value}
+
     defp validate_type(value, {:array, type}) when is_list(value) do
       validated = Enum.map(value, &validate_type(&1, type))
-      
+
       case Enum.find(validated, &match?({:error, _}, &1)) do
         nil -> {:ok, Enum.map(validated, fn {:ok, v} -> v end)}
         error -> error
       end
     end
+
     defp validate_type(_, type), do: {:error, {:invalid_type, type}}
 
     defp format_validation_errors(errors) when is_list(errors) do
-      formatted = Enum.map(errors, fn
-        {field, {msg, _opts}} -> "#{field}: #{msg}"
-        {field, msg} when is_binary(msg) -> "#{field}: #{msg}"
-        error -> inspect(error)
-      end)
-      
+      formatted =
+        Enum.map(errors, fn
+          {field, {msg, _opts}} -> "#{field}: #{msg}"
+          {field, msg} when is_binary(msg) -> "#{field}: #{msg}"
+          error -> inspect(error)
+        end)
+
       {:validation_failed, formatted}
     end
 
     defp format_changeset_errors(changeset) do
-      errors = Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-        Enum.reduce(opts, msg, fn {key, value}, acc ->
-          String.replace(acc, "%{#{key}}", to_string(value))
+      errors =
+        Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+          Enum.reduce(opts, msg, fn {key, value}, acc ->
+            String.replace(acc, "%{#{key}}", to_string(value))
+          end)
         end)
-      end)
-      
+
       {:validation_failed, errors}
     end
   else

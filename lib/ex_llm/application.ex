@@ -8,7 +8,7 @@ defmodule ExLLM.Application do
     children = []
 
     # Only start ModelLoader if Bumblebee is available
-    children = 
+    children =
       if Code.ensure_loaded?(Bumblebee) do
         children ++ [ExLLM.Local.ModelLoader]
       else

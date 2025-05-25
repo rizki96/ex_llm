@@ -51,7 +51,7 @@ defmodule ExLLM.Adapters.Ollama do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{ConfigProvider, Error, Types}
+  alias ExLLM.{Error, Types}
   require Logger
 
   @default_base_url "http://localhost:11434"
@@ -59,11 +59,17 @@ defmodule ExLLM.Adapters.Ollama do
 
   @impl true
   def chat(messages, options \\ []) do
-    config_provider = Keyword.get(options, :config_provider, Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default))
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
     config = get_config(config_provider)
-    
+
     model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
-    
+
     body = %{
       model: model,
       messages: format_messages(messages),
@@ -72,26 +78,32 @@ defmodule ExLLM.Adapters.Ollama do
 
     headers = [{"content-type", "application/json"}]
     url = "#{get_base_url(config)}/api/chat"
-    
+
     case Req.post(url, json: body, headers: headers) do
       {:ok, %{status: 200, body: response}} ->
         {:ok, parse_response(response, model)}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error("Ollama", status, body)
+        Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error("Ollama", reason)
+        Error.connection_error(reason)
     end
   end
 
   @impl true
   def stream_chat(messages, options \\ []) do
-    config_provider = Keyword.get(options, :config_provider, Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default))
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
     config = get_config(config_provider)
-    
+
     model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
-    
+
     body = %{
       model: model,
       messages: format_messages(messages),
@@ -109,63 +121,77 @@ defmodule ExLLM.Adapters.Ollama do
           if response.status == 200 do
             handle_stream_response(response, parent, model)
           else
-            send(parent, {:stream_error, Error.api_error("Ollama", response.status, response.body)})
+            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
           end
 
         {:error, reason} ->
-          send(parent, {:stream_error, Error.connection_error("Ollama", reason)})
+          send(parent, {:stream_error, Error.connection_error(reason)})
       end
     end)
 
     # Create stream that receives messages
-    stream = Stream.resource(
-      fn -> :ok end,
-      fn state ->
-        receive do
-          {:chunk, chunk} -> {[chunk], state}
-          :stream_done -> {:halt, state}
-          {:stream_error, error} -> throw(error)
-        after
-          100 -> {[], state}
-        end
-      end,
-      fn _ -> :ok end
-    )
+    stream =
+      Stream.resource(
+        fn -> :ok end,
+        fn state ->
+          receive do
+            {:chunk, chunk} -> {[chunk], state}
+            :stream_done -> {:halt, state}
+            {:stream_error, error} -> throw(error)
+          after
+            100 -> {[], state}
+          end
+        end,
+        fn _ -> :ok end
+      )
 
     {:ok, stream}
   end
 
   @impl true
   def list_models(options \\ []) do
-    config_provider = Keyword.get(options, :config_provider, Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default))
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
     config = get_config(config_provider)
-    
+
     url = "#{get_base_url(config)}/api/tags"
-    
+
     case Req.get(url) do
       {:ok, %{status: 200, body: body}} ->
-        models = body["models"]
-        |> Enum.map(fn model ->
-          %Types.Model{
-            id: model["name"],
-            name: model["name"],
-            context_window: model["details"]["parameter_size"] || 4_096
-          }
-        end)
+        models =
+          body["models"]
+          |> Enum.map(fn model ->
+            %Types.Model{
+              id: model["name"],
+              name: model["name"],
+              context_window: model["details"]["parameter_size"] || 4_096
+            }
+          end)
 
         {:ok, models}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error("Ollama", status, body)
+        Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error("Ollama", reason)
+        Error.connection_error(reason)
     end
   end
 
   @impl true
   def configured?(options \\ []) do
-    config_provider = Keyword.get(options, :config_provider, Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default))
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
     config = get_config(config_provider)
     base_url = get_base_url(config)
     # Ollama only needs a base URL to be configured
@@ -180,13 +206,13 @@ defmodule ExLLM.Adapters.Ollama do
   # Private functions
 
   defp get_config(config_provider) do
-    ConfigProvider.get(config_provider, :ollama)
+    config_provider.get_all(:ollama)
   end
 
   defp get_base_url(config) do
     # Check environment variable first, then config, then default
-    System.get_env("OLLAMA_API_BASE") || 
-      Map.get(config, :base_url) || 
+    System.get_env("OLLAMA_API_BASE") ||
+      Map.get(config, :base_url) ||
       @default_base_url
   end
 
@@ -211,10 +237,11 @@ defmodule ExLLM.Adapters.Ollama do
       usage: usage,
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
-      cost: ExLLM.Cost.calculate("ollama", model, %{
-        input_tokens: usage.prompt_tokens,
-        output_tokens: usage.completion_tokens
-      })
+      cost:
+        ExLLM.Cost.calculate("ollama", model, %{
+          input_tokens: usage.prompt_tokens,
+          output_tokens: usage.completion_tokens
+        })
     }
   end
 
@@ -233,10 +260,12 @@ defmodule ExLLM.Adapters.Ollama do
                 send(parent, :stream_done)
               else
                 content = get_in(chunk, ["message", "content"]) || ""
+
                 stream_chunk = %Types.StreamChunk{
                   content: content,
                   finish_reason: nil
                 }
+
                 send(parent, {:chunk, stream_chunk})
               end
 
@@ -245,17 +274,17 @@ defmodule ExLLM.Adapters.Ollama do
               :ok
           end
         end)
-        
+
         handle_stream_response(response, parent, model)
 
       {^ref, :done} ->
         send(parent, :stream_done)
 
       {^ref, {:error, reason}} ->
-        send(parent, {:stream_error, Error.request_error("Ollama", reason)})
+        send(parent, {:stream_error, {:error, reason}})
     after
       30_000 ->
-        send(parent, {:stream_error, Error.timeout_error("Ollama")})
+        send(parent, {:stream_error, {:error, :timeout}})
     end
   end
 end

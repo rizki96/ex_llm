@@ -5,7 +5,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
   describe "configure_backend/0" do
     test "configures backend based on available libraries" do
       assert {:ok, backend} = EXLAConfig.configure_backend()
-      
+
       # Should return :binary when no acceleration libraries available
       assert backend in [:binary, :emlx, :cuda, :rocm, :cpu, nil] or is_map(backend)
     end
@@ -14,11 +14,11 @@ defmodule ExLLM.Local.EXLAConfigTest do
   describe "serving_options/0" do
     test "returns serving configuration options" do
       options = EXLAConfig.serving_options()
-      
+
       assert is_list(options)
       assert Keyword.has_key?(options, :compile)
       assert Keyword.has_key?(options, :defn_options)
-      
+
       compile_opts = Keyword.get(options, :compile)
       assert Keyword.has_key?(compile_opts, :batch_size)
       assert Keyword.has_key?(compile_opts, :sequence_length)
@@ -28,7 +28,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
       options = EXLAConfig.serving_options()
       compile_opts = Keyword.get(options, :compile)
       batch_size = Keyword.get(compile_opts, :batch_size)
-      
+
       assert is_integer(batch_size)
       assert batch_size > 0
     end
@@ -37,7 +37,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
       options = EXLAConfig.serving_options()
       compile_opts = Keyword.get(options, :compile)
       sequence_length = Keyword.get(compile_opts, :sequence_length)
-      
+
       assert is_integer(sequence_length)
       assert sequence_length > 0
     end
@@ -46,7 +46,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
   describe "determine_backend_options/0" do
     test "returns backend configuration map" do
       options = EXLAConfig.determine_backend_options()
-      
+
       assert is_map(options)
       assert Map.has_key?(options, :client)
       assert options.client in [:host, :cuda, :rocm, :metal]
@@ -55,7 +55,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
     test "CPU backend has parallelism settings" do
       # Force CPU backend by mocking unavailable accelerators
       options = EXLAConfig.determine_backend_options()
-      
+
       if options.client == :host do
         assert Map.has_key?(options, :num_replicas)
         assert Map.has_key?(options, :intra_op_parallelism)
@@ -68,7 +68,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
   describe "acceleration_info/0" do
     test "returns acceleration information map" do
       info = EXLAConfig.acceleration_info()
-      
+
       assert is_map(info)
       assert Map.has_key?(info, :type)
       assert Map.has_key?(info, :name)
@@ -77,7 +77,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
 
     test "CPU info includes core count" do
       info = EXLAConfig.acceleration_info()
-      
+
       if info.type == :cpu do
         assert Map.has_key?(info, :cores)
         assert info.cores == System.schedulers_online()
@@ -86,7 +86,7 @@ defmodule ExLLM.Local.EXLAConfigTest do
 
     test "backend info is included" do
       info = EXLAConfig.acceleration_info()
-      
+
       assert Map.has_key?(info, :backend)
       assert info.backend in ["EXLA", "EMLX", "Binary", "Not available"]
     end

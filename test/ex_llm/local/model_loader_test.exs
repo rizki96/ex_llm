@@ -21,6 +21,7 @@ defmodule ExLLM.Local.ModelLoaderTest do
       if not is_pid(Process.whereis(ModelLoader)) do
         {:ok, _pid} = ModelLoader.start_link()
       end
+
       :ok
     end
 
@@ -48,6 +49,7 @@ defmodule ExLLM.Local.ModelLoaderTest do
       if not is_pid(Process.whereis(ModelLoader)) do
         {:ok, _pid} = ModelLoader.start_link()
       end
+
       :ok
     end
 
@@ -61,12 +63,13 @@ defmodule ExLLM.Local.ModelLoaderTest do
       if not is_pid(Process.whereis(ModelLoader)) do
         {:ok, _pid} = ModelLoader.start_link()
       end
+
       :ok
     end
 
     test "returns acceleration information" do
       info = ModelLoader.get_acceleration_info()
-      
+
       assert is_map(info)
       assert Map.has_key?(info, :type)
       assert Map.has_key?(info, :name)
@@ -79,6 +82,7 @@ defmodule ExLLM.Local.ModelLoaderTest do
       if not is_pid(Process.whereis(ModelLoader)) do
         {:ok, _pid} = ModelLoader.start_link()
       end
+
       :ok
     end
 
@@ -92,6 +96,7 @@ defmodule ExLLM.Local.ModelLoaderTest do
       if not is_pid(Process.whereis(ModelLoader)) do
         {:ok, _pid} = ModelLoader.start_link()
       end
+
       :ok
     end
 

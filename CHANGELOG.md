@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Updated Bedrock adapter with comprehensive model support:
+  - Added all latest Anthropic models (Claude 4, 3.7, 3.5 series)
+  - Added Amazon Nova models (Micro, Lite, Pro, Premier)
+  - Added AI21 Labs Jamba series (1.5-large, 1.5-mini, instruct)
+  - Added Cohere Command R series (R, R+)
+  - Added DeepSeek R1 model
+  - Added Meta Llama 4 and 3.x series models
+  - Added Mistral Pixtral Large 2025-02
+  - Added Writer Palmyra X4 and X5 models
+  - Changed default model from "claude-3-sonnet" to "nova-lite" for cost efficiency
+- Updated pricing data for all Bedrock providers with per-1M token rates
+- Updated context window sizes for all new Bedrock models
+- Enhanced streaming support for all new providers (Writer, DeepSeek)
+
 ## [0.2.0] - 2025-05-25
 
 ### Added
