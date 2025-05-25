@@ -96,7 +96,8 @@ defmodule ExLLM do
       end)
   """
 
-  alias ExLLM.{Cost, Types}
+  require Logger
+  alias ExLLM.{Context, Cost, Types}
 
   @providers %{
     anthropic: ExLLM.Adapters.Anthropic
@@ -116,6 +117,17 @@ defmodule ExLLM do
   - `messages` - List of conversation messages
   - `options` - Options for the request (see module docs)
 
+  ## Options
+  - `:model` - Override the default model
+  - `:temperature` - Temperature setting (0.0 to 1.0)
+  - `:max_tokens` - Maximum tokens in response or context
+  - `:config_provider` - Configuration provider module or pid
+  - `:track_cost` - Whether to track costs (default: true)
+  - `:strategy` - Context truncation strategy (default: :sliding_window)
+    - `:sliding_window` - Keep most recent messages
+    - `:smart` - Preserve system messages and recent context
+  - `:preserve_messages` - Number of recent messages to always preserve (default: 5)
+
   ## Returns
   `{:ok, %ExLLM.Types.LLMResponse{}}` on success, `{:error, reason}` on failure.
 
@@ -134,13 +146,30 @@ defmodule ExLLM do
 
       # With model override
       {:ok, response} = ExLLM.chat(:openai, messages, model: "gpt-4-turbo")
+
+      # With context management
+      {:ok, response} = ExLLM.chat(:anthropic, messages,
+        max_tokens: 4000,
+        strategy: :smart
+      )
   """
   @spec chat(provider(), messages(), options()) ::
           {:ok, Types.LLMResponse.t()} | {:error, term()}
   def chat(provider, messages, options \\ []) do
     case get_adapter(provider) do
       {:ok, adapter} ->
-        adapter.chat(messages, options)
+        # Apply context management if enabled
+        prepared_messages = prepare_messages_for_provider(provider, messages, options)
+        
+        result = adapter.chat(prepared_messages, options)
+        
+        # Track costs if enabled
+        if Keyword.get(options, :track_cost, true) and match?({:ok, _}, result) do
+          {:ok, response} = result
+          track_response_cost(provider, response, options)
+        end
+        
+        result
 
       {:error, reason} ->
         {:error, reason}
@@ -154,6 +183,10 @@ defmodule ExLLM do
   - `provider` - The LLM provider (`:anthropic`, `:openai`, `:ollama`)
   - `messages` - List of conversation messages
   - `options` - Options for the request (see module docs)
+
+  ## Options
+  Same as `chat/3`, plus:
+  - `:on_chunk` - Callback function for each chunk
 
   ## Returns
   `{:ok, stream}` on success where stream yields `%ExLLM.Types.StreamChunk{}` structs,
@@ -174,13 +207,22 @@ defmodule ExLLM do
             :continue
         end
       end
+
+      # With context management
+      {:ok, stream} = ExLLM.stream_chat(:anthropic, messages,
+        max_tokens: 4000,
+        strategy: :smart
+      )
   """
   @spec stream_chat(provider(), messages(), options()) ::
           {:ok, Types.stream()} | {:error, term()}
   def stream_chat(provider, messages, options \\ []) do
     case get_adapter(provider) do
       {:ok, adapter} ->
-        adapter.stream_chat(messages, options)
+        # Apply context management if enabled
+        prepared_messages = prepare_messages_for_provider(provider, messages, options)
+        
+        adapter.stream_chat(prepared_messages, options)
 
       {:error, reason} ->
         {:error, reason}
@@ -347,6 +389,93 @@ defmodule ExLLM do
     Map.keys(@providers)
   end
 
+  @doc """
+  Prepare messages for sending to a provider with context management.
+
+  ## Parameters
+  - `messages` - List of conversation messages
+  - `options` - Options for context management
+
+  ## Options
+  - `:max_tokens` - Maximum tokens for context (default: model-specific)
+  - `:strategy` - Context truncation strategy (default: :sliding_window)
+  - `:preserve_messages` - Number of recent messages to preserve (default: 5)
+
+  ## Returns
+  Prepared messages list that fits within context window.
+
+  ## Examples
+
+      messages = ExLLM.prepare_messages(long_conversation,
+        max_tokens: 4000,
+        strategy: :smart
+      )
+  """
+  @spec prepare_messages(messages(), options()) :: messages()
+  def prepare_messages(messages, options \\ []) do
+    Context.prepare_messages(messages, options)
+  end
+
+  @doc """
+  Validate that messages fit within a model's context window.
+
+  ## Parameters
+  - `messages` - List of conversation messages
+  - `options` - Options including model info
+
+  ## Returns
+  `{:ok, token_count}` if valid, `{:error, reason}` if too large.
+
+  ## Examples
+
+      {:ok, tokens} = ExLLM.validate_context(messages, model: "claude-3-5-sonnet-20241022")
+      # => {:ok, 3500}
+  """
+  @spec validate_context(messages(), options()) ::
+          {:ok, non_neg_integer()} | {:error, term()}
+  def validate_context(messages, options \\ []) do
+    Context.validate_context(messages, options)
+  end
+
+  @doc """
+  Get context window size for a model.
+
+  ## Parameters
+  - `provider` - LLM provider name
+  - `model` - Model name
+
+  ## Returns
+  Context window size in tokens or nil if unknown.
+
+  ## Examples
+
+      tokens = ExLLM.context_window_size(:anthropic, "claude-3-5-sonnet-20241022")
+      # => 200000
+  """
+  @spec context_window_size(provider(), String.t()) :: non_neg_integer() | nil
+  def context_window_size(provider, model) do
+    Context.context_window_size(to_string(provider), model)
+  end
+
+  @doc """
+  Get statistics about message context usage.
+
+  ## Parameters
+  - `messages` - List of conversation messages
+
+  ## Returns
+  Map with context statistics.
+
+  ## Examples
+
+      stats = ExLLM.context_stats(messages)
+      # => %{total_tokens: 1500, message_count: 10, ...}
+  """
+  @spec context_stats(messages()) :: map()
+  def context_stats(messages) do
+    Context.stats(messages)
+  end
+
   # Private functions
 
   defp get_adapter(provider) do
@@ -356,6 +485,44 @@ defmodule ExLLM do
 
       adapter ->
         {:ok, adapter}
+    end
+  end
+
+  defp prepare_messages_for_provider(provider, messages, options) do
+    # Get model from options or use default
+    model = case Keyword.get(options, :model) do
+      nil -> 
+        case default_model(provider) do
+          {:error, _} -> nil
+          model -> model
+        end
+      model -> model
+    end
+    
+    # Add provider and model info to options for context management
+    context_options = options
+    |> Keyword.put(:provider, to_string(provider))
+    |> Keyword.put_new(:model, model)
+    
+    Context.prepare_messages(messages, context_options)
+  end
+
+  defp track_response_cost(provider, response, options) do
+    # Extract usage info if available
+    case Map.get(response, :usage) do
+      %{input_tokens: _, output_tokens: _} = usage ->
+        model = Keyword.get(options, :model) || default_model(provider)
+        cost_info = calculate_cost(provider, model, usage)
+        
+        # Log cost info if logger is available
+        if function_exported?(Logger, :info, 1) do
+          Logger.info("LLM cost: #{format_cost(cost_info.total_cost)} for #{provider}/#{model}")
+        end
+        
+        cost_info
+        
+      _ ->
+        nil
     end
   end
 end

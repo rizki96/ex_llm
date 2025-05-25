@@ -8,6 +8,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 - **Streaming Support**: Real-time streaming responses via Server-Sent Events
 - **Cost Tracking**: Automatic cost calculation for all API calls
 - **Token Estimation**: Heuristic-based token counting for cost prediction
+- **Context Management**: Automatic message truncation to fit model context windows
 - **Configurable**: Flexible configuration system with multiple providers
 - **Type Safety**: Comprehensive typespecs and structured data
 - **Error Handling**: Consistent error patterns across all providers
@@ -93,6 +94,19 @@ end
 # List available models
 {:ok, models} = ExLLM.list_models(:anthropic)
 Enum.each(models, &IO.puts(&1.name))
+
+# Context management - automatically truncate long conversations
+long_conversation = [
+  %{role: "system", content: "You are a helpful assistant."},
+  # ... many messages ...
+  %{role: "user", content: "What's the weather?"}
+]
+
+# Automatically truncates to fit model's context window
+{:ok, response} = ExLLM.chat(:anthropic, long_conversation,
+  max_tokens: 4000,        # Max tokens for context
+  strategy: :smart         # Preserve system messages and recent context
+)
 ```
 
 ## API Reference
@@ -100,9 +114,13 @@ Enum.each(models, &IO.puts(&1.name))
 ### Core Functions
 
 - `chat/3` - Send messages and get a complete response
-- `stream_chat/4` - Send messages and stream the response
-- `configured?/1` - Check if a provider is properly configured
-- `list_models/1` - Get available models for a provider
+- `stream_chat/3` - Send messages and stream the response
+- `configured?/2` - Check if a provider is properly configured
+- `list_models/2` - Get available models for a provider
+- `prepare_messages/2` - Prepare messages for context window
+- `validate_context/2` - Validate messages fit within context window
+- `context_window_size/2` - Get context window size for a model
+- `context_stats/1` - Get statistics about message context usage
 
 ### Data Structures
 
@@ -203,6 +221,71 @@ ExLLM includes up-to-date pricing (as of January 2025) for:
 - Google Gemini: Pro, Ultra, Nano
 - AWS Bedrock: Various models including Claude, Titan, Llama 2
 - Ollama: Local models (free - $0.00)
+
+## Context Management
+
+ExLLM automatically manages context windows to ensure your messages fit within model limits:
+
+### Automatic Context Truncation
+
+```elixir
+# Long conversation that might exceed context window
+messages = [
+  %{role: "system", content: "You are a helpful assistant."},
+  # ... hundreds of messages ...
+  %{role: "user", content: "What's my current task?"}
+]
+
+# ExLLM automatically truncates to fit the model's context window
+{:ok, response} = ExLLM.chat(:anthropic, messages)
+```
+
+### Context Window Validation
+
+```elixir
+# Check if messages fit within context window
+case ExLLM.validate_context(messages, model: "gpt-3.5-turbo") do
+  {:ok, token_count} ->
+    IO.puts("Messages use #{token_count} tokens")
+  {:error, {:context_too_large, %{tokens: tokens, max_tokens: max}}} ->
+    IO.puts("Messages too large: #{tokens} tokens (max: #{max})")
+end
+```
+
+### Context Strategies
+
+```elixir
+# Sliding window (default) - keeps most recent messages
+{:ok, response} = ExLLM.chat(:anthropic, messages,
+  max_tokens: 4000,
+  strategy: :sliding_window
+)
+
+# Smart strategy - preserves system messages and recent context
+{:ok, response} = ExLLM.chat(:anthropic, messages,
+  max_tokens: 4000,
+  strategy: :smart,
+  preserve_messages: 10  # Always keep last 10 messages
+)
+```
+
+### Context Statistics
+
+```elixir
+# Get detailed statistics about your messages
+stats = ExLLM.context_stats(messages)
+IO.inspect(stats)
+# %{
+#   message_count: 150,
+#   total_tokens: 45000,
+#   by_role: %{"system" => 1, "user" => 75, "assistant" => 74},
+#   avg_tokens_per_message: 300
+# }
+
+# Check context window sizes
+IO.puts(ExLLM.context_window_size(:anthropic, "claude-3-5-sonnet-20241022"))
+# => 200000
+```
 
 ## Configuration
 
