@@ -9,6 +9,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 - **Cost Tracking**: Automatic cost calculation for all API calls
 - **Token Estimation**: Heuristic-based token counting for cost prediction
 - **Context Management**: Automatic message truncation to fit model context windows
+- **Session Management**: Built-in conversation state tracking and persistence
 - **Configurable**: Flexible configuration system with multiple providers
 - **Type Safety**: Comprehensive typespecs and structured data
 - **Error Handling**: Consistent error patterns across all providers
@@ -109,6 +110,37 @@ long_conversation = [
 )
 ```
 
+### Session Management
+
+```elixir
+# Create a new conversation session
+session = ExLLM.new_session(:anthropic, name: "Customer Support")
+
+# Chat with automatic session tracking
+{:ok, {response, session}} = ExLLM.chat_with_session(session, "Hello!")
+IO.puts(response.content)
+
+# Continue the conversation
+{:ok, {response, session}} = ExLLM.chat_with_session(session, "What can you help me with?")
+
+# Session automatically tracks:
+# - Message history
+# - Token usage
+# - Conversation context
+
+# Review session details
+messages = ExLLM.get_session_messages(session)
+total_tokens = ExLLM.session_token_usage(session)
+IO.puts("Total tokens used: #{total_tokens}")
+
+# Save session for later
+{:ok, json} = ExLLM.save_session(session)
+File.write!("session.json", json)
+
+# Load session later
+{:ok, session} = ExLLM.load_session(File.read!("session.json"))
+```
+
 ## API Reference
 
 ### Core Functions
@@ -121,6 +153,17 @@ long_conversation = [
 - `validate_context/2` - Validate messages fit within context window
 - `context_window_size/2` - Get context window size for a model
 - `context_stats/1` - Get statistics about message context usage
+
+### Session Functions
+
+- `new_session/2` - Create a new conversation session
+- `chat_with_session/3` - Chat with automatic session tracking
+- `add_session_message/4` - Add a message to a session
+- `get_session_messages/2` - Retrieve messages from a session
+- `session_token_usage/1` - Get total token usage for a session
+- `clear_session/1` - Clear messages while preserving metadata
+- `save_session/1` - Serialize session to JSON
+- `load_session/1` - Load session from JSON
 
 ### Data Structures
 
@@ -285,6 +328,62 @@ IO.inspect(stats)
 # Check context window sizes
 IO.puts(ExLLM.context_window_size(:anthropic, "claude-3-5-sonnet-20241022"))
 # => 200000
+```
+
+## Session Management
+
+ExLLM includes built-in session management for maintaining conversation state:
+
+### Creating and Using Sessions
+
+```elixir
+# Create a new session
+session = ExLLM.new_session(:anthropic, name: "My Chat")
+
+# Chat with automatic session tracking
+{:ok, {response, updated_session}} = ExLLM.chat_with_session(session, "Hello!")
+
+# Continue the conversation
+{:ok, {response2, session2}} = ExLLM.chat_with_session(updated_session, "What's 2+2?")
+
+# Access session messages
+messages = ExLLM.get_session_messages(session2)
+# => [%{role: "user", content: "Hello!"}, %{role: "assistant", content: "..."}, ...]
+```
+
+### Session Persistence
+
+```elixir
+# Save session to disk
+{:ok, path} = ExLLM.save_session(session, "/path/to/sessions")
+
+# Load session from disk
+{:ok, loaded_session} = ExLLM.load_session("/path/to/sessions/session_id.json")
+
+# Export session as markdown
+{:ok, markdown} = ExLLM.export_session_markdown(session)
+File.write!("conversation.md", markdown)
+```
+
+### Session Information
+
+```elixir
+# Get session metadata
+info = ExLLM.session_info(session)
+# => %{
+#   id: "123...",
+#   name: "My Chat",
+#   created_at: ~U[2025-01-24 10:00:00Z],
+#   message_count: 10,
+#   total_tokens: 1500
+# }
+
+# Get token usage for session
+tokens = ExLLM.session_token_usage(session)
+# => 1500
+
+# Clear session messages
+clean_session = ExLLM.clear_session(session)
 ```
 
 ## Configuration

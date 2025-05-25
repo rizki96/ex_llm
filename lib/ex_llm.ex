@@ -97,7 +97,7 @@ defmodule ExLLM do
   """
 
   require Logger
-  alias ExLLM.{Context, Cost, Types}
+  alias ExLLM.{Context, Cost, Session, Types}
 
   @providers %{
     anthropic: ExLLM.Adapters.Anthropic
@@ -474,6 +474,201 @@ defmodule ExLLM do
   @spec context_stats(messages()) :: map()
   def context_stats(messages) do
     Context.stats(messages)
+  end
+
+  # Session Management
+
+  @doc """
+  Create a new conversation session.
+
+  ## Parameters
+  - `provider` - LLM provider to use for the session
+  - `opts` - Session options (`:name` for session name)
+
+  ## Returns
+  A new session struct.
+
+  ## Examples
+
+      session = ExLLM.new_session(:anthropic)
+      session = ExLLM.new_session(:openai, name: "Customer Support")
+  """
+  @spec new_session(provider(), keyword()) :: Session.Types.Session.t()
+  def new_session(provider, opts \\ []) do
+    Session.new(to_string(provider), opts)
+  end
+
+  @doc """
+  Send a chat request using a session, automatically tracking messages and usage.
+
+  ## Parameters
+  - `session` - The session to use
+  - `content` - The user message content
+  - `options` - Chat options (same as `chat/3`)
+
+  ## Returns
+  `{:ok, {response, updated_session}}` on success, `{:error, reason}` on failure.
+
+  ## Examples
+
+      session = ExLLM.new_session(:anthropic)
+      {:ok, {response, session}} = ExLLM.chat_with_session(session, "Hello!")
+      # Session now contains the conversation history
+  """
+  @spec chat_with_session(Session.Types.Session.t(), String.t(), options()) ::
+          {:ok, {Types.LLMResponse.t(), Session.Types.Session.t()}} | {:error, term()}
+  def chat_with_session(session, content, options \\ []) do
+    # Add user message to session
+    session = Session.add_message(session, "user", content)
+    
+    # Get provider from session
+    provider = String.to_atom(session.llm_backend || "anthropic")
+    
+    # Get messages for chat
+    messages = Session.get_messages(session)
+    
+    # Merge session context with options
+    merged_options = Keyword.merge(
+      Map.to_list(session.context || %{}),
+      options
+    )
+    
+    # Send chat request
+    case chat(provider, messages, merged_options) do
+      {:ok, response} ->
+        # Add assistant response to session
+        session = Session.add_message(session, "assistant", response.content)
+        
+        # Update token usage if available
+        session = if response.usage do
+          Session.update_token_usage(session, response.usage)
+        else
+          session
+        end
+        
+        {:ok, {response, session}}
+        
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Add a message to a session.
+
+  ## Parameters
+  - `session` - The session to update
+  - `role` - Message role ("user", "assistant", etc.)
+  - `content` - Message content
+  - `opts` - Additional message metadata
+
+  ## Returns
+  Updated session.
+
+  ## Examples
+
+      session = ExLLM.add_session_message(session, "user", "What is Elixir?")
+  """
+  @spec add_session_message(Session.Types.Session.t(), String.t(), String.t(), keyword()) ::
+          Session.Types.Session.t()
+  def add_session_message(session, role, content, opts \\ []) do
+    Session.add_message(session, role, content, opts)
+  end
+
+  @doc """
+  Get messages from a session.
+
+  ## Parameters
+  - `session` - The session to query
+  - `limit` - Optional message limit
+
+  ## Returns
+  List of messages.
+
+  ## Examples
+
+      messages = ExLLM.get_session_messages(session)
+      last_10 = ExLLM.get_session_messages(session, 10)
+  """
+  @spec get_session_messages(Session.Types.Session.t(), non_neg_integer() | nil) ::
+          [Session.Types.message()]
+  def get_session_messages(session, limit \\ nil) do
+    Session.get_messages(session, limit)
+  end
+
+  @doc """
+  Get total token usage for a session.
+
+  ## Parameters
+  - `session` - The session to analyze
+
+  ## Returns
+  Total token count.
+
+  ## Examples
+
+      tokens = ExLLM.session_token_usage(session)
+      # => 2500
+  """
+  @spec session_token_usage(Session.Types.Session.t()) :: non_neg_integer()
+  def session_token_usage(session) do
+    Session.total_tokens(session)
+  end
+
+  @doc """
+  Clear messages from a session while preserving metadata.
+
+  ## Parameters
+  - `session` - The session to clear
+
+  ## Returns
+  Updated session with no messages.
+
+  ## Examples
+
+      session = ExLLM.clear_session(session)
+  """
+  @spec clear_session(Session.Types.Session.t()) :: Session.Types.Session.t()
+  def clear_session(session) do
+    Session.clear_messages(session)
+  end
+
+  @doc """
+  Save a session to JSON.
+
+  ## Parameters
+  - `session` - The session to save
+
+  ## Returns
+  `{:ok, json}` on success, `{:error, reason}` on failure.
+
+  ## Examples
+
+      {:ok, json} = ExLLM.save_session(session)
+      File.write!("session.json", json)
+  """
+  @spec save_session(Session.Types.Session.t()) :: {:ok, String.t()} | {:error, term()}
+  def save_session(session) do
+    Session.to_json(session)
+  end
+
+  @doc """
+  Load a session from JSON.
+
+  ## Parameters
+  - `json` - JSON string containing session data
+
+  ## Returns
+  `{:ok, session}` on success, `{:error, reason}` on failure.
+
+  ## Examples
+
+      json = File.read!("session.json")
+      {:ok, session} = ExLLM.load_session(json)
+  """
+  @spec load_session(String.t()) :: {:ok, Session.Types.Session.t()} | {:error, term()}
+  def load_session(json) do
+    Session.from_json(json)
   end
 
   # Private functions
