@@ -62,6 +62,13 @@ defmodule ExLLM.Context do
       "llama2" => 4_096,
       "mistral" => 8_192,
       "codellama" => 16_384
+    },
+    "local" => %{
+      "microsoft/phi-2" => 2_048,
+      "meta-llama/Llama-2-7b-hf" => 4_096,
+      "mistralai/Mistral-7B-v0.1" => 8_192,
+      "EleutherAI/gpt-neo-1.3B" => 2_048,
+      "google/flan-t5-base" => 512
     }
   }
 

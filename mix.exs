@@ -20,7 +20,8 @@ defmodule ExLLM.MixProject do
 
   def application do
     [
-      extra_applications: [:logger]
+      extra_applications: [:logger],
+      mod: {ExLLM.Application, []}
     ]
   end
 
@@ -44,6 +45,12 @@ defmodule ExLLM.MixProject do
 
       # JSON encoding/decoding
       {:jason, "~> 1.4"},
+
+      # Optional dependencies for local model support
+      # Comment these out if you have compilation issues
+      # {:bumblebee, "~> 0.5", optional: true},
+      # {:nx, "~> 0.7", optional: true},
+      # {:exla, "~> 0.7", optional: true},
 
       # Development and documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},

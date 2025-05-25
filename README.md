@@ -18,6 +18,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 ## Supported Providers
 
 - **Anthropic Claude** (claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022, etc.)
+- **Local Models** (Phi-2, Llama 2, Mistral, GPT-Neo, Flan-T5 via Bumblebee)
 - **OpenAI** (coming soon)
 - **Ollama** (coming soon)
 
@@ -28,7 +29,12 @@ Add `ex_llm` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.1.0"}
+    {:ex_llm, "~> 0.1.0"},
+    
+    # Optional: For local model support
+    {:bumblebee, "~> 0.5", optional: true},
+    {:nx, "~> 0.7", optional: true},
+    {:exla, "~> 0.7", optional: true}
   ]
 end
 ```
@@ -58,6 +64,10 @@ messages = [
 {:ok, response} = ExLLM.chat(:anthropic, messages)
 IO.puts(response.content)
 IO.puts("Cost: #{ExLLM.format_cost(response.cost.total_cost)}")
+
+# Using local models (no API costs!)
+{:ok, response} = ExLLM.chat(:local, messages, model: "microsoft/phi-2")
+IO.puts(response.content)
 
 # Streaming chat
 ExLLM.stream_chat(:anthropic, messages, fn chunk ->
@@ -456,6 +466,106 @@ case ExLLM.chat(:anthropic, messages) do
     # Response parsing issue
     IO.puts("Parse error: #{reason}")
 end
+```
+
+## Local Model Support
+
+ExLLM supports running models locally using Bumblebee and EXLA/EMLX backends. This enables on-device inference without API calls or costs.
+
+### Setup
+
+1. Add optional dependencies to your `mix.exs`:
+
+```elixir
+def deps do
+  [
+    {:ex_llm, "~> 0.1.0"},
+    {:bumblebee, "~> 0.5"},
+    {:nx, "~> 0.7"},
+    {:exla, "~> 0.7"}  # or {:emlx, "~> 0.1"} for Apple Silicon
+  ]
+end
+```
+
+2. Configure EXLA backend (optional - auto-detected by default):
+
+```elixir
+# For CUDA GPUs
+config :nx, :default_backend, {EXLA.Backend, client: :cuda}
+
+# For Apple Silicon
+config :nx, :default_backend, EMLX.Backend
+```
+
+### Available Models
+
+- **microsoft/phi-2** - Phi-2 (2.7B parameters) - Default
+- **meta-llama/Llama-2-7b-hf** - Llama 2 (7B)
+- **mistralai/Mistral-7B-v0.1** - Mistral (7B)
+- **EleutherAI/gpt-neo-1.3B** - GPT-Neo (1.3B)
+- **google/flan-t5-base** - Flan-T5 Base
+
+### Usage
+
+```elixir
+# Start the model loader (happens automatically on first use)
+{:ok, _} = ExLLM.Local.ModelLoader.start_link()
+
+# Use a local model
+messages = [
+  %{role: "user", content: "Explain quantum computing in simple terms"}
+]
+
+{:ok, response} = ExLLM.chat(:local, messages, model: "microsoft/phi-2")
+IO.puts(response.content)
+
+# Stream responses
+{:ok, stream} = ExLLM.stream_chat(:local, messages)
+for chunk <- stream do
+  IO.write(chunk.content)
+end
+
+# List available models
+{:ok, models} = ExLLM.list_models(:local)
+Enum.each(models, fn model ->
+  IO.puts("#{model.name} - Context: #{model.context_window} tokens")
+end)
+
+# Check acceleration info
+info = ExLLM.Local.EXLAConfig.acceleration_info()
+IO.puts("Running on: #{info.name}")
+```
+
+### Hardware Acceleration
+
+ExLLM automatically detects and uses available hardware acceleration:
+
+- **Apple Silicon** - Uses Metal via EMLX
+- **NVIDIA GPUs** - Uses CUDA via EXLA
+- **AMD GPUs** - Uses ROCm via EXLA
+- **CPUs** - Optimized multi-threaded inference
+
+### Performance Tips
+
+1. **First Load**: Models are downloaded from HuggingFace on first use and cached locally
+2. **Memory**: Ensure you have enough RAM/VRAM for your chosen model
+3. **Batch Size**: Automatically optimized based on available memory
+4. **Mixed Precision**: Enabled by default for better performance
+
+### Model Loading
+
+```elixir
+# Pre-load a model
+{:ok, _} = ExLLM.Local.ModelLoader.load_model("microsoft/phi-2")
+
+# Load from local path
+{:ok, _} = ExLLM.Local.ModelLoader.load_model("/path/to/model")
+
+# Unload to free memory
+:ok = ExLLM.Local.ModelLoader.unload_model("microsoft/phi-2")
+
+# List loaded models
+loaded = ExLLM.Local.ModelLoader.list_loaded_models()
 ```
 
 ## Adding New Providers

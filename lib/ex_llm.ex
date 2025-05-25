@@ -100,12 +100,13 @@ defmodule ExLLM do
   alias ExLLM.{Context, Cost, Session, Types}
 
   @providers %{
-    anthropic: ExLLM.Adapters.Anthropic
+    anthropic: ExLLM.Adapters.Anthropic,
+    local: ExLLM.Adapters.Local
     # openai: ExLLM.Adapters.OpenAI,
     # ollama: ExLLM.Adapters.Ollama
   }
 
-  @type provider :: :anthropic | :openai | :ollama
+  @type provider :: :anthropic | :openai | :ollama | :local
   @type messages :: [Types.message()]
   @type options :: keyword()
 
