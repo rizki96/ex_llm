@@ -60,35 +60,38 @@ defmodule ExLLM.Adapters.OpenAI do
     config = get_config(config_provider)
     
     api_key = get_api_key(config)
-    if !api_key || api_key == "", do: return {:error, "OpenAI API key not configured"}
     
-    model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
-    max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
-    temperature = Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
+    if !api_key || api_key == "" do
+      {:error, "OpenAI API key not configured"}
+    else
+      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
+      temperature = Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
 
-    body = %{
-      model: model,
-      messages: format_messages(messages),
-      max_tokens: max_tokens,
-      temperature: temperature
-    }
+      body = %{
+        model: model,
+        messages: format_messages(messages),
+        max_tokens: max_tokens,
+        temperature: temperature
+      }
 
-    headers = [
-      {"authorization", "Bearer #{api_key}"},
-      {"content-type", "application/json"}
-    ]
+      headers = [
+        {"authorization", "Bearer #{api_key}"},
+        {"content-type", "application/json"}
+      ]
 
-    url = "#{get_base_url(config)}/chat/completions"
-    
-    case Req.post(url, json: body, headers: headers) do
-      {:ok, %{status: 200, body: response}} ->
-        {:ok, parse_response(response, model)}
+      url = "#{get_base_url(config)}/chat/completions"
+      
+      case Req.post(url, json: body, headers: headers) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, parse_response(response, model)}
 
-      {:ok, %{status: status, body: body}} ->
-        Error.api_error("OpenAI", status, body)
+        {:ok, %{status: status, body: body}} ->
+          Error.api_error("OpenAI", status, body)
 
-      {:error, reason} ->
-        Error.request_error("OpenAI", reason)
+        {:error, reason} ->
+          Error.request_error("OpenAI", reason)
+      end
     end
   end
 
@@ -98,59 +101,62 @@ defmodule ExLLM.Adapters.OpenAI do
     config = get_config(config_provider)
     
     api_key = get_api_key(config)
-    if !api_key || api_key == "", do: return {:error, "OpenAI API key not configured"}
     
-    model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
-    max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
-    temperature = Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
+    if !api_key || api_key == "" do
+      {:error, "OpenAI API key not configured"}
+    else
+      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
+      temperature = Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
 
-    body = %{
-      model: model,
-      messages: format_messages(messages),
-      max_tokens: max_tokens,
-      temperature: temperature,
-      stream: true
-    }
+      body = %{
+        model: model,
+        messages: format_messages(messages),
+        max_tokens: max_tokens,
+        temperature: temperature,
+        stream: true
+      }
 
-    headers = [
-      {"authorization", "Bearer #{api_key}"},
-      {"content-type", "application/json"}
-    ]
+      headers = [
+        {"authorization", "Bearer #{api_key}"},
+        {"content-type", "application/json"}
+      ]
 
-    url = "#{get_base_url(config)}/chat/completions"
-    parent = self()
+      url = "#{get_base_url(config)}/chat/completions"
+      parent = self()
 
-    # Start async request task
-    Task.start(fn ->
-      case Req.post(url, json: body, headers: headers, receive_timeout: 60_000, into: :self) do
-        {:ok, response} ->
-          if response.status == 200 do
-            handle_stream_response(response, parent, model, "")
-          else
-            send(parent, {:stream_error, Error.api_error("OpenAI", response.status, response.body)})
-          end
+      # Start async request task
+      Task.start(fn ->
+        case Req.post(url, json: body, headers: headers, receive_timeout: 60_000, into: :self) do
+          {:ok, response} ->
+            if response.status == 200 do
+              handle_stream_response(response, parent, model, "")
+            else
+              send(parent, {:stream_error, Error.api_error("OpenAI", response.status, response.body)})
+            end
 
-        {:error, reason} ->
-          send(parent, {:stream_error, Error.request_error("OpenAI", reason)})
-      end
-    end)
-
-    # Create stream that receives messages
-    stream = Stream.resource(
-      fn -> :ok end,
-      fn state ->
-        receive do
-          {:chunk, chunk} -> {[chunk], state}
-          :stream_done -> {:halt, state}
-          {:stream_error, error} -> throw(error)
-        after
-          100 -> {[], state}
+          {:error, reason} ->
+            send(parent, {:stream_error, Error.request_error("OpenAI", reason)})
         end
-      end,
-      fn _ -> :ok end
-    )
+      end)
 
-    {:ok, stream}
+      # Create stream that receives messages
+      stream = Stream.resource(
+        fn -> :ok end,
+        fn state ->
+          receive do
+            {:chunk, chunk} -> {[chunk], state}
+            :stream_done -> {:halt, state}
+            {:stream_error, error} -> throw(error)
+          after
+            100 -> {[], state}
+          end
+        end,
+        fn _ -> :ok end
+      )
+
+      {:ok, stream}
+    end
   end
 
   @impl true
@@ -159,43 +165,58 @@ defmodule ExLLM.Adapters.OpenAI do
     config = get_config(config_provider)
     
     api_key = get_api_key(config)
-    if !api_key || api_key == "", do: return {:error, "OpenAI API key not configured"}
-
-    headers = [
-      {"authorization", "Bearer #{api_key}"},
-      {"content-type", "application/json"}
-    ]
-
-    url = "#{get_base_url(config)}/models"
     
-    case Req.get(url, headers: headers) do
-      {:ok, %{status: 200, body: body}} ->
-        models = body["data"]
-        |> Enum.filter(fn model ->
-          # Filter for chat models
-          String.contains?(model["id"], "gpt") and
-            not String.contains?(model["id"], "instruct")
-        end)
-        |> Enum.map(fn model ->
-          %Types.Model{
-            id: model["id"],
-            name: model["id"],
-            context_window: get_context_window(model["id"]),
-            max_output_tokens: get_max_output_tokens(model["id"])
-          }
-        end)
-        |> Enum.sort_by(& &1.id, :desc)
+    if !api_key || api_key == "" do
+      {:error, "OpenAI API key not configured"}
+    else
+      headers = [
+        {"authorization", "Bearer #{api_key}"},
+        {"content-type", "application/json"}
+      ]
 
-        {:ok, models}
+      url = "#{get_base_url(config)}/models"
+      
+      case Req.get(url, headers: headers) do
+        {:ok, %{status: 200, body: body}} ->
+          models = body["data"]
+          |> Enum.filter(fn model ->
+            # Filter for chat models
+            String.contains?(model["id"], "gpt") and
+              not String.contains?(model["id"], "instruct")
+          end)
+          |> Enum.map(fn model ->
+            %Types.Model{
+              id: model["id"],
+              name: model["id"],
+              context_window: get_context_window(model["id"])
+            }
+          end)
+          |> Enum.sort_by(& &1.id, :desc)
 
-      {:ok, %{status: status, body: body}} ->
-        # Fallback to static list
-        {:ok, fallback_models()}
+          {:ok, models}
 
-      {:error, _reason} ->
-        # Fallback to static list
-        {:ok, fallback_models()}
+        {:ok, %{status: _status, body: _body}} ->
+          # Fallback to static list
+          {:ok, fallback_models()}
+
+        {:error, _reason} ->
+          # Fallback to static list
+          {:ok, fallback_models()}
+      end
     end
+  end
+
+  @impl true
+  def configured?(options \\ []) do
+    config_provider = Keyword.get(options, :config_provider, Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default))
+    config = get_config(config_provider)
+    api_key = get_api_key(config)
+    !is_nil(api_key) && api_key != ""
+  end
+
+  @impl true
+  def default_model do
+    @default_model
   end
 
   # Private functions
@@ -238,7 +259,10 @@ defmodule ExLLM.Adapters.OpenAI do
       },
       model: model,
       finish_reason: choice["finish_reason"],
-      cost: ExLLM.Cost.calculate("openai", model, usage["prompt_tokens"] || 0, usage["completion_tokens"] || 0)
+      cost: ExLLM.Cost.calculate("openai", model, %{
+        input_tokens: usage["prompt_tokens"] || 0,
+        output_tokens: usage["completion_tokens"] || 0
+      })
     }
   end
 
@@ -312,46 +336,33 @@ defmodule ExLLM.Adapters.OpenAI do
     end
   end
 
-  defp get_max_output_tokens(model_id) do
-    case model_id do
-      "gpt-4-turbo" <> _ -> 4_096
-      "gpt-4" <> _ -> 4_096
-      "gpt-3.5-turbo" <> _ -> 4_096
-      _ -> 4_096
-    end
-  end
 
   defp fallback_models() do
     [
       %Types.Model{
         id: "gpt-4-turbo",
         name: "GPT-4 Turbo",
-        context_window: 128_000,
-        max_output_tokens: 4_096
+        context_window: 128_000
       },
       %Types.Model{
         id: "gpt-4",
         name: "GPT-4",
-        context_window: 8_192,
-        max_output_tokens: 4_096
+        context_window: 8_192
       },
       %Types.Model{
         id: "gpt-4-32k",
         name: "GPT-4 32K",
-        context_window: 32_768,
-        max_output_tokens: 4_096
+        context_window: 32_768
       },
       %Types.Model{
         id: "gpt-3.5-turbo",
         name: "GPT-3.5 Turbo",
-        context_window: 4_096,
-        max_output_tokens: 4_096
+        context_window: 4_096
       },
       %Types.Model{
         id: "gpt-3.5-turbo-16k",
         name: "GPT-3.5 Turbo 16K",
-        context_window: 16_385,
-        max_output_tokens: 4_096
+        context_window: 16_385
       }
     ]
   end

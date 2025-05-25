@@ -149,8 +149,7 @@ defmodule ExLLM.Adapters.Ollama do
           %Types.Model{
             id: model["name"],
             name: model["name"],
-            context_window: model["details"]["parameter_size"] || 4_096,
-            max_output_tokens: 4_096
+            context_window: model["details"]["parameter_size"] || 4_096
           }
         end)
 
@@ -162,6 +161,20 @@ defmodule ExLLM.Adapters.Ollama do
       {:error, reason} ->
         Error.connection_error("Ollama", reason)
     end
+  end
+
+  @impl true
+  def configured?(options \\ []) do
+    config_provider = Keyword.get(options, :config_provider, Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default))
+    config = get_config(config_provider)
+    base_url = get_base_url(config)
+    # Ollama only needs a base URL to be configured
+    !is_nil(base_url) && base_url != ""
+  end
+
+  @impl true
+  def default_model do
+    @default_model
   end
 
   # Private functions
@@ -198,7 +211,10 @@ defmodule ExLLM.Adapters.Ollama do
       usage: usage,
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
-      cost: ExLLM.Cost.calculate("ollama", model, usage.prompt_tokens, usage.completion_tokens)
+      cost: ExLLM.Cost.calculate("ollama", model, %{
+        input_tokens: usage.prompt_tokens,
+        output_tokens: usage.completion_tokens
+      })
     }
   end
 

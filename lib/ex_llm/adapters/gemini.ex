@@ -100,13 +100,16 @@ defmodule ExLLM.Adapters.Gemini do
     config = get_config(config_provider)
     
     api_key = get_api_key(config)
-    if !api_key || api_key == "", do: return {:error, "Google API key not configured"}
     
-    model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
-    
-    with {:ok, request_body} <- build_request_body(messages, options),
-         {:ok, response} <- call_gemini_api(model, request_body, api_key) do
-      parse_response(response, model)
+    if !api_key || api_key == "" do
+      {:error, "Google API key not configured"}
+    else
+      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      
+      with {:ok, request_body} <- build_request_body(messages, options),
+           {:ok, response} <- call_gemini_api(model, request_body, api_key) do
+        parse_response(response, model)
+      end
     end
   end
 
@@ -116,12 +119,15 @@ defmodule ExLLM.Adapters.Gemini do
     config = get_config(config_provider)
     
     api_key = get_api_key(config)
-    if !api_key || api_key == "", do: return {:error, "Google API key not configured"}
     
-    model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
-    
-    with {:ok, request_body} <- build_request_body(messages, options) do
-      stream_gemini_api(model, request_body, api_key)
+    if !api_key || api_key == "" do
+      {:error, "Google API key not configured"}
+    else
+      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      
+      with {:ok, request_body} <- build_request_body(messages, options) do
+        stream_gemini_api(model, request_body, api_key)
+      end
     end
   end
 
@@ -132,13 +138,25 @@ defmodule ExLLM.Adapters.Gemini do
       %Types.Model{
         id: id,
         name: info.name,
-        context_window: info.context_window,
-        max_output_tokens: info.max_output_tokens
+        context_window: info.context_window
       }
     end)
     |> Enum.sort_by(& &1.id)
     
     {:ok, models}
+  end
+
+  @impl true
+  def configured?(options \\ []) do
+    config_provider = Keyword.get(options, :config_provider, Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default))
+    config = get_config(config_provider)
+    api_key = get_api_key(config)
+    !is_nil(api_key) && api_key != ""
+  end
+
+  @impl true
+  def default_model do
+    @default_model
   end
 
   # Private functions
@@ -300,7 +318,10 @@ defmodule ExLLM.Adapters.Gemini do
           },
           model: model,
           finish_reason: candidate["finishReason"] || "stop",
-          cost: ExLLM.Cost.calculate("gemini", model, prompt_tokens, completion_tokens)
+          cost: ExLLM.Cost.calculate("gemini", model, %{
+            input_tokens: prompt_tokens,
+            output_tokens: completion_tokens
+          })
         }
         
       %{"finishReason" => reason} when reason in ["SAFETY", "RECITATION"] ->
