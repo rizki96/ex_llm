@@ -2,20 +2,20 @@ defmodule ExLLMCostTest do
   use ExUnit.Case
 
   describe "cost calculation" do
-    test "calculates cost for OpenAI GPT-4" do
+    test "calculates cost for OpenAI GPT-4o" do
       usage = %{input_tokens: 1000, output_tokens: 500}
-      result = ExLLM.calculate_cost(:openai, "gpt-4", usage)
+      result = ExLLM.calculate_cost(:openai, "gpt-4o", usage)
 
       assert result.provider == "openai"
-      assert result.model == "gpt-4"
+      assert result.model == "gpt-4o"
       assert result.input_tokens == 1000
       assert result.output_tokens == 500
       assert result.total_tokens == 1500
-      # 1000/1M * 30
-      assert result.input_cost == 0.03
-      # 500/1M * 60
-      assert result.output_cost == 0.03
-      assert result.total_cost == 0.06
+      # 1000/1M * 2.50
+      assert result.input_cost == 0.0025
+      # 500/1M * 10.00
+      assert result.output_cost == 0.005
+      assert result.total_cost == 0.0075
       assert result.currency == "USD"
     end
 

@@ -1,0 +1,225 @@
+# Ollama models configuration
+# Local models - no pricing information needed
+
+provider: ollama
+default_model: "llama2"
+
+models:
+  # Llama models
+  llama2:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama2:7b:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama2:13b:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama2:70b:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama3:
+    context_window: 8192
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama3:8b:
+    context_window: 8192
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama3:70b:
+    context_window: 8192
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama3.1:
+    context_window: 128000
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama3.1:8b:
+    context_window: 128000
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama3.1:70b:
+    context_window: 128000
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  llama3.1:405b:
+    context_window: 128000
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+
+  # Code models
+  codellama:
+    context_window: 16384
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - code
+      - streaming
+    
+  codellama:7b:
+    context_window: 16384
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - code
+      - streaming
+    
+  codellama:13b:
+    context_window: 16384
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - code
+      - streaming
+    
+  codellama:34b:
+    context_window: 16384
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - code
+      - streaming
+
+  # Vision models
+  llava:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - vision
+      - streaming
+    
+  llava:7b:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - vision
+      - streaming
+    
+  llava:13b:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - vision
+      - streaming
+    
+  llava:34b:
+    context_window: 4096
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - vision
+      - streaming
+
+  # Other popular models
+  mistral:
+    context_window: 32768
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  mixtral:
+    context_window: 32768
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  phi3:
+    context_window: 128000
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming
+    
+  qwen2.5:
+    context_window: 32768
+    pricing:
+      input: 0.00
+      output: 0.00
+    capabilities:
+      - text
+      - streaming

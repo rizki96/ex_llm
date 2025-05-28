@@ -47,10 +47,9 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Error, Types}
+  alias ExLLM.{Error, Types, ModelConfig}
 
   @default_base_url "https://api.openai.com/v1"
-  @default_model "gpt-4.1-mini"
   @default_max_tokens 4_096
   @default_temperature 0.7
 
@@ -70,7 +69,7 @@ defmodule ExLLM.Adapters.OpenAI do
     if !api_key || api_key == "" do
       {:error, "OpenAI API key not configured"}
     else
-      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
       max_tokens =
         Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
@@ -121,7 +120,7 @@ defmodule ExLLM.Adapters.OpenAI do
     if !api_key || api_key == "" do
       {:error, "OpenAI API key not configured"}
     else
-      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
       max_tokens =
         Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
@@ -250,7 +249,12 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @impl true
   def default_model do
-    @default_model
+    get_default_model()
+  end
+
+  # Private helper to get default model from config
+  defp get_default_model do
+    ModelConfig.get_default_model(:openai) || "gpt-4.1-mini"
   end
 
   # Private functions
@@ -273,11 +277,74 @@ defmodule ExLLM.Adapters.OpenAI do
 
   defp format_messages(messages) do
     Enum.map(messages, fn msg ->
+      role = to_string(msg.role || msg["role"])
+      content = format_content_for_openai(msg.content || msg["content"])
+
       %{
-        "role" => to_string(msg.role || msg["role"]),
-        "content" => to_string(msg.content || msg["content"])
+        "role" => role,
+        "content" => content
       }
     end)
+  end
+
+  defp format_content_for_openai(content) when is_binary(content) do
+    # Simple text content
+    content
+  end
+
+  defp format_content_for_openai(content) when is_list(content) do
+    # Multimodal content - OpenAI expects array format
+    Enum.map(content, fn part ->
+      case part do
+        %{"type" => "text", "text" => text} ->
+          %{"type" => "text", "text" => text}
+
+        %{type: "text", text: text} ->
+          %{"type" => "text", "text" => text}
+
+        %{"type" => "image_url", "image_url" => image_url} ->
+          %{"type" => "image_url", "image_url" => image_url}
+
+        %{type: "image_url", image_url: image_url} ->
+          %{"type" => "image_url", "image_url" => format_image_url(image_url)}
+
+        %{"type" => "image", "image" => %{"data" => data, "media_type" => media_type}} ->
+          # Convert base64 to data URL for OpenAI
+          %{
+            "type" => "image_url",
+            "image_url" => %{
+              "url" => "data:#{media_type};base64,#{data}"
+            }
+          }
+
+        %{type: "image", image: %{data: data, media_type: media_type}} ->
+          # Convert base64 to data URL for OpenAI
+          %{
+            "type" => "image_url",
+            "image_url" => %{
+              "url" => "data:#{media_type};base64,#{data}"
+            }
+          }
+
+        _ ->
+          part
+      end
+    end)
+  end
+
+  defp format_content_for_openai(content) do
+    # Fallback - convert to string
+    to_string(content)
+  end
+
+  defp format_image_url(%{url: url} = image_url) do
+    detail = Map.get(image_url, :detail, "auto")
+    %{"url" => url, "detail" => to_string(detail)}
+  end
+
+  defp format_image_url(%{"url" => _} = image_url) do
+    # Already in correct format
+    image_url
   end
 
   defp parse_response(response, model) do
@@ -372,6 +439,7 @@ defmodule ExLLM.Adapters.OpenAI do
       "gpt-4-turbo" <> _ -> 128_000
       "gpt-4-32k" <> _ -> 32_768
       "gpt-4" <> _ -> 8_192
+      "gpt-3.5-turbo" <> _ -> 16_385
       # Default
       _ -> 128_000
     end
@@ -425,5 +493,144 @@ defmodule ExLLM.Adapters.OpenAI do
         context_window: 200_000
       }
     ]
+  end
+
+  @impl true
+  def embeddings(inputs, options \\ []) do
+    with {:ok, config} <- get_config(options),
+         {:ok, url} <- build_embeddings_url(config),
+         {:ok, req_body} <- build_embeddings_request(inputs, config, options),
+         {:ok, response} <- send_embeddings_request(url, req_body, config) do
+      parse_embeddings_response(response, inputs, config, options)
+    end
+  end
+
+  @impl true
+  def list_embedding_models(options \\ []) do
+    models = [
+      %Types.EmbeddingModel{
+        name: "text-embedding-3-small",
+        dimensions: 1536,
+        max_inputs: 1,
+        provider: :openai,
+        description: "Small, efficient embedding model",
+        pricing: %{
+          # $0.02 per million
+          input_cost_per_token: 0.00002 / 1000,
+          output_cost_per_token: 0.0,
+          currency: "USD"
+        }
+      },
+      %Types.EmbeddingModel{
+        name: "text-embedding-3-large",
+        dimensions: 3072,
+        max_inputs: 1,
+        provider: :openai,
+        description: "Large, high-quality embedding model",
+        pricing: %{
+          # $0.13 per million
+          input_cost_per_token: 0.00013 / 1000,
+          output_cost_per_token: 0.0,
+          currency: "USD"
+        }
+      },
+      %Types.EmbeddingModel{
+        name: "text-embedding-ada-002",
+        dimensions: 1536,
+        max_inputs: 1,
+        provider: :openai,
+        description: "Legacy embedding model",
+        pricing: %{
+          # $0.10 per million
+          input_cost_per_token: 0.0001 / 1000,
+          output_cost_per_token: 0.0,
+          currency: "USD"
+        }
+      }
+    ]
+
+    {:ok, models}
+  end
+
+  # Private embedding functions
+
+  defp build_embeddings_url(config) do
+    base_url = Map.get(config, "base_url", "https://api.openai.com/v1")
+    {:ok, "#{base_url}/embeddings"}
+  end
+
+  defp build_embeddings_request(inputs, config, options) do
+    model = Keyword.get(options, :model, "text-embedding-3-small")
+
+    # OpenAI supports multiple inputs but we'll send one at a time for consistency
+    body = %{
+      model: model,
+      input: inputs,
+      encoding_format: "float"
+    }
+
+    # Add optional parameters
+    body =
+      if dimensions = Keyword.get(options, :dimensions) do
+        Map.put(body, :dimensions, dimensions)
+      else
+        body
+      end
+
+    {:ok, body}
+  end
+
+  defp send_embeddings_request(url, body, config) do
+    headers = [
+      {"authorization", "Bearer #{config["api_key"]}"},
+      {"content-type", "application/json"}
+    ]
+
+    case Req.post(url, json: body, headers: headers) do
+      {:ok, %{status: 200, body: body}} ->
+        {:ok, body}
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, Error.api_error(status, body)}
+
+      {:error, reason} ->
+        {:error, Error.network_error(reason)}
+    end
+  end
+
+  defp parse_embeddings_response(response, inputs, config, options) do
+    case response do
+      %{"data" => data, "usage" => usage, "model" => model} ->
+        # Extract embeddings
+        embeddings =
+          Enum.map(data, fn item ->
+            item["embedding"]
+          end)
+
+        # Build response
+        embedding_response = %Types.EmbeddingResponse{
+          embeddings: embeddings,
+          model: model,
+          usage: %{
+            input_tokens: usage["prompt_tokens"],
+            # Embeddings don't have output tokens
+            output_tokens: 0
+          }
+        }
+
+        # Add cost tracking if enabled
+        embedding_response =
+          if Keyword.get(options, :track_cost, true) do
+            cost = ExLLM.Cost.calculate(:openai, model, embedding_response.usage)
+            %{embedding_response | cost: cost}
+          else
+            embedding_response
+          end
+
+        {:ok, embedding_response}
+
+      _ ->
+        {:error, Error.parse_error("Invalid embeddings response")}
+    end
   end
 end

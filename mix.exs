@@ -45,6 +45,9 @@ defmodule ExLLM.MixProject do
 
       # JSON encoding/decoding
       {:jason, "~> 1.4"},
+      
+      # Configuration file parsing
+      {:yaml_elixir, "~> 2.9"},
 
       # Optional dependency for structured outputs
       {:instructor, "~> 0.1.0", optional: true},

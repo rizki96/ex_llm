@@ -46,16 +46,15 @@ defmodule ExLLM.Adapters.Anthropic do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{ConfigProvider, Error, Types}
+  alias ExLLM.{ConfigProvider, Error, Types, ModelConfig}
 
   @default_base_url "https://api.anthropic.com/v1"
-  @default_model "claude-sonnet-4-20250514"
 
   @impl true
   def chat(messages, options \\ []) do
     config_provider = Keyword.get(options, :config_provider, ConfigProvider.Env)
     config = get_config(config_provider)
-    model = Keyword.get(options, :model, config.model || @default_model)
+    model = Keyword.get(options, :model, config.model || get_default_model())
     max_tokens = Keyword.get(options, :max_tokens, config.max_tokens || 4_096)
 
     # Convert messages to Anthropic format
@@ -92,7 +91,7 @@ defmodule ExLLM.Adapters.Anthropic do
   def stream_chat(messages, options \\ []) do
     config_provider = Keyword.get(options, :config_provider, ConfigProvider.Env)
     config = get_config(config_provider)
-    model = Keyword.get(options, :model, config.model || @default_model)
+    model = Keyword.get(options, :model, config.model || get_default_model())
     max_tokens = Keyword.get(options, :max_tokens, config.max_tokens || 4_096)
 
     # Convert messages to Anthropic format
@@ -162,7 +161,12 @@ defmodule ExLLM.Adapters.Anthropic do
   end
 
   @impl true
-  def default_model, do: @default_model
+  def default_model, do: get_default_model()
+
+  # Private helper to get default model from config
+  defp get_default_model do
+    ModelConfig.get_default_model(:anthropic) || "claude-sonnet-4-20250514"
+  end
 
   @impl true
   def list_models(_options \\ []) do
@@ -265,11 +269,74 @@ defmodule ExLLM.Adapters.Anthropic do
     messages
     |> Enum.reject(fn msg -> msg.role == "system" end)
     |> Enum.map(fn msg ->
+      formatted_content = format_content_for_anthropic(msg.content)
+
       %{
         role: msg.role,
-        content: msg.content
+        content: formatted_content
       }
     end)
+  end
+
+  defp format_content_for_anthropic(content) when is_binary(content) do
+    # Simple text content
+    content
+  end
+
+  defp format_content_for_anthropic(content) when is_list(content) do
+    # Multimodal content with text and images
+    Enum.map(content, fn part ->
+      case part do
+        %{"type" => "text", "text" => text} ->
+          %{type: "text", text: text}
+
+        %{type: "text", text: text} ->
+          %{type: "text", text: text}
+
+        %{"type" => "image", "image" => image_data} ->
+          format_image_for_anthropic(image_data)
+
+        %{type: "image", image: image_data} ->
+          format_image_for_anthropic(image_data)
+
+        %{"type" => "image_url", "image_url" => %{"url" => url}} ->
+          # For URLs, we might need to download and convert to base64
+          # For now, return an error as Anthropic prefers base64
+          %{
+            type: "image",
+            source: %{
+              type: "base64",
+              media_type: "image/jpeg",
+              data: "placeholder_for_url_download"
+            }
+          }
+
+        _ ->
+          part
+      end
+    end)
+  end
+
+  defp format_image_for_anthropic(%{"data" => data, "media_type" => media_type}) do
+    %{
+      type: "image",
+      source: %{
+        type: "base64",
+        media_type: media_type,
+        data: data
+      }
+    }
+  end
+
+  defp format_image_for_anthropic(%{data: data, media_type: media_type}) do
+    %{
+      type: "image",
+      source: %{
+        type: "base64",
+        media_type: media_type,
+        data: data
+      }
+    }
   end
 
   defp maybe_add_system(body, options) do

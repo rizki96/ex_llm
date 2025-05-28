@@ -108,7 +108,7 @@ defmodule ExLLM.ContextTest do
     test "returns correct window size for known models" do
       assert Context.context_window_size("anthropic", "claude-3-5-sonnet-20241022") == 200_000
       assert Context.context_window_size("anthropic", "claude-3-haiku-20240307") == 200_000
-      assert Context.context_window_size("openai", "gpt-4-turbo") == 128_000
+      assert Context.context_window_size("openai", "gpt-4o") == 128_000
       assert Context.context_window_size("openai", "gpt-3.5-turbo") == 16_385
     end
 

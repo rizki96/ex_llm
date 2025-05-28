@@ -7,7 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- OpenRouter adapter with access to 300+ models from multiple providers
+  - Support for Claude, GPT-4, Llama, PaLM, and many other model families
+  - Unified API interface for different model architectures
+  - Automatic model discovery and cost-effective access to premium models
+- External YAML configuration system for model metadata
+  - Model pricing, context windows, and capabilities stored in `config/models/*.yml`
+  - Runtime configuration loading with ETS caching for performance
+  - Separation of model data from code for easier maintenance
+  - Support for easy updates without code changes
+
 ### Changed
+- **BREAKING:** Model configuration moved from hardcoded maps to external YAML files
+  - All providers now use `ExLLM.ModelConfig` for pricing and context window data
+  - Default models, pricing, and context windows loaded from YAML configuration
+  - Added `yaml_elixir` dependency for YAML parsing
 - Updated Bedrock adapter with comprehensive model support:
   - Added all latest Anthropic models (Claude 4, 3.7, 3.5 series)
   - Added Amazon Nova models (Micro, Lite, Pro, Premier)
@@ -21,6 +36,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated pricing data for all Bedrock providers with per-1M token rates
 - Updated context window sizes for all new Bedrock models
 - Enhanced streaming support for all new providers (Writer, DeepSeek)
+- All adapters now use ModelConfig for consistent default model retrieval
 
 ## [0.2.0] - 2025-05-25
 

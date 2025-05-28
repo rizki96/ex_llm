@@ -7,15 +7,18 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 ## Features
 
 - **Unified API**: Single interface for multiple LLM providers
-- **Streaming Support**: Real-time streaming responses via Server-Sent Events
+- **Streaming Support**: Real-time streaming responses with error recovery
 - **Cost Tracking**: Automatic cost calculation for all API calls
 - **Token Estimation**: Heuristic-based token counting for cost prediction
 - **Context Management**: Automatic message truncation to fit model context windows
 - **Session Management**: Built-in conversation state tracking and persistence
 - **Structured Outputs**: Schema validation and retries via instructor_ex integration
-- **Configurable**: Flexible configuration system with multiple providers
+- **Function Calling**: Unified interface for tool use across providers
+- **Model Discovery**: Query and compare model capabilities across providers
+- **Error Recovery**: Automatic retry with exponential backoff and stream resumption
+- **Mock Testing**: Built-in mock adapter for testing without API calls
 - **Type Safety**: Comprehensive typespecs and structured data
-- **Error Handling**: Consistent error patterns across all providers
+- **Configurable**: Flexible configuration system with multiple providers
 - **Extensible**: Easy to add new LLM providers via adapter pattern
 
 ## Supported Providers
@@ -57,12 +60,24 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - gemini-ultra
   - gemini-nano
 
+- **OpenRouter** - Access to 300+ models from multiple providers
+  - Claude, GPT-4, Llama, PaLM, and many more
+  - Unified API for different model architectures
+  - Cost-effective access to premium models
+  - Automatic model discovery
+
 - **Local Models** via Bumblebee/EXLA
   - microsoft/phi-2 (default)
   - meta-llama/Llama-2-7b-hf
   - mistralai/Mistral-7B-v0.1
   - EleutherAI/gpt-neo-1.3B
   - google/flan-t5-base
+
+- **Mock Adapter** - For testing and development
+  - Configurable responses
+  - Error simulation
+  - Request capture
+  - No API calls needed
 
 ## Installation
 
@@ -93,12 +108,27 @@ config :ex_llm,
     api_key: System.get_env("ANTHROPIC_API_KEY"),
     base_url: "https://api.anthropic.com"
   ],
+  openai: [
+    api_key: System.get_env("OPENAI_API_KEY"),
+    base_url: "https://api.openai.com"
+  ],
+  ollama: [
+    base_url: "http://localhost:11434"
+  ],
   bedrock: [
     # AWS credentials (optional - uses credential chain by default)
     access_key_id: System.get_env("AWS_ACCESS_KEY_ID"),
     secret_access_key: System.get_env("AWS_SECRET_ACCESS_KEY"),
     region: System.get_env("AWS_REGION") || "us-east-1",
     model: "nova-lite"  # Default model (cost-effective)
+  ],
+  gemini: [
+    api_key: System.get_env("GEMINI_API_KEY"),
+    base_url: "https://generativelanguage.googleapis.com"
+  ],
+  openrouter: [
+    api_key: System.get_env("OPENROUTER_API_KEY"),
+    base_url: "https://openrouter.ai/api/v1"
   ]
 ```
 
@@ -118,10 +148,22 @@ IO.puts("Cost: #{ExLLM.format_cost(response.cost.total_cost)}")
 {:ok, response} = ExLLM.chat(:local, messages, model: "microsoft/phi-2")
 IO.puts(response.content)
 
-# Streaming chat
-ExLLM.stream_chat(:anthropic, messages, fn chunk ->
-  IO.write(chunk.content)
-end)
+# Using OpenRouter for access to many models
+{:ok, response} = ExLLM.chat(:openrouter, messages, model: "openai/gpt-4o-mini")
+IO.puts(response.content)
+
+# Streaming chat with error recovery
+ExLLM.stream_chat(:anthropic, messages, 
+  stream_recovery: true,
+  fn chunk ->
+    IO.write(chunk.content)
+  end
+)
+
+# Using mock adapter for testing
+{:ok, response} = ExLLM.chat(:mock, messages, 
+  mock_response: "This is a test response"
+)
 
 # Estimate tokens before making a request
 tokens = ExLLM.estimate_tokens(messages)
@@ -140,20 +182,70 @@ IO.puts("Total cost: #{ExLLM.format_cost(cost.total_cost)}")
 options = [
   model: "claude-3-5-sonnet-20241022",
   max_tokens: 1000,
-  temperature: 0.7
+  temperature: 0.7,
+  retry_count: 3,          # Automatic retry with exponential backoff
+  retry_delay: 1000        # Initial retry delay in ms
 ]
 
 {:ok, response} = ExLLM.chat(:anthropic, messages, options)
 
-# Check provider configuration
-case ExLLM.configured?(:anthropic) do
-  true -> IO.puts("Anthropic is ready!")
-  false -> IO.puts("Please configure Anthropic API key")
+# Function calling
+functions = [
+  %{
+    name: "get_weather",
+    description: "Get the current weather for a location",
+    parameters: %{
+      type: "object",
+      properties: %{
+        location: %{type: "string", description: "City, State or Country"},
+        unit: %{type: "string", enum: ["celsius", "fahrenheit"], description: "Temperature unit"}
+      },
+      required: ["location"]
+    }
+  }
+]
+
+{:ok, response} = ExLLM.chat(:anthropic, 
+  [%{role: "user", content: "What's the weather in Paris, France?"}],
+  functions: functions
+)
+
+# Parse and execute function calls
+case ExLLM.parse_function_calls(response) do
+  {:ok, [call | _]} ->
+    # Execute the function
+    result = get_weather(call.arguments.location, call.arguments[:unit] || "celsius")
+    
+    # Format the result for the conversation
+    function_message = ExLLM.format_function_result(call.name, result)
+    
+  :none ->
+    # No function calls in response
 end
 
-# List available models
+# Model discovery and recommendations
 {:ok, models} = ExLLM.list_models(:anthropic)
 Enum.each(models, &IO.puts(&1.name))
+
+# Find models with specific capabilities
+vision_models = ExLLM.find_models_with_features([:vision])
+function_models = ExLLM.find_models_with_features([:function_calling, :streaming])
+
+# Get model recommendations
+recommended = ExLLM.recommend_models(%{
+  provider: :anthropic,
+  min_context_window: 100_000,
+  required_features: [:function_calling],
+  preferred_features: [:vision],
+  max_cost_per_million_tokens: 15.0
+})
+
+# Compare models
+comparison = ExLLM.compare_models([
+  {:anthropic, "claude-3-5-sonnet-20241022"},
+  {:openai, "gpt-4-turbo"},
+  {:gemini, "gemini-pro"}
+])
 
 # Context management - automatically truncate long conversations
 long_conversation = [
@@ -224,6 +316,27 @@ File.write!("session.json", json)
 - `save_session/1` - Serialize session to JSON
 - `load_session/1` - Load session from JSON
 
+### Function Calling
+
+- `parse_function_calls/2` - Parse function calls from LLM response
+- `execute_function/2` - Execute a function call with validation
+- `format_function_result/2` - Format function result for conversation
+
+### Model Capabilities
+
+- `get_model_info/2` - Get complete capability information for a model
+- `model_supports?/3` - Check if a model supports a specific feature
+- `find_models_with_features/1` - Find models that support specific features
+- `compare_models/1` - Compare capabilities across multiple models
+- `recommend_models/1` - Get model recommendations based on requirements
+- `models_by_capability/1` - Get models grouped by capability support
+- `list_model_features/0` - List all trackable model features
+
+### Error Recovery
+
+- `resume_stream/2` - Resume a previously interrupted stream
+- `list_recoverable_streams/0` - List all recoverable streams
+
 ### Data Structures
 
 #### LLMResponse
@@ -264,9 +377,47 @@ File.write!("session.json", json)
 }
 ```
 
+## Model Configuration
+
+ExLLM uses external YAML configuration files for model metadata, pricing, and capabilities. This allows easy updates without code changes:
+
+### External Configuration Structure
+
+```yaml
+# config/models/anthropic.yml
+provider: anthropic
+default_model: "claude-sonnet-4-20250514"
+models:
+  claude-3-5-sonnet-20241022:
+    context_window: 200000
+    pricing:
+      input: 3.00    # per 1M tokens
+      output: 15.00
+    capabilities:
+      - streaming
+      - function_calling
+      - vision
+```
+
+### Configuration Management
+
+```elixir
+# Get model pricing
+pricing = ExLLM.ModelConfig.get_pricing(:anthropic, "claude-3-5-sonnet-20241022")
+
+# Get context window
+context = ExLLM.ModelConfig.get_context_window(:openai, "gpt-4o")
+
+# Get default model for provider
+default = ExLLM.ModelConfig.get_default_model(:openrouter)
+
+# Configuration is cached for performance
+# Updates require restart or cache refresh
+```
+
 ## Cost Tracking
 
-ExLLM automatically tracks costs for all API calls when usage data is available:
+ExLLM automatically tracks costs for all API calls using the external pricing configuration:
 
 ### Automatic Cost Calculation
 
@@ -317,13 +468,16 @@ end)
 
 ### Supported Pricing
 
-ExLLM includes pricing data (as of January 2025) for all supported providers:
+ExLLM includes pricing data (as of January 2025) in external YAML files for all supported providers:
 - **Anthropic**: Claude 3 series (Opus, Sonnet, Haiku), Claude 3.5, Claude 4
-- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo, GPT-4o series
+- **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo, GPT-4o series  
+- **OpenRouter**: 300+ models with dynamic pricing
 - **Google Gemini**: Pro, Ultra, Nano
 - **AWS Bedrock**: Various models including Claude, Titan, Llama 2
 - **Ollama**: Local models (free - $0.00)
 - **Local Models**: Free ($0.00) - no API costs
+
+Pricing data is stored in `config/models/*.yml` files and can be updated independently of code changes.
 
 ## Context Management
 
@@ -705,6 +859,177 @@ case ExLLM.chat(:anthropic, messages) do
 end
 ```
 
+## Error Recovery and Retries
+
+ExLLM includes automatic error recovery and retry mechanisms:
+
+### Automatic Retries
+
+```elixir
+# Configure retry behavior
+options = [
+  retry_count: 3,              # Number of retry attempts
+  retry_delay: 1000,           # Initial delay in milliseconds
+  retry_backoff: :exponential, # Backoff strategy
+  retry_jitter: true           # Add jitter to prevent thundering herd
+]
+
+{:ok, response} = ExLLM.chat(:anthropic, messages, options)
+
+# Provider-specific retry policies
+ExLLM.Retry.with_retry(fn ->
+  ExLLM.chat(:anthropic, messages)
+end, 
+  max_attempts: 5,
+  initial_delay: 500,
+  max_delay: 30_000,
+  should_retry: fn error ->
+    # Custom retry logic
+    case error do
+      {:api_error, %{status: 429}} -> true  # Rate limit
+      {:api_error, %{status: 503}} -> true  # Service unavailable
+      {:network_error, _} -> true           # Network issues
+      _ -> false
+    end
+  end
+)
+```
+
+### Stream Recovery
+
+```elixir
+# Enable automatic stream recovery
+{:ok, stream_id} = ExLLM.stream_chat(:anthropic, messages,
+  stream_recovery: true,
+  recovery_strategy: :paragraph,  # :exact, :paragraph, or :summarize
+  fn chunk ->
+    IO.write(chunk.content)
+  end
+)
+
+# If stream is interrupted, resume from where it left off
+case ExLLM.resume_stream(stream_id) do
+  {:ok, resumed_stream} ->
+    for chunk <- resumed_stream do
+      IO.write(chunk.content)
+    end
+  {:error, :not_found} ->
+    # Stream not recoverable
+end
+
+# List recoverable streams
+recoverable = ExLLM.list_recoverable_streams()
+```
+
+## Mock Adapter for Testing
+
+The mock adapter allows you to test your LLM interactions without making real API calls:
+
+### Basic Mock Usage
+
+```elixir
+# Configure static mock response
+{:ok, response} = ExLLM.chat(:mock, messages,
+  mock_response: "This is a mock response"
+)
+
+# Configure mock with usage data
+{:ok, response} = ExLLM.chat(:mock, messages,
+  mock_response: %{
+    content: "Mock response with usage",
+    usage: %{input_tokens: 10, output_tokens: 20},
+    model: "mock-model"
+  }
+)
+
+# Mock streaming responses
+ExLLM.stream_chat(:mock, messages,
+  mock_chunks: ["Hello", " from", " mock", " adapter!"],
+  chunk_delay: 100,  # Delay between chunks in ms
+  fn chunk ->
+    IO.write(chunk.content)
+  end
+)
+```
+
+### Advanced Mock Configuration
+
+```elixir
+# Dynamic mock responses based on input
+mock_handler = fn messages ->
+  last_message = List.last(messages)
+  cond do
+    String.contains?(last_message.content, "weather") ->
+      "It's sunny and 72°F"
+    String.contains?(last_message.content, "hello") ->
+      "Hello! How can I help you?"
+    true ->
+      "I don't understand"
+  end
+end
+
+{:ok, response} = ExLLM.chat(:mock, messages,
+  mock_handler: mock_handler
+)
+
+# Simulate errors
+{:error, {:api_error, %{status: 429, body: "Rate limit exceeded"}}} = 
+  ExLLM.chat(:mock, messages,
+    mock_error: {:api_error, %{status: 429, body: "Rate limit exceeded"}}
+  )
+
+# Capture requests for assertions
+{:ok, response} = ExLLM.chat(:mock, messages,
+  capture_requests: true,
+  mock_response: "Test response"
+)
+
+# Access captured requests
+captured = ExLLM.Adapters.Mock.get_captured_requests()
+assert length(captured) == 1
+assert List.first(captured).messages == messages
+```
+
+### Testing with Mock Adapter
+
+```elixir
+defmodule MyApp.LLMClientTest do
+  use ExUnit.Case
+
+  setup do
+    # Clear any previous captures
+    ExLLM.Adapters.Mock.clear_captured_requests()
+    :ok
+  end
+
+  test "handles weather queries" do
+    messages = [%{role: "user", content: "What's the weather?"}]
+    
+    {:ok, response} = ExLLM.chat(:mock, messages,
+      mock_response: "It's sunny today!",
+      capture_requests: true
+    )
+    
+    assert response.content == "It's sunny today!"
+    
+    # Verify the request
+    [request] = ExLLM.Adapters.Mock.get_captured_requests()
+    assert request.provider == :mock
+    assert request.messages == messages
+  end
+
+  test "simulates API errors" do
+    messages = [%{role: "user", content: "Hello"}]
+    
+    {:error, error} = ExLLM.chat(:mock, messages,
+      mock_error: {:network_error, :timeout}
+    )
+    
+    assert error == {:network_error, :timeout}
+  end
+end
+```
+
 ## Local Model Support
 
 ExLLM supports running models locally using Bumblebee and EXLA/EMLX backends. This enables on-device inference without API calls or costs.
@@ -906,20 +1231,28 @@ Visit the [GitHub repository](https://github.com/azmaveth/ex_llm) to see the det
 - [x] Google Gemini adapter
 - [x] Structured outputs via Instructor integration
 - [x] Comprehensive cost tracking across all providers
+- [x] Function calling support for compatible models
+- [x] Request retry logic with exponential backoff
+- [x] Enhanced streaming error recovery
+- [x] Mock adapter for testing
+- [x] Model capability discovery and recommendations
 
 ### Near-term Goals
-- [ ] Function calling support for compatible models
 - [ ] Vision/multimodal support for compatible models
 - [ ] Embeddings API support
 - [ ] Enhanced streaming with token-level callbacks
 - [ ] Response caching with configurable TTL
-- [ ] Request retry logic with exponential backoff
+- [ ] Fine-tuning management
+- [ ] Batch API support
+- [ ] Prompt template management
+- [ ] Usage analytics and reporting
 
 ### Long-term Vision
 - Become the go-to LLM client library for Elixir
 - Support all major LLM providers
 - Provide best-in-class developer experience
 - Maintain comprehensive documentation
+- Build a thriving ecosystem of extensions
 
 ## Contributing
 

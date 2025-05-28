@@ -123,4 +123,32 @@ defmodule ExLLM.Adapter do
   """
   @callback list_models(options :: Types.adapter_options()) ::
               {:ok, [Types.Model.t()]} | {:error, term()}
+
+  @doc """
+  Generate embeddings for the given inputs.
+
+  ## Parameters
+  - `inputs` - List of text strings to embed (max length varies by model)
+  - `options` - Adapter options including `:model`
+
+  ## Returns
+  `{:ok, %ExLLM.Types.EmbeddingResponse{}}` on success, `{:error, reason}` on failure.
+  """
+  @callback embeddings(inputs :: list(String.t()), options :: Types.adapter_options()) ::
+              {:ok, Types.EmbeddingResponse.t()} | {:error, term()}
+
+  @doc """
+  List available embedding models for this adapter.
+
+  ## Parameters
+  - `options` - Adapter options (see module documentation)
+
+  ## Returns  
+  `{:ok, [%ExLLM.Types.EmbeddingModel{}]}` on success, `{:error, reason}` on failure.
+  """
+  @callback list_embedding_models(options :: Types.adapter_options()) ::
+              {:ok, [Types.EmbeddingModel.t()]} | {:error, term()}
+
+  # Optional callbacks with default implementations
+  @optional_callbacks embeddings: 2, list_embedding_models: 1
 end

@@ -116,7 +116,7 @@ defmodule ExLLM.ContextIntegrationTest do
   describe "context_window_size/2" do
     test "returns correct sizes for known models" do
       assert ExLLM.context_window_size(:anthropic, "claude-3-5-sonnet-20241022") == 200_000
-      assert ExLLM.context_window_size(:openai, "gpt-4-turbo") == 128_000
+      assert ExLLM.context_window_size(:openai, "gpt-4o") == 128_000
       assert ExLLM.context_window_size(:openai, "gpt-3.5-turbo") == 16_385
     end
   end

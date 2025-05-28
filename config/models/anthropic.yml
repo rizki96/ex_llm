@@ -1,0 +1,153 @@
+# Anthropic Claude models configuration
+# Pricing per 1M tokens (as of May 2025)
+
+provider: anthropic
+default_model: "claude-sonnet-4-20250514"
+
+models:
+  # Claude 4 series
+  claude-opus-4-20250514:
+    context_window: 200000
+    pricing:
+      input: 15.00
+      output: 75.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-opus-4-0:
+    context_window: 200000
+    pricing:
+      input: 15.00
+      output: 75.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-sonnet-4-20250514:
+    context_window: 200000
+    pricing:
+      input: 3.00
+      output: 15.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-sonnet-4-0:
+    context_window: 200000
+    pricing:
+      input: 3.00
+      output: 15.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+
+  # Claude 3.7 series
+  claude-3-7-sonnet-20250219:
+    context_window: 200000
+    pricing:
+      input: 3.00
+      output: 15.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-3-7-sonnet-latest:
+    context_window: 200000
+    pricing:
+      input: 3.00
+      output: 15.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+
+  # Claude 3.5 series
+  claude-3-5-sonnet-20241022:
+    context_window: 200000
+    pricing:
+      input: 3.00
+      output: 15.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-3-5-sonnet-latest:
+    context_window: 200000
+    pricing:
+      input: 3.00
+      output: 15.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-3-5-haiku-20241022:
+    context_window: 200000
+    pricing:
+      input: 0.80
+      output: 4.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-3-5-haiku-latest:
+    context_window: 200000
+    pricing:
+      input: 0.80
+      output: 4.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+
+  # Claude 3 series
+  claude-3-opus-20240229:
+    context_window: 200000
+    pricing:
+      input: 15.00
+      output: 75.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-3-opus-latest:
+    context_window: 200000
+    pricing:
+      input: 15.00
+      output: 75.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  claude-3-haiku-20240307:
+    context_window: 200000
+    pricing:
+      input: 0.25
+      output: 1.25
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming

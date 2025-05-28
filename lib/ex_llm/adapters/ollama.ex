@@ -51,11 +51,10 @@ defmodule ExLLM.Adapters.Ollama do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Error, Types}
+  alias ExLLM.{Error, Types, ModelConfig}
   require Logger
 
   @default_base_url "http://localhost:11434"
-  @default_model "llama2"
 
   @impl true
   def chat(messages, options \\ []) do
@@ -68,7 +67,7 @@ defmodule ExLLM.Adapters.Ollama do
 
     config = get_config(config_provider)
 
-    model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+    model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
     body = %{
       model: model,
@@ -102,7 +101,7 @@ defmodule ExLLM.Adapters.Ollama do
 
     config = get_config(config_provider)
 
-    model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+    model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
     body = %{
       model: model,
@@ -200,7 +199,12 @@ defmodule ExLLM.Adapters.Ollama do
 
   @impl true
   def default_model do
-    @default_model
+    get_default_model()
+  end
+
+  # Private helper to get default model from config
+  defp get_default_model do
+    ModelConfig.get_default_model(:ollama) || "llama2"
   end
 
   # Private functions

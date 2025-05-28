@@ -59,12 +59,11 @@ defmodule ExLLM.Adapters.Gemini do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Error, Types}
+  alias ExLLM.{Error, Types, ModelConfig}
   require Logger
 
   @base_url "https://generativelanguage.googleapis.com"
   @api_version "v1beta"
-  @default_model "gemini-2.5-flash-preview-05-20"
 
   # Available models
   @models %{
@@ -122,7 +121,7 @@ defmodule ExLLM.Adapters.Gemini do
     if !api_key || api_key == "" do
       {:error, "Google API key not configured"}
     else
-      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
       with {:ok, request_body} <- build_request_body(messages, options),
            {:ok, response} <- call_gemini_api(model, request_body, api_key) do
@@ -147,7 +146,7 @@ defmodule ExLLM.Adapters.Gemini do
     if !api_key || api_key == "" do
       {:error, "Google API key not configured"}
     else
-      model = Keyword.get(options, :model, Map.get(config, :model, @default_model))
+      model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
       with {:ok, request_body} <- build_request_body(messages, options) do
         stream_gemini_api(model, request_body, api_key)
@@ -187,7 +186,12 @@ defmodule ExLLM.Adapters.Gemini do
 
   @impl true
   def default_model do
-    @default_model
+    get_default_model()
+  end
+
+  # Private helper to get default model from config
+  defp get_default_model do
+    ModelConfig.get_default_model(:gemini) || "gemini-2.5-flash-preview-05-20"
   end
 
   # Private functions

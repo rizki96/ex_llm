@@ -62,9 +62,11 @@ defmodule ExLLM.Adapters.LocalTest do
 
   describe "message formatting" do
     test "formats messages correctly for different models" do
-      # Test the private format_messages function indirectly
-      # by checking the module compiles correctly
-      assert function_exported?(Local, :chat, 2)
+      # Test the chat function exists by checking if we get the expected error
+      # when Bumblebee is not available
+      result = Local.chat([%{role: "user", content: "test"}])
+      assert {:error, message} = result
+      assert message =~ "Bumblebee is not available"
     end
   end
 

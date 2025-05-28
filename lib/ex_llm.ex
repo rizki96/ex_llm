@@ -22,17 +22,27 @@ defmodule ExLLM do
 
   - `:anthropic` - Anthropic Claude models
   - `:openai` - OpenAI GPT models
+  - `:openrouter` - OpenRouter (300+ models from multiple providers)
   - `:ollama` - Local models via Ollama
   - `:bedrock` - AWS Bedrock (multiple providers)
   - `:gemini` - Google Gemini models
   - `:local` - Local models via Bumblebee (Phi-2, Llama 2, Mistral, etc.)
+  - `:mock` - Mock adapter for testing
 
   ## Features
 
   - **Unified Interface**: Same API across all providers
   - **Configuration Injection**: Flexible config management
-  - **Streaming Support**: Real-time response streaming
+  - **Streaming Support**: Real-time response streaming with error recovery
   - **Error Standardization**: Consistent error handling
+  - **Function Calling**: Unified interface for tool use across providers
+  - **Model Discovery**: Query and compare model capabilities
+  - **Automatic Retries**: Exponential backoff with provider-specific policies
+  - **Mock Adapter**: Built-in testing support without API calls
+  - **Cost Tracking**: Automatic usage and cost calculation
+  - **Context Management**: Automatic message truncation for model limits
+  - **Session Management**: Conversation state tracking
+  - **Structured Outputs**: Schema validation via instructor integration
   - **No Process Dependencies**: Pure functional core
   - **Extensible**: Easy to add new providers
 
@@ -44,6 +54,7 @@ defmodule ExLLM do
 
       export ANTHROPIC_API_KEY="api-..."
       export OPENAI_API_KEY="sk-..."
+      export OPENROUTER_API_KEY="sk-or-..."
       export OLLAMA_API_BASE="http://localhost:11434"
       export GOOGLE_API_KEY="your-key"
       export AWS_ACCESS_KEY_ID="your-key"
@@ -54,6 +65,7 @@ defmodule ExLLM do
       config = %{
         anthropic: %{api_key: "api-...", model: "claude-3-5-sonnet-20241022"},
         openai: %{api_key: "sk-...", model: "gpt-4"},
+        openrouter: %{api_key: "sk-or-...", model: "openai/gpt-4o"},
         ollama: %{base_url: "http://localhost:11434", model: "llama2"},
         bedrock: %{access_key_id: "...", secret_access_key: "...", region: "us-east-1"},
         gemini: %{api_key: "...", model: "gemini-pro"},
@@ -105,18 +117,32 @@ defmodule ExLLM do
   """
 
   require Logger
-  alias ExLLM.{Context, Cost, Session, Types}
+
+  alias ExLLM.{
+    Cache,
+    Context,
+    Cost,
+    FunctionCalling,
+    ModelCapabilities,
+    Retry,
+    Session,
+    StreamRecovery,
+    Types,
+    Vision
+  }
 
   @providers %{
     anthropic: ExLLM.Adapters.Anthropic,
     local: ExLLM.Adapters.Local,
     openai: ExLLM.Adapters.OpenAI,
+    openrouter: ExLLM.Adapters.OpenRouter,
     ollama: ExLLM.Adapters.Ollama,
     bedrock: ExLLM.Adapters.Bedrock,
-    gemini: ExLLM.Adapters.Gemini
+    gemini: ExLLM.Adapters.Gemini,
+    mock: ExLLM.Adapters.Mock
   }
 
-  @type provider :: :anthropic | :openai | :ollama | :local | :bedrock | :gemini
+  @type provider :: :anthropic | :openai | :openrouter | :ollama | :local | :bedrock | :gemini | :mock
   @type messages :: [Types.message()]
   @type options :: keyword()
 
@@ -140,6 +166,25 @@ defmodule ExLLM do
   - `:preserve_messages` - Number of recent messages to always preserve (default: 5)
   - `:response_model` - Ecto schema or type spec for structured output (requires instructor)
   - `:max_retries` - Number of retries for structured output validation
+  - `:functions` - List of available functions for function calling
+  - `:function_call` - Control function calling: "auto", "none", or specific function
+  - `:tools` - Alternative to functions for providers that use tools API
+  - `:retry` - Enable automatic retry (default: true)
+  - `:retry_count` - Number of retry attempts (default: 3)
+  - `:retry_delay` - Initial retry delay in ms (default: 1000)
+  - `:retry_backoff` - Backoff strategy: :exponential or :linear (default: :exponential)
+  - `:retry_jitter` - Add jitter to retry delays (default: true)
+  - `:stream_recovery` - Enable stream recovery (default: false)
+  - `:recovery_strategy` - Recovery strategy: :exact, :paragraph, or :summarize
+  - `:cache` - Enable caching for this request (default: false unless globally enabled)
+  - `:cache_ttl` - Cache TTL in milliseconds (default: 15 minutes)
+  - Mock adapter options:
+    - `:mock_response` - Static response or response map
+    - `:mock_handler` - Function to generate dynamic responses
+    - `:mock_error` - Simulate an error
+    - `:mock_chunks` - List of chunks for streaming
+    - `:chunk_delay` - Delay between chunks in ms
+    - `:capture_requests` - Capture requests for testing
 
   ## Returns
   `{:ok, %ExLLM.Types.LLMResponse{}}` on success, or `{:ok, struct}` when using
@@ -172,6 +217,24 @@ defmodule ExLLM do
         response_model: EmailClassification,
         max_retries: 3
       )
+      
+      # With function calling
+      functions = [
+        %{
+          name: "get_weather",
+          description: "Get current weather",
+          parameters: %{
+            type: "object",
+            properties: %{location: %{type: "string"}},
+            required: ["location"]
+          }
+        }
+      ]
+      
+      {:ok, response} = ExLLM.chat(:openai, messages,
+        functions: functions,
+        function_call: "auto"
+      )
   """
   @spec chat(provider(), messages(), options()) ::
           {:ok, Types.LLMResponse.t() | struct() | map()} | {:error, term()}
@@ -185,21 +248,24 @@ defmodule ExLLM do
         {:error, :instructor_not_available}
       end
     else
-      # Regular chat flow
+      # Regular chat flow with retry support
       case get_adapter(provider) do
         {:ok, adapter} ->
           # Apply context management if enabled
           prepared_messages = prepare_messages_for_provider(provider, messages, options)
 
-          result = adapter.chat(prepared_messages, options)
-
-          # Track costs if enabled
-          if Keyword.get(options, :track_cost, true) and match?({:ok, _}, result) do
-            {:ok, response} = result
-            track_response_cost(provider, response, options)
+          # Check if retry is enabled
+          if Keyword.get(options, :retry, true) do
+            ExLLM.Retry.with_provider_retry(
+              provider,
+              fn ->
+                execute_chat(adapter, provider, prepared_messages, options)
+              end,
+              Keyword.get(options, :retry_options, [])
+            )
+          else
+            execute_chat(adapter, provider, prepared_messages, options)
           end
-
-          result
 
         {:error, reason} ->
           {:error, reason}
@@ -218,6 +284,9 @@ defmodule ExLLM do
   ## Options
   Same as `chat/3`, plus:
   - `:on_chunk` - Callback function for each chunk
+  - `:stream_recovery` - Enable automatic stream recovery (default: false)
+  - `:recovery_strategy` - How to resume: :exact, :paragraph, or :summarize
+  - `:recovery_id` - Custom ID for recovery (auto-generated if not provided)
 
   ## Returns
   `{:ok, stream}` on success where stream yields `%ExLLM.Types.StreamChunk{}` structs,
@@ -253,7 +322,14 @@ defmodule ExLLM do
         # Apply context management if enabled
         prepared_messages = prepare_messages_for_provider(provider, messages, options)
 
-        adapter.stream_chat(prepared_messages, options)
+        # Check if recovery is enabled
+        recovery_opts = Keyword.get(options, :recovery, [])
+
+        if recovery_opts[:enabled] do
+          execute_stream_with_recovery(adapter, provider, prepared_messages, options)
+        else
+          adapter.stream_chat(prepared_messages, options)
+        end
 
       {:error, reason} ->
         {:error, reason}
@@ -736,7 +812,68 @@ defmodule ExLLM do
       |> Keyword.put(:provider, to_string(provider))
       |> Keyword.put_new(:model, model)
 
+    # Prepare messages for vision if needed
+    messages =
+      if Enum.any?(messages, &Vision.has_vision_content?/1) do
+        Vision.format_for_provider(messages, provider)
+      else
+        messages
+      end
+
     Context.prepare_messages(messages, context_options)
+  end
+
+  defp execute_chat(adapter, provider, messages, options) do
+    # Generate cache key if caching might be used
+    cache_key = Cache.generate_cache_key(provider, messages, options)
+
+    # Use cache wrapper
+    Cache.with_cache(cache_key, options, fn ->
+      # Check if function calling is requested
+      options = prepare_function_calling(provider, options)
+
+      result = adapter.chat(messages, options)
+
+      # Track costs if enabled
+      if Keyword.get(options, :track_cost, true) and match?({:ok, _}, result) do
+        {:ok, response} = result
+        track_response_cost(provider, response, options)
+      end
+
+      result
+    end)
+  end
+
+  defp prepare_function_calling(provider, options) do
+    cond do
+      # Check if functions are provided
+      functions = Keyword.get(options, :functions) ->
+        # Convert to provider format
+        case FunctionCalling.format_for_provider(functions, provider) do
+          {:error, _} ->
+            options
+
+          formatted_functions ->
+            # Different providers use different keys
+            case provider do
+              :anthropic ->
+                options
+                |> Keyword.delete(:functions)
+                |> Keyword.put(:tools, formatted_functions)
+
+              _ ->
+                Keyword.put(options, :functions, formatted_functions)
+            end
+        end
+
+      # Check if tools are provided (Anthropic style)
+      Keyword.has_key?(options, :tools) ->
+        options
+
+      # No function calling
+      true ->
+        options
+    end
   end
 
   defp track_response_cost(provider, response, options) do
@@ -756,5 +893,599 @@ defmodule ExLLM do
       _ ->
         nil
     end
+  end
+
+  defp execute_stream_with_recovery(adapter, provider, messages, options) do
+    # Initialize recovery
+    {:ok, recovery_id} = StreamRecovery.init_recovery(provider, messages, options)
+
+    # Start the stream
+    case adapter.stream_chat(messages, options) do
+      {:ok, stream} ->
+        # Wrap the stream to track chunks
+        wrapped_stream =
+          Stream.transform(
+            stream,
+            fn -> :ok end,
+            fn chunk, state ->
+              # Record chunk for recovery
+              StreamRecovery.record_chunk(recovery_id, chunk)
+
+              # Check for finish reason
+              if chunk.finish_reason do
+                StreamRecovery.complete_stream(recovery_id)
+              end
+
+              {[chunk], state}
+            end,
+            fn _state -> :ok end,
+            fn _state -> :ok end
+          )
+
+        {:ok, wrapped_stream}
+
+      {:error, reason} = error ->
+        # Record error for potential recovery
+        case StreamRecovery.record_error(recovery_id, reason) do
+          {:ok, true} ->
+            # Error is recoverable, return with recovery info
+            {:error, {:recoverable, reason, recovery_id}}
+
+          _ ->
+            error
+        end
+    end
+  end
+
+  @doc """
+  Resume a previously interrupted stream.
+
+  ## Options
+  - `:strategy` - Recovery strategy (:exact, :paragraph, :summarize)
+
+  ## Examples
+
+      {:ok, resumed_stream} = ExLLM.resume_stream(recovery_id)
+  """
+  @spec resume_stream(String.t(), keyword()) :: {:ok, Types.stream()} | {:error, term()}
+  def resume_stream(recovery_id, opts \\ []) do
+    StreamRecovery.resume_stream(recovery_id, opts)
+  end
+
+  @doc """
+  List all recoverable streams.
+  """
+  @spec list_recoverable_streams() :: list(map())
+  def list_recoverable_streams do
+    StreamRecovery.list_recoverable_streams()
+  end
+
+  # Function calling API
+
+  @doc """
+  Parse function calls from an LLM response.
+
+  ## Examples
+
+      case ExLLM.parse_function_calls(response, :openai) do
+        {:ok, [function_call | _]} ->
+          # Execute the function
+          execute_function(function_call)
+          
+        {:ok, []} ->
+          # No function calls in response
+          response.content
+      end
+  """
+  @spec parse_function_calls(Types.LLMResponse.t() | map(), provider()) ::
+          {:ok, list(FunctionCalling.FunctionCall.t())} | {:error, term()}
+  def parse_function_calls(response, provider) do
+    FunctionCalling.parse_function_calls(response, provider)
+  end
+
+  @doc """
+  Execute a function call with available functions.
+
+  ## Examples
+
+      functions = [
+        %{
+          name: "get_weather",
+          description: "Get weather",
+          parameters: %{...},
+          handler: fn args -> get_weather_impl(args) end
+        }
+      ]
+      
+      {:ok, result} = ExLLM.execute_function(function_call, functions)
+  """
+  @spec execute_function(FunctionCalling.FunctionCall.t(), list(map())) ::
+          {:ok, FunctionCalling.FunctionResult.t()}
+          | {:error, FunctionCalling.FunctionResult.t()}
+  def execute_function(function_call, available_functions) do
+    # Normalize functions
+    normalized =
+      Enum.map(available_functions, fn f ->
+        FunctionCalling.normalize_function(f, :generic)
+      end)
+
+    FunctionCalling.execute_function(function_call, normalized)
+  end
+
+  @doc """
+  Format function result for conversation continuation.
+
+  ## Examples
+
+      result = %FunctionCalling.FunctionResult{
+        name: "get_weather",
+        result: %{temperature: 72, condition: "sunny"}
+      }
+      
+      formatted = ExLLM.format_function_result(result, :openai)
+      
+      # Continue conversation with result
+      messages = messages ++ [formatted]
+      {:ok, response} = ExLLM.chat(:openai, messages)
+  """
+  @spec format_function_result(FunctionCalling.FunctionResult.t(), provider()) ::
+          map()
+  def format_function_result(result, provider) do
+    FunctionCalling.format_function_result(result, provider)
+  end
+
+  # Model capability discovery API
+
+  @doc """
+  Get complete capability information for a model.
+
+  ## Examples
+
+      {:ok, info} = ExLLM.get_model_info(:openai, "gpt-4-turbo")
+      
+      # Check capabilities
+      info.capabilities[:vision].supported
+      # => true
+      
+      # Get context window
+      info.context_window
+      # => 128000
+  """
+  @spec get_model_info(provider(), String.t()) ::
+          {:ok, ModelCapabilities.ModelInfo.t()} | {:error, :not_found}
+  def get_model_info(provider, model_id) do
+    ModelCapabilities.get_capabilities(provider, model_id)
+  end
+
+  @doc """
+  Check if a model supports a specific feature.
+
+  ## Examples
+
+      ExLLM.model_supports?(:anthropic, "claude-3-opus-20240229", :vision)
+      # => true
+      
+      ExLLM.model_supports?(:openai, "gpt-3.5-turbo", :vision)
+      # => false
+  """
+  @spec model_supports?(provider(), String.t(), atom()) :: boolean()
+  def model_supports?(provider, model_id, feature) do
+    ModelCapabilities.supports?(provider, model_id, feature)
+  end
+
+  @doc """
+  Find models that support specific features.
+
+  ## Examples
+
+      # Find models with vision and function calling
+      models = ExLLM.find_models_with_features([:vision, :function_calling])
+      # => [{:openai, "gpt-4-turbo"}, {:anthropic, "claude-3-opus-20240229"}, ...]
+      
+      # Find models that support streaming and have large context
+      models = ExLLM.find_models_with_features([:streaming])
+      |> Enum.filter(fn {provider, model} ->
+        {:ok, info} = ExLLM.get_model_info(provider, model)
+        info.context_window >= 100_000
+      end)
+  """
+  @spec find_models_with_features(list(atom())) :: list({provider(), String.t()})
+  def find_models_with_features(required_features) do
+    ModelCapabilities.find_models_with_features(required_features)
+  end
+
+  @doc """
+  Compare capabilities across multiple models.
+
+  ## Examples
+
+      comparison = ExLLM.compare_models([
+        {:openai, "gpt-4-turbo"},
+        {:anthropic, "claude-3-5-sonnet-20241022"},
+        {:gemini, "gemini-pro"}
+      ])
+      
+      # See which features each model supports
+      comparison.features[:vision]
+      # => [%{supported: true}, %{supported: true}, %{supported: false}]
+  """
+  @spec compare_models(list({provider(), String.t()})) :: map()
+  def compare_models(model_specs) do
+    ModelCapabilities.compare_models(model_specs)
+  end
+
+  @doc """
+  Get recommended models based on requirements.
+
+  ## Options
+
+  - `:features` - Required features (list of atoms)
+  - `:min_context_window` - Minimum context window size
+  - `:max_cost_per_1k_tokens` - Maximum acceptable cost
+  - `:prefer_local` - Prefer local models
+  - `:limit` - Number of recommendations (default: 5)
+
+  ## Examples
+
+      # Find best models for vision tasks with large context
+      recommendations = ExLLM.recommend_models(
+        features: [:vision, :streaming],
+        min_context_window: 50_000,
+        prefer_local: false
+      )
+      
+      # Find cheapest models for basic chat
+      recommendations = ExLLM.recommend_models(
+        features: [:multi_turn, :system_messages],
+        max_cost_per_1k_tokens: 1.0
+      )
+  """
+  @spec recommend_models(keyword()) :: list({provider(), String.t(), map()})
+  def recommend_models(requirements \\ []) do
+    ModelCapabilities.recommend_models(requirements)
+  end
+
+  @doc """
+  List all trackable model features.
+
+  ## Examples
+
+      features = ExLLM.list_model_features()
+      # => [:streaming, :function_calling, :vision, :audio, ...]
+  """
+  @spec list_model_features() :: list(atom())
+  def list_model_features do
+    ModelCapabilities.list_features()
+  end
+
+  @doc """
+  Get models grouped by a specific capability.
+
+  ## Examples
+
+      vision_models = ExLLM.models_by_capability(:vision)
+      # => %{
+      #   supported: [{:openai, "gpt-4-turbo"}, {:anthropic, "claude-3-opus-20240229"}, ...],
+      #   not_supported: [{:openai, "gpt-3.5-turbo"}, ...]
+      # }
+  """
+  @spec models_by_capability(atom()) :: %{supported: list(), not_supported: list()}
+  def models_by_capability(feature) do
+    ModelCapabilities.models_by_capability(feature)
+  end
+
+  # Embeddings API
+
+  @doc """
+  Generate embeddings for text inputs.
+
+  Embeddings are numerical representations of text that can be used for:
+  - Semantic search
+  - Clustering
+  - Recommendations
+  - Anomaly detection
+  - Classification
+
+  ## Parameters
+  - `provider` - The LLM provider (`:openai`, `:anthropic`, etc.)
+  - `inputs` - List of text strings to embed
+  - `options` - Options including `:model`, `:dimensions`, etc.
+
+  ## Options
+  - `:model` - Embedding model to use (provider-specific)
+  - `:dimensions` - Desired embedding dimensions (if supported)
+  - `:cache` - Enable caching for embeddings
+  - `:cache_ttl` - Cache TTL in milliseconds
+  - `:track_cost` - Track embedding costs (default: true)
+
+  ## Examples
+
+      # Single embedding
+      {:ok, response} = ExLLM.embeddings(:openai, ["Hello, world!"])
+      [embedding] = response.embeddings
+      # => [0.0123, -0.0456, 0.0789, ...]
+      
+      # Multiple embeddings
+      texts = ["First text", "Second text", "Third text"]
+      {:ok, response} = ExLLM.embeddings(:openai, texts,
+        model: "text-embedding-3-small",
+        dimensions: 256  # Reduce dimensions for storage
+      )
+      
+      # With caching
+      {:ok, response} = ExLLM.embeddings(:openai, texts,
+        cache: true,
+        cache_ttl: :timer.hours(24)
+      )
+  """
+  @spec embeddings(provider(), list(String.t()), options()) ::
+          {:ok, Types.EmbeddingResponse.t()} | {:error, term()}
+  def embeddings(provider, inputs, options \\ []) do
+    case get_adapter(provider) do
+      {:ok, adapter} ->
+        # Ensure module is loaded
+        Code.ensure_loaded(adapter)
+        
+        # Check if adapter supports embeddings
+        # Note: embeddings/2 with default args exports both embeddings/1 and embeddings/2
+        has_embeddings = function_exported?(adapter, :embeddings, 2) or function_exported?(adapter, :embeddings, 1)
+        if has_embeddings do
+          # Use cache if enabled
+          # For embeddings, generate a different type of cache key
+          cache_key = generate_embeddings_cache_key(provider, inputs, options)
+
+          Cache.with_cache(cache_key, options, fn ->
+            adapter.embeddings(inputs, options)
+          end)
+        else
+          {:error, {:not_supported, "#{provider} does not support embeddings"}}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  List available embedding models for a provider.
+
+  ## Examples
+
+      {:ok, models} = ExLLM.list_embedding_models(:openai)
+      Enum.each(models, fn m ->
+        IO.puts("\#{m.name} - \#{m.dimensions} dimensions")
+      end)
+  """
+  @spec list_embedding_models(provider(), options()) ::
+          {:ok, list(Types.EmbeddingModel.t())} | {:error, term()}
+  def list_embedding_models(provider, options \\ []) do
+    case get_adapter(provider) do
+      {:ok, adapter} ->
+        Code.ensure_loaded(adapter)
+        if function_exported?(adapter, :list_embedding_models, 1) or function_exported?(adapter, :list_embedding_models, 0) do
+          adapter.list_embedding_models(options)
+        else
+          # No embedding models if not supported
+          {:ok, []}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Calculate similarity between two embeddings.
+
+  Uses cosine similarity: 1.0 = identical, 0.0 = orthogonal, -1.0 = opposite
+
+  ## Examples
+
+      similarity = ExLLM.cosine_similarity(embedding1, embedding2)
+      # => 0.87
+  """
+  @spec cosine_similarity(list(float()), list(float())) :: float()
+  def cosine_similarity(embedding1, embedding2) when length(embedding1) == length(embedding2) do
+    dot_product =
+      Enum.zip(embedding1, embedding2)
+      |> Enum.reduce(0.0, fn {a, b}, acc -> acc + a * b end)
+
+    magnitude1 = :math.sqrt(Enum.reduce(embedding1, 0.0, fn x, acc -> acc + x * x end))
+    magnitude2 = :math.sqrt(Enum.reduce(embedding2, 0.0, fn x, acc -> acc + x * x end))
+
+    if magnitude1 * magnitude2 == 0 do
+      0.0
+    else
+      dot_product / (magnitude1 * magnitude2)
+    end
+  end
+
+  def cosine_similarity(_, _) do
+    raise ArgumentError, "Embeddings must have the same dimension"
+  end
+
+  @doc """
+  Find the most similar items from a list of embeddings.
+
+  ## Options
+  - `:top_k` - Number of results to return (default: 5)
+  - `:threshold` - Minimum similarity score (default: 0.0)
+
+  ## Examples
+
+      query_embedding = get_embedding("search query")
+      
+      items = [
+        %{id: 1, text: "First doc", embedding: [...]},
+        %{id: 2, text: "Second doc", embedding: [...]},
+        # ...
+      ]
+      
+      results = ExLLM.find_similar(query_embedding, items,
+        top_k: 10,
+        threshold: 0.7
+      )
+      # => [%{item: %{id: 2, ...}, similarity: 0.92}, ...]
+  """
+  @spec find_similar(list(float()), list(map()), keyword()) :: list(map())
+  def find_similar(query_embedding, items, options \\ []) do
+    top_k = Keyword.get(options, :top_k, 5)
+    threshold = Keyword.get(options, :threshold, 0.0)
+
+    items
+    |> Enum.map(fn item ->
+      similarity = cosine_similarity(query_embedding, item.embedding)
+      %{item: item, similarity: similarity}
+    end)
+    |> Enum.filter(fn %{similarity: sim} -> sim >= threshold end)
+    |> Enum.sort_by(& &1.similarity, :desc)
+    |> Enum.take(top_k)
+  end
+
+  # Vision/Multimodal API
+
+  @doc """
+  Create a vision-enabled message with text and images.
+
+  ## Examples
+
+      # With image URLs
+      {:ok, message} = ExLLM.vision_message("What's in these images?", [
+        "https://example.com/image1.jpg",
+        "https://example.com/image2.png"
+      ])
+      
+      {:ok, response} = ExLLM.chat(:anthropic, [message])
+      
+      # With local images
+      {:ok, message} = ExLLM.vision_message("Describe these photos", [
+        "/path/to/photo1.jpg",
+        "/path/to/photo2.png"
+      ])
+      
+      # With options
+      {:ok, message} = ExLLM.vision_message("Analyze this chart", 
+        ["chart.png"],
+        role: "user",
+        detail: :high  # High detail for complex images
+      )
+  """
+  @spec vision_message(String.t(), list(String.t()), keyword()) ::
+          {:ok, Types.message()} | {:error, term()}
+  def vision_message(text, image_sources, options \\ []) do
+    role = Keyword.get(options, :role, "user")
+    Vision.build_message(role, text, image_sources, options)
+  end
+
+  @doc """
+  Load an image from file for use in vision requests.
+
+  ## Examples
+
+      {:ok, image_part} = ExLLM.load_image("photo.jpg")
+      
+      message = %{
+        role: "user",
+        content: [
+          ExLLM.Vision.text("What's in this image?"),
+          image_part
+        ]
+      }
+  """
+  @spec load_image(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
+  def load_image(file_path, options \\ []) do
+    Vision.load_image(file_path, options)
+  end
+
+  @doc """
+  Check if a provider and model support vision inputs.
+
+  ## Examples
+
+      ExLLM.supports_vision?(:anthropic, "claude-3-opus-20240229")
+      # => true
+      
+      ExLLM.supports_vision?(:openai, "gpt-3.5-turbo")
+      # => false
+  """
+  @spec supports_vision?(provider(), String.t()) :: boolean()
+  def supports_vision?(provider, model) do
+    Vision.supports_vision?(provider) and
+      ModelCapabilities.supports?(provider, model, :vision)
+  end
+
+  @doc """
+  Extract text from an image using vision capabilities.
+
+  This is a convenience function for OCR-like tasks.
+
+  ## Examples
+
+      {:ok, text} = ExLLM.extract_text_from_image(:anthropic, "document.png")
+      IO.puts(text)
+      
+      # With options
+      {:ok, text} = ExLLM.extract_text_from_image(:openai, "handwriting.jpg",
+        model: "gpt-4-turbo",
+        prompt: "Extract all text, preserving formatting"
+      )
+  """
+  @spec extract_text_from_image(provider(), String.t(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def extract_text_from_image(provider, image_path, options \\ []) do
+    prompt =
+      Keyword.get(
+        options,
+        :prompt,
+        "Extract all text from this image. Return only the extracted text, no additional commentary."
+      )
+
+    with {:ok, message} <- vision_message(prompt, [image_path]) do
+      case chat(provider, [message], options) do
+        {:ok, response} -> {:ok, response.content}
+        error -> error
+      end
+    end
+  end
+
+  @doc """
+  Analyze images with a specific prompt.
+
+  ## Examples
+
+      {:ok, analysis} = ExLLM.analyze_images(:anthropic,
+        ["chart1.png", "chart2.png"],
+        "Compare these two charts and identify key differences"
+      )
+  """
+  @spec analyze_images(provider(), list(String.t()), String.t(), keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  def analyze_images(provider, image_paths, prompt, options \\ []) do
+    with {:ok, message} <- vision_message(prompt, image_paths, options) do
+      case chat(provider, [message], options) do
+        {:ok, response} -> {:ok, response.content}
+        error -> error
+      end
+    end
+  end
+
+  # Private helper for generating embeddings cache key
+  defp generate_embeddings_cache_key(provider, inputs, options) do
+    # Filter relevant options for embeddings
+    relevant_opts =
+      options
+      |> Keyword.take([:model, :dimensions, :encoding_format])
+      |> Enum.sort()
+
+    # Create cache key components
+    key_data = %{
+      provider: provider,
+      inputs: inputs,
+      options: relevant_opts
+    }
+
+    # Generate deterministic hash
+    :crypto.hash(:sha256, :erlang.term_to_binary(key_data))
+    |> Base.encode64(padding: false)
   end
 end

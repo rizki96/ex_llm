@@ -1,0 +1,119 @@
+# Google Gemini models configuration
+# Pricing per 1M tokens (as of May 2025)
+
+provider: gemini
+default_model: "gemini-2.5-flash-preview-05-20"
+
+models:
+  # Gemini 2.5 series
+  gemini-2.5-flash-preview-05-20:
+    context_window: 1048576
+    pricing:
+      input: 0.075
+      output: 0.30
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  gemini-2.5-pro-preview-05-20:
+    context_window: 2097152
+    pricing:
+      input: 3.50
+      output: 10.50
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+
+  # Gemini 2.0 series
+  gemini-2.0-flash-exp:
+    context_window: 1048576
+    pricing:
+      input: 0.075
+      output: 0.30
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  gemini-2.0-flash-thinking-exp-1219:
+    context_window: 32768
+    pricing:
+      input: 0.075
+      output: 0.30
+    capabilities:
+      - text
+      - reasoning
+      - function_calling
+      - streaming
+
+  # Gemini 1.5 series
+  gemini-1.5-pro:
+    context_window: 2097152
+    pricing:
+      input: 1.25
+      output: 5.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  gemini-1.5-pro-002:
+    context_window: 2097152
+    pricing:
+      input: 1.25
+      output: 5.00
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  gemini-1.5-flash:
+    context_window: 1048576
+    pricing:
+      input: 0.075
+      output: 0.30
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  gemini-1.5-flash-002:
+    context_window: 1048576
+    pricing:
+      input: 0.075
+      output: 0.30
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+    
+  gemini-1.5-flash-8b:
+    context_window: 1048576
+    pricing:
+      input: 0.0375
+      output: 0.15
+    capabilities:
+      - text
+      - vision
+      - function_calling
+      - streaming
+
+  # Gemini 1.0 series
+  gemini-1.0-pro:
+    context_window: 32768
+    pricing:
+      input: 0.50
+      output: 1.50
+    capabilities:
+      - text
+      - function_calling
+      - streaming

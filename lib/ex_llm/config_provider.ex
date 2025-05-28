@@ -68,6 +68,21 @@ defmodule ExLLM.ConfigProvider do
     end
   end
 
+  defmodule Default do
+    @moduledoc """
+    Default configuration provider that reads from environment variables.
+    This is an alias for the Env provider for backward compatibility.
+    """
+
+    @behaviour ExLLM.ConfigProvider
+
+    @impl true
+    def get(provider, key), do: ExLLM.ConfigProvider.Env.get(provider, key)
+
+    @impl true
+    def get_all(provider), do: ExLLM.ConfigProvider.Env.get_all(provider)
+  end
+
   defmodule Env do
     @moduledoc """
     Environment-based configuration provider.
@@ -105,6 +120,19 @@ defmodule ExLLM.ConfigProvider do
       do: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434")
 
     defp get_known_config(:ollama, :model), do: System.get_env("OLLAMA_MODEL", "llama2")
+
+    defp get_known_config(:openrouter, :api_key), do: System.get_env("OPENROUTER_API_KEY")
+
+    defp get_known_config(:openrouter, :base_url),
+      do: System.get_env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
+
+    defp get_known_config(:openrouter, :model),
+      do: System.get_env("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+
+    defp get_known_config(:openrouter, :app_name), do: System.get_env("OPENROUTER_APP_NAME")
+    
+    defp get_known_config(:openrouter, :app_url), do: System.get_env("OPENROUTER_APP_URL")
+
     defp get_known_config(_, _), do: nil
 
     defp get_generic_config(provider, key) do
@@ -133,6 +161,15 @@ defmodule ExLLM.ConfigProvider do
           %{
             base_url: get(:ollama, :base_url),
             model: get(:ollama, :model)
+          }
+
+        :openrouter ->
+          %{
+            api_key: get(:openrouter, :api_key),
+            base_url: get(:openrouter, :base_url),
+            model: get(:openrouter, :model),
+            app_name: get(:openrouter, :app_name),
+            app_url: get(:openrouter, :app_url)
           }
 
         _ ->
