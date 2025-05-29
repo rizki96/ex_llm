@@ -1,0 +1,206 @@
+provider: fireworks_ai
+models:
+  fireworks_ai/accounts/fireworks/models/llama-v3p2-1b-instruct:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.1
+      output: 0.1
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/llama-v3p2-3b-instruct:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.1
+      output: 0.1
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/llama-v3p1-8b-instruct:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.1
+      output: 0.1
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/llama-v3p2-11b-vision-instruct:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.2
+      output: 0.2
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - tool_choice
+  accounts/fireworks/models/llama-v3p2-90b-vision-instruct:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.9
+      output: 0.9
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+  fireworks_ai/accounts/fireworks/models/firefunction-v2:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.9
+      output: 0.9
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/mixtral-8x22b-instruct-hf:
+    context_window: 65536
+    max_output_tokens: 65536
+    pricing:
+      input: 1.2
+      output: 1.2
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/qwen2-72b-instruct:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 0.9
+      output: 0.9
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/qwen2p5-coder-32b-instruct:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.9
+      output: 0.9
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/yi-large:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 3.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/deepseek-coder-v2-instruct:
+    context_window: 65536
+    max_output_tokens: 65536
+    pricing:
+      input: 1.2
+      output: 1.2
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/deepseek-v3:
+    context_window: 128000
+    max_output_tokens: 8192
+    pricing:
+      input: 0.9
+      output: 0.9
+    capabilities:
+    - streaming
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/deepseek-r1:
+    context_window: 128000
+    max_output_tokens: 20480
+    pricing:
+      input: 3.0
+      output: 8.0
+    capabilities:
+    - streaming
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/deepseek-r1-basic:
+    context_window: 128000
+    max_output_tokens: 20480
+    pricing:
+      input: 0.55
+      output: 2.19
+    capabilities:
+    - streaming
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/llama-v3p1-405b-instruct:
+    context_window: 128000
+    max_output_tokens: 16384
+    pricing:
+      input: 3.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/llama4-maverick-instruct-basic:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.22
+      output: 0.88
+    capabilities:
+    - streaming
+    - structured_output
+    - tool_choice
+  fireworks_ai/accounts/fireworks/models/llama4-scout-instruct-basic:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.15
+      output: 0.6
+    capabilities:
+    - streaming
+    - structured_output
+    - tool_choice
+  fireworks-ai-up-to-4b:
+    pricing:
+      input: 0.2
+      output: 0.2
+  fireworks-ai-4.1b-to-16b:
+    pricing:
+      input: 0.2
+      output: 0.2
+  fireworks-ai-above-16b:
+    pricing:
+      input: 0.9
+      output: 0.9
+  fireworks-ai-moe-up-to-56b:
+    pricing:
+      input: 0.5
+      output: 0.5
+  fireworks-ai-56b-to-176b:
+    pricing:
+      input: 1.2
+      output: 1.2
+  fireworks-ai-default: {}
+default_model: fireworks_ai/accounts/fireworks/models/llama-v3p2-1b-instruct

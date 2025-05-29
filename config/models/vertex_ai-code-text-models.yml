@@ -1,0 +1,68 @@
+provider: vertex_ai-code-text-models
+models:
+  code-bison:
+    context_window: 6144
+    max_output_tokens: 1024
+    pricing:
+      input: 0.125
+      output: 0.125
+    capabilities:
+    - streaming
+    - tool_choice
+  code-bison@001:
+    context_window: 6144
+    max_output_tokens: 1024
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  code-bison@002:
+    context_window: 6144
+    max_output_tokens: 1024
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  code-bison32k:
+    context_window: 6144
+    max_output_tokens: 1024
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  code-bison-32k@002:
+    context_window: 6144
+    max_output_tokens: 1024
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  code-gecko@001:
+    context_window: 2048
+    max_output_tokens: 64
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  code-gecko@002:
+    context_window: 2048
+    max_output_tokens: 64
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  code-gecko:
+    context_window: 2048
+    max_output_tokens: 64
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  code-gecko-latest:
+    context_window: 2048
+    max_output_tokens: 64
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+default_model: code-bison

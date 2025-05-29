@@ -1,0 +1,11 @@
+provider: text-completion-codestral
+models:
+  text-completion-codestral/codestral-latest:
+    context_window: 32000
+    max_output_tokens: 8191
+    mode: completion
+  text-completion-codestral/codestral-2405:
+    context_window: 32000
+    max_output_tokens: 8191
+    mode: completion
+default_model: text-completion-codestral/codestral-latest

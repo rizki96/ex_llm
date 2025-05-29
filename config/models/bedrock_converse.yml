@@ -1,0 +1,333 @@
+provider: bedrock_converse
+models:
+  amazon.nova-micro-v1:0:
+    context_window: 300000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.035
+      output: 0.14
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - structured_output
+  us.amazon.nova-micro-v1:0:
+    context_window: 300000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.035
+      output: 0.14
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - structured_output
+  eu.amazon.nova-micro-v1:0:
+    context_window: 300000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.046
+      output: 0.184
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - structured_output
+  amazon.nova-lite-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.06
+      output: 0.24
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+  us.amazon.nova-lite-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.06
+      output: 0.24
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+  eu.amazon.nova-lite-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.078
+      output: 0.312
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+  amazon.nova-pro-v1:0:
+    context_window: 300000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.8
+      output: 3.2
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+  us.amazon.nova-pro-v1:0:
+    context_window: 300000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.8
+      output: 3.2
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+  eu.amazon.nova-pro-v1:0:
+    context_window: 300000
+    max_output_tokens: 4096
+    pricing:
+      input: 1.05
+      output: 4.2
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+  us.amazon.nova-premier-v1:0:
+    context_window: 1000000
+    max_output_tokens: 4096
+    pricing:
+      input: 2.5
+      output: 12.5
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - pdf_input
+  anthropic.claude-opus-4-20250514-v1:0:
+    context_window: 200000
+    max_output_tokens: 32000
+    pricing:
+      input: 15.0
+      output: 75.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  anthropic.claude-sonnet-4-20250514-v1:0:
+    context_window: 200000
+    max_output_tokens: 64000
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  anthropic.claude-3-7-sonnet-20250219-v1:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  us.anthropic.claude-3-7-sonnet-20250219-v1:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  us.anthropic.claude-opus-4-20250514-v1:0:
+    context_window: 200000
+    max_output_tokens: 32000
+    pricing:
+      input: 15.0
+      output: 75.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  us.anthropic.claude-sonnet-4-20250514-v1:0:
+    context_window: 200000
+    max_output_tokens: 64000
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  eu.anthropic.claude-opus-4-20250514-v1:0:
+    context_window: 200000
+    max_output_tokens: 32000
+    pricing:
+      input: 15.0
+      output: 75.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  eu.anthropic.claude-sonnet-4-20250514-v1:0:
+    context_window: 200000
+    max_output_tokens: 64000
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  us.deepseek.r1-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 1.35
+      output: 5.4
+    capabilities:
+    - streaming
+    - reasoning
+  meta.llama3-3-70b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.72
+      output: 0.72
+    capabilities:
+    - streaming
+    - function_calling
+  us.meta.llama3-3-70b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.72
+      output: 0.72
+    capabilities:
+    - streaming
+    - function_calling
+  meta.llama4-maverick-17b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.24
+      output: 0.97
+    capabilities:
+    - streaming
+    - function_calling
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+  us.meta.llama4-maverick-17b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.24
+      output: 0.97
+    capabilities:
+    - streaming
+    - function_calling
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+  meta.llama4-scout-17b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.17
+      output: 0.66
+    capabilities:
+    - streaming
+    - function_calling
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+  us.meta.llama4-scout-17b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.17
+      output: 0.66
+    capabilities:
+    - streaming
+    - function_calling
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+default_model: amazon.nova-micro-v1:0

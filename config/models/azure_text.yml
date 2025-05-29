@@ -1,0 +1,21 @@
+provider: azure_text
+models:
+  azure/gpt-3.5-turbo-instruct-0914:
+    context_window: 4097
+    pricing:
+      input: 1.5
+      output: 2.0
+    mode: completion
+  azure/gpt-35-turbo-instruct:
+    context_window: 4097
+    pricing:
+      input: 1.5
+      output: 2.0
+    mode: completion
+  azure/gpt-35-turbo-instruct-0914:
+    context_window: 4097
+    pricing:
+      input: 1.5
+      output: 2.0
+    mode: completion
+default_model: azure/gpt-3.5-turbo-instruct-0914

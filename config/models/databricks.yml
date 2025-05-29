@@ -1,0 +1,116 @@
+provider: databricks
+models:
+  databricks/databricks-claude-3-7-sonnet:
+    context_window: 200000
+    max_output_tokens: 128000
+    pricing:
+      input: 2.5
+      output: 17.857
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
+  databricks/databricks-meta-llama-3-1-405b-instruct:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 5.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-meta-llama-3-1-70b-instruct:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-meta-llama-3-3-70b-instruct:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-llama-4-maverick:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 5.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-dbrx-instruct:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 0.75
+      output: 2.249
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-meta-llama-3-70b-instruct:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-llama-2-70b-chat:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-mixtral-8x7b-instruct:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.5
+      output: 0.999
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-mpt-30b-instruct:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.999
+      output: 0.999
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-mpt-7b-instruct:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.5
+      output: 0.0
+    capabilities:
+    - streaming
+    - tool_choice
+  databricks/databricks-bge-large-en:
+    context_window: 512
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  databricks/databricks-gte-large-en:
+    context_window: 8192
+    pricing:
+      input: 0.13
+      output: 0.0
+    mode: embedding
+default_model: databricks/databricks-claude-3-7-sonnet

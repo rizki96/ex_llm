@@ -1,0 +1,95 @@
+provider: nscale
+models:
+  nscale/meta-llama/Llama-4-Scout-17B-16E-Instruct:
+    pricing:
+      input: 0.09
+      output: 0.29
+    capabilities:
+    - streaming
+  nscale/Qwen/Qwen2.5-Coder-3B-Instruct:
+    pricing:
+      input: 0.01
+      output: 0.03
+    capabilities:
+    - streaming
+  nscale/Qwen/Qwen2.5-Coder-7B-Instruct:
+    pricing:
+      input: 0.01
+      output: 0.03
+    capabilities:
+    - streaming
+  nscale/Qwen/Qwen2.5-Coder-32B-Instruct:
+    pricing:
+      input: 0.06
+      output: 0.2
+    capabilities:
+    - streaming
+  nscale/Qwen/QwQ-32B:
+    pricing:
+      input: 0.18
+      output: 0.2
+    capabilities:
+    - streaming
+  nscale/deepseek-ai/DeepSeek-R1-Distill-Llama-70B:
+    pricing:
+      input: 0.375
+      output: 0.375
+    capabilities:
+    - streaming
+  nscale/deepseek-ai/DeepSeek-R1-Distill-Llama-8B:
+    pricing:
+      input: 0.025
+      output: 0.025
+    capabilities:
+    - streaming
+  nscale/deepseek-ai/DeepSeek-R1-Distill-Qwen-1.5B:
+    pricing:
+      input: 0.09
+      output: 0.09
+    capabilities:
+    - streaming
+  nscale/deepseek-ai/DeepSeek-R1-Distill-Qwen-7B:
+    pricing:
+      input: 0.2
+      output: 0.2
+    capabilities:
+    - streaming
+  nscale/deepseek-ai/DeepSeek-R1-Distill-Qwen-14B:
+    pricing:
+      input: 0.07
+      output: 0.07
+    capabilities:
+    - streaming
+  nscale/deepseek-ai/DeepSeek-R1-Distill-Qwen-32B:
+    pricing:
+      input: 0.15
+      output: 0.15
+    capabilities:
+    - streaming
+  nscale/mistralai/mixtral-8x22b-instruct-v0.1:
+    pricing:
+      input: 0.6
+      output: 0.6
+    capabilities:
+    - streaming
+  nscale/meta-llama/Llama-3.1-8B-Instruct:
+    pricing:
+      input: 0.03
+      output: 0.03
+    capabilities:
+    - streaming
+  nscale/meta-llama/Llama-3.3-70B-Instruct:
+    pricing:
+      input: 0.2
+      output: 0.2
+    capabilities:
+    - streaming
+  nscale/black-forest-labs/FLUX.1-schnell:
+    mode: image_generation
+    supported_endpoints:
+    - /v1/images/generations
+  nscale/stabilityai/stable-diffusion-xl-base-1.0:
+    mode: image_generation
+    supported_endpoints:
+    - /v1/images/generations
+default_model: nscale/meta-llama/Llama-4-Scout-17B-16E-Instruct

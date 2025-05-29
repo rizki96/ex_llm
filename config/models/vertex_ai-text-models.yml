@@ -1,0 +1,43 @@
+provider: vertex_ai-text-models
+models:
+  text-bison:
+    context_window: 8192
+    max_output_tokens: 2048
+    mode: completion
+  text-bison@001:
+    context_window: 8192
+    max_output_tokens: 1024
+    mode: completion
+  text-bison@002:
+    context_window: 8192
+    max_output_tokens: 1024
+    mode: completion
+  text-bison32k:
+    context_window: 8192
+    max_output_tokens: 1024
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  text-bison32k@002:
+    context_window: 8192
+    max_output_tokens: 1024
+    pricing:
+      input: 0.125
+      output: 0.125
+    mode: completion
+  text-unicorn:
+    context_window: 8192
+    max_output_tokens: 1024
+    pricing:
+      input: 10.0
+      output: 28.0
+    mode: completion
+  text-unicorn@001:
+    context_window: 8192
+    max_output_tokens: 1024
+    pricing:
+      input: 10.0
+      output: 28.0
+    mode: completion
+default_model: text-bison

@@ -1,0 +1,93 @@
+provider: vertex_ai-llama_models
+models:
+  vertex_ai/meta/llama3-405b-instruct-maas:
+    context_window: 32000
+    max_output_tokens: 32000
+    capabilities:
+    - streaming
+    - tool_choice
+  vertex_ai/meta/llama-4-scout-17b-16e-instruct-maas:
+    context_window: 10000000.0
+    max_output_tokens: 10000000.0
+    pricing:
+      input: 0.25
+      output: 0.7
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+  vertex_ai/meta/llama-4-scout-17b-128e-instruct-maas:
+    context_window: 10000000.0
+    max_output_tokens: 10000000.0
+    pricing:
+      input: 0.25
+      output: 0.7
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+  vertex_ai/meta/llama-4-maverick-17b-128e-instruct-maas:
+    context_window: 1000000.0
+    max_output_tokens: 1000000.0
+    pricing:
+      input: 0.35
+      output: 1.15
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+  vertex_ai/meta/llama-4-maverick-17b-16e-instruct-maas:
+    context_window: 1000000.0
+    max_output_tokens: 1000000.0
+    pricing:
+      input: 0.35
+      output: 1.15
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+    - code
+  vertex_ai/meta/llama3-70b-instruct-maas:
+    context_window: 32000
+    max_output_tokens: 32000
+    capabilities:
+    - streaming
+    - tool_choice
+  vertex_ai/meta/llama3-8b-instruct-maas:
+    context_window: 32000
+    max_output_tokens: 32000
+    capabilities:
+    - streaming
+    - tool_choice
+  vertex_ai/meta/llama-3.2-90b-vision-instruct-maas:
+    context_window: 128000
+    max_output_tokens: 2048
+    capabilities:
+    - streaming
+    - vision
+    - system_messages
+    - tool_choice
+default_model: vertex_ai/meta/llama3-405b-instruct-maas

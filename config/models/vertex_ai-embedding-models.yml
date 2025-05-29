@@ -1,0 +1,93 @@
+provider: vertex_ai-embedding-models
+models:
+  text-embedding-004:
+    context_window: 2048
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  text-embedding-005:
+    context_window: 2048
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  text-multilingual-embedding-002:
+    context_window: 2048
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  multimodalembedding:
+    context_window: 2048
+    pricing:
+      input: 0.8
+      output: 0
+    mode: embedding
+    supported_endpoints:
+    - /v1/embeddings
+    supported_modalities:
+    - text
+    - image
+    - video
+  multimodalembedding@001:
+    context_window: 2048
+    pricing:
+      input: 0.8
+      output: 0
+    mode: embedding
+    supported_endpoints:
+    - /v1/embeddings
+    supported_modalities:
+    - text
+    - image
+    - video
+  text-embedding-large-exp-03-07:
+    context_window: 8192
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  textembedding-gecko:
+    context_window: 3072
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  textembedding-gecko-multilingual:
+    context_window: 3072
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  textembedding-gecko-multilingual@001:
+    context_window: 3072
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  textembedding-gecko@001:
+    context_window: 3072
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  textembedding-gecko@003:
+    context_window: 3072
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+  text-embedding-preview-0409:
+    context_window: 3072
+    pricing:
+      input: 0.0062
+      output: 0
+    mode: embedding
+  text-multilingual-embedding-preview-0409:
+    context_window: 3072
+    pricing:
+      input: 0.0062
+      output: 0
+    mode: embedding
+default_model: text-embedding-004

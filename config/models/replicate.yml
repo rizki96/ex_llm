@@ -1,0 +1,120 @@
+provider: replicate
+models:
+  replicate/meta/llama-2-13b:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.1
+      output: 0.5
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-2-13b-chat:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.1
+      output: 0.5
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-2-70b:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.65
+      output: 2.75
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-2-70b-chat:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.65
+      output: 2.75
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-2-7b:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.05
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-2-7b-chat:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.05
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-3-70b:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.65
+      output: 2.75
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-3-70b-instruct:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.65
+      output: 2.75
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-3-8b:
+    context_window: 8086
+    max_output_tokens: 8086
+    pricing:
+      input: 0.05
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/meta/llama-3-8b-instruct:
+    context_window: 8086
+    max_output_tokens: 8086
+    pricing:
+      input: 0.05
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/mistralai/mistral-7b-v0.1:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.05
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/mistralai/mistral-7b-instruct-v0.2:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.05
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  replicate/mistralai/mixtral-8x7b-instruct-v0.1:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.3
+      output: 1.0
+    capabilities:
+    - streaming
+    - tool_choice
+default_model: replicate/meta/llama-2-13b

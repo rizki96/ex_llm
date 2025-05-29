@@ -1,0 +1,242 @@
+provider: mistral
+models:
+  mistral/mistral-tiny:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.25
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/mistral-small:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.1
+      output: 0.3
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-small-latest:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.1
+      output: 0.3
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-medium:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.7
+      output: 8.1
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/mistral-medium-latest:
+    context_window: 131072
+    max_output_tokens: 8191
+    pricing:
+      input: 0.4
+      output: 2.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-medium-2505:
+    context_window: 131072
+    max_output_tokens: 8191
+    pricing:
+      input: 0.4
+      output: 2.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-medium-2312:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.7
+      output: 8.1
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/mistral-large-latest:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-large-2411:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-large-2402:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 4.0
+      output: 12.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-large-2407:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 3.0
+      output: 9.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/pixtral-large-latest:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  mistral/pixtral-large-2411:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  mistral/pixtral-12b-2409:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.15
+      output: 0.15
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  mistral/open-mistral-7b:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.25
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/open-mixtral-8x7b:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.7
+      output: 0.7
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/open-mixtral-8x22b:
+    context_window: 65336
+    max_output_tokens: 8191
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/codestral-latest:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/codestral-2405:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/open-mistral-nemo:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.3
+      output: 0.3
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/open-mistral-nemo-2407:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.3
+      output: 0.3
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/open-codestral-mamba:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.25
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/codestral-mamba-latest:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.25
+      output: 0.25
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral/devstral-small-2505:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.1
+      output: 0.3
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  mistral/mistral-embed:
+    context_window: 8192
+    pricing:
+      input: 0.1
+      output: 0
+    mode: embedding
+default_model: mistral/mistral-tiny

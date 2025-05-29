@@ -1,0 +1,87 @@
+provider: ai21
+models:
+  j2-ultra:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 15.0
+      output: 15.0
+    mode: completion
+  jamba-1.5-mini@001:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+    - tool_choice
+  jamba-1.5-large@001:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 2.0
+      output: 8.0
+    capabilities:
+    - streaming
+    - tool_choice
+  jamba-1.5:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+    - tool_choice
+  jamba-1.5-mini:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+    - tool_choice
+  jamba-1.5-large:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 2.0
+      output: 8.0
+    capabilities:
+    - streaming
+    - tool_choice
+  jamba-large-1.6:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 2.0
+      output: 8.0
+    capabilities:
+    - streaming
+    - tool_choice
+  jamba-mini-1.6:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+    - tool_choice
+  j2-mid:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 10.0
+      output: 10.0
+    mode: completion
+  j2-light:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 3.0
+    mode: completion
+default_model: j2-ultra

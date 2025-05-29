@@ -1,0 +1,42 @@
+provider: aleph_alpha
+models:
+  luminous-base:
+    context_window: 2048
+    pricing:
+      input: 30.0
+      output: 33.0
+    mode: completion
+  luminous-base-control:
+    context_window: 2048
+    pricing:
+      input: 37.5
+      output: 41.25
+    capabilities:
+    - streaming
+  luminous-extended:
+    context_window: 2048
+    pricing:
+      input: 45.0
+      output: 49.5
+    mode: completion
+  luminous-extended-control:
+    context_window: 2048
+    pricing:
+      input: 56.25
+      output: 61.875
+    capabilities:
+    - streaming
+  luminous-supreme:
+    context_window: 2048
+    pricing:
+      input: 175.0
+      output: 192.5
+    mode: completion
+  luminous-supreme-control:
+    context_window: 2048
+    pricing:
+      input: 218.75
+      output: 240.625
+    capabilities:
+    - streaming
+default_model: luminous-base

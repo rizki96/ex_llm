@@ -1,0 +1,72 @@
+provider: cohere_chat
+models:
+  command-a-03-2025:
+    context_window: 256000
+    max_output_tokens: 8000
+    pricing:
+      input: 2.5
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  command-r:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.15
+      output: 0.6
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  command-r-08-2024:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.15
+      output: 0.6
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  command-r7b-12-2024:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.15
+      output: 0.0375
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  command-light:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.3
+      output: 0.6
+    capabilities:
+    - streaming
+    - tool_choice
+  command-r-plus:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 2.5
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  command-r-plus-08-2024:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 2.5
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+default_model: command-a-03-2025

@@ -1,0 +1,95 @@
+provider: voyage
+models:
+  voyage/voyage-01:
+    context_window: 4096
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  voyage/voyage-lite-01:
+    context_window: 4096
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  voyage/voyage-large-2:
+    context_window: 16000
+    pricing:
+      input: 0.12
+      output: 0.0
+    mode: embedding
+  voyage/voyage-finance-2:
+    context_window: 32000
+    pricing:
+      input: 0.12
+      output: 0.0
+    mode: embedding
+  voyage/voyage-lite-02-instruct:
+    context_window: 4000
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  voyage/voyage-law-2:
+    context_window: 16000
+    pricing:
+      input: 0.12
+      output: 0.0
+    mode: embedding
+  voyage/voyage-code-2:
+    context_window: 16000
+    pricing:
+      input: 0.12
+      output: 0.0
+    mode: embedding
+  voyage/voyage-2:
+    context_window: 4000
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  voyage/voyage-3-large:
+    context_window: 32000
+    pricing:
+      input: 0.18
+      output: 0.0
+    mode: embedding
+  voyage/voyage-3:
+    context_window: 32000
+    pricing:
+      input: 0.06
+      output: 0.0
+    mode: embedding
+  voyage/voyage-3-lite:
+    context_window: 32000
+    pricing:
+      input: 0.02
+      output: 0.0
+    mode: embedding
+  voyage/voyage-code-3:
+    context_window: 32000
+    pricing:
+      input: 0.18
+      output: 0.0
+    mode: embedding
+  voyage/voyage-multimodal-3:
+    context_window: 32000
+    pricing:
+      input: 0.12
+      output: 0.0
+    mode: embedding
+  voyage/rerank-2:
+    context_window: 16000
+    max_output_tokens: 16000
+    pricing:
+      input: 0.05
+      output: 0.0
+    mode: rerank
+  voyage/rerank-2-lite:
+    context_window: 8000
+    max_output_tokens: 8000
+    pricing:
+      input: 0.02
+      output: 0.0
+    mode: rerank
+default_model: voyage/voyage-01

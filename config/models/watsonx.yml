@@ -1,0 +1,16 @@
+provider: watsonx
+models:
+  watsonx/ibm/granite-3-8b-instruct:
+    context_window: 8192
+    max_output_tokens: 1024
+    pricing:
+      input: 200.0
+      output: 200.0
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - structured_output
+    - system_messages
+    - tool_choice
+default_model: watsonx/ibm/granite-3-8b-instruct

@@ -1,0 +1,15 @@
+provider: codestral
+models:
+  codestral/codestral-latest:
+    context_window: 32000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  codestral/codestral-2405:
+    context_window: 32000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+default_model: codestral/codestral-latest

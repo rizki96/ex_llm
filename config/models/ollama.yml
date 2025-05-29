@@ -1,201 +1,9 @@
 provider: ollama
-default_model: llama2
 models:
-  llama2:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama2:7b:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama2:13b:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama2:70b:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama3:
-    context_window: 8192
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama3:8b:
-    context_window: 8192
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama3:70b:
-    context_window: 8192
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama3.1:
-    context_window: 128000
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama3.1:8b:
-    context_window: 128000
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama3.1:70b:
-    context_window: 128000
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  llama3.1:405b:
-    context_window: 128000
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  codellama:
-    context_window: 16384
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - code
-    - streaming
-  codellama:7b:
-    context_window: 16384
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - code
-    - streaming
-  codellama:13b:
-    context_window: 16384
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - code
-    - streaming
-  codellama:34b:
-    context_window: 16384
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - code
-    - streaming
-  llava:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - vision
-    - streaming
-  llava:7b:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - vision
-    - streaming
-  llava:13b:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - vision
-    - streaming
-  llava:34b:
-    context_window: 4096
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - vision
-    - streaming
-  mistral:
-    context_window: 32768
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  mixtral:
-    context_window: 32768
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  phi3:
-    context_window: 128000
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
-  qwen2.5:
-    context_window: 32768
-    pricing:
-      input: 0.0
-      output: 0.0
-    capabilities:
-    - text
-    - streaming
   ollama/codegemma:
     context_window: 8192
     max_output_tokens: 8192
+    mode: completion
   ollama/codegeex4:
     context_window: 32768
     max_output_tokens: 8192
@@ -205,30 +13,32 @@ models:
     context_window: 32768
     max_output_tokens: 8192
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/deepseek-coder-v2-base:
     context_window: 8192
     max_output_tokens: 8192
     capabilities:
     - function_calling
+    mode: completion
   ollama/deepseek-coder-v2-lite-instruct:
     context_window: 32768
     max_output_tokens: 8192
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/deepseek-coder-v2-lite-base:
     context_window: 8192
     max_output_tokens: 8192
     capabilities:
     - function_calling
+    mode: completion
   ollama/internlm2_5-20b-chat:
     context_window: 32768
     max_output_tokens: 8192
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/llama2:
     context_window: 4096
     max_output_tokens: 4096
@@ -252,6 +62,7 @@ models:
   ollama/llama2-uncensored:
     context_window: 4096
     max_output_tokens: 4096
+    mode: completion
   ollama/llama3:
     context_window: 8192
     max_output_tokens: 8192
@@ -271,49 +82,54 @@ models:
     context_window: 8192
     max_output_tokens: 8192
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/mistral-large-instruct-2407:
     context_window: 65536
     max_output_tokens: 8192
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/mistral:
     context_window: 8192
     max_output_tokens: 8192
     capabilities:
     - function_calling
+    mode: completion
   ollama/mistral-7B-Instruct-v0.1:
     context_window: 8192
     max_output_tokens: 8192
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/mistral-7B-Instruct-v0.2:
     context_window: 32768
     max_output_tokens: 32768
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/mixtral-8x7B-Instruct-v0.1:
     context_window: 32768
     max_output_tokens: 32768
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/mixtral-8x22B-Instruct-v0.1:
     context_window: 65536
     max_output_tokens: 65536
     capabilities:
-    - function_calling
     - streaming
+    - function_calling
   ollama/codellama:
     context_window: 4096
     max_output_tokens: 4096
+    mode: completion
   ollama/orca-mini:
     context_window: 4096
     max_output_tokens: 4096
+    mode: completion
   ollama/vicuna:
     context_window: 2048
     max_output_tokens: 2048
+    mode: completion
+default_model: ollama/codegemma

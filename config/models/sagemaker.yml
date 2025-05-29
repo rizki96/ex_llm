@@ -1,0 +1,30 @@
+provider: sagemaker
+models:
+  sagemaker/meta-textgeneration-llama-2-7b:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: completion
+  sagemaker/meta-textgeneration-llama-2-7b-f:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+  sagemaker/meta-textgeneration-llama-2-13b:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: completion
+  sagemaker/meta-textgeneration-llama-2-13b-f:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+  sagemaker/meta-textgeneration-llama-2-70b:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: completion
+  sagemaker/meta-textgeneration-llama-2-70b-b-f:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+default_model: sagemaker/meta-textgeneration-llama-2-7b

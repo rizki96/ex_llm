@@ -1,0 +1,10 @@
+provider: jina_ai
+models:
+  jina-reranker-v2-base-multilingual:
+    context_window: 1024
+    max_output_tokens: 1024
+    pricing:
+      input: 0.018
+      output: 0.018
+    mode: rerank
+default_model: jina-reranker-v2-base-multilingual

@@ -1,0 +1,49 @@
+provider: vertex_ai-chat-models
+models:
+  chat-bison:
+    context_window: 8192
+    max_output_tokens: 4096
+    pricing:
+      input: 0.125
+      output: 0.125
+    capabilities:
+    - streaming
+    - tool_choice
+  chat-bison@001:
+    context_window: 8192
+    max_output_tokens: 4096
+    pricing:
+      input: 0.125
+      output: 0.125
+    capabilities:
+    - streaming
+    - tool_choice
+  chat-bison@002:
+    context_window: 8192
+    max_output_tokens: 4096
+    pricing:
+      input: 0.125
+      output: 0.125
+    capabilities:
+    - streaming
+    - tool_choice
+    deprecation_date: '2025-04-09'
+  chat-bison-32k:
+    context_window: 32000
+    max_output_tokens: 8192
+    pricing:
+      input: 0.125
+      output: 0.125
+    capabilities:
+    - streaming
+    - tool_choice
+  chat-bison-32k@002:
+    context_window: 32000
+    max_output_tokens: 8192
+    pricing:
+      input: 0.125
+      output: 0.125
+    capabilities:
+    - streaming
+    - tool_choice
+default_model: chat-bison

@@ -1,0 +1,18 @@
+provider: nlp_cloud
+models:
+  dolphin:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.5
+      output: 0.5
+    mode: completion
+  chatdolphin:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.5
+      output: 0.5
+    capabilities:
+    - streaming
+default_model: dolphin

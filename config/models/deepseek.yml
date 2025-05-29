@@ -1,0 +1,37 @@
+provider: deepseek
+models:
+  deepseek/deepseek-reasoner:
+    context_window: 65536
+    max_output_tokens: 8192
+    pricing:
+      input: 0.55
+      output: 2.19
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - reasoning
+    - tool_choice
+  deepseek/deepseek-chat:
+    context_window: 65536
+    max_output_tokens: 8192
+    pricing:
+      input: 0.27
+      output: 1.1
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - tool_choice
+  deepseek/deepseek-coder:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.14
+      output: 0.28
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - tool_choice
+default_model: deepseek/deepseek-reasoner

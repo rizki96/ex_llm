@@ -1,0 +1,7 @@
+provider: assemblyai
+models:
+  assemblyai/nano:
+    mode: audio_transcription
+  assemblyai/best:
+    mode: audio_transcription
+default_model: assemblyai/nano

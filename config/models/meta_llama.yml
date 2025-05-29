@@ -1,0 +1,41 @@
+provider: meta_llama
+models:
+  meta_llama/Llama-4-Scout-17B-16E-Instruct-FP8:
+    context_window: 10000000
+    max_output_tokens: 4028
+    capabilities:
+    - streaming
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+  meta_llama/Llama-4-Maverick-17B-128E-Instruct-FP8:
+    context_window: 1000000
+    max_output_tokens: 4028
+    capabilities:
+    - streaming
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+  meta_llama/Llama-3.3-70B-Instruct:
+    context_window: 128000
+    max_output_tokens: 4028
+    capabilities:
+    - streaming
+    supported_modalities:
+    - text
+    supported_output_modalities:
+    - text
+  meta_llama/Llama-3.3-8B-Instruct:
+    context_window: 128000
+    max_output_tokens: 4028
+    capabilities:
+    - streaming
+    supported_modalities:
+    - text
+    supported_output_modalities:
+    - text
+default_model: meta_llama/Llama-4-Scout-17B-16E-Instruct-FP8

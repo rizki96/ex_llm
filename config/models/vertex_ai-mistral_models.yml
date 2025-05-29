@@ -1,0 +1,114 @@
+provider: vertex_ai-mistral_models
+models:
+  vertex_ai/mistral-large@latest:
+    context_window: 128000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/mistral-large@2411-001:
+    context_window: 128000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/mistral-large-2411:
+    context_window: 128000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/mistral-large@2407:
+    context_window: 128000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.0
+      output: 6.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/mistral-nemo@latest:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.15
+      output: 0.15
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/mistral-small-2503@001:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/mistral-small-2503:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  vertex_ai/mistral-nemo@2407:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 3.0
+      output: 3.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/codestral@latest:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.2
+      output: 0.6
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/codestral@2405:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.2
+      output: 0.6
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  vertex_ai/codestral-2501:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.2
+      output: 0.6
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+default_model: vertex_ai/mistral-large@latest

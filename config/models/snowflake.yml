@@ -1,0 +1,124 @@
+provider: snowflake
+models:
+  snowflake/deepseek-r1:
+    context_window: 32768
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+    - reasoning
+  snowflake/snowflake-arctic:
+    context_window: 4096
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/claude-3-5-sonnet:
+    context_window: 18000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/mistral-large:
+    context_window: 32000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/mistral-large2:
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/reka-flash:
+    context_window: 100000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/reka-core:
+    context_window: 32000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/jamba-instruct:
+    context_window: 256000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/jamba-1.5-mini:
+    context_window: 256000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/jamba-1.5-large:
+    context_window: 256000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/mixtral-8x7b:
+    context_window: 32000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama2-70b-chat:
+    context_window: 4096
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3-8b:
+    context_window: 8000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3-70b:
+    context_window: 8000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3.1-8b:
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3.1-70b:
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3.3-70b:
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/snowflake-llama-3.3-70b:
+    context_window: 8000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3.1-405b:
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/snowflake-llama-3.1-405b:
+    context_window: 8000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3.2-1b:
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/llama3.2-3b:
+    context_window: 128000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/mistral-7b:
+    context_window: 32000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+  snowflake/gemma-7b:
+    context_window: 8000
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+default_model: snowflake/deepseek-r1

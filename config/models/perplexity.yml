@@ -1,0 +1,213 @@
+provider: perplexity
+models:
+  perplexity/codellama-34b-instruct:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.35
+      output: 1.4
+    capabilities:
+    - streaming
+  perplexity/codellama-70b-instruct:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.7
+      output: 2.8
+    capabilities:
+    - streaming
+  perplexity/llama-3.1-70b-instruct:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 1.0
+      output: 1.0
+    capabilities:
+    - streaming
+  perplexity/llama-3.1-8b-instruct:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.2
+      output: 0.2
+    capabilities:
+    - streaming
+  perplexity/llama-3.1-sonar-huge-128k-online:
+    context_window: 127072
+    max_output_tokens: 127072
+    pricing:
+      input: 5.0
+      output: 5.0
+    capabilities:
+    - streaming
+    deprecation_date: '2025-02-22'
+  perplexity/llama-3.1-sonar-large-128k-online:
+    context_window: 127072
+    max_output_tokens: 127072
+    pricing:
+      input: 1.0
+      output: 1.0
+    capabilities:
+    - streaming
+    deprecation_date: '2025-02-22'
+  perplexity/llama-3.1-sonar-large-128k-chat:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 1.0
+      output: 1.0
+    capabilities:
+    - streaming
+    deprecation_date: '2025-02-22'
+  perplexity/llama-3.1-sonar-small-128k-chat:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.2
+      output: 0.2
+    capabilities:
+    - streaming
+    deprecation_date: '2025-02-22'
+  perplexity/llama-3.1-sonar-small-128k-online:
+    context_window: 127072
+    max_output_tokens: 127072
+    pricing:
+      input: 0.2
+      output: 0.2
+    capabilities:
+    - streaming
+    deprecation_date: '2025-02-22'
+  perplexity/pplx-7b-chat:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.07
+      output: 0.28
+    capabilities:
+    - streaming
+  perplexity/pplx-70b-chat:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.7
+      output: 2.8
+    capabilities:
+    - streaming
+  perplexity/pplx-7b-online:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.28
+    capabilities:
+    - streaming
+  perplexity/pplx-70b-online:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 2.8
+    capabilities:
+    - streaming
+  perplexity/llama-2-70b-chat:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.7
+      output: 2.8
+    capabilities:
+    - streaming
+  perplexity/mistral-7b-instruct:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.07
+      output: 0.28
+    capabilities:
+    - streaming
+  perplexity/mixtral-8x7b-instruct:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.07
+      output: 0.28
+    capabilities:
+    - streaming
+  perplexity/sonar-small-chat:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.07
+      output: 0.28
+    capabilities:
+    - streaming
+  perplexity/sonar-small-online:
+    context_window: 12000
+    max_output_tokens: 12000
+    pricing:
+      input: 0
+      output: 0.28
+    capabilities:
+    - streaming
+  perplexity/sonar-medium-chat:
+    context_window: 16384
+    max_output_tokens: 16384
+    pricing:
+      input: 0.6
+      output: 1.8
+    capabilities:
+    - streaming
+  perplexity/sonar-medium-online:
+    context_window: 12000
+    max_output_tokens: 12000
+    pricing:
+      input: 0
+      output: 1.8
+    capabilities:
+    - streaming
+  perplexity/sonar:
+    context_window: 128000
+    pricing:
+      input: 1.0
+      output: 1.0
+    capabilities:
+    - streaming
+    - web_search
+  perplexity/sonar-pro:
+    context_window: 200000
+    max_output_tokens: 8000
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - web_search
+  perplexity/sonar-reasoning:
+    context_window: 128000
+    pricing:
+      input: 1.0
+      output: 5.0
+    capabilities:
+    - streaming
+    - reasoning
+    - web_search
+  perplexity/sonar-reasoning-pro:
+    context_window: 128000
+    pricing:
+      input: 2.0
+      output: 8.0
+    capabilities:
+    - streaming
+    - reasoning
+    - web_search
+  perplexity/sonar-deep-research:
+    context_window: 128000
+    pricing:
+      input: 2.0
+      output: 8.0
+      reasoning: 3.0
+    capabilities:
+    - streaming
+    - reasoning
+    - web_search
+default_model: perplexity/codellama-34b-instruct

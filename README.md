@@ -66,6 +66,12 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - Cost-effective access to premium models
   - Automatic model discovery
 
+- **Groq** - Fast inference platform
+  - Llama 3.3, 3.1, 3, and 2 models
+  - Mixtral, Gemma, and specialized models
+  - DeepSeek R1 Distill
+  - Optimized for low latency
+
 - **Local Models** via Bumblebee/EXLA
   - microsoft/phi-2 (default)
   - meta-llama/Llama-2-7b-hf
@@ -1278,11 +1284,26 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 - `chore:` for maintenance tasks
 - `test:` for test additions/changes
 
+## Future Provider Support
+
+ExLLM includes pre-configured model data for 49 additional providers, ready for implementation:
+
+**Major Cloud Providers**: Azure, Vertex AI, Databricks, Sagemaker, Watsonx, Snowflake
+
+**AI Companies**: Mistral AI, Cohere, Together AI, Replicate, Perplexity, DeepSeek, XAI
+
+**Inference Platforms**: Fireworks AI, DeepInfra, Anyscale, Cloudflare, NScale, SambaNova
+
+**Specialized**: AI21, NLP Cloud, Aleph Alpha, Voyage (embeddings), Assembly AI (audio)
+
+All model configurations including pricing, context windows, and capabilities are already available in `config/models/`.
+
 ## Acknowledgments
 
 - Built with [Req](https://github.com/wojtekmach/req) for HTTP client functionality
 - Local model support via [Bumblebee](https://github.com/elixir-nx/bumblebee)
 - Structured outputs via [Instructor](https://github.com/thmsmlr/instructor_ex)
+- Model configuration data synced from [LiteLLM](https://github.com/BerriAI/litellm)
 - Inspired by the need for a unified LLM interface in Elixir
 
 ## License

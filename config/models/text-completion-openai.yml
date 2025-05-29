@@ -1,0 +1,45 @@
+provider: text-completion-openai
+models:
+  ft:davinci-002:
+    context_window: 16384
+    max_output_tokens: 4096
+    pricing:
+      input: 2.0
+      output: 2.0
+    mode: completion
+  ft:babbage-002:
+    context_window: 16384
+    max_output_tokens: 4096
+    pricing:
+      input: 0.4
+      output: 0.4
+    mode: completion
+  babbage-002:
+    context_window: 16384
+    max_output_tokens: 4096
+    pricing:
+      input: 0.4
+      output: 0.4
+    mode: completion
+  davinci-002:
+    context_window: 16384
+    max_output_tokens: 4096
+    pricing:
+      input: 2.0
+      output: 2.0
+    mode: completion
+  gpt-3.5-turbo-instruct:
+    context_window: 8192
+    max_output_tokens: 4096
+    pricing:
+      input: 1.5
+      output: 2.0
+    mode: completion
+  gpt-3.5-turbo-instruct-0914:
+    context_window: 8192
+    max_output_tokens: 4097
+    pricing:
+      input: 1.5
+      output: 2.0
+    mode: completion
+default_model: ft:davinci-002

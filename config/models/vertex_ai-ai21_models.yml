@@ -1,0 +1,48 @@
+provider: vertex_ai-ai21_models
+models:
+  vertex_ai/jamba-1.5-mini@001:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+    - tool_choice
+  vertex_ai/jamba-1.5-large@001:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 2.0
+      output: 8.0
+    capabilities:
+    - streaming
+    - tool_choice
+  vertex_ai/jamba-1.5:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+    - tool_choice
+  vertex_ai/jamba-1.5-mini:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+    - tool_choice
+  vertex_ai/jamba-1.5-large:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 2.0
+      output: 8.0
+    capabilities:
+    - streaming
+    - tool_choice
+default_model: vertex_ai/jamba-1.5-mini@001

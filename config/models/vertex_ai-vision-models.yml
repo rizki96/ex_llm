@@ -1,0 +1,40 @@
+provider: vertex_ai-vision-models
+models:
+  gemini-pro-vision:
+    context_window: 16384
+    max_output_tokens: 2048
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - parallel_function_calling
+    - tool_choice
+  gemini-1.0-pro-vision:
+    context_window: 16384
+    max_output_tokens: 2048
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - parallel_function_calling
+    - tool_choice
+  gemini-1.0-pro-vision-001:
+    context_window: 16384
+    max_output_tokens: 2048
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - parallel_function_calling
+    - tool_choice
+    deprecation_date: '2025-04-09'
+default_model: gemini-pro-vision

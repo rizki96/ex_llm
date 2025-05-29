@@ -1,0 +1,161 @@
+provider: xai
+models:
+  xai/grok-beta:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 5.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  xai/grok-2-vision-1212:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 2.0
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  xai/grok-2-vision-latest:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 2.0
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  xai/grok-2-vision:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 2.0
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  xai/grok-3:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  xai/grok-3-beta:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  xai/grok-3-fast-beta:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 5.0
+      output: 25.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  xai/grok-3-fast-latest:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 5.0
+      output: 25.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  xai/grok-3-mini-beta:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.3
+      output: 0.5
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
+  xai/grok-3-mini-fast-beta:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.6
+      output: 4.0
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
+  xai/grok-3-mini-fast-latest:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.6
+      output: 4.0
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
+  xai/grok-vision-beta:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 5.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  xai/grok-2-1212:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 2.0
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  xai/grok-2:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 2.0
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+  xai/grok-2-latest:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 2.0
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+default_model: xai/grok-beta

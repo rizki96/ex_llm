@@ -1,0 +1,41 @@
+provider: fireworks_ai-embedding-models
+models:
+  fireworks_ai/nomic-ai/nomic-embed-text-v1.5:
+    context_window: 8192
+    pricing:
+      input: 0.008
+      output: 0.0
+    mode: embedding
+  fireworks_ai/nomic-ai/nomic-embed-text-v1:
+    context_window: 8192
+    pricing:
+      input: 0.008
+      output: 0.0
+    mode: embedding
+  fireworks_ai/WhereIsAI/UAE-Large-V1:
+    context_window: 512
+    pricing:
+      input: 0.016
+      output: 0.0
+    mode: embedding
+  fireworks_ai/thenlper/gte-large:
+    context_window: 512
+    pricing:
+      input: 0.016
+      output: 0.0
+    mode: embedding
+  fireworks_ai/thenlper/gte-base:
+    context_window: 512
+    pricing:
+      input: 0.008
+      output: 0.0
+    mode: embedding
+  fireworks-ai-embedding-up-to-150m:
+    pricing:
+      input: 0.008
+      output: 0.0
+  fireworks-ai-embedding-150m-to-350m:
+    pricing:
+      input: 0.016
+      output: 0.0
+default_model: fireworks_ai/nomic-ai/nomic-embed-text-v1.5

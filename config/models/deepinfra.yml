@@ -1,0 +1,188 @@
+provider: deepinfra
+models:
+  deepinfra/lizpreciatior/lzlv_70b_fp16_hf:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.7
+      output: 0.9
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/Gryphe/MythoMax-L2-13b:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.22
+      output: 0.22
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/mistralai/Mistral-7B-Instruct-v0.1:
+    context_window: 32768
+    max_output_tokens: 8191
+    pricing:
+      input: 0.13
+      output: 0.13
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/meta-llama/Llama-2-70b-chat-hf:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.7
+      output: 0.9
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/cognitivecomputations/dolphin-2.6-mixtral-8x7b:
+    context_window: 32768
+    max_output_tokens: 8191
+    pricing:
+      input: 0.27
+      output: 0.27
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/codellama/CodeLlama-34b-Instruct-hf:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.6
+      output: 0.6
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/deepinfra/mixtral:
+    context_window: 32000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.27
+      output: 0.27
+    mode: completion
+  deepinfra/Phind/Phind-CodeLlama-34B-v2:
+    context_window: 16384
+    max_output_tokens: 4096
+    pricing:
+      input: 0.6
+      output: 0.6
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/mistralai/Mixtral-8x7B-Instruct-v0.1:
+    context_window: 32768
+    max_output_tokens: 8191
+    pricing:
+      input: 0.27
+      output: 0.27
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/deepinfra/airoboros-70b:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.7
+      output: 0.9
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/01-ai/Yi-34B-Chat:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.6
+      output: 0.6
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/01-ai/Yi-6B-200K:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.13
+      output: 0.13
+    mode: completion
+  deepinfra/jondurbin/airoboros-l2-70b-gpt4-1.4.1:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.7
+      output: 0.9
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/meta-llama/Llama-2-13b-chat-hf:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.22
+      output: 0.22
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/amazon/MistralLite:
+    context_window: 32768
+    max_output_tokens: 8191
+    pricing:
+      input: 0.2
+      output: 0.2
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/meta-llama/Llama-2-7b-chat-hf:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.13
+      output: 0.13
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/meta-llama/Meta-Llama-3-8B-Instruct:
+    context_window: 8191
+    max_output_tokens: 4096
+    pricing:
+      input: 0.08
+      output: 0.08
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/meta-llama/Meta-Llama-3-70B-Instruct:
+    context_window: 8191
+    max_output_tokens: 4096
+    pricing:
+      input: 0.59
+      output: 0.79
+    capabilities:
+    - streaming
+    - tool_choice
+  deepinfra/meta-llama/Meta-Llama-3.1-405B-Instruct:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 0.9
+      output: 0.9
+    capabilities:
+    - streaming
+    - function_calling
+    - parallel_function_calling
+    - tool_choice
+  deepinfra/01-ai/Yi-34B-200K:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.6
+      output: 0.6
+    mode: completion
+  deepinfra/openchat/openchat_3.5:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.13
+      output: 0.13
+    capabilities:
+    - streaming
+    - tool_choice
+default_model: deepinfra/lizpreciatior/lzlv_70b_fp16_hf

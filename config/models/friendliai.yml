@@ -1,0 +1,29 @@
+provider: friendliai
+models:
+  friendliai/meta-llama-3.1-8b-instruct:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.1
+      output: 0.1
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - system_messages
+    - parallel_function_calling
+    - tool_choice
+  friendliai/meta-llama-3.1-70b-instruct:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.6
+      output: 0.6
+    capabilities:
+    - streaming
+    - function_calling
+    - structured_output
+    - system_messages
+    - parallel_function_calling
+    - tool_choice
+default_model: friendliai/meta-llama-3.1-8b-instruct

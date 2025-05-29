@@ -1,0 +1,73 @@
+provider: cohere
+models:
+  command-nightly:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 1.0
+      output: 2.0
+    mode: completion
+  command:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 1.0
+      output: 2.0
+    mode: completion
+  rerank-v3.5:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: rerank
+  rerank-english-v3.0:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: rerank
+  rerank-multilingual-v3.0:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: rerank
+  rerank-english-v2.0:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: rerank
+  rerank-multilingual-v2.0:
+    context_window: 4096
+    max_output_tokens: 4096
+    mode: rerank
+  embed-english-light-v3.0:
+    context_window: 1024
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  embed-multilingual-v3.0:
+    context_window: 1024
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  embed-english-v2.0:
+    context_window: 4096
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  embed-english-light-v2.0:
+    context_window: 1024
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  embed-multilingual-v2.0:
+    context_window: 768
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+  embed-english-v3.0:
+    context_window: 1024
+    pricing:
+      input: 0.1
+      output: 0.0
+    mode: embedding
+default_model: command-nightly

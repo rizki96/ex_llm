@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Python script to sync model data from LiteLLM's database
   - Added 1048 models with pricing, context windows, and capabilities
   - Automatic conversion from LiteLLM's JSON to ExLLM's YAML format
+- Extracted ALL provider configurations from LiteLLM
+  - Created YAML files for 56 unique providers (49 new providers)
+  - Includes Azure, Mistral, Perplexity, Together AI, Databricks, and more
+  - Ready-to-use configurations for future adapter implementations
 
 ### Changed
 - **BREAKING:** Model configuration moved from hardcoded maps to external YAML files

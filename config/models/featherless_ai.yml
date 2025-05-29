@@ -1,0 +1,13 @@
+provider: featherless_ai
+models:
+  featherless_ai/featherless-ai/Qwerky-72B:
+    context_window: 32768
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+  featherless_ai/featherless-ai/Qwerky-QwQ-32B:
+    context_window: 32768
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+default_model: featherless_ai/featherless-ai/Qwerky-72B
