@@ -1,41 +1,45 @@
-# Model Configuration Update Scripts
+# Model Configuration Scripts
 
-This directory contains scripts to automatically fetch and update model information from various LLM providers.
+This directory contains scripts to update model configurations from various sources.
+
+## Scripts
+
+- **`update_models.sh`** - Main entry point for all updates
+- **`fetch_provider_models.py`** - Fetches model info from provider APIs
+- **`sync_from_litellm.py`** - Syncs model data from LiteLLM's database
 
 ## Usage
 
-### Update all providers
+### Update from Provider APIs
+
+Update all providers:
 ```bash
 ./scripts/update_models.sh
 ```
 
-### Update a specific provider
+Update a specific provider:
 ```bash
-./scripts/update_models.sh anthropic
 ./scripts/update_models.sh openai
+./scripts/update_models.sh anthropic
 ./scripts/update_models.sh gemini
 ./scripts/update_models.sh openrouter
 ./scripts/update_models.sh ollama
 ./scripts/update_models.sh bedrock
 ```
 
-## How it works
+### Sync from LiteLLM
 
-The scripts fetch model information from:
-- **API endpoints** when available (OpenAI, Gemini, OpenRouter, Ollama)
-- **Static data** for providers without public APIs (Anthropic, Bedrock)
-- **Documentation scraping** as a fallback (currently uses static data)
+Sync all 56 providers from LiteLLM (includes providers we haven't implemented):
+```bash
+./scripts/update_models.sh --litellm
+```
 
-The scripts will:
-1. Load existing YAML configuration if it exists
-2. Fetch latest model data from the provider
-3. Merge the data, preserving any manual additions
-4. Update pricing, context windows, and capabilities
-5. Save back to the YAML file with metadata
+This will update configurations for all providers including Azure, Mistral, Cohere, 
+Together AI, Perplexity, and many more.
 
 ## Environment Variables
 
-Some providers require API keys to fetch detailed model information:
+Some providers require API keys to fetch model information:
 
 ```bash
 export ANTHROPIC_API_KEY="your-key"      # Optional - uses static data if not provided
@@ -45,11 +49,22 @@ export GOOGLE_API_KEY="your-key"         # Alternative to GEMINI_API_KEY
 export OPENROUTER_API_KEY="your-key"     # Not required - public API
 ```
 
-## Manual Updates
+## How It Works
 
-The YAML files in `config/models/` can be edited manually. The update scripts will preserve your manual changes while updating known fields.
+### Provider API Updates
+- Fetches latest model information directly from provider APIs
+- Falls back to static data if API is unavailable
+- Preserves manual additions in YAML files
+- Updates pricing, context windows, and capabilities
 
-### YAML Structure
+### LiteLLM Sync
+- Reads from LiteLLM's comprehensive model database
+- Converts pricing to per-million tokens
+- Maps capabilities between LiteLLM and ExLLM formats
+- Creates/updates YAML files for ALL providers (not just implemented ones)
+
+## YAML Structure
+
 ```yaml
 provider: anthropic
 default_model: "claude-3-5-sonnet-20241022"
@@ -64,34 +79,8 @@ models:
       - streaming
       - function_calling
       - vision
-    release_date: "2024-10-22"  # Optional metadata
+    deprecation_date: "2025-10-01"  # If applicable
 ```
-
-## Implementation Details
-
-### Python Script (`fetch_provider_models.py`)
-- More robust for web scraping and API calls
-- Handles retries and error cases gracefully
-- Preserves existing manual configuration
-
-### Elixir Script (`update_model_configs.exs`)
-- Uses Mix.install for dependencies
-- Native to the ExLLM project
-- Good for simple API calls
-
-### Bash Wrapper (`update_models.sh`)
-- Detects available runtime (Python or Elixir)
-- Provides consistent interface
-- Handles dependency checks
-
-## Adding New Providers
-
-To add a new provider:
-
-1. Add the provider to the scripts
-2. Implement the fetch method
-3. Define the YAML structure
-4. Add any required API endpoints
 
 ## Troubleshooting
 
@@ -99,3 +88,4 @@ To add a new provider:
 - **Ollama errors**: Ensure Ollama is running locally (`ollama serve`)
 - **Permission denied**: Run `chmod +x scripts/*.sh scripts/*.py`
 - **Missing dependencies**: Install with `pip3 install requests pyyaml`
+- **LiteLLM sync fails**: Ensure `../litellm` directory exists with `model_prices_and_context_window.json`
