@@ -165,7 +165,13 @@ defmodule ExLLM.Adapters.Anthropic do
 
   # Private helper to get default model from config
   defp get_default_model do
-    ModelConfig.get_default_model(:anthropic) || "claude-sonnet-4-20250514"
+    case ModelConfig.get_default_model(:anthropic) do
+      nil ->
+        raise "Missing configuration: No default model found for Anthropic. " <>
+              "Please ensure config/models/anthropic.yml exists and contains a 'default_model' field."
+      model ->
+        model
+    end
   end
 
   @impl true

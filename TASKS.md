@@ -57,6 +57,10 @@
   - [x] Runtime configuration loading with ETS caching
   - [x] ExLLM.ModelConfig module for centralized access
   - [x] Separation of model data from code for easier maintenance
+  - [x] Model sync script from LiteLLM
+    - [x] Python script to fetch model data from LiteLLM
+    - [x] Automatic conversion from JSON to YAML format
+    - [x] Synced 1048 models with pricing and capabilities
 
 ## In Progress
 
@@ -253,17 +257,100 @@
 
 ## Todo
 
-### Features
+### LiteLLM-Inspired Core Infrastructure (Priority 1)
+- [x] OpenAI-Compatible base adapter for shared implementation
+- [x] Provider detection pattern (provider/model-name syntax)
+- [ ] Advanced router with strategies
+  - [ ] Least-latency routing
+  - [ ] Cost-based routing
+  - [ ] Usage-based routing
+  - [ ] Model group aliases
+  - [ ] Automatic fallback chains
+- [ ] Batch processing API
+- [ ] Semantic caching with similarity search
+- [ ] Health checks and circuit breakers
+
+### New Provider Adapters (Priority 2)
+#### High Priority Providers
+- [x] Groq adapter (fast inference)
+- [ ] Mistral AI adapter (European models)
+- [ ] Cohere adapter (enterprise, rerank API)
+- [ ] Together AI adapter (cost-effective)
+- [ ] Replicate adapter (marketplace)
+- [ ] Perplexity adapter (search-augmented)
+
+#### Enterprise Providers
+- [ ] Databricks adapter
+- [ ] Vertex AI adapter (Google Cloud)
+- [ ] Azure AI adapter (beyond OpenAI)
+- [ ] Watsonx adapter (IBM)
+- [ ] Sagemaker adapter (AWS)
+
+#### Specialized/Hardware Providers
+- [ ] Fireworks AI adapter
+- [ ] DeepInfra adapter
+- [ ] Anyscale adapter
+- [ ] vLLM adapter
+- [ ] Hugging Face Inference API adapter
+- [ ] Baseten adapter
+- [ ] DeepSeek adapter
+- [ ] XAI adapter (Grok models)
+
+### Provider Feature Enhancements (Priority 3)
+- [ ] Anthropic cache control headers
+- [ ] Vertex AI context caching
+- [ ] Bedrock Converse API support
+- [ ] Provider-specific error mapping
+- [ ] Fake streaming for non-streaming providers
+- [ ] Provider capability detection
+
+### Observability & Monitoring (Priority 4)
+- [ ] Extensible callback system
+- [ ] Langfuse integration
+- [ ] Langsmith integration
+- [ ] DataDog integration
+- [ ] Custom metrics collection
+- [ ] Request/response logging with redaction
+
+### Enterprise Features (Priority 5)
+- [ ] Proxy server / API gateway mode
+- [ ] Web UI for management
+- [ ] Team and budget management
+- [ ] Rate limiting per API key
+- [ ] SSO/SAML authentication
+- [ ] Audit logs
+- [ ] Service accounts
+
+### Additional APIs (Priority 6)
+- [ ] Files API for uploads
+- [ ] Fine-tuning management API
+- [ ] Assistants API
+- [ ] Rerank API
+- [ ] Audio transcription API
+- [ ] Text-to-speech API
+- [ ] Image generation API
+- [ ] Moderation API
+
+### Security & Compliance (Priority 7)
+- [ ] Guardrails system
+  - [ ] PII masking
+  - [ ] Prompt injection detection
+  - [ ] Content moderation
+  - [ ] Secret detection
+  - [ ] Custom guardrail plugins
+- [ ] Request sanitization
+- [ ] Response validation
+
+### Developer Experience (Priority 8)
+- [ ] Load testing utilities
+- [ ] Enhanced mock system with patterns
+- [ ] Debug logging levels
+- [ ] Provider comparison tools
+- [ ] Migration guides from other libraries
+
+### Features (Existing)
 - [ ] Fine-tuning management
 - [ ] Token-level streaming (not just chunk-level)
-
-### Provider Enhancements
-- [ ] Cohere adapter
-- [ ] Hugging Face Inference API adapter
-- [ ] Azure OpenAI adapter (different from OpenAI)
-- [ ] Replicate adapter
-- [ ] Together AI adapter
-- [ ] Perplexity adapter
 
 ### Advanced Context Management
 - [ ] Semantic chunking for better truncation

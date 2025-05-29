@@ -165,7 +165,13 @@ defmodule ExLLM.Adapters.OpenRouter do
 
   # Private helper to get default model from config
   defp get_default_model do
-    ModelConfig.get_default_model(:openrouter) || "openai/gpt-4o-mini"
+    case ModelConfig.get_default_model(:openrouter) do
+      nil ->
+        raise "Missing configuration: No default model found for OpenRouter. " <>
+              "Please ensure config/models/openrouter.yml exists and contains a 'default_model' field."
+      model ->
+        model
+    end
   end
 
   @impl true

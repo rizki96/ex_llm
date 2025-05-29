@@ -191,7 +191,13 @@ defmodule ExLLM.Adapters.Gemini do
 
   # Private helper to get default model from config
   defp get_default_model do
-    ModelConfig.get_default_model(:gemini) || "gemini-2.5-flash-preview-05-20"
+    case ModelConfig.get_default_model(:gemini) do
+      nil ->
+        raise "Missing configuration: No default model found for Gemini. " <>
+              "Please ensure config/models/gemini.yml exists and contains a 'default_model' field."
+      model ->
+        model
+    end
   end
 
   # Private functions

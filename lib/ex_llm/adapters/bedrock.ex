@@ -158,7 +158,13 @@ defmodule ExLLM.Adapters.Bedrock do
 
   @impl true
   def default_model() do
-    "nova-lite"
+    case ExLLM.ModelConfig.get_default_model(:bedrock) do
+      nil ->
+        raise "Missing configuration: No default model found for Bedrock. " <>
+              "Please ensure config/models/bedrock.yml exists and contains a 'default_model' field."
+      model ->
+        model
+    end
   end
 
   @impl true

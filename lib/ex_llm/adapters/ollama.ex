@@ -204,7 +204,13 @@ defmodule ExLLM.Adapters.Ollama do
 
   # Private helper to get default model from config
   defp get_default_model do
-    ModelConfig.get_default_model(:ollama) || "llama2"
+    case ModelConfig.get_default_model(:ollama) do
+      nil ->
+        raise "Missing configuration: No default model found for Ollama. " <>
+              "Please ensure config/models/ollama.yml exists and contains a 'default_model' field."
+      model ->
+        model
+    end
   end
 
   # Private functions

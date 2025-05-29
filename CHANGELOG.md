@@ -17,6 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Runtime configuration loading with ETS caching for performance
   - Separation of model data from code for easier maintenance
   - Support for easy updates without code changes
+- OpenAI-Compatible base adapter for shared implementation
+  - Reduces code duplication across providers with OpenAI-compatible APIs
+  - Groq adapter as first implementation using the base adapter
+- Model configuration sync script from LiteLLM
+  - Python script to sync model data from LiteLLM's database
+  - Added 1048 models with pricing, context windows, and capabilities
+  - Automatic conversion from LiteLLM's JSON to ExLLM's YAML format
 
 ### Changed
 - **BREAKING:** Model configuration moved from hardcoded maps to external YAML files

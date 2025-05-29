@@ -95,8 +95,17 @@ defmodule ExLLM.ModelConfig do
   """
   def get_default_model(provider) when is_atom(provider) do
     case get_provider_config(provider) do
-      nil -> nil
-      config -> Map.get(config, :default_model)
+      nil -> 
+        raise "Missing configuration file: config/models/#{provider}.yml. " <>
+              "Please ensure the YAML configuration file exists and is properly formatted."
+      config -> 
+        case Map.get(config, :default_model) do
+          nil ->
+            raise "Missing 'default_model' in config/models/#{provider}.yml. " <>
+                  "Please add a default_model field to the configuration."
+          model ->
+            model
+        end
     end
   end
 

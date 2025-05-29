@@ -1,373 +1,1558 @@
-# AWS Bedrock models configuration
-# Pricing per 1M tokens (as of May 2025) - non-batch pricing
-
 provider: bedrock
-default_model: "claude-3-5-sonnet"
-
+default_model: claude-3-5-sonnet
 models:
-  # Anthropic models
   claude-opus-4:
     context_window: 200000
     pricing:
-      input: 15.00
-      output: 75.00
+      input: 15.0
+      output: 75.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-opus-4-20250514:
     context_window: 200000
     pricing:
-      input: 15.00
-      output: 75.00
+      input: 15.0
+      output: 75.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-sonnet-4:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-sonnet-4-20250514:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-7-sonnet:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-7-sonnet-20250219:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-5-sonnet:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-5-sonnet-20241022:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-5-haiku:
     context_window: 200000
     pricing:
-      input: 0.80
-      output: 4.00
+      input: 0.8
+      output: 4.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-5-haiku-20241022:
     context_window: 200000
     pricing:
-      input: 0.80
-      output: 4.00
+      input: 0.8
+      output: 4.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-opus:
     context_window: 200000
     pricing:
-      input: 15.00
-      output: 75.00
+      input: 15.0
+      output: 75.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-opus-20240229:
     context_window: 200000
     pricing:
-      input: 15.00
-      output: 75.00
+      input: 15.0
+      output: 75.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-sonnet:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-sonnet-20240229:
     context_window: 200000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-haiku:
     context_window: 200000
     pricing:
       input: 0.25
       output: 1.25
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-3-haiku-20240307:
     context_window: 200000
     pricing:
       input: 0.25
       output: 1.25
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   claude-instant-v1:
     context_window: 100000
     pricing:
-      input: 0.80
-      output: 2.40
+      input: 0.8
+      output: 2.4
     capabilities:
-      - text
-      - streaming
-    
+    - text
+    - streaming
   claude-v2:
     context_window: 200000
     pricing:
-      input: 8.00
-      output: 24.00
+      input: 8.0
+      output: 24.0
     capabilities:
-      - text
-      - streaming
-    
+    - text
+    - streaming
   claude-v2.1:
     context_window: 200000
     pricing:
-      input: 8.00
-      output: 24.00
+      input: 8.0
+      output: 24.0
     capabilities:
-      - text
-      - streaming
-
-  # Amazon Nova models
+    - text
+    - streaming
   nova-micro:
     context_window: 128000
     pricing:
       input: 0.035
       output: 0.14
     capabilities:
-      - text
-      - streaming
-    
+    - text
+    - streaming
   nova-lite:
     context_window: 300000
     pricing:
       input: 0.06
       output: 0.24
     capabilities:
-      - text
-      - vision
-      - streaming
-    
+    - text
+    - vision
+    - streaming
   nova-pro:
     context_window: 300000
     pricing:
-      input: 0.80
-      output: 3.20
+      input: 0.8
+      output: 3.2
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-    
+    - text
+    - vision
+    - function_calling
+    - streaming
   nova-premier:
     context_window: 300000
     pricing:
-      input: 2.50
-      output: 12.50
+      input: 2.5
+      output: 12.5
     capabilities:
-      - text
-      - vision
-      - function_calling
-      - streaming
-
-  # Amazon Titan models
+    - text
+    - vision
+    - function_calling
+    - streaming
   titan-lite:
     context_window: 4096
     pricing:
-      input: 0.30
-      output: 0.40
+      input: 0.3
+      output: 0.4
     capabilities:
-      - text
-      - streaming
-    
+    - text
+    - streaming
   titan-express:
     context_window: 8192
     pricing:
-      input: 1.30
-      output: 1.70
+      input: 1.3
+      output: 1.7
     capabilities:
-      - text
-      - streaming
-
-  # AI21 Labs models
+    - text
+    - streaming
   jamba-1.5-large:
     context_window: 256000
     pricing:
-      input: 2.00
-      output: 8.00
+      input: 2.0
+      output: 8.0
     capabilities:
-      - text
-      - function_calling
-      - streaming
-    
+    - text
+    - function_calling
+    - streaming
   jamba-1.5-mini:
     context_window: 256000
     pricing:
-      input: 0.20
-      output: 0.40
+      input: 0.2
+      output: 0.4
     capabilities:
-      - text
-      - function_calling
-      - streaming
-    
+    - text
+    - function_calling
+    - streaming
   jamba-instruct:
     context_window: 256000
     pricing:
-      input: 0.50
-      output: 0.70
+      input: 0.5
+      output: 0.7
     capabilities:
-      - text
-      - function_calling
-      - streaming
-    
+    - text
+    - function_calling
+    - streaming
   jurassic-2-mid:
     context_window: 8192
     pricing:
-      input: 12.50
-      output: 12.50
+      input: 12.5
+      output: 12.5
     capabilities:
-      - text
-      - streaming
-    
+    - text
+    - streaming
   jurassic-2-ultra:
     context_window: 8192
     pricing:
-      input: 18.80
-      output: 18.80
+      input: 18.8
+      output: 18.8
     capabilities:
-      - text
-      - streaming
-
-  # Cohere models
+    - text
+    - streaming
   command:
     context_window: 4096
     pricing:
-      input: 1.50
-      output: 2.00
+      input: 1.5
+      output: 2.0
     capabilities:
-      - text
-      - function_calling
-      - streaming
-    
+    - text
+    - function_calling
+    - streaming
   command-light:
     context_window: 4096
     pricing:
-      input: 0.30
-      output: 0.60
+      input: 0.3
+      output: 0.6
     capabilities:
-      - text
-      - function_calling
-      - streaming
-    
+    - text
+    - function_calling
+    - streaming
   command-r-plus:
     context_window: 128000
     pricing:
-      input: 3.00
-      output: 15.00
+      input: 3.0
+      output: 15.0
     capabilities:
-      - text
-      - function_calling
-      - streaming
-    
+    - text
+    - function_calling
+    - streaming
   command-r:
     context_window: 128000
     pricing:
-      input: 0.50
-      output: 1.50
+      input: 0.5
+      output: 1.5
     capabilities:
-      - text
-      - function_calling
-      - streaming
-
-  # DeepSeek models
+    - text
+    - function_calling
+    - streaming
   deepseek-r1:
     context_window: 128000
     pricing:
       input: 1.35
-      output: 5.40
+      output: 5.4
     capabilities:
-      - text
-      - reasoning
-      - function_calling
-      - streaming
+    - text
+    - reasoning
+    - function_calling
+    - streaming
+  ai21.j2-mid-v1:
+    context_window: 8191
+    max_output_tokens: 8191
+    pricing:
+      input: 12.5
+      output: 12.5
+    capabilities:
+    - streaming
+  ai21.j2-ultra-v1:
+    context_window: 8191
+    max_output_tokens: 8191
+    pricing:
+      input: 18.8
+      output: 18.8
+    capabilities:
+    - streaming
+  ai21.jamba-instruct-v1:0:
+    context_window: 70000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.5
+      output: 0.7
+    capabilities:
+    - streaming
+    - system_messages
+  ai21.jamba-1-5-large-v1:0:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 2.0
+      output: 8.0
+    capabilities:
+    - streaming
+  ai21.jamba-1-5-mini-v1:0:
+    context_window: 256000
+    max_output_tokens: 256000
+    pricing:
+      input: 0.2
+      output: 0.4
+    capabilities:
+    - streaming
+  amazon.rerank-v1:0:
+    context_window: 32000
+    max_output_tokens: 32000
+  amazon.titan-text-lite-v1:
+    context_window: 42000
+    max_output_tokens: 4000
+    pricing:
+      input: 0.3
+      output: 0.4
+    capabilities:
+    - streaming
+  amazon.titan-text-express-v1:
+    context_window: 42000
+    max_output_tokens: 8000
+    pricing:
+      input: 1.3
+      output: 1.7
+    capabilities:
+    - streaming
+  amazon.titan-text-premier-v1:0:
+    context_window: 42000
+    max_output_tokens: 32000
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+  amazon.titan-embed-text-v1:
+    context_window: 8192
+    pricing:
+      input: 0.1
+      output: 0.0
+  amazon.titan-embed-text-v2:0:
+    context_window: 8192
+    pricing:
+      input: 0.2
+      output: 0.0
+  amazon.titan-embed-image-v1:
+    context_window: 128
+    pricing:
+      input: 0.8
+      output: 0.0
+  mistral.mistral-7b-instruct-v0:2:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.15
+      output: 0.2
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral.mixtral-8x7b-instruct-v0:1:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.45
+      output: 0.7
+    capabilities:
+    - streaming
+    - tool_choice
+  mistral.mistral-large-2402-v1:0:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - function_calling
+    - streaming
+    - tool_choice
+  mistral.mistral-large-2407-v1:0:
+    context_window: 128000
+    max_output_tokens: 8191
+    pricing:
+      input: 3.0
+      output: 9.0
+    capabilities:
+    - function_calling
+    - streaming
+    - tool_choice
+  mistral.mistral-small-2402-v1:0:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 1.0
+      output: 3.0
+    capabilities:
+    - function_calling
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/mistral.mixtral-8x7b-instruct-v0:1:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.45
+      output: 0.7
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/mistral.mixtral-8x7b-instruct-v0:1:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.45
+      output: 0.7
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-west-3/mistral.mixtral-8x7b-instruct-v0:1:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.59
+      output: 0.91
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/mistral.mistral-7b-instruct-v0:2:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.15
+      output: 0.2
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/mistral.mistral-7b-instruct-v0:2:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.15
+      output: 0.2
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-west-3/mistral.mistral-7b-instruct-v0:2:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.2
+      output: 0.26
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/mistral.mistral-large-2402-v1:0:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - function_calling
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/mistral.mistral-large-2402-v1:0:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - function_calling
+    - streaming
+    - tool_choice
+  bedrock/eu-west-3/mistral.mistral-large-2402-v1:0:
+    context_window: 32000
+    max_output_tokens: 8191
+    pricing:
+      input: 10.4
+      output: 31.2
+    capabilities:
+    - function_calling
+    - streaming
+    - tool_choice
+  1024-x-1024/50-steps/bedrock/amazon.nova-canvas-v1:0:
+    context_window: 2600
+  anthropic.claude-3-sonnet-20240229-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  bedrock/invoke/anthropic.claude-3-5-sonnet-20240620-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  anthropic.claude-3-5-sonnet-20240620-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  anthropic.claude-3-5-sonnet-20241022-v2:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - prompt_caching
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  anthropic.claude-3-haiku-20240307-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.25
+      output: 1.25
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  anthropic.claude-3-5-haiku-20241022-v1:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 0.8
+      output: 4.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - prompt_caching
+    - streaming
+    - structured_output
+    - tool_choice
+  anthropic.claude-3-opus-20240229-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 15.0
+      output: 75.0
+    capabilities:
+    - function_calling
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  us.anthropic.claude-3-sonnet-20240229-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  us.anthropic.claude-3-5-sonnet-20240620-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  us.anthropic.claude-3-5-sonnet-20241022-v2:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - prompt_caching
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  us.anthropic.claude-3-haiku-20240307-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.25
+      output: 1.25
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  us.anthropic.claude-3-5-haiku-20241022-v1:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 0.8
+      output: 4.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - prompt_caching
+    - streaming
+    - structured_output
+    - tool_choice
+  us.anthropic.claude-3-opus-20240229-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 15.0
+      output: 75.0
+    capabilities:
+    - function_calling
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  eu.anthropic.claude-3-sonnet-20240229-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  eu.anthropic.claude-3-5-sonnet-20240620-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  eu.anthropic.claude-3-5-sonnet-20241022-v2:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - prompt_caching
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  eu.anthropic.claude-3-7-sonnet-20250219-v1:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - function_calling
+    - pdf_input
+    - prompt_caching
+    - reasoning
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  eu.anthropic.claude-3-haiku-20240307-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.25
+      output: 1.25
+    capabilities:
+    - function_calling
+    - pdf_input
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  eu.anthropic.claude-3-5-haiku-20241022-v1:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 0.25
+      output: 1.25
+    capabilities:
+    - function_calling
+    - pdf_input
+    - prompt_caching
+    - streaming
+    - structured_output
+    - tool_choice
+  eu.anthropic.claude-3-opus-20240229-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 15.0
+      output: 75.0
+    capabilities:
+    - function_calling
+    - streaming
+    - structured_output
+    - tool_choice
+    - vision
+  anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+  bedrock/us-east-1/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/1-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  bedrock/ap-northeast-1/6-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  bedrock/eu-central-1/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+  bedrock/eu-central-1/1-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  bedrock/eu-central-1/6-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  bedrock/us-east-1/1-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  bedrock/us-east-1/6-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  bedrock/us-west-2/1-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  bedrock/us-west-2/6-month-commitment/anthropic.claude-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+  anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/1-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/6-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/1-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/6-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/1-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/6-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/1-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/6-month-commitment/anthropic.claude-v2:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/1-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/6-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 8.0
+      output: 24.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/1-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/6-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/1-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/6-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/1-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/6-month-commitment/anthropic.claude-v2:1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.8
+      output: 2.4
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.8
+      output: 2.4
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/1-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-east-1/6-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/1-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/6-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/us-west-2/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 0.8
+      output: 2.4
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.23
+      output: 7.55
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/1-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/ap-northeast-1/6-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    pricing:
+      input: 2.48
+      output: 8.38
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/1-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/eu-central-1/6-month-commitment/anthropic.claude-instant-v1:
+    context_window: 100000
+    max_output_tokens: 8191
+    capabilities:
+    - streaming
+    - tool_choice
+  cohere.rerank-v3-5:0:
+    context_window: 32000
+    max_output_tokens: 32000
+  cohere.command-text-v14:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 1.5
+      output: 2.0
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/*/1-month-commitment/cohere.command-text-v14:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/*/6-month-commitment/cohere.command-text-v14:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+    - tool_choice
+  cohere.command-light-text-v14:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.3
+      output: 0.6
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/*/1-month-commitment/cohere.command-light-text-v14:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+    - tool_choice
+  bedrock/*/6-month-commitment/cohere.command-light-text-v14:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+    - tool_choice
+  cohere.command-r-plus-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - tool_choice
+  cohere.command-r-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+    - tool_choice
+  cohere.embed-english-v3:
+    context_window: 512
+    pricing:
+      input: 0.1
+      output: 0.0
+  cohere.embed-multilingual-v3:
+    context_window: 512
+    pricing:
+      input: 0.1
+      output: 0.0
+  meta.llama2-13b-chat-v1:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.75
+      output: 1.0
+    capabilities:
+    - streaming
+  meta.llama2-70b-chat-v1:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 1.95
+      output: 2.56
+    capabilities:
+    - streaming
+  meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.3
+      output: 0.6
+    capabilities:
+    - streaming
+  bedrock/us-east-1/meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.3
+      output: 0.6
+    capabilities:
+    - streaming
+  bedrock/us-west-1/meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.3
+      output: 0.6
+    capabilities:
+    - streaming
+  bedrock/ap-south-1/meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.36
+      output: 0.72
+    capabilities:
+    - streaming
+  bedrock/ca-central-1/meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.35
+      output: 0.69
+    capabilities:
+    - streaming
+  bedrock/eu-west-1/meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.32
+      output: 0.65
+    capabilities:
+    - streaming
+  bedrock/eu-west-2/meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.39
+      output: 0.78
+    capabilities:
+    - streaming
+  bedrock/sa-east-1/meta.llama3-8b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.5
+      output: 1.01
+    capabilities:
+    - streaming
+  meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 2.65
+      output: 3.5
+    capabilities:
+    - streaming
+  bedrock/us-east-1/meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 2.65
+      output: 3.5
+    capabilities:
+    - streaming
+  bedrock/us-west-1/meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 2.65
+      output: 3.5
+    capabilities:
+    - streaming
+  bedrock/ap-south-1/meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 3.18
+      output: 4.2
+    capabilities:
+    - streaming
+  bedrock/ca-central-1/meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 3.05
+      output: 4.03
+    capabilities:
+    - streaming
+  bedrock/eu-west-1/meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 2.86
+      output: 3.78
+    capabilities:
+    - streaming
+  bedrock/eu-west-2/meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 3.45
+      output: 4.55
+    capabilities:
+    - streaming
+  bedrock/sa-east-1/meta.llama3-70b-instruct-v1:0:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 4.45
+      output: 5.88
+    capabilities:
+    - streaming
+  meta.llama3-1-8b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 2048
+    pricing:
+      input: 0.22
+      output: 0.22
+    capabilities:
+    - function_calling
+    - streaming
+  us.meta.llama3-1-8b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 2048
+    pricing:
+      input: 0.22
+      output: 0.22
+    capabilities:
+    - function_calling
+    - streaming
+  meta.llama3-1-70b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 2048
+    pricing:
+      input: 0.99
+      output: 0.99
+    capabilities:
+    - function_calling
+    - streaming
+  us.meta.llama3-1-70b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 2048
+    pricing:
+      input: 0.99
+      output: 0.99
+    capabilities:
+    - function_calling
+    - streaming
+  meta.llama3-1-405b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 5.32
+      output: 16.0
+    capabilities:
+    - function_calling
+    - streaming
+  us.meta.llama3-1-405b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 5.32
+      output: 16.0
+    capabilities:
+    - function_calling
+    - streaming
+  meta.llama3-2-1b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.1
+      output: 0.1
+    capabilities:
+    - function_calling
+    - streaming
+  us.meta.llama3-2-1b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.1
+      output: 0.1
+    capabilities:
+    - function_calling
+    - streaming
+  eu.meta.llama3-2-1b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.13
+      output: 0.13
+    capabilities:
+    - function_calling
+    - streaming
+  meta.llama3-2-3b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.15
+      output: 0.15
+    capabilities:
+    - function_calling
+    - streaming
+  us.meta.llama3-2-3b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.15
+      output: 0.15
+    capabilities:
+    - function_calling
+    - streaming
+  eu.meta.llama3-2-3b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.19
+      output: 0.19
+    capabilities:
+    - function_calling
+    - streaming
+  meta.llama3-2-11b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.35
+      output: 0.35
+    capabilities:
+    - function_calling
+    - streaming
+    - vision
+  us.meta.llama3-2-11b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.35
+      output: 0.35
+    capabilities:
+    - function_calling
+    - streaming
+    - vision
+  meta.llama3-2-90b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 2.0
+      output: 2.0
+    capabilities:
+    - function_calling
+    - streaming
+    - vision
+  us.meta.llama3-2-90b-instruct-v1:0:
+    context_window: 128000
+    max_output_tokens: 4096
+    pricing:
+      input: 2.0
+      output: 2.0
+    capabilities:
+    - function_calling
+    - streaming
+    - vision
+  512-x-512/50-steps/stability.stable-diffusion-xl-v0:
+    context_window: 77
+  512-x-512/max-steps/stability.stable-diffusion-xl-v0:
+    context_window: 77
+  max-x-max/50-steps/stability.stable-diffusion-xl-v0:
+    context_window: 77
+  max-x-max/max-steps/stability.stable-diffusion-xl-v0:
+    context_window: 77
+  1024-x-1024/50-steps/stability.stable-diffusion-xl-v1:
+    context_window: 77
+  1024-x-1024/max-steps/stability.stable-diffusion-xl-v1:
+    context_window: 77
+  stability.sd3-large-v1:0:
+    context_window: 77
+  stability.sd3-5-large-v1:0:
+    context_window: 77
+  stability.stable-image-core-v1:0:
+    context_window: 77
+  stability.stable-image-core-v1:1:
+    context_window: 77
+  stability.stable-image-ultra-v1:0:
+    context_window: 77
+  stability.stable-image-ultra-v1:1:
+    context_window: 77

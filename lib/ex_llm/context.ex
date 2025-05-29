@@ -9,9 +9,8 @@ defmodule ExLLM.Context do
   - System prompt preservation
   """
 
-  alias ExLLM.{Cost, Types, ModelConfig}
+  alias ExLLM.{Cost, ModelConfig}
 
-  @default_max_tokens 4_096
   @reserve_tokens 500
 
   # Model context windows are now loaded from external YAML configuration files
@@ -20,16 +19,19 @@ defmodule ExLLM.Context do
   @doc """
   Get the context window size for a given provider and model.
   
-  Returns the maximum number of tokens the model can handle,
-  or the default if not found.
+  Returns the maximum number of tokens the model can handle.
+  Raises an error if the model is not found in configuration.
   """
   @spec get_context_window(String.t() | atom(), String.t()) :: pos_integer()
   def get_context_window(provider, model) do
     provider_atom = if is_binary(provider), do: String.to_atom(provider), else: provider
     
     case ModelConfig.get_context_window(provider_atom, model) do
-      nil -> @default_max_tokens
-      context_window -> context_window
+      nil -> 
+        raise "Unknown model #{model} for provider #{provider}. " <>
+              "Please ensure the model exists in config/models/#{provider}.yml"
+      context_window -> 
+        context_window
     end
   end
 

@@ -124,7 +124,6 @@ defmodule ExLLM do
     Cost,
     FunctionCalling,
     ModelCapabilities,
-    Retry,
     Session,
     StreamRecovery,
     Types,
@@ -133,6 +132,7 @@ defmodule ExLLM do
 
   @providers %{
     anthropic: ExLLM.Adapters.Anthropic,
+    groq: ExLLM.Adapters.Groq,
     local: ExLLM.Adapters.Local,
     openai: ExLLM.Adapters.OpenAI,
     openrouter: ExLLM.Adapters.OpenRouter,
@@ -142,7 +142,7 @@ defmodule ExLLM do
     mock: ExLLM.Adapters.Mock
   }
 
-  @type provider :: :anthropic | :openai | :openrouter | :ollama | :local | :bedrock | :gemini | :mock
+  @type provider :: :anthropic | :openai | :groq | :openrouter | :ollama | :local | :bedrock | :gemini | :mock
   @type messages :: [Types.message()]
   @type options :: keyword()
 
@@ -150,7 +150,7 @@ defmodule ExLLM do
   Send a chat completion request to the specified LLM provider.
 
   ## Parameters
-  - `provider` - The LLM provider (`:anthropic`, `:openai`, `:ollama`)
+  - `provider` - The LLM provider (`:anthropic`, `:openai`, `:groq`, etc.) or a model string like "groq/llama3-70b"
   - `messages` - List of conversation messages
   - `options` - Options for the request (see module docs)
 
@@ -196,6 +196,14 @@ defmodule ExLLM do
       {:ok, response} = ExLLM.chat(:anthropic, [
         %{role: "user", content: "Hello!"}
       ])
+      
+      # Using provider/model syntax
+      {:ok, response} = ExLLM.chat("groq/llama3-70b", [
+        %{role: "user", content: "Hello!"}
+      ])
+      
+      # Groq with specific model
+      {:ok, response} = ExLLM.chat(:groq, messages, model: "mixtral-8x7b-32768")
 
       # With custom configuration
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(%{
@@ -236,9 +244,11 @@ defmodule ExLLM do
         function_call: "auto"
       )
   """
-  @spec chat(provider(), messages(), options()) ::
+  @spec chat(provider() | String.t(), messages(), options()) ::
           {:ok, Types.LLMResponse.t() | struct() | map()} | {:error, term()}
-  def chat(provider, messages, options \\ []) do
+  def chat(provider_or_model, messages, options \\ []) do
+    # Detect provider from model string if needed
+    {provider, options} = detect_provider(provider_or_model, options)
     # Check if structured output is requested
     if Keyword.has_key?(options, :response_model) do
       # Delegate to Instructor module if available
@@ -314,9 +324,11 @@ defmodule ExLLM do
         strategy: :smart
       )
   """
-  @spec stream_chat(provider(), messages(), options()) ::
+  @spec stream_chat(provider() | String.t(), messages(), options()) ::
           {:ok, Types.stream()} | {:error, term()}
-  def stream_chat(provider, messages, options \\ []) do
+  def stream_chat(provider_or_model, messages, options \\ []) do
+    # Detect provider from model string if needed
+    {provider, options} = detect_provider(provider_or_model, options)
     case get_adapter(provider) do
       {:ok, adapter} ->
         # Apply context management if enabled
@@ -520,8 +532,12 @@ defmodule ExLLM do
   """
   @spec prepare_messages(messages(), options()) :: messages()
   def prepare_messages(messages, options \\ []) do
-    Context.prepare_messages(messages, options)
+    provider = Keyword.get(options, :provider, :openai)
+    model = Keyword.get(options, :model) || default_model(provider)
+    
+    Context.truncate_messages(messages, provider, model, options)
   end
+
 
   @doc """
   Validate that messages fit within a model's context window.
@@ -532,20 +548,18 @@ defmodule ExLLM do
 
   ## Returns
   `{:ok, token_count}` if valid, `{:error, reason}` if too large.
-
-  ## Examples
-
-      {:ok, tokens} = ExLLM.validate_context(messages, model: "claude-3-5-sonnet-20241022")
-      # => {:ok, 3500}
   """
-  @spec validate_context(messages(), options()) ::
-          {:ok, non_neg_integer()} | {:error, term()}
+  @spec validate_context(messages(), options()) :: {:ok, non_neg_integer()} | {:error, String.t()}
   def validate_context(messages, options \\ []) do
-    Context.validate_context(messages, options)
+    provider = Keyword.get(options, :provider, :openai)
+    model = Keyword.get(options, :model) || default_model(provider)
+    
+    Context.validate_context(messages, provider, model, options)
   end
 
+
   @doc """
-  Get context window size for a model.
+  Get default model for a provider.
 
   ## Parameters
   - `provider` - LLM provider name
@@ -561,7 +575,7 @@ defmodule ExLLM do
   """
   @spec context_window_size(provider(), String.t()) :: non_neg_integer() | nil
   def context_window_size(provider, model) do
-    Context.context_window_size(to_string(provider), model)
+    Context.get_context_window(to_string(provider), model)
   end
 
   @doc """
@@ -580,7 +594,13 @@ defmodule ExLLM do
   """
   @spec context_stats(messages()) :: map()
   def context_stats(messages) do
-    Context.stats(messages)
+    # TODO: Implement context stats
+    %{
+      message_count: length(messages),
+      total_tokens: Cost.estimate_tokens(messages),
+      by_role: Enum.frequencies_by(messages, & &1.role),
+      avg_tokens_per_message: div(Cost.estimate_tokens(messages), max(length(messages), 1))
+    }
   end
 
   # Session Management
@@ -820,7 +840,13 @@ defmodule ExLLM do
         messages
       end
 
-    Context.prepare_messages(messages, context_options)
+    # Apply context truncation if needed
+    case Context.validate_context(messages, provider, model, context_options) do
+      {:ok, _tokens} -> 
+        messages
+      {:error, {:context_too_large, _}} ->
+        Context.truncate_messages(messages, provider, model, context_options)
+    end
   end
 
   defp execute_chat(adapter, provider, messages, options) do
@@ -1466,6 +1492,28 @@ defmodule ExLLM do
         {:ok, response} -> {:ok, response.content}
         error -> error
       end
+    end
+  end
+
+  # Provider detection for "provider/model" syntax
+  defp detect_provider(provider_or_model, options) when is_atom(provider_or_model) do
+    {provider_or_model, options}
+  end
+
+  defp detect_provider(provider_or_model, options) when is_binary(provider_or_model) do
+    case String.split(provider_or_model, "/", parts: 2) do
+      [provider_str, model] ->
+        # Found provider/model pattern
+        provider = String.to_atom(provider_str)
+        if Map.has_key?(@providers, provider) do
+          {provider, Keyword.put(options, :model, model)}
+        else
+          # Unknown provider, treat as model string
+          {:openai, Keyword.put(options, :model, provider_or_model)}
+        end
+      [_] ->
+        # No slash, treat as model for default provider
+        {:openai, Keyword.put(options, :model, provider_or_model)}
     end
   end
 

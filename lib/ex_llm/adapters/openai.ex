@@ -50,7 +50,6 @@ defmodule ExLLM.Adapters.OpenAI do
   alias ExLLM.{Error, Types, ModelConfig}
 
   @default_base_url "https://api.openai.com/v1"
-  @default_max_tokens 4_096
   @default_temperature 0.7
 
   @impl true
@@ -71,8 +70,7 @@ defmodule ExLLM.Adapters.OpenAI do
     else
       model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
-      max_tokens =
-        Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
+      max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens))
 
       temperature =
         Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
@@ -122,8 +120,7 @@ defmodule ExLLM.Adapters.OpenAI do
     else
       model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
 
-      max_tokens =
-        Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, @default_max_tokens))
+      max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens))
 
       temperature =
         Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
@@ -254,7 +251,13 @@ defmodule ExLLM.Adapters.OpenAI do
 
   # Private helper to get default model from config
   defp get_default_model do
-    ModelConfig.get_default_model(:openai) || "gpt-4.1-mini"
+    case ModelConfig.get_default_model(:openai) do
+      nil ->
+        raise "Missing configuration: No default model found for OpenAI. " <>
+              "Please ensure config/models/openai.yml exists and contains a 'default_model' field."
+      model ->
+        model
+    end
   end
 
   # Private functions
@@ -426,23 +429,9 @@ defmodule ExLLM.Adapters.OpenAI do
   end
 
   defp get_context_window(model_id) do
-    case model_id do
-      # GPT-4.1 series - 1M context window
-      "gpt-4.1" <> _ -> 1_000_000
-      # GPT-4o series
-      "gpt-4o" <> _ -> 128_000
-      # O-series reasoning models
-      "o1" <> _ -> 200_000
-      "o3" <> _ -> 200_000
-      "o4-mini" <> _ -> 128_000
-      # Legacy models
-      "gpt-4-turbo" <> _ -> 128_000
-      "gpt-4-32k" <> _ -> 32_768
-      "gpt-4" <> _ -> 8_192
-      "gpt-3.5-turbo" <> _ -> 16_385
-      # Default
-      _ -> 128_000
-    end
+    # Use ModelConfig for context window lookup
+    # This will return nil if model not found, which we handle in the caller
+    ModelConfig.get_context_window(:openai, model_id)
   end
 
   defp fallback_models() do
@@ -594,7 +583,7 @@ defmodule ExLLM.Adapters.OpenAI do
         {:error, Error.api_error(status, body)}
 
       {:error, reason} ->
-        {:error, Error.network_error(reason)}
+        {:error, Error.connection_error(reason)}
     end
   end
 
@@ -630,7 +619,7 @@ defmodule ExLLM.Adapters.OpenAI do
         {:ok, embedding_response}
 
       _ ->
-        {:error, Error.parse_error("Invalid embeddings response")}
+        {:error, Error.json_parse_error("Invalid embeddings response")}
     end
   end
 end
