@@ -8,6 +8,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Environment variable wrapper script (`scripts/run_with_env.sh`) for Claude CLI usage
+- Groq models API support (https://api.groq.com/openai/v1/models)
+- Dynamic model loading from provider APIs
+  - All adapters now fetch models dynamically from provider APIs when available
+  - Automatic fallback to YAML configuration when API is unavailable
+  - Created `ExLLM.ModelLoader` module for centralized model loading with caching
+  - Anthropic adapter now uses `/v1/models` API endpoint
+  - OpenAI adapter fetches from `/v1/models` and filters chat models
+  - Gemini adapter uses Google's models API
+  - Ollama adapter fetches from local server's `/api/tags`
+  - OpenRouter adapter uses public `/api/v1/models` API
 - OpenRouter adapter with access to 300+ models from multiple providers
   - Support for Claude, GPT-4, Llama, PaLM, and many other model families
   - Unified API interface for different model architectures
@@ -48,6 +59,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated context window sizes for all new Bedrock models
 - Enhanced streaming support for all new providers (Writer, DeepSeek)
 - All adapters now use ModelConfig for consistent default model retrieval
+
+### Changed
+- **BREAKING:** Refactored `ExLLM.Adapters.OpenAICompatible` base adapter
+  - Extracted common helper functions (`format_model_name/1`, `default_model_transformer/2`) as public module functions
+  - Simplified adapter implementations by removing duplicate code
+  - Added ModelLoader integration to base adapter for consistent dynamic model loading
+  - Added `filter_model/1` and `parse_model/1` callbacks for customizing model parsing
+
+### Fixed
+- Anthropic models API fetch now correctly parses response structure (uses `data` field instead of `models`)
+- Python model fetch script updated to handle Anthropic's API response format
+- OpenRouter pricing parser now handles string values correctly
+- Groq adapter compilation warnings for undefined callbacks
 
 ## [0.2.0] - 2025-05-25
 

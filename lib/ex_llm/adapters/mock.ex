@@ -481,11 +481,11 @@ defmodule ExLLM.Adapters.Mock do
     }
   end
 
-  defp build_response(base_response, messages, options) do
+  defp build_response(base_response, _messages, options) do
     response = base_response
 
     # Add function calling if requested
-    if functions = options[:functions] do
+    if _functions = options[:functions] do
       if base_response.function_call || Agent.get(__MODULE__, & &1.function_call_response) do
         response
       else
@@ -522,7 +522,7 @@ defmodule ExLLM.Adapters.Mock do
     ("mock-" <> :crypto.strong_rand_bytes(8)) |> Base.encode16(case: :lower)
   end
 
-  defp handle_embeddings_response(mock_response, inputs, options) when is_map(mock_response) do
+  defp handle_embeddings_response(mock_response, _inputs, _options) when is_map(mock_response) do
     response = struct(Types.EmbeddingResponse, mock_response)
     {:ok, response}
   end
@@ -547,7 +547,7 @@ defmodule ExLLM.Adapters.Mock do
     end)
   end
 
-  defp capture_if_enabled(type, input, options, result) do
+  defp capture_if_enabled(type, input, options, _result) do
     if Keyword.get(options, :capture_requests, false) do
       capture_request(type, input, options)
     end

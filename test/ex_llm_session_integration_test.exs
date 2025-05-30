@@ -57,12 +57,13 @@ defmodule ExLLM.SessionIntegrationTest do
 
   describe "chat_with_session" do
     @describetag :integration
+    
     setup do
       # Skip if no API key is configured
-      unless System.get_env("ANTHROPIC_API_KEY") do
-        :skip
-      else
+      if System.get_env("ANTHROPIC_API_KEY") do
         :ok
+      else
+        {:ok, %{skip: "No ANTHROPIC_API_KEY set"}}
       end
     end
 

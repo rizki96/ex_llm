@@ -49,7 +49,7 @@ defmodule ExLLM.FunctionCalling do
       end
   """
 
-  alias ExLLM.Types
+  # alias ExLLM.Types
 
   defmodule Function do
     @moduledoc """
@@ -323,7 +323,7 @@ defmodule ExLLM.FunctionCalling do
   defp parse_anthropic_tool_calls(_), do: {:ok, []}
 
   # Parse Bedrock tool calls (simplified)
-  defp parse_bedrock_tool_calls(response) do
+  defp parse_bedrock_tool_calls(_response) do
     # Bedrock format varies by model
     # This is a placeholder implementation
     {:ok, []}

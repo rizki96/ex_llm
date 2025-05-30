@@ -1,4 +1,6 @@
 defmodule ExLLM.Adapters.OpenAICompatible do
+  alias ExLLM.{Types, ModelConfig}
+  
   @moduledoc """
   Base implementation for OpenAI-compatible API providers.
   
@@ -32,6 +34,38 @@ defmodule ExLLM.Adapters.OpenAICompatible do
   @callback transform_response(response :: map(), options :: keyword()) :: map()
   @callback get_headers(api_key :: String.t(), options :: keyword()) :: list({String.t(), String.t()})
   @callback parse_error(response :: map()) :: {:error, term()}
+  @callback filter_model(model :: map()) :: boolean()
+  @callback parse_model(model :: map()) :: Types.Model.t()
+
+  # Common helper functions that can be used by any adapter
+  
+  @doc """
+  Formats a model ID into a human-readable name.
+  """
+  def format_model_name(model_id) do
+    model_id
+    |> String.split(["-", "_", "/"])
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
+  
+  @doc """
+  Default model transformer for configuration data.
+  """
+  def default_model_transformer(model_id, config) do
+    %Types.Model{
+      id: to_string(model_id),
+      name: format_model_name(to_string(model_id)),
+      description: "Model: #{to_string(model_id)}",
+      context_window: Map.get(config, :context_window, 4096),
+      capabilities: %{
+        supports_streaming: :streaming in Map.get(config, :capabilities, []),
+        supports_functions: :function_calling in Map.get(config, :capabilities, []),
+        supports_vision: :vision in Map.get(config, :capabilities, []),
+        features: Map.get(config, :capabilities, [])
+      }
+    }
+  end
 
   defmacro __using__(opts) do
     provider = Keyword.fetch!(opts, :provider)
@@ -94,12 +128,13 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         config_provider = get_config_provider(options)
         config = get_config(config_provider)
         
-        api_key = get_api_key(config)
-        if !api_key || api_key == "" do
-          {:error, "#{provider_name()} API key not configured"}
-        else
-          do_list_models(config, api_key, options)
-        end
+        # Use ModelLoader with API fetching by default
+        ExLLM.ModelLoader.load_models(provider_atom(),
+          Keyword.merge(options, [
+            api_fetcher: fn(_opts) -> fetch_models_from_api(config) end,
+            config_transformer: &default_model_transformer/2
+          ])
+        )
       end
       
       # Common implementation functions
@@ -141,18 +176,6 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         {:ok, stream_id}
       end
       
-      defp do_list_models(config, api_key, _options) do
-        headers = get_headers(api_key, [])
-        url = "#{get_base_url(config)}/models"
-        
-        case send_request(url, %{}, headers, :get) do
-          {:ok, response} ->
-            parse_models_response(response)
-          {:error, _} ->
-            # Fallback to supported models
-            {:ok, get_fallback_models()}
-        end
-      end
       
       defp build_chat_request(messages, model, options) do
         request = %{
@@ -334,46 +357,26 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         end
       end
       
-      defp parse_models_response(%{"data" => models}) when is_list(models) do
-        parsed_models = models
-        |> Enum.filter(&filter_model/1)
-        |> Enum.map(&parse_model/1)
-        
-        {:ok, parsed_models}
-      end
-      
-      defp parse_models_response(_), do: {:ok, get_fallback_models()}
-      
-      defp filter_model(%{"id" => id}) do
-        # Override in specific adapters
+      # Default filter_model implementation (can be overridden)
+      @impl ExLLM.Adapters.OpenAICompatible
+      def filter_model(%{"id" => _id}) do
+        # Override in specific adapters to filter out non-LLM models
         true
       end
       
-      defp parse_model(%{"id" => id} = model) do
-        %Types.Model{
-          id: id,
-          name: id,
-          context_window: get_model_context_window(id),
-          capabilities: get_model_capabilities(id)
-        }
-      end
-      
-      defp get_fallback_models do
-        Enum.map(@supported_models, fn model_id ->
-          %Types.Model{
-            id: model_id,
-            name: model_id,
-            context_window: get_model_context_window(model_id),
-            capabilities: get_model_capabilities(model_id)
-          }
-        end)
+      # Legacy parse_model for backward compatibility
+      @impl ExLLM.Adapters.OpenAICompatible
+      def parse_model(%{"id" => id} = model) do
+        parse_api_model(model)
       end
       
       defp add_cost_tracking(response, options) do
         if Keyword.get(options, :track_cost, true) && response.usage do
-          case ExLLM.Cost.calculate(@provider, response.model, response.usage) do
-            {:ok, cost} -> %{response | cost: cost}
-            _ -> response
+          cost = ExLLM.Cost.calculate(@provider, response.model, response.usage)
+          if Map.has_key?(cost, :error) do
+            response
+          else
+            %{response | cost: cost}
           end
         else
           response
@@ -481,6 +484,100 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         {:error, Error.api_error(status, body)}
       end
       
+      # Common helper functions for model management
+      
+      defp fetch_models_from_api(config) do
+        api_key = get_api_key(config)
+        
+        if !api_key || api_key == "" do
+          {:error, "No API key available"}
+        else
+          headers = get_headers(api_key, [])
+          url = "#{get_base_url(config)}/models"
+          
+          case send_request(url, %{}, headers, :get) do
+            {:ok, %{"data" => models}} when is_list(models) ->
+              parsed_models = models
+              |> Enum.filter(&filter_model/1)
+              |> Enum.map(&parse_api_model/1)
+              |> Enum.sort_by(& &1.id)
+              
+              {:ok, parsed_models}
+              
+            {:ok, _} ->
+              {:error, "Invalid API response format"}
+              
+            {:error, reason} ->
+              {:error, "API error: #{inspect(reason)}"}
+          end
+        end
+      end
+      
+      defp parse_api_model(model) do
+        model_id = model["id"]
+        
+        %Types.Model{
+          id: model_id,
+          name: format_model_name(model_id),
+          description: generate_model_description(model_id),
+          context_window: model["context_window"] || get_model_context_window(model_id),
+          capabilities: %{
+            supports_streaming: true,
+            supports_functions: check_function_support(model, model_id),
+            supports_vision: check_vision_support(model, model_id),
+            features: build_features_list(model, model_id)
+          }
+        }
+      end
+      
+      
+      defp generate_model_description(model_id) do
+        "#{provider_name()} model: #{model_id}"
+      end
+      
+      defp check_function_support(model, model_id) do
+        model["supports_tools"] || 
+        model["supports_functions"] || 
+        String.contains?(model_id, ["turbo", "gpt-4", "claude-3", "gemini"])
+      end
+      
+      defp check_vision_support(model, model_id) do
+        model["supports_vision"] || 
+        String.contains?(model_id, ["vision", "visual", "image", "multimodal"])
+      end
+      
+      defp build_features_list(model, model_id) do
+        features = ["streaming"]
+        
+        if check_function_support(model, model_id) do
+          features = ["function_calling" | features]
+        end
+        
+        if check_vision_support(model, model_id) do
+          features = ["vision" | features]
+        end
+        
+        if model["supports_system_messages"] != false do
+          features = ["system_messages" | features]
+        end
+        
+        features
+      end
+      
+      defp provider_atom do
+        @provider
+      end
+      
+      defp ensure_default_model do
+        case ModelConfig.get_default_model(@provider) do
+          nil ->
+            raise "Missing configuration: No default model found for #{provider_name()}. " <>
+                  "Please ensure config/models/#{@provider}.yml exists and contains a 'default_model' field."
+          model ->
+            model
+        end
+      end
+      
       # Allow overriding all functions
       defoverridable [
         chat: 2,
@@ -494,7 +591,13 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         transform_response: 2,
         parse_error: 1,
         filter_model: 1,
-        parse_model: 1
+        parse_model: 1,
+        fetch_models_from_api: 1,
+        parse_api_model: 1,
+        generate_model_description: 1,
+        check_function_support: 2,
+        check_vision_support: 2,
+        build_features_list: 2
       ]
     end
   end

@@ -48,6 +48,7 @@ defmodule ExLLM.Adapters.OpenAI do
   @behaviour ExLLM.Adapter
 
   alias ExLLM.{Error, Types, ModelConfig}
+  require Logger
 
   @default_base_url "https://api.openai.com/v1"
   @default_temperature 0.7
@@ -186,7 +187,17 @@ defmodule ExLLM.Adapters.OpenAI do
       )
 
     config = get_config(config_provider)
-
+    
+    # Use ModelLoader with API fetching
+    ExLLM.ModelLoader.load_models(:openai,
+      Keyword.merge(options, [
+        api_fetcher: fn(_opts) -> fetch_openai_models(config) end,
+        config_transformer: &openai_model_transformer/2
+      ])
+    )
+  end
+  
+  defp fetch_openai_models(config) do
     api_key = get_api_key(config)
 
     if !api_key || api_key == "" do
@@ -203,31 +214,93 @@ defmodule ExLLM.Adapters.OpenAI do
         {:ok, %{status: 200, body: body}} ->
           models =
             body["data"]
-            |> Enum.filter(fn model ->
-              # Filter for chat models
-              String.contains?(model["id"], "gpt") and
-                not String.contains?(model["id"], "instruct")
-            end)
-            |> Enum.map(fn model ->
-              %Types.Model{
-                id: model["id"],
-                name: model["id"],
-                context_window: get_context_window(model["id"])
-              }
-            end)
+            |> Enum.filter(&is_chat_model?/1)
+            |> Enum.map(&parse_api_model/1)
             |> Enum.sort_by(& &1.id, :desc)
 
           {:ok, models}
 
-        {:ok, %{status: _status, body: _body}} ->
-          # Fallback to static list
-          {:ok, fallback_models()}
+        {:ok, %{status: status, body: body}} ->
+          Logger.debug("OpenAI API returned status #{status}: #{inspect(body)}")
+          {:error, "API returned status #{status}"}
 
-        {:error, _reason} ->
-          # Fallback to static list
-          {:ok, fallback_models()}
+        {:error, reason} ->
+          {:error, reason}
       end
     end
+  end
+  
+  defp is_chat_model?(model) do
+    id = model["id"]
+    # Include GPT models, O models, and exclude instruction-tuned variants
+    (String.contains?(id, "gpt") || String.starts_with?(id, "o")) &&
+      not String.contains?(id, "instruct") &&
+      not String.contains?(id, "0301") &&  # Exclude old snapshots
+      not String.contains?(id, "0314") &&
+      not String.contains?(id, "0613")
+  end
+  
+  defp parse_api_model(model) do
+    model_id = model["id"]
+    
+    %Types.Model{
+      id: model_id,
+      name: format_openai_model_name(model_id),
+      description: model["description"],
+      context_window: get_context_window(model_id),
+      capabilities: infer_model_capabilities(model_id)
+    }
+  end
+  
+  defp format_openai_model_name(model_id) do
+    case model_id do
+      "gpt-4.1" -> "GPT-4.1"
+      "gpt-4.1-mini" -> "GPT-4.1 Mini"
+      "gpt-4.1-nano" -> "GPT-4.1 Nano"
+      "gpt-4o" -> "GPT-4o"
+      "gpt-4o-mini" -> "GPT-4o Mini"
+      "o3" -> "O3"
+      "o3-mini" -> "O3 Mini"
+      "o1" -> "O1"
+      "o1-mini" -> "O1 Mini"
+      _ -> model_id
+    end
+  end
+  
+  defp infer_model_capabilities(model_id) do
+    # Base capabilities for all OpenAI models
+    base_features = [:streaming, :function_calling]
+    
+    # Add vision for multimodal models
+    features = 
+      if String.contains?(model_id, "4o") || String.contains?(model_id, "4.1") do
+        [:vision | base_features]
+      else
+        base_features
+      end
+    
+    %{
+      supports_streaming: true,
+      supports_functions: true,
+      supports_vision: :vision in features,
+      features: features
+    }
+  end
+  
+  # Transform config data to OpenAI model format
+  defp openai_model_transformer(model_id, config) do
+    %Types.Model{
+      id: to_string(model_id),
+      name: Map.get(config, :name, format_openai_model_name(to_string(model_id))),
+      description: Map.get(config, :description),
+      context_window: Map.get(config, :context_window, 128_000),
+      capabilities: %{
+        supports_streaming: :streaming in Map.get(config, :capabilities, []),
+        supports_functions: :function_calling in Map.get(config, :capabilities, []),
+        supports_vision: :vision in Map.get(config, :capabilities, []),
+        features: Map.get(config, :capabilities, [])
+      }
+    }
   end
 
   @impl true
@@ -434,56 +507,6 @@ defmodule ExLLM.Adapters.OpenAI do
     ModelConfig.get_context_window(:openai, model_id)
   end
 
-  defp fallback_models() do
-    [
-      %Types.Model{
-        id: "gpt-4.1",
-        name: "GPT-4.1",
-        context_window: 1_000_000
-      },
-      %Types.Model{
-        id: "gpt-4.1-mini",
-        name: "GPT-4.1 Mini",
-        context_window: 1_000_000
-      },
-      %Types.Model{
-        id: "gpt-4.1-nano",
-        name: "GPT-4.1 Nano",
-        context_window: 1_000_000
-      },
-      %Types.Model{
-        id: "gpt-4o",
-        name: "GPT-4o",
-        context_window: 128_000
-      },
-      %Types.Model{
-        id: "gpt-4o-mini",
-        name: "GPT-4o Mini",
-        context_window: 128_000
-      },
-      %Types.Model{
-        id: "o3",
-        name: "O3",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "o3-mini",
-        name: "O3 Mini",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "o1",
-        name: "O1",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "o1-mini",
-        name: "O1 Mini",
-        context_window: 200_000
-      }
-    ]
-  end
-
   @impl true
   def embeddings(inputs, options \\ []) do
     with {:ok, config} <- get_config(options),
@@ -495,7 +518,7 @@ defmodule ExLLM.Adapters.OpenAI do
   end
 
   @impl true
-  def list_embedding_models(options \\ []) do
+  def list_embedding_models(_options \\ []) do
     models = [
       %Types.EmbeddingModel{
         name: "text-embedding-3-small",
@@ -548,7 +571,7 @@ defmodule ExLLM.Adapters.OpenAI do
     {:ok, "#{base_url}/embeddings"}
   end
 
-  defp build_embeddings_request(inputs, config, options) do
+  defp build_embeddings_request(inputs, _config, options) do
     model = Keyword.get(options, :model, "text-embedding-3-small")
 
     # OpenAI supports multiple inputs but we'll send one at a time for consistency
@@ -587,7 +610,7 @@ defmodule ExLLM.Adapters.OpenAI do
     end
   end
 
-  defp parse_embeddings_response(response, inputs, config, options) do
+  defp parse_embeddings_response(response, _inputs, _config, options) do
     case response do
       %{"data" => data, "usage" => usage, "model" => model} ->
         # Extract embeddings

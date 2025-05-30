@@ -844,7 +844,7 @@ defmodule ExLLM do
     case Context.validate_context(messages, provider, model, context_options) do
       {:ok, _tokens} -> 
         messages
-      {:error, {:context_too_large, _}} ->
+      {:error, _reason} ->
         Context.truncate_messages(messages, provider, model, context_options)
     end
   end

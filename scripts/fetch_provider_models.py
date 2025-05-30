@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Fetch model information from provider APIs and documentation.
-This Python script is more robust for web scraping than Elixir.
+Fetch model information from provider APIs.
+Falls back to LiteLLM sync if API access fails.
 
 Usage: python scripts/fetch_provider_models.py [provider]
 """
@@ -13,7 +13,6 @@ import yaml
 import requests
 from datetime import datetime
 from typing import Dict, Any, Optional
-import time
 
 class ModelFetcher:
     def __init__(self):
@@ -22,513 +21,384 @@ class ModelFetcher:
         
     def fetch_all(self):
         """Fetch models from all providers"""
-        providers = ['anthropic', 'openai', 'gemini', 'openrouter', 'ollama', 'bedrock']
+        providers = ['anthropic', 'openai', 'groq', 'gemini', 'openrouter', 'ollama', 'bedrock']
+        
+        successful = []
+        failed = []
         
         for provider in providers:
             print(f"\n🔄 Fetching {provider} models...")
             try:
-                self.fetch_provider(provider)
-                print(f"✅ Successfully updated {provider}")
+                if self.fetch_provider(provider):
+                    successful.append(provider)
+                    print(f"✅ Successfully updated {provider}")
+                else:
+                    failed.append(provider)
+                    print(f"⚠️  No API available for {provider}")
             except Exception as e:
+                failed.append(provider)
                 print(f"❌ Failed to update {provider}: {e}")
+        
+        if failed:
+            print("\n⚠️  Some providers could not be updated via API.")
+            print("   Run './scripts/update_models.sh --litellm' to sync from LiteLLM instead.")
     
-    def fetch_provider(self, provider: str):
+    def fetch_provider(self, provider: str) -> bool:
         """Fetch models for a specific provider"""
         method = getattr(self, f'fetch_{provider}', None)
         if method:
-            method()
+            return method()
         else:
             print(f"No fetcher implemented for {provider}")
+            return False
     
-    def fetch_anthropic(self):
-        """Fetch Anthropic models"""
-        # Anthropic doesn't have a public models API, so we use known models
-        models = {
-            "claude-3-5-sonnet-20241022": {
-                "context_window": 200000,
-                "max_output_tokens": 8192,
-                "pricing": {"input": 3.00, "output": 15.00},
-                "capabilities": ["streaming", "function_calling", "vision"],
-                "release_date": "2024-10-22"
-            },
-            "claude-3-5-haiku-20241022": {
-                "context_window": 200000,
-                "max_output_tokens": 8192,
-                "pricing": {"input": 0.80, "output": 4.00},
-                "capabilities": ["streaming", "function_calling", "vision"],
-                "release_date": "2024-10-22"
-            },
-            "claude-3-opus-20240229": {
-                "context_window": 200000,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 15.00, "output": 75.00},
-                "capabilities": ["streaming", "function_calling", "vision"],
-                "release_date": "2024-02-29"
-            },
-            "claude-3-sonnet-20240229": {
-                "context_window": 200000,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 3.00, "output": 15.00},
-                "capabilities": ["streaming", "function_calling", "vision"],
-                "release_date": "2024-02-29"
-            },
-            "claude-3-haiku-20240307": {
-                "context_window": 200000,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 0.25, "output": 1.25},
-                "capabilities": ["streaming", "function_calling", "vision"],
-                "release_date": "2024-03-07"
-            },
-            "claude-sonnet-4-20250514": {
-                "context_window": 200000,
-                "max_output_tokens": 8192,
-                "pricing": {"input": 3.00, "output": 15.00},
-                "capabilities": ["streaming", "function_calling", "vision"],
-                "release_date": "2025-05-14"
-            }
-        }
-        
-        config = {
-            "provider": "anthropic",
-            "default_model": "claude-sonnet-4-20250514",
-            "models": models
-        }
-        
-        self._save_config("anthropic", config)
-    
-    def fetch_openai(self):
-        """Fetch OpenAI models via API"""
-        api_key = os.environ.get("OPENAI_API_KEY")
-        
-        if api_key:
-            headers = {"Authorization": f"Bearer {api_key}"}
-            try:
-                response = requests.get("https://api.openai.com/v1/models", headers=headers)
-                if response.status_code == 200:
-                    data = response.json()
-                    models = self._parse_openai_models(data["data"])
-                else:
-                    models = self._get_static_openai_models()
-            except Exception:
-                models = self._get_static_openai_models()
-        else:
-            models = self._get_static_openai_models()
-        
-        config = {
-            "provider": "openai",
-            "default_model": "gpt-4o-mini",
-            "models": models
-        }
-        
-        self._save_config("openai", config)
-    
-    def _parse_openai_models(self, api_models):
-        """Parse OpenAI API response"""
-        known_models = {
-            "gpt-4o": {
-                "context_window": 128000,
-                "max_output_tokens": 16384,
-                "pricing": {"input": 2.50, "output": 10.00},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gpt-4o-mini": {
-                "context_window": 128000,
-                "max_output_tokens": 16384,
-                "pricing": {"input": 0.15, "output": 0.60},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gpt-4-turbo": {
-                "context_window": 128000,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 10.00, "output": 30.00},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gpt-4": {
-                "context_window": 8192,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 30.00, "output": 60.00},
-                "capabilities": ["streaming", "function_calling"]
-            },
-            "gpt-3.5-turbo": {
-                "context_window": 16385,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 0.50, "output": 1.50},
-                "capabilities": ["streaming", "function_calling"]
-            },
-            "gpt-3.5-turbo-16k": {
-                "context_window": 16385,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 3.00, "output": 4.00},
-                "capabilities": ["streaming", "function_calling"]
-            }
-        }
-        
-        # Add any new models from API that we don't know about
-        for model in api_models:
-            model_id = model["id"]
-            if model_id not in known_models and "gpt" in model_id:
-                if "instruct" not in model_id and "edit" not in model_id:
-                    known_models[model_id] = {
-                        "context_window": self._guess_context_window(model_id),
-                        "capabilities": ["streaming", "function_calling"]
-                    }
-        
-        return known_models
-    
-    def _get_static_openai_models(self):
-        """Return static OpenAI model data"""
-        return {
-            "gpt-4o": {
-                "context_window": 128000,
-                "max_output_tokens": 16384,
-                "pricing": {"input": 2.50, "output": 10.00},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gpt-4o-mini": {
-                "context_window": 128000,
-                "max_output_tokens": 16384,
-                "pricing": {"input": 0.15, "output": 0.60},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gpt-4-turbo": {
-                "context_window": 128000,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 10.00, "output": 30.00},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gpt-3.5-turbo": {
-                "context_window": 16385,
-                "max_output_tokens": 4096,
-                "pricing": {"input": 0.50, "output": 1.50},
-                "capabilities": ["streaming", "function_calling"]
-            }
-        }
-    
-    def _guess_context_window(self, model_id: str) -> int:
-        """Guess context window based on model name"""
-        if "32k" in model_id:
-            return 32768
-        elif "16k" in model_id:
-            return 16385
-        elif "turbo" in model_id:
-            return 128000
-        elif "gpt-4" in model_id:
-            return 8192
-        else:
-            return 4096
-    
-    def fetch_gemini(self):
-        """Fetch Gemini models"""
-        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
-        
-        if api_key:
-            try:
-                url = f"https://generativelanguage.googleapis.com/v1/models?key={api_key}"
-                response = requests.get(url)
-                if response.status_code == 200:
-                    data = response.json()
-                    models = self._parse_gemini_models(data.get("models", []))
-                else:
-                    models = self._get_static_gemini_models()
-            except Exception:
-                models = self._get_static_gemini_models()
-        else:
-            models = self._get_static_gemini_models()
-        
-        config = {
-            "provider": "gemini",
-            "default_model": "gemini-2.0-flash",
-            "models": models
-        }
-        
-        self._save_config("gemini", config)
-    
-    def _parse_gemini_models(self, api_models):
-        """Parse Gemini API response"""
-        models = {}
-        
-        for model in api_models:
-            if "gemini" in model.get("name", ""):
-                model_id = model["name"].replace("models/", "")
-                models[model_id] = {
-                    "context_window": model.get("inputTokenLimit", 32768),
-                    "max_output_tokens": model.get("outputTokenLimit", 8192),
-                    "capabilities": self._get_gemini_capabilities(model)
-                }
-        
-        # Add pricing for known models
-        pricing_map = {
-            "gemini-2.0-flash": {"input": 0.10, "output": 0.40},
-            "gemini-1.5-pro": {"input": 1.25, "output": 5.00},
-            "gemini-1.5-flash": {"input": 0.075, "output": 0.30}
-        }
-        
-        for model_id, pricing in pricing_map.items():
-            if model_id in models:
-                models[model_id]["pricing"] = pricing
-        
-        return models
-    
-    def _get_gemini_capabilities(self, model):
-        """Extract capabilities from Gemini model"""
-        caps = ["streaming"]
-        
-        if model.get("supportedGenerationMethods"):
-            if "generateContent" in model["supportedGenerationMethods"]:
-                caps.append("function_calling")
-        
-        if "vision" in model.get("name", "") or "pro" in model.get("name", ""):
-            caps.append("vision")
+    def fetch_anthropic(self) -> bool:
+        """Fetch Anthropic models via API"""
+        api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not api_key:
+            print("  No ANTHROPIC_API_KEY found, skipping API fetch")
+            return False
             
-        return caps
-    
-    def _get_static_gemini_models(self):
-        """Return static Gemini model data"""
-        return {
-            "gemini-2.0-flash": {
-                "context_window": 1048576,
-                "max_output_tokens": 8192,
-                "pricing": {"input": 0.10, "output": 0.40},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gemini-1.5-pro": {
-                "context_window": 2097152,
-                "max_output_tokens": 8192,
-                "pricing": {"input": 1.25, "output": 5.00},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "gemini-1.5-flash": {
-                "context_window": 1048576,
-                "max_output_tokens": 8192,
-                "pricing": {"input": 0.075, "output": 0.30},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            }
+        headers = {
+            "x-api-key": api_key,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json"
         }
+        
+        try:
+            response = requests.get("https://api.anthropic.com/v1/models", headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                models = {}
+                
+                # Process each model from the API - Anthropic uses 'data' not 'models'
+                for model in data.get('data', []):
+                    model_id = model.get('id', '')
+                    models[model_id] = {
+                        "context_window": model.get('context_length', 200000),
+                        "max_output_tokens": model.get('max_output_length', 4096),
+                        "capabilities": ["streaming"]
+                    }
+                    
+                    # Add capabilities based on model features
+                    if model.get('supports_tools', False):
+                        models[model_id]["capabilities"].append("function_calling")
+                    if model.get('supports_vision', False):
+                        models[model_id]["capabilities"].append("vision")
+                    if model.get('supports_system_messages', True):
+                        models[model_id]["capabilities"].append("system_messages")
+                
+                if models:
+                    # Preserve existing config structure
+                    existing_config = {}
+                    config_path = os.path.join(self.config_dir, "anthropic.yml")
+                    if os.path.exists(config_path):
+                        with open(config_path, 'r') as f:
+                            existing_config = yaml.safe_load(f) or {}
+                    
+                    config = {
+                        "provider": "anthropic",
+                        "default_model": existing_config.get("default_model", "claude-3-5-sonnet-20241022"),
+                        "models": models,
+                        "metadata": {
+                            "updated_at": datetime.now().isoformat(),
+                            "source": "anthropic_api"
+                        }
+                    }
+                    self._save_config("anthropic", config)
+                    return True
+                else:
+                    print("  No models found in API response")
+                    return False
+            else:
+                print(f"  API returned status {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"  API error: {e}")
+            return False
     
-    def fetch_openrouter(self):
+    def fetch_openai(self) -> bool:
+        """Fetch OpenAI models via API"""
+        api_key = os.environ.get('OPENAI_API_KEY')
+        
+        if not api_key:
+            print("  No OPENAI_API_KEY found, skipping API fetch")
+            return False
+            
+        headers = {"Authorization": f"Bearer {api_key}"}
+        try:
+            response = requests.get("https://api.openai.com/v1/models", headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                models = {}
+                
+                # Process each model
+                for model in data.get('data', []):
+                    model_id = model['id']
+                    # Skip non-chat models
+                    if any(x in model_id for x in ['embedding', 'tts', 'whisper', 'dall-e']):
+                        continue
+                        
+                    models[model_id] = {
+                        "context_window": model.get('context_length', 4096),
+                        "capabilities": ["streaming"]
+                    }
+                
+                if models:
+                    config = {
+                        "provider": "openai",
+                        "default_model": "gpt-4-turbo",
+                        "models": models,
+                        "metadata": {
+                            "updated_at": datetime.now().isoformat(),
+                            "source": "openai_api"
+                        }
+                    }
+                    self._save_config("openai", config)
+                    return True
+            else:
+                print(f"  API returned status {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"  API error: {e}")
+            return False
+    
+    def fetch_groq(self) -> bool:
+        """Fetch Groq models via API"""
+        api_key = os.getenv('GROQ_API_KEY')
+        if not api_key:
+            print("  ⚠️  GROQ_API_KEY not found in environment")
+            return False
+            
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        try:
+            response = requests.get("https://api.groq.com/openai/v1/models", headers=headers)
+            if response.status_code == 200:
+                data = response.json()
+                models = {}
+                
+                # Process each model from the API
+                for model in data.get('data', []):
+                    model_id = model.get('id', '')
+                    models[model_id] = {
+                        "context_window": model.get('context_window', 4096),
+                        "capabilities": ["streaming"]
+                    }
+                    
+                    # Add capabilities based on model features
+                    if model.get('supports_tools', False):
+                        models[model_id]["capabilities"].append("function_calling")
+                
+                if models:
+                    # Preserve existing config structure
+                    existing_config = {}
+                    if os.path.exists(f"config/models/groq.yml"):
+                        with open(f"config/models/groq.yml", 'r') as f:
+                            existing_config = yaml.safe_load(f) or {}
+                    
+                    # Update with API models
+                    config = {
+                        "provider": "groq",
+                        "default_model": existing_config.get("default_model", "llama-3.3-70b-versatile"),
+                        "models": {}
+                    }
+                    
+                    # Preserve existing model data and merge with API data
+                    for model_id, api_data in models.items():
+                        existing_model = existing_config.get("models", {}).get(model_id, {})
+                        config["models"][model_id] = {
+                            "context_window": api_data["context_window"],
+                            "capabilities": api_data["capabilities"]
+                        }
+                        # Preserve pricing if it exists
+                        if "pricing" in existing_model:
+                            config["models"][model_id]["pricing"] = existing_model["pricing"]
+                    
+                    # Save updated config
+                    os.makedirs("config/models", exist_ok=True)
+                    with open(f"config/models/groq.yml", 'w') as f:
+                        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+                    
+                    print(f"  Saved {len(models)} models to config/models/groq.yml")
+                    return True
+                else:
+                    print("  No models found in API response")
+                    return False
+            else:
+                print(f"  API returned status {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"  Error: {e}")
+            return False
+    
+    def fetch_gemini(self) -> bool:
+        """Fetch Gemini models via API"""
+        api_key = os.environ.get('GEMINI_API_KEY') or os.environ.get('GOOGLE_API_KEY')
+        
+        if not api_key:
+            print("  No GEMINI_API_KEY or GOOGLE_API_KEY found, skipping API fetch")
+            return False
+            
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1/models?key={api_key}"
+            response = requests.get(url)
+            if response.status_code == 200:
+                data = response.json()
+                models = {}
+                
+                for model in data.get('models', []):
+                    if 'generateContent' in model.get('supportedGenerationMethods', []):
+                        model_name = model['name'].replace('models/', '')
+                        models[f"gemini/{model_name}"] = {
+                            "context_window": model.get('inputTokenLimit', 32760),
+                            "max_output_tokens": model.get('outputTokenLimit', 2048),
+                            "capabilities": ["streaming", "function_calling"]
+                        }
+                
+                if models:
+                    config = {
+                        "provider": "gemini",
+                        "default_model": "gemini/gemini-pro",
+                        "models": models,
+                        "metadata": {
+                            "updated_at": datetime.now().isoformat(),
+                            "source": "gemini_api"
+                        }
+                    }
+                    self._save_config("gemini", config)
+                    return True
+            else:
+                print(f"  API returned status {response.status_code}")
+                return False
+        except Exception as e:
+            print(f"  API error: {e}")
+            return False
+    
+    def fetch_openrouter(self) -> bool:
         """Fetch OpenRouter models via their public API"""
         try:
             response = requests.get("https://openrouter.ai/api/v1/models")
             if response.status_code == 200:
                 data = response.json()
-                models = self._parse_openrouter_models(data.get("data", []))
-            else:
                 models = {}
+                
+                for model in data.get('data', []):
+                    model_id = model['id']
+                    models[model_id] = {
+                        "context_window": model.get('context_length', 4096),
+                        "max_output_tokens": model.get('max_output_tokens'),
+                        "capabilities": ["streaming"]
+                    }
+                    
+                    # Add pricing if available
+                    if 'pricing' in model:
+                        prompt_price = float(model['pricing'].get('prompt', 0)) * 1_000_000
+                        completion_price = float(model['pricing'].get('completion', 0)) * 1_000_000
+                        if prompt_price > 0 or completion_price > 0:
+                            models[model_id]["pricing"] = {
+                                "input": prompt_price,
+                                "output": completion_price
+                            }
+                
+                if models:
+                    config = {
+                        "provider": "openrouter",
+                        "default_model": "anthropic/claude-3-5-sonnet",
+                        "models": models,
+                        "metadata": {
+                            "updated_at": datetime.now().isoformat(),
+                            "source": "openrouter_api"
+                        }
+                    }
+                    self._save_config("openrouter", config)
+                    return True
+            else:
+                print(f"  API returned status {response.status_code}")
+                return False
         except Exception as e:
-            print(f"Error fetching OpenRouter models: {e}")
-            models = {}
-        
-        config = {
-            "provider": "openrouter",
-            "default_model": "openai/gpt-4o-mini",
-            "models": models
-        }
-        
-        self._save_config("openrouter", config)
+            print(f"  API error: {e}")
+            return False
     
-    def _parse_openrouter_models(self, api_models):
-        """Parse OpenRouter API response"""
-        models = {}
-        
-        # Get top 30 models by popularity/quality
-        priority_models = [
-            "openai/gpt-4o", "openai/gpt-4o-mini", "anthropic/claude-3.5-sonnet",
-            "google/gemini-pro", "meta-llama/llama-3-70b", "mistralai/mistral-large"
-        ]
-        
-        # First add priority models
-        for model in api_models:
-            model_id = model.get("id", "")
-            if any(pm in model_id for pm in priority_models):
-                models[model_id] = self._parse_openrouter_model(model)
-        
-        # Then add other interesting models up to 30 total
-        for model in api_models:
-            if len(models) >= 30:
-                break
-            model_id = model.get("id", "")
-            if model_id not in models:
-                models[model_id] = self._parse_openrouter_model(model)
-        
-        return models
-    
-    def _parse_openrouter_model(self, model):
-        """Parse individual OpenRouter model"""
-        return {
-            "context_window": model.get("context_length", 4096),
-            "pricing": {
-                "input": (model.get("pricing", {}).get("prompt", 0) or 0) * 1_000_000,
-                "output": (model.get("pricing", {}).get("completion", 0) or 0) * 1_000_000
-            },
-            "capabilities": ["streaming", "function_calling"]
-        }
-    
-    def fetch_ollama(self):
-        """Fetch locally installed Ollama models"""
+    def fetch_ollama(self) -> bool:
+        """Fetch Ollama models from local server"""
         try:
             response = requests.get("http://localhost:11434/api/tags")
             if response.status_code == 200:
                 data = response.json()
-                models = self._parse_ollama_models(data.get("models", []))
+                models = {}
+                
+                for model in data.get('models', []):
+                    model_name = model['name']
+                    # Basic model info from Ollama
+                    models[f"ollama/{model_name}"] = {
+                        "context_window": 4096,  # Default, varies by model
+                        "capabilities": ["streaming"]
+                    }
+                
+                if models:
+                    config = {
+                        "provider": "ollama",
+                        "default_model": list(models.keys())[0] if models else "ollama/llama2",
+                        "models": models,
+                        "metadata": {
+                            "updated_at": datetime.now().isoformat(),
+                            "source": "ollama_api"
+                        }
+                    }
+                    self._save_config("ollama", config)
+                    return True
+                else:
+                    print("  No models found in Ollama")
+                    return False
             else:
-                models = self._get_static_ollama_models()
-        except Exception:
-            models = self._get_static_ollama_models()
-        
-        config = {
-            "provider": "ollama",
-            "default_model": "llama3.2",
-            "models": models
-        }
-        
-        self._save_config("ollama", config)
+                print(f"  Ollama API returned status {response.status_code}")
+                return False
+        except requests.exceptions.ConnectionError:
+            print("  Ollama not running (start with 'ollama serve')")
+            return False
+        except Exception as e:
+            print(f"  Error connecting to Ollama: {e}")
+            return False
     
-    def _parse_ollama_models(self, api_models):
-        """Parse Ollama API response"""
-        models = {}
-        
-        for model in api_models:
-            model_name = model.get("name", "")
-            if model_name:
-                models[model_name] = {
-                    "context_window": self._get_ollama_context_window(model_name),
-                    "pricing": {"input": 0.0, "output": 0.0},
-                    "capabilities": ["streaming"]
-                }
-        
-        return models
-    
-    def _get_ollama_context_window(self, model_name: str) -> int:
-        """Get context window for Ollama model"""
-        if "llama3" in model_name:
-            return 8192
-        elif "llama2" in model_name:
-            return 4096
-        elif "mixtral" in model_name:
-            return 32768
-        elif "mistral" in model_name:
-            return 8192
-        elif "phi" in model_name:
-            return 2048
-        else:
-            return 4096
-    
-    def _get_static_ollama_models(self):
-        """Return common Ollama models"""
-        return {
-            "llama3.2": {
-                "context_window": 128000,
-                "pricing": {"input": 0.0, "output": 0.0},
-                "capabilities": ["streaming"]
-            },
-            "llama3.1": {
-                "context_window": 128000,
-                "pricing": {"input": 0.0, "output": 0.0},
-                "capabilities": ["streaming"]
-            },
-            "llama2": {
-                "context_window": 4096,
-                "pricing": {"input": 0.0, "output": 0.0},
-                "capabilities": ["streaming"]
-            },
-            "mistral": {
-                "context_window": 8192,
-                "pricing": {"input": 0.0, "output": 0.0},
-                "capabilities": ["streaming"]
-            },
-            "mixtral": {
-                "context_window": 32768,
-                "pricing": {"input": 0.0, "output": 0.0},
-                "capabilities": ["streaming"]
-            }
-        }
-    
-    def fetch_bedrock(self):
-        """Fetch AWS Bedrock models (static data)"""
-        # Bedrock doesn't have a simple API, so we use static data
-        models = {
-            # Amazon Nova
-            "nova-micro": {
-                "context_window": 128000,
-                "pricing": {"input": 0.035, "output": 0.14},
-                "capabilities": ["streaming"]
-            },
-            "nova-lite": {
-                "context_window": 300000,
-                "pricing": {"input": 0.06, "output": 0.24},
-                "capabilities": ["streaming", "vision"]
-            },
-            "nova-pro": {
-                "context_window": 300000,
-                "pricing": {"input": 0.80, "output": 3.20},
-                "capabilities": ["streaming", "vision"]
-            },
-            # Anthropic
-            "claude-3-5-sonnet-20241022": {
-                "context_window": 200000,
-                "pricing": {"input": 3.00, "output": 15.00},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            "claude-3-5-haiku-20241022": {
-                "context_window": 200000,
-                "pricing": {"input": 0.80, "output": 4.00},
-                "capabilities": ["streaming", "function_calling", "vision"]
-            },
-            # Meta Llama
-            "llama3.2-90b-instruct": {
-                "context_window": 128000,
-                "pricing": {"input": 0.88, "output": 0.88},
-                "capabilities": ["streaming"]
-            },
-            "llama3.2-11b-instruct": {
-                "context_window": 128000,
-                "pricing": {"input": 0.32, "output": 0.32},
-                "capabilities": ["streaming", "vision"]
-            },
-            # Mistral
-            "pixtral-large-2025-02": {
-                "context_window": 128000,
-                "pricing": {"input": 2.00, "output": 6.00},
-                "capabilities": ["streaming", "vision"]
-            }
-        }
-        
-        config = {
-            "provider": "bedrock",
-            "default_model": "nova-lite",
-            "models": models
-        }
-        
-        self._save_config("bedrock", config)
+    def fetch_bedrock(self) -> bool:
+        """Fetch Bedrock models"""
+        # Bedrock requires AWS SDK and authentication
+        # For now, we'll skip dynamic fetching
+        print("  Bedrock requires AWS authentication, skipping API fetch")
+        return False
     
     def _save_config(self, provider: str, config: Dict[str, Any]):
-        """Save configuration to YAML file"""
-        filepath = os.path.join(self.config_dir, f"{provider}.yml")
+        """Save configuration to YAML file, preserving manual additions"""
+        file_path = os.path.join(self.config_dir, f"{provider}.yml")
         
         # Load existing config if it exists
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as f:
-                existing = yaml.safe_load(f) or {}
-            
-            # Merge with existing, preserving manual additions
-            if "models" in existing and "models" in config:
-                for model_id, model_data in existing["models"].items():
-                    if model_id in config["models"]:
-                        # Preserve existing data, update with new
-                        config["models"][model_id] = {**model_data, **config["models"][model_id]}
-                    else:
-                        # Keep models that were manually added
-                        config["models"][model_id] = model_data
+        existing_config = {}
+        if os.path.exists(file_path):
+            with open(file_path, 'r') as f:
+                existing_config = yaml.safe_load(f) or {}
         
-        # Add metadata
-        config["last_updated"] = datetime.now().isoformat()
-        config["update_source"] = "fetch_provider_models.py"
+        # Merge with existing, preferring new data
+        if 'models' in existing_config and 'models' in config:
+            # Preserve manual additions in existing models
+            for model_id, model_data in existing_config['models'].items():
+                if model_id in config['models']:
+                    # Merge model data, keeping manual fields
+                    for key, value in model_data.items():
+                        if key not in config['models'][model_id]:
+                            config['models'][model_id][key] = value
+                else:
+                    # Keep models that aren't in the new data
+                    config['models'][model_id] = model_data
         
-        # Write to file
-        with open(filepath, 'w') as f:
+        # Save updated config
+        with open(file_path, 'w') as f:
             yaml.dump(config, f, default_flow_style=False, sort_keys=False)
         
-        print(f"  Saved {len(config.get('models', {}))} models to {filepath}")
+        print(f"  Saved {len(config.get('models', {}))} models to {file_path}")
 
 
 def main():
@@ -536,10 +406,17 @@ def main():
     
     if len(sys.argv) > 1:
         provider = sys.argv[1]
-        print(f"Fetching models for {provider}...")
-        fetcher.fetch_provider(provider)
+        if provider == '--help':
+            print(__doc__)
+            sys.exit(0)
+        
+        print(f"Fetching {provider} models...")
+        if fetcher.fetch_provider(provider):
+            print(f"✅ Successfully updated {provider}")
+        else:
+            print(f"⚠️  Could not fetch {provider} from API")
+            print("   Run './scripts/update_models.sh --litellm' to sync from LiteLLM instead.")
     else:
-        print("Fetching models for all providers...")
         fetcher.fetch_all()
 
 

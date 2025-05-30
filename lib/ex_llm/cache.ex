@@ -39,7 +39,7 @@ defmodule ExLLM.Cache do
   use GenServer
   require Logger
 
-  alias ExLLM.Cache.Storage
+  # alias ExLLM.Cache.Storage
 
   @default_ttl :timer.minutes(15)
   @cleanup_interval :timer.minutes(5)

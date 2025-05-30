@@ -74,7 +74,7 @@ defmodule ExLLM.FunctionCallingTest do
     end
 
     test "preserves handler function" do
-      handler = fn args -> {:ok, "handled"} end
+      handler = fn _args -> {:ok, "handled"} end
       
       function_with_handler = %{
         name: "test",

@@ -47,6 +47,7 @@ defmodule ExLLM.Adapters.Anthropic do
   @behaviour ExLLM.Adapter
 
   alias ExLLM.{ConfigProvider, Error, Types, ModelConfig}
+  import ExLLM.Adapters.OpenAICompatible, only: [format_model_name: 1, default_model_transformer: 2]
 
   @default_base_url "https://api.anthropic.com/v1"
 
@@ -175,54 +176,98 @@ defmodule ExLLM.Adapters.Anthropic do
   end
 
   @impl true
-  def list_models(_options \\ []) do
-    # Anthropic doesn't have a public models endpoint, so we return common models
-    models = [
-      %Types.Model{
-        id: "claude-opus-4-20250514",
-        name: "Claude Opus 4",
-        description: "Most capable Claude model with advanced reasoning",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "claude-sonnet-4-20250514",
-        name: "Claude Sonnet 4",
-        description: "Latest Claude model with advanced reasoning capabilities",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "claude-3-7-sonnet-20250219",
-        name: "Claude 3.7 Sonnet",
-        description: "Enhanced Sonnet model with improved capabilities",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "claude-3-5-sonnet-20241022",
-        name: "Claude 3.5 Sonnet",
-        description: "High-performance model balancing speed and capability",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "claude-3-5-haiku-20241022",
-        name: "Claude 3.5 Haiku",
-        description: "Fast and efficient model for simple tasks",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "claude-3-opus-20240229",
-        name: "Claude 3 Opus",
-        description: "Most capable Claude 3 model",
-        context_window: 200_000
-      },
-      %Types.Model{
-        id: "claude-3-haiku-20240307",
-        name: "Claude 3 Haiku",
-        description: "Fast and cost-effective model for simple tasks",
-        context_window: 200_000
+  def list_models(options \\ []) do
+    config_provider = Keyword.get(
+      options,
+      :config_provider,
+      Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+    )
+    
+    config = get_config(config_provider)
+    
+    # Use ModelLoader with API fetching
+    ExLLM.ModelLoader.load_models(:anthropic,
+      Keyword.merge(options, [
+        api_fetcher: fn(_opts) -> fetch_anthropic_models(config) end,
+        config_transformer: &anthropic_model_transformer/2
+      ])
+    )
+  end
+  
+  defp fetch_anthropic_models(config) do
+    api_key = config.api_key
+    
+    if !api_key || api_key == "" do
+      {:error, "No API key available"}
+    else
+      headers = [
+        {"x-api-key", api_key},
+        {"anthropic-version", "2023-06-01"},
+        {"content-type", "application/json"}
+      ]
+      
+      case Req.get("https://api.anthropic.com/v1/models", headers: headers) do
+        {:ok, %{status: 200, body: %{"data" => models}}} ->
+          # Transform models using the shared parse_api_model function
+          parsed_models = models
+          |> Enum.map(&parse_anthropic_model/1)
+          |> Enum.sort_by(& &1.id)
+          
+          {:ok, parsed_models}
+          
+        {:ok, %{status: status}} ->
+          {:error, "API returned status #{status}"}
+          
+        {:error, reason} ->
+          {:error, "Network error: #{inspect(reason)}"}
+      end
+    end
+  end
+  
+  defp parse_anthropic_model(model) do
+    %Types.Model{
+      id: model["id"],
+      name: format_model_name(model["id"]),
+      description: generate_anthropic_description(model["id"]),
+      context_window: model["context_length"] || 200_000,
+      capabilities: %{
+        supports_streaming: true,
+        supports_functions: model["supports_tools"] || false,
+        supports_vision: model["supports_vision"] || false,
+        features: build_anthropic_capabilities(model)
       }
-    ]
-
-    {:ok, models}
+    }
+  end
+  
+  defp build_anthropic_capabilities(model) do
+    capabilities = ["streaming"]
+    
+    capabilities = if model["supports_tools"], do: ["function_calling" | capabilities], else: capabilities
+    capabilities = if model["supports_vision"], do: ["vision" | capabilities], else: capabilities
+    capabilities = if Map.get(model, "supports_system_messages", true), do: ["system_messages" | capabilities], else: capabilities
+    
+    capabilities
+  end
+  
+  # Transform config data to Anthropic model format
+  defp anthropic_model_transformer(model_id, config) do
+    # Use base transformer but override description
+    base_model = default_model_transformer(model_id, config)
+    %{base_model |
+      description: Map.get(config, :description, generate_anthropic_description(to_string(model_id))),
+      context_window: Map.get(config, :context_window, 200_000)
+    }
+  end
+  
+  defp generate_anthropic_description(model_id) do
+    cond do
+      String.contains?(model_id, "opus-4") -> "Claude Opus 4: Most intelligent model"
+      String.contains?(model_id, "sonnet-4") -> "Claude Sonnet 4: Best value model"
+      String.contains?(model_id, "opus") -> "Most capable model with advanced reasoning"
+      String.contains?(model_id, "sonnet") -> "Balanced model for general tasks"
+      String.contains?(model_id, "haiku") -> "Fast and efficient model for simple tasks"
+      true -> "Claude model"
+    end
   end
 
   # Private functions
@@ -250,7 +295,7 @@ defmodule ExLLM.Adapters.Anthropic do
 
       provider ->
         # Custom provider
-        anthropic_config = provider.get(:anthropic) || %{}
+        anthropic_config = provider.get_all(:anthropic) || %{}
 
         %{
           api_key: Map.get(anthropic_config, :api_key),
@@ -305,7 +350,7 @@ defmodule ExLLM.Adapters.Anthropic do
         %{type: "image", image: image_data} ->
           format_image_for_anthropic(image_data)
 
-        %{"type" => "image_url", "image_url" => %{"url" => url}} ->
+        %{"type" => "image_url", "image_url" => %{"url" => _url}} ->
           # For URLs, we might need to download and convert to base64
           # For now, return an error as Anthropic prefers base64
           %{

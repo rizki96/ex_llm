@@ -157,29 +157,107 @@ defmodule ExLLM.Adapters.Ollama do
       )
 
     config = get_config(config_provider)
-
+    
+    # Use ModelLoader with API fetching from Ollama server
+    ExLLM.ModelLoader.load_models(:ollama,
+      Keyword.merge(options, [
+        api_fetcher: fn(_opts) -> fetch_ollama_models(config) end,
+        config_transformer: &ollama_model_transformer/2
+      ])
+    )
+  end
+  
+  defp fetch_ollama_models(config) do
     url = "#{get_base_url(config)}/api/tags"
 
-    case Req.get(url) do
+    case Req.get(url, receive_timeout: 5_000) do
       {:ok, %{status: 200, body: body}} ->
         models =
           body["models"]
-          |> Enum.map(fn model ->
-            %Types.Model{
-              id: model["name"],
-              name: model["name"],
-              context_window: model["details"]["parameter_size"] || 4_096
-            }
-          end)
+          |> Enum.map(&parse_ollama_api_model/1)
 
         {:ok, models}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        Logger.debug("Ollama API returned status #{status}: #{inspect(body)}")
+        {:error, "API returned status #{status}"}
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        Logger.debug("Failed to connect to Ollama: #{inspect(reason)}")
+        {:error, reason}
     end
+  end
+  
+  defp parse_ollama_api_model(model) do
+    %Types.Model{
+      id: model["name"],
+      name: model["name"],
+      description: format_ollama_description(model),
+      context_window: get_ollama_context_window(model),
+      capabilities: %{
+        supports_streaming: true,
+        supports_functions: false,
+        supports_vision: is_vision_model?(model["name"]),
+        features: [:streaming]
+      }
+    }
+  end
+  
+  defp format_ollama_description(model) do
+    details = model["details"] || %{}
+    family = details["family"]
+    param_size = details["parameter_size"]
+    quantization = details["quantization_level"]
+    
+    parts = [family, param_size, quantization]
+    |> Enum.filter(&(&1))
+    |> Enum.join(", ")
+    
+    if parts != "", do: parts, else: nil
+  end
+  
+  defp get_ollama_context_window(model) do
+    # Try to extract from model details or use default
+    case get_in(model, ["details", "parameter_size"]) do
+      nil -> 4_096
+      size_str when is_binary(size_str) ->
+        # Convert parameter size to approximate context window
+        if String.contains?(size_str, "B") do
+          # Rough estimation: larger models typically have larger context
+          cond do
+            String.contains?(size_str, "70B") -> 32_768
+            String.contains?(size_str, "34B") -> 16_384
+            String.contains?(size_str, "13B") -> 8_192
+            String.contains?(size_str, "7B") -> 4_096
+            true -> 4_096
+          end
+        else
+          4_096
+        end
+      _ -> 4_096
+    end
+  end
+  
+  defp is_vision_model?(model_name) do
+    String.contains?(model_name, "vision") || 
+    String.contains?(model_name, "llava") ||
+    String.contains?(model_name, "bakllava")
+  end
+  
+  # Transform config data to Ollama model format
+  defp ollama_model_transformer(model_id, config) do
+    %Types.Model{
+      id: to_string(model_id),
+      name: Map.get(config, :name, to_string(model_id)),
+      description: Map.get(config, :description),
+      context_window: Map.get(config, :context_window, 4_096),
+      capabilities: %{
+        supports_streaming: :streaming in Map.get(config, :capabilities, []),
+        supports_functions: :function_calling in Map.get(config, :capabilities, []),
+        supports_vision: :vision in Map.get(config, :capabilities, []),
+        features: Map.get(config, :capabilities, [])
+      }
+    }
   end
 
   @impl true

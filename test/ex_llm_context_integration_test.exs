@@ -13,8 +13,8 @@ defmodule ExLLM.ContextIntegrationTest do
         Enum.reduce(1..50, messages, fn i, acc ->
           acc ++
             [
-              %{role: "user", content: "Question #{i}: " <> String.duplicate("word ", 20)},
-              %{role: "assistant", content: "Answer #{i}: " <> String.duplicate("response ", 20)}
+              %{role: "user", content: "Question #{i}: " <> String.duplicate("This is a much longer question to ensure we exceed the context window. ", 10)},
+              %{role: "assistant", content: "Answer #{i}: " <> String.duplicate("This is a much longer response to ensure we exceed the context window. ", 10)}
             ]
         end)
 
@@ -33,20 +33,25 @@ defmodule ExLLM.ContextIntegrationTest do
       total_tokens = ExLLM.estimate_tokens(messages)
       assert total_tokens > 1000
       
-      # Use gpt-3.5-turbo with small max_tokens to force truncation
+      # Use gpt-3.5-turbo with moderate max_tokens to force truncation
       prepared =
         ExLLM.prepare_messages(messages,
           provider: :openai,
           model: "gpt-3.5-turbo",
-          max_tokens: 15000,  # This leaves very little room for messages
+          max_tokens: 8000,  # This leaves reasonable room for messages
           strategy: :sliding_window
         )
 
       # Should have fewer messages than original
       assert length(prepared) < length(messages)
+      
+      # Should have at least one message
+      assert length(prepared) > 0
 
       # Sliding window keeps messages from the beginning
-      assert List.first(prepared).role == "system"
+      if length(prepared) > 0 do
+        assert List.first(prepared).role == "system"
+      end
     end
   end
 
@@ -55,7 +60,9 @@ defmodule ExLLM.ContextIntegrationTest do
       # Create messages that will definitely exceed context
       messages =
         for i <- 1..200 do
-          %{role: "user", content: "Message #{i} " <> String.duplicate("with lots more content to force truncation ", 50)}
+          # Each message should be ~100 tokens
+          content = "Message #{i}: " <> String.duplicate("This is a longer message to ensure truncation happens. ", 10)
+          %{role: "user", content: content}
         end
 
       # Test sliding window - use a model with smaller context window
@@ -63,7 +70,7 @@ defmodule ExLLM.ContextIntegrationTest do
         ExLLM.prepare_messages(messages,
           provider: :openai,
           model: "gpt-3.5-turbo",
-          max_tokens: 4000,  # Leave some room for response
+          max_tokens: 2000,  # Leave reasonable room for messages
           strategy: :sliding_window
         )
 
@@ -81,7 +88,9 @@ defmodule ExLLM.ContextIntegrationTest do
 
       smart =
         ExLLM.prepare_messages(messages_with_system,
-          max_tokens: 200,
+          provider: :openai,
+          model: "gpt-3.5-turbo",
+          max_tokens: 14000,  # Force truncation
           strategy: :smart
         )
 

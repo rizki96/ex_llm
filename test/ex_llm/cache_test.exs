@@ -314,7 +314,7 @@ defmodule ExLLM.CacheTest do
       key = "ttl-concurrent-#{System.unique_integer()}"
       
       # First, prime the cache
-      {:ok, cached_value} = Cache.with_cache(key, [cache: true, cache_ttl: 1000], fn ->
+      {:ok, _cached_value} = Cache.with_cache(key, [cache: true, cache_ttl: 1000], fn ->
         {:ok, %LLMResponse{content: "cached-result"}}
       end)
       

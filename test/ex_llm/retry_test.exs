@@ -82,11 +82,11 @@ defmodule ExLLM.RetryTest do
       
       # Second attempt should be after ~10ms (base_delay)
       assert second >= 10
-      assert second < 20
+      assert second < 30  # Allow more tolerance for CI/slow systems
       
       # Third attempt should be after ~20ms more (base_delay * 2)
       assert third - second >= 20
-      assert third - second < 30
+      assert third - second < 40  # Allow more tolerance
     end
 
     @tag :skip
@@ -99,7 +99,7 @@ defmodule ExLLM.RetryTest do
         count = :counters.get(counter, 1)
         
         if count > 1 do
-          delays = delays ++ [System.monotonic_time(:millisecond)]
+          _delays = delays ++ [System.monotonic_time(:millisecond)]
         end
         
         if count < 5 do

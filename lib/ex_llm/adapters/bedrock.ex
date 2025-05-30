@@ -50,84 +50,9 @@ defmodule ExLLM.Adapters.Bedrock do
   @behaviour ExLLM.Adapter
 
   require Logger
+  alias ExLLM.{Types, ModelConfig}
 
   @default_region "us-east-1"
-
-  # Model ID mappings for different providers
-  @model_mappings %{
-    # Anthropic
-    "claude-opus-4" => "anthropic.claude-opus-4-20250514-v1:0",
-    "claude-opus-4-20250514" => "anthropic.claude-opus-4-20250514-v1:0",
-    "claude-sonnet-4" => "anthropic.claude-sonnet-4-20250514-v1:0",
-    "claude-sonnet-4-20250514" => "anthropic.claude-sonnet-4-20250514-v1:0",
-    "claude-3-7-sonnet" => "anthropic.claude-3-7-sonnet-20250219-v1:0",
-    "claude-3-7-sonnet-20250219" => "anthropic.claude-3-7-sonnet-20250219-v1:0",
-    "claude-3-5-sonnet" => "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "claude-3-5-sonnet-20241022" => "anthropic.claude-3-5-sonnet-20241022-v2:0",
-    "claude-3-5-haiku" => "anthropic.claude-3-5-haiku-20241022-v1:0",
-    "claude-3-5-haiku-20241022" => "anthropic.claude-3-5-haiku-20241022-v1:0",
-    "claude-3-opus" => "anthropic.claude-3-opus-20240229-v1:0",
-    "claude-3-opus-20240229" => "anthropic.claude-3-opus-20240229-v1:0",
-    "claude-3-sonnet" => "anthropic.claude-3-sonnet-20240229-v1:0",
-    "claude-3-sonnet-20240229" => "anthropic.claude-3-sonnet-20240229-v1:0",
-    "claude-3-haiku" => "anthropic.claude-3-haiku-20240307-v1:0",
-    "claude-3-haiku-20240307" => "anthropic.claude-3-haiku-20240307-v1:0",
-    "claude-instant-v1" => "anthropic.claude-instant-v1",
-    "claude-v2" => "anthropic.claude-v2",
-    "claude-v2.1" => "anthropic.claude-v2:1",
-
-    # Amazon Nova
-    "nova-micro" => "amazon.nova-micro-v1:0",
-    "nova-lite" => "amazon.nova-lite-v1:0",
-    "nova-pro" => "amazon.nova-pro-v1:0",
-    "nova-premier" => "amazon.nova-premier-v1:0",
-
-    # Amazon Titan
-    "titan-lite" => "amazon.titan-text-lite-v1",
-    "titan-express" => "amazon.titan-text-express-v1",
-
-    # AI21 Labs
-    "jamba-1.5-large" => "ai21.jamba-1-5-large-v1:0",
-    "jamba-1.5-mini" => "ai21.jamba-1-5-mini-v1:0",
-    "jamba-instruct" => "ai21.jamba-instruct-v1:0",
-    "jurassic-2-mid" => "ai21.j2-mid-v1",
-    "jurassic-2-ultra" => "ai21.j2-ultra-v1",
-
-    # Cohere
-    "command" => "cohere.command-text-v14",
-    "command-light" => "cohere.command-light-text-v14",
-    "command-r-plus" => "cohere.command-r-plus-v1:0",
-    "command-r" => "cohere.command-r-v1:0",
-
-    # DeepSeek
-    "deepseek-r1" => "deepseek.deepseek-r1",
-
-    # Meta Llama
-    "llama-4-maverick-17b" => "meta.llama-4-maverick-17b-instruct-v1:0",
-    "llama-4-scout-17b" => "meta.llama-4-scout-17b-instruct-v1:0",
-    "llama-3.3-70b" => "meta.llama3-3-70b-instruct-v1:0",
-    "llama-3.3-70b-instruct" => "meta.llama3-3-70b-instruct-v1:0",
-    "llama-3.2-1b" => "meta.llama3-2-1b-instruct-v1:0",
-    "llama-3.2-1b-instruct" => "meta.llama3-2-1b-instruct-v1:0",
-    "llama-3.2-3b" => "meta.llama3-2-3b-instruct-v1:0",
-    "llama-3.2-3b-instruct" => "meta.llama3-2-3b-instruct-v1:0",
-    "llama-3.2-11b" => "meta.llama3-2-11b-instruct-v1:0",
-    "llama-3.2-11b-instruct" => "meta.llama3-2-11b-instruct-v1:0",
-    "llama-3.2-90b" => "meta.llama3-2-90b-instruct-v1:0",
-    "llama-3.2-90b-instruct" => "meta.llama3-2-90b-instruct-v1:0",
-    "llama2-13b" => "meta.llama2-13b-chat-v1",
-    "llama2-70b" => "meta.llama2-70b-chat-v1",
-
-    # Mistral
-    "pixtral-large" => "mistral.pixtral-large-2025-02-v1:0",
-    "pixtral-large-2025-02" => "mistral.pixtral-large-2025-02-v1:0",
-    "mistral-7b" => "mistral.mistral-7b-instruct-v0:2",
-    "mixtral-8x7b" => "mistral.mixtral-8x7b-instruct-v0:1",
-
-    # Writer
-    "palmyra-x4" => "writer.palmyra-x4-v1:0",
-    "palmyra-x5" => "writer.palmyra-x5-v1:0"
-  }
 
   @impl true
   def chat(messages, options \\ []) do
@@ -169,12 +94,53 @@ defmodule ExLLM.Adapters.Bedrock do
 
   @impl true
   def list_models(options \\ []) do
-    # List available models from Bedrock
+    # Use ModelLoader with API fetching from Bedrock
+    ExLLM.ModelLoader.load_models(:bedrock,
+      Keyword.merge(options, [
+        api_fetcher: fn(opts) -> fetch_bedrock_models(opts) end,
+        config_transformer: &bedrock_model_transformer/2
+      ])
+    )
+  end
+  
+  defp fetch_bedrock_models(options) do
     with {:ok, client} <- get_bedrock_client(options) do
-      case list_foundation_models(client) do
-        {:ok, models} -> {:ok, format_model_list(models)}
-        error -> error
-      end
+      list_foundation_models(client)
+    end
+  end
+  
+  # Transform config data to Bedrock model format
+  defp bedrock_model_transformer(model_id, config) do
+    %Types.Model{
+      id: to_string(model_id),
+      name: Map.get(config, :name, format_bedrock_model_name(to_string(model_id))),
+      description: Map.get(config, :description),
+      context_window: Map.get(config, :context_window, 4096),
+      capabilities: %{
+        supports_streaming: :streaming in Map.get(config, :capabilities, []),
+        supports_functions: :function_calling in Map.get(config, :capabilities, []),
+        supports_vision: :vision in Map.get(config, :capabilities, []),
+        features: Map.get(config, :capabilities, [])
+      }
+    }
+  end
+  
+  defp format_bedrock_model_name(model_id) do
+    # Extract provider and clean up the name
+    case String.split(model_id, ".", parts: 2) do
+      [provider, model_part] ->
+        provider_name = String.capitalize(provider)
+        model_name = 
+          model_part
+          |> String.replace("-", " ")
+          |> String.replace("_", " ")
+          |> String.split()
+          |> Enum.map(&String.capitalize/1)
+          |> Enum.join(" ")
+        
+        "#{provider_name} #{model_name}"
+      _ ->
+        model_id
     end
   end
 
@@ -225,7 +191,7 @@ defmodule ExLLM.Adapters.Bedrock do
     case get_aws_credentials(options) do
       {:ok, credentials} ->
         client =
-          AWS.Client.create(
+          create_aws_client(
             credentials.access_key_id,
             credentials.secret_access_key,
             credentials.session_token,
@@ -243,8 +209,17 @@ defmodule ExLLM.Adapters.Bedrock do
     config = get_config(options)
     model = Keyword.get(options, :model, config[:model] || default_model())
 
-    # Map friendly names to Bedrock model IDs
-    model_id = Map.get(@model_mappings, model, model)
+    # Try to find the model ID from config first
+    model_id = 
+      case ModelConfig.get_model_config(:bedrock, model) do
+        nil -> 
+          # If not found in config, assume it's already a full model ID
+          model
+        model_config ->
+          # Use the bedrock_id field if available, otherwise use the model key
+          Map.get(model_config, :bedrock_id, model)
+      end
+    
     {:ok, model_id}
   end
 
@@ -411,47 +386,14 @@ defmodule ExLLM.Adapters.Bedrock do
     )
   end
 
-  defp invoke_model(client, model_id, request_body) do
-    # Make the actual Bedrock API call
-    case AWS.BedrockRuntime.invoke_model(client, model_id, %{
-           "body" => request_body,
-           "contentType" => "application/json",
-           "accept" => "application/json"
-         }) do
-      {:ok, response, _http_response} ->
-        {:ok, response}
-
-      {:error, {:unexpected_response, %{status_code: status, body: body}}} ->
-        Logger.error("Bedrock API error: #{status} - #{body}")
-        {:error, "Bedrock API error: #{status}"}
-
-      {:error, reason} ->
-        Logger.error("Bedrock API error: #{inspect(reason)}")
-        {:error, "Failed to invoke model: #{inspect(reason)}"}
-    end
+  defp invoke_model(_client, _model_id, _request_body) do
+    # Stub implementation until AWS SDK is added
+    {:error, "AWS SDK not available. Please add aws-elixir dependency to use Bedrock adapter."}
   end
 
-  defp stream_model(client, model_id, request_body) do
-    # Create a streaming response
-    case AWS.BedrockRuntime.invoke_model_with_response_stream(client, model_id, %{
-           "body" => request_body,
-           "contentType" => "application/json",
-           "accept" => "application/json"
-         }) do
-      {:ok, response_stream, _http_response} ->
-        # Transform AWS stream to our format
-        stream =
-          Stream.map(response_stream, fn chunk ->
-            parse_streaming_chunk(model_id, chunk)
-          end)
-          |> Stream.filter(&(&1 != nil))
-
-        {:ok, stream}
-
-      {:error, reason} ->
-        Logger.error("Bedrock streaming error: #{inspect(reason)}")
-        {:error, "Failed to stream model: #{inspect(reason)}"}
-    end
+  defp stream_model(_client, _model_id, _request_body) do
+    # Stub implementation until AWS SDK is added
+    {:error, "AWS SDK not available. Please add aws-elixir dependency to use Bedrock adapter."}
   end
 
   defp parse_response(model_id, response) do
@@ -507,138 +449,31 @@ defmodule ExLLM.Adapters.Bedrock do
     end
   end
 
-  defp parse_streaming_chunk(model_id, chunk) do
-    provider = get_provider_from_model_id(model_id)
+  # Commented out - unused function
+  # defp parse_streaming_chunk(model_id, chunk) do
+  #   # Implementation removed
+  # end
 
-    case Jason.decode(chunk) do
-      {:ok, data} ->
-        case provider do
-          "anthropic" ->
-            # Parse Anthropic streaming format
-            if data["type"] == "content_block_delta" do
-              %{
-                delta: data["delta"]["text"],
-                finish_reason: nil
-              }
-            else
-              %{
-                delta: "",
-                finish_reason: data["type"]
-              }
-            end
-
-          "amazon" ->
-            # Parse Titan streaming format
-            %{
-              delta: data["outputText"] || "",
-              finish_reason: if(data["completionReason"], do: "stop", else: nil)
-            }
-
-          "meta" ->
-            # Parse Llama streaming format
-            %{
-              delta: data["generation"] || "",
-              finish_reason: if(data["stop_reason"], do: "stop", else: nil)
-            }
-
-          "cohere" ->
-            # Parse Cohere streaming format
-            %{
-              delta: data["text"] || "",
-              finish_reason: if(data["finish_reason"], do: "stop", else: nil)
-            }
-
-          "ai21" ->
-            # Parse AI21 streaming format
-            %{
-              delta:
-                data["completions"] |> List.first() |> Map.get("data", %{}) |> Map.get("text", ""),
-              finish_reason: if(data["is_finished"], do: "stop", else: nil)
-            }
-
-          "mistral" ->
-            # Parse Mistral streaming format
-            %{
-              delta: data["outputs"] |> List.first() |> Map.get("text", ""),
-              finish_reason: if(data["stop"], do: "stop", else: nil)
-            }
-
-          "writer" ->
-            # Parse Writer streaming format (similar to Anthropic)
-            if data["type"] == "content_block_delta" do
-              %{
-                delta: data["delta"]["text"],
-                finish_reason: nil
-              }
-            else
-              %{
-                delta: "",
-                finish_reason: data["type"]
-              }
-            end
-
-          "deepseek" ->
-            # Parse DeepSeek streaming format
-            %{
-              delta:
-                data["choices"] |> List.first() |> Map.get("delta", %{}) |> Map.get("content", ""),
-              finish_reason: data["choices"] |> List.first() |> Map.get("finish_reason")
-            }
-
-          _ ->
-            # Generic streaming format
-            %{
-              delta: data["text"] || data["content"] || "",
-              finish_reason: data["finish_reason"]
-            }
-        end
-
-      {:error, _} ->
-        nil
-    end
+  defp list_foundation_models(_client) do
+    # Stub implementation until AWS SDK is added
+    Logger.debug("AWS SDK not available for Bedrock")
+    {:error, "AWS SDK not available"}
   end
 
-  defp list_foundation_models(client) do
-    # Call Bedrock ListFoundationModels API
-    case AWS.Bedrock.list_foundation_models(client, %{}) do
-      {:ok, response, _http_response} ->
-        models =
-          response["modelSummaries"]
-          |> Enum.map(fn model ->
-            %{
-              id: model["modelId"],
-              name: model["modelName"],
-              provider: model["providerName"]
-            }
-          end)
-
-        {:ok, models}
-
-      {:error, _reason} ->
-        # Fallback to known models if API fails
-        models =
-          @model_mappings
-          |> Enum.map(fn {friendly_name, model_id} ->
-            %{
-              id: model_id,
-              name: friendly_name,
-              provider: get_provider_from_model_id(model_id)
-            }
-          end)
-
-        {:ok, models}
-    end
-  end
-
-  defp format_model_list(models) do
-    models
-    |> Enum.map(fn model ->
-      %{
-        id: model.name,
-        name: "#{model.name} (#{model.provider})"
-      }
-    end)
-  end
+  # Commented out - unused function
+  # defp parse_bedrock_api_model(model) do
+  #   # Implementation removed
+  # end
+  
+  # Commented out - unused function
+  # defp infer_bedrock_context_window(model_id) do
+  #   # Implementation removed
+  # end
+  
+  # Commented out - unused function
+  # defp infer_bedrock_capabilities(model_id) do
+  #   # Implementation removed
+  # end
 
   defp load_profile_credentials(profile) do
     # Load from ~/.aws/credentials
@@ -767,5 +602,11 @@ defmodule ExLLM.Adapters.Bedrock do
           nil
       end
     end)
+  end
+  
+  # AWS SDK stub functions - replace these when adding aws-elixir dependency
+  defp create_aws_client(_access_key, _secret_key, _session_token, _region) do
+    # Stub implementation - returns a dummy client
+    %{stub: true, provider: "bedrock"}
   end
 end

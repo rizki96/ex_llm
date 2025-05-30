@@ -38,20 +38,28 @@ defmodule ExLLM.Adapters.Groq do
   use ExLLM.Adapters.OpenAICompatible,
     provider: :groq,
     base_url: "https://api.groq.com/openai/v1",
-    models: [
-      "llama-3.3-70b-versatile",
-      "llama-3.1-70b-versatile", 
-      "llama-3.1-8b-instant",
-      "llama3-70b-8192",
-      "llama3-8b-8192",
-      "mixtral-8x7b-32768",
-      "gemma2-9b-it",
-      "gemma-7b-it"
-    ]
+    models: []  # Models are now loaded dynamically
+  
+  # Override list_models to use dynamic loading
+  defoverridable list_models: 0
   
   @impl ExLLM.Adapter
   def default_model do
     ModelConfig.get_default_model(:groq)
+  end
+  
+  @impl ExLLM.Adapter
+  def list_models(options \\ []) do
+    config_provider = get_config_provider(options)
+    config = get_config(config_provider)
+    
+    # Use ModelLoader with API fetching
+    ExLLM.ModelLoader.load_models(:groq,
+      Keyword.merge(options, [
+        api_fetcher: fn(_opts) -> fetch_groq_models(config) end,
+        config_transformer: &groq_model_transformer/2
+      ])
+    )
   end
   
   @impl ExLLM.Adapters.OpenAICompatible
@@ -77,9 +85,8 @@ defmodule ExLLM.Adapters.Groq do
     |> handle_groq_temperature()
   end
   
-  @impl ExLLM.Adapters.OpenAICompatible
+  # Filter out non-LLM models (e.g., whisper models)
   def filter_model(%{"id" => id}) do
-    # Only show LLM models, not whisper models
     not String.contains?(id, "whisper")
   end
   
@@ -118,6 +125,80 @@ defmodule ExLLM.Adapters.Groq do
       temp when temp > 2 -> Map.put(request, "temperature", 2)
       temp when temp < 0 -> Map.put(request, "temperature", 0)
       _ -> request
+    end
+  end
+  
+  defp fetch_groq_models(config) do
+    api_key = get_api_key(config)
+    
+    if !api_key || api_key == "" do
+      {:error, "No API key available"}
+    else
+      headers = [
+        {"Authorization", "Bearer #{api_key}"},
+        {"Content-Type", "application/json"}
+      ]
+      
+      case Req.get("https://api.groq.com/openai/v1/models", headers: headers) do
+        {:ok, %{status: 200, body: %{"data" => models}}} ->
+          # Return a list of transformed models directly
+          parsed_models = models
+          |> Enum.filter(&filter_model/1)
+          |> Enum.map(fn model ->
+            %ExLLM.Types.Model{
+              id: model["id"],
+              name: format_model_name(model["id"]),
+              description: generate_model_description(model["id"]),
+              context_window: model["context_window"] || 4096,
+              capabilities: %{
+                supports_streaming: true,
+                supports_functions: model["supports_tools"] || false,
+                supports_vision: false,
+                features: ["streaming"]
+              }
+            }
+          end)
+          |> Enum.sort_by(& &1.id)
+          
+          {:ok, parsed_models}
+          
+        {:ok, %{status: status}} ->
+          {:error, "API returned status #{status}"}
+          
+        {:error, reason} ->
+          {:error, "Network error: #{inspect(reason)}"}
+      end
+    end
+  end
+  
+  defp groq_model_transformer(model_id, config) do
+    %ExLLM.Types.Model{
+      id: to_string(model_id),
+      name: format_model_name(to_string(model_id)),
+      description: generate_model_description(to_string(model_id)),
+      context_window: Map.get(config, :context_window, 4096),
+      capabilities: %{
+        supports_streaming: :streaming in Map.get(config, :capabilities, []),
+        supports_functions: :function_calling in Map.get(config, :capabilities, []),
+        supports_vision: false,
+        features: Map.get(config, :capabilities, [])
+      }
+    }
+  end
+  
+  defp format_model_name(model_id) do
+    model_id
+    |> String.split("-")
+    |> Enum.map(&String.capitalize/1)
+    |> Enum.join(" ")
+  end
+  
+  defp generate_model_description(model_id) do
+    cond do
+      String.contains?(model_id, "llama") -> "Meta's Llama model optimized for Groq LPU"
+      String.contains?(model_id, "mixtral") -> "Mistral's mixture of experts model"
+      String.contains?(model_id, "gemma") -> "Google's Gemma model"
+      true -> "Model optimized for Groq LPU"
     end
   end
 end

@@ -42,20 +42,27 @@ Together AI, Perplexity, and many more.
 Some providers require API keys to fetch model information:
 
 ```bash
-export ANTHROPIC_API_KEY="your-key"      # Optional - uses static data if not provided
-export OPENAI_API_KEY="your-key"         # Optional - uses static data if not provided
-export GEMINI_API_KEY="your-key"         # Optional - uses static data if not provided
+export ANTHROPIC_API_KEY="your-key"      # Required for Anthropic models list
+export OPENAI_API_KEY="your-key"         # Required for OpenAI models list
+export GEMINI_API_KEY="your-key"         # Required for Gemini models list
 export GOOGLE_API_KEY="your-key"         # Alternative to GEMINI_API_KEY
-export OPENROUTER_API_KEY="your-key"     # Not required - public API
 ```
+
+Note: If API keys are not provided, the script will skip those providers. 
+Use `--litellm` mode for comprehensive model data without needing API keys.
 
 ## How It Works
 
 ### Provider API Updates
-- Fetches latest model information directly from provider APIs
-- Falls back to static data if API is unavailable
+- Fetches latest model information directly from provider APIs when available
+- Requires API keys for some providers:
+  - **Anthropic**: Uses `/v1/models` endpoint (requires `x-api-key` header)
+  - **OpenAI**: Uses `/v1/models` endpoint
+  - **Gemini**: Uses Google's models API
+- OpenRouter and Ollama have public APIs (no key required)
 - Preserves manual additions in YAML files
-- Updates pricing, context windows, and capabilities
+- Updates context windows and basic capabilities
+- Note: For comprehensive model data including pricing, use `--litellm` mode
 
 ### LiteLLM Sync
 - Reads from LiteLLM's comprehensive model database

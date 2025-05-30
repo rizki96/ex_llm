@@ -2,7 +2,6 @@ defmodule ExLLM.MockTest do
   use ExUnit.Case, async: true
 
   alias ExLLM.Adapters.Mock
-  alias ExLLM.FunctionCalling
 
   setup do
     # Ensure mock adapter is started and reset

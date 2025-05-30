@@ -184,6 +184,17 @@ defmodule ExLLM.Adapters.OpenRouter do
       )
 
     config = get_config(config_provider)
+    
+    # Use ModelLoader with API fetching
+    ExLLM.ModelLoader.load_models(:openrouter,
+      Keyword.merge(options, [
+        api_fetcher: fn(_opts) -> fetch_openrouter_models(config) end,
+        config_transformer: &openrouter_model_transformer/2
+      ])
+    )
+  end
+  
+  defp fetch_openrouter_models(config) do
     api_key = get_api_key(config)
 
     if !api_key || api_key == "" do
@@ -196,27 +207,46 @@ defmodule ExLLM.Adapters.OpenRouter do
         {:ok, %{status: 200, body: body}} ->
           models =
             body["data"]
-            |> Enum.map(fn model ->
-              %Types.Model{
-                id: model["id"],
-                name: model["name"] || model["id"],
-                description: model["description"],
-                context_window: model["context_length"] || 4096,
-                pricing: parse_pricing(model["pricing"]),
-                capabilities: parse_capabilities(model)
-              }
-            end)
+            |> Enum.map(&parse_openrouter_api_model/1)
             |> Enum.sort_by(& &1.id)
 
           {:ok, models}
 
         {:ok, %{status: status, body: body}} ->
-          {:error, Error.api_error(status, body)}
+          Logger.debug("OpenRouter API returned status #{status}: #{inspect(body)}")
+          {:error, "API returned status #{status}"}
 
         {:error, reason} ->
-          {:error, Error.connection_error(reason)}
+          {:error, reason}
       end
     end
+  end
+  
+  defp parse_openrouter_api_model(model) do
+    %Types.Model{
+      id: model["id"],
+      name: model["name"] || model["id"],
+      description: model["description"],
+      context_window: model["context_length"] || 4096,
+      pricing: parse_pricing(model["pricing"]),
+      capabilities: parse_capabilities(model)
+    }
+  end
+  
+  # Transform config data to OpenRouter model format
+  defp openrouter_model_transformer(model_id, config) do
+    %Types.Model{
+      id: to_string(model_id),
+      name: Map.get(config, :name, to_string(model_id)),
+      description: Map.get(config, :description),
+      context_window: Map.get(config, :context_window, 4096),
+      capabilities: %{
+        supports_streaming: :streaming in Map.get(config, :capabilities, []),
+        supports_functions: :function_calling in Map.get(config, :capabilities, []),
+        supports_vision: :vision in Map.get(config, :capabilities, []),
+        features: Map.get(config, :capabilities, [])
+      }
+    }
   end
 
   # Private functions
@@ -421,9 +451,18 @@ defmodule ExLLM.Adapters.OpenRouter do
   defp parse_pricing(pricing) do
     %{
       currency: "USD",
-      input_cost_per_token: (pricing["prompt"] || 0) / 1_000_000,
-      output_cost_per_token: (pricing["completion"] || 0) / 1_000_000
+      input_cost_per_token: parse_price_value(pricing["prompt"]) / 1_000_000,
+      output_cost_per_token: parse_price_value(pricing["completion"]) / 1_000_000
     }
+  end
+  
+  defp parse_price_value(nil), do: 0
+  defp parse_price_value(value) when is_number(value), do: value
+  defp parse_price_value(value) when is_binary(value) do
+    case Float.parse(value) do
+      {parsed, _} -> parsed
+      :error -> 0
+    end
   end
 
   defp parse_capabilities(model) do

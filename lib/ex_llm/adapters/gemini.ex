@@ -65,46 +65,6 @@ defmodule ExLLM.Adapters.Gemini do
   @base_url "https://generativelanguage.googleapis.com"
   @api_version "v1beta"
 
-  # Available models
-  @models %{
-    "gemini-2.5-flash-preview-05-20" => %{
-      name: "Gemini 2.5 Flash Preview",
-      supports_vision: true,
-      context_window: 1_048_576,
-      max_output_tokens: 8_192
-    },
-    "gemini-2.5-pro-preview-05-06" => %{
-      name: "Gemini 2.5 Pro Preview",
-      supports_vision: true,
-      context_window: 1_048_576,
-      max_output_tokens: 8_192
-    },
-    "gemini-2.0-flash" => %{
-      name: "Gemini 2.0 Flash",
-      supports_vision: true,
-      context_window: 1_048_576,
-      max_output_tokens: 8_192
-    },
-    "gemini-2.0-flash-lite" => %{
-      name: "Gemini 2.0 Flash Lite",
-      supports_vision: true,
-      context_window: 1_048_576,
-      max_output_tokens: 8_192
-    },
-    "gemini-1.5-flash" => %{
-      name: "Gemini 1.5 Flash",
-      supports_vision: true,
-      context_window: 1_048_576,
-      max_output_tokens: 8_192
-    },
-    "gemini-1.5-pro" => %{
-      name: "Gemini 1.5 Pro",
-      supports_vision: true,
-      context_window: 2_097_152,
-      max_output_tokens: 8_192
-    }
-  }
-
   @impl true
   def chat(messages, options \\ []) do
     config_provider =
@@ -155,19 +115,112 @@ defmodule ExLLM.Adapters.Gemini do
   end
 
   @impl true
-  def list_models(_options \\ []) do
-    models =
-      @models
-      |> Enum.map(fn {id, info} ->
-        %Types.Model{
-          id: id,
-          name: info.name,
-          context_window: info.context_window
-        }
-      end)
-      |> Enum.sort_by(& &1.id)
+  def list_models(options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
 
-    {:ok, models}
+    config = get_config(config_provider)
+    
+    # Use ModelLoader with API fetching
+    ExLLM.ModelLoader.load_models(:gemini,
+      Keyword.merge(options, [
+        api_fetcher: fn(_opts) -> fetch_gemini_models(config) end,
+        config_transformer: &gemini_model_transformer/2
+      ])
+    )
+  end
+  
+  defp fetch_gemini_models(config) do
+    api_key = get_api_key(config)
+
+    if !api_key || api_key == "" do
+      {:error, "Google API key not configured"}
+    else
+      url = "#{@base_url}/#{@api_version}/models?key=#{api_key}"
+
+      case Req.get(url) do
+        {:ok, %{status: 200, body: body}} ->
+          models =
+            body["models"]
+            |> Enum.filter(&is_gemini_chat_model?/1)
+            |> Enum.map(&parse_gemini_api_model/1)
+            |> Enum.sort_by(& &1.id)
+
+          {:ok, models}
+
+        {:ok, %{status: status, body: body}} ->
+          Logger.debug("Gemini API returned status #{status}: #{inspect(body)}")
+          {:error, "API returned status #{status}"}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+  
+  defp is_gemini_chat_model?(model) do
+    # Filter for Gemini chat models
+    String.starts_with?(model["name"], "models/gemini")
+  end
+  
+  defp parse_gemini_api_model(model) do
+    model_id = String.replace_prefix(model["name"], "models/", "")
+    
+    %Types.Model{
+      id: model_id,
+      name: Map.get(model, "displayName", model_id),
+      description: Map.get(model, "description"),
+      context_window: get_input_token_limit(model),
+      capabilities: parse_gemini_capabilities(model)
+    }
+  end
+  
+  defp get_input_token_limit(model) do
+    get_in(model, ["inputTokenLimit"]) || 1_048_576
+  end
+  
+  defp parse_gemini_capabilities(model) do
+    supported_methods = Map.get(model, "supportedGenerationMethods", [])
+    
+    features = []
+    features = if "generateContent" in supported_methods, do: [:streaming | features], else: features
+    features = if model["name"] =~ "vision", do: [:vision | features], else: features
+    
+    %{
+      supports_streaming: "generateContent" in supported_methods,
+      supports_functions: false,  # Gemini uses different mechanism
+      supports_vision: model["name"] =~ "vision" || String.contains?(model["name"], "gemini-1.5") || String.contains?(model["name"], "gemini-2"),
+      features: features
+    }
+  end
+  
+  # Transform config data to Gemini model format
+  defp gemini_model_transformer(model_id, config) do
+    %Types.Model{
+      id: to_string(model_id),
+      name: Map.get(config, :name, format_gemini_model_name(to_string(model_id))),
+      description: Map.get(config, :description),
+      context_window: Map.get(config, :context_window, 1_048_576),
+      capabilities: %{
+        supports_streaming: :streaming in Map.get(config, :capabilities, []),
+        supports_functions: :function_calling in Map.get(config, :capabilities, []),
+        supports_vision: :vision in Map.get(config, :capabilities, []),
+        features: Map.get(config, :capabilities, [])
+      }
+    }
+  end
+  
+  defp format_gemini_model_name(model_id) do
+    model_id
+    |> String.replace("-", " ")
+    |> String.replace("gemini", "Gemini")
+    |> String.replace("flash", "Flash")
+    |> String.replace("pro", "Pro")
+    |> String.replace("lite", "Lite")
   end
 
   @impl true

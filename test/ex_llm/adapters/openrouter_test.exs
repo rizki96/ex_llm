@@ -31,7 +31,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
 
   describe "default_model/0" do
     test "returns default model" do
-      assert OpenRouter.default_model() == "openai/gpt-4o-mini"
+      assert OpenRouter.default_model() == "anthropic/claude-3-5-sonnet"
     end
   end
 
@@ -43,17 +43,17 @@ defmodule ExLLM.Adapters.OpenRouterTest do
 
     test "builds correct request format" do
       # We'll test the request building logic by mocking the HTTP client
-      messages = [
+      _messages = [
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi there!"},
         %{role: "user", content: "How are you?"}
       ]
 
       config = %{openrouter: %{api_key: "sk-or-test", model: "openai/gpt-4o"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, _provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
       # Mock the HTTP request
-      mock_response = %{
+      _mock_response = %{
         "id" => "chatcmpl-123",
         "object" => "chat.completion",
         "created" => 1677652288,
@@ -100,13 +100,23 @@ defmodule ExLLM.Adapters.OpenRouterTest do
   end
 
   describe "list_models/1" do
-    test "returns error without API key" do
-      assert {:error, "OpenRouter API key not configured"} = OpenRouter.list_models()
+    test "returns models from config when API key not available" do
+      # Without API key, it should fall back to YAML config
+      {:ok, models} = OpenRouter.list_models()
+      assert is_list(models)
+      assert length(models) > 0
+      
+      # Check first model has expected structure
+      [first_model | _] = models
+      assert %ExLLM.Types.Model{} = first_model
+      assert is_binary(first_model.id)
+      assert is_binary(first_model.name)
+      assert is_integer(first_model.context_window)
     end
 
     test "parses model list correctly" do
       # Mock response from OpenRouter models API
-      mock_response = %{
+      _mock_response = %{
         "data" => [
           %{
             "id" => "openai/gpt-4o",
@@ -262,7 +272,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       # Test integration with default_model
       case ExLLM.default_model(:openrouter) do
         model when is_binary(model) -> 
-          assert model == "openai/gpt-4o-mini"
+          assert model == "anthropic/claude-3-5-sonnet"
         {:error, _reason} ->
           # This is acceptable if the adapter isn't loaded
           :ok

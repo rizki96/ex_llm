@@ -186,6 +186,30 @@ defmodule ExLLM.ModelConfig do
   end
 
   @doc """
+  Gets the full configuration for a specific model.
+  
+  Returns the model configuration map or nil if not found.
+  
+  ## Examples
+  
+      iex> ExLLM.ModelConfig.get_model_config(:openai, "gpt-4o")
+      %{
+        context_window: 128000,
+        pricing: %{input: 2.50, output: 10.00},
+        capabilities: [:streaming, :function_calling]
+      }
+  """
+  def get_model_config(provider, model) when is_atom(provider) and is_binary(model) do
+    case get_provider_config(provider) do
+      nil -> nil
+      config -> 
+        models = Map.get(config, :models, %{})
+        # Try both string and atom keys
+        Map.get(models, model) || Map.get(models, String.to_atom(model))
+    end
+  end
+  
+  @doc """
   Reloads all configuration from files.
 
   Clears the cache and forces a reload of all configuration files.
@@ -209,16 +233,6 @@ defmodule ExLLM.ModelConfig do
   end
 
   # Private functions
-
-  defp get_model_config(provider, model) do
-    case get_provider_config(provider) do
-      nil -> nil
-      config -> 
-        # Try both string and atom keys for model names
-        model_atom = if is_binary(model), do: String.to_atom(model), else: model
-        get_in(config, [:models, model_atom]) || get_in(config, [:models, model])
-    end
-  end
 
   defp get_provider_config(provider) do
     # Initialize cache table if it doesn't exist

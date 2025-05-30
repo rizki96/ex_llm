@@ -45,7 +45,7 @@ defmodule ExLLM.Vision do
 
   alias ExLLM.Types
 
-  @supported_formats ~w(image/jpeg image/jpg image/png image/gif image/webp)
+  # @supported_formats ~w(image/jpeg image/jpg image/png image/gif image/webp)
   # 20MB default limit
   @max_image_size 20 * 1024 * 1024
 
@@ -76,7 +76,7 @@ defmodule ExLLM.Vision do
       normalized = Enum.map(messages, &normalize_message/1)
       {:ok, normalized}
     rescue
-      e -> {:error, e.message}
+      e -> {:error, Exception.message(e)}
     end
   end
 
@@ -285,7 +285,7 @@ defmodule ExLLM.Vision do
           formatted_content =
             Enum.map(content, fn part ->
               case part do
-                %{"type" => "image_url", "image_url" => %{"url" => url}} = part ->
+                %{"type" => "image_url", "image_url" => %{"url" => _url}} = part ->
                   # Convert URL to base64 if needed for Anthropic
                   # For now, keep as-is
                   part

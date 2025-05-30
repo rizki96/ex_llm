@@ -32,7 +32,7 @@ defmodule ExLLM.ModelCapabilities do
       ])
   """
 
-  alias ExLLM.Types
+  # alias ExLLM.Types
 
   defmodule Capability do
     @moduledoc """
@@ -490,8 +490,8 @@ defmodule ExLLM.ModelCapabilities do
   def recommend_models(requirements) do
     required_features = Keyword.get(requirements, :features, [])
     min_context = Keyword.get(requirements, :min_context_window, 0)
-    max_cost = Keyword.get(requirements, :max_cost_per_1k_tokens, :infinity)
-    prefer_local = Keyword.get(requirements, :prefer_local, false)
+    # TODO: Implement cost filtering when pricing data is available
+    # max_cost = Keyword.get(requirements, :max_cost_per_1k_tokens, :infinity)
 
     model_capabilities()
     |> Enum.filter(fn {_key, info} ->
@@ -521,7 +521,7 @@ defmodule ExLLM.ModelCapabilities do
 
   # Private functions
 
-  defp fetch_dynamic_capabilities(provider, model_id) do
+  defp fetch_dynamic_capabilities(_provider, _model_id) do
     # This could be extended to fetch capabilities from the provider
     # For now, return not found
     {:error, :not_found}
@@ -550,8 +550,10 @@ defmodule ExLLM.ModelCapabilities do
     score = 100.0
 
     # Prefer local models if requested
-    if Keyword.get(requirements, :prefer_local, false) do
-      score = if model_info.provider == :local, do: score + 20, else: score
+    score = if Keyword.get(requirements, :prefer_local, false) do
+      if model_info.provider == :local, do: score + 50, else: score
+    else
+      score
     end
 
     # Prefer larger context windows
@@ -559,9 +561,11 @@ defmodule ExLLM.ModelCapabilities do
     score = score + context_bonus
 
     # Penalize deprecated models
-    if model_info.deprecation_date &&
+    score = if model_info.deprecation_date &&
          Date.compare(Date.utc_today(), model_info.deprecation_date) == :gt do
-      score = score - 50
+      score - 50
+    else
+      score
     end
 
     # Bonus for more capabilities
