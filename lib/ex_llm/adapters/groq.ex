@@ -34,6 +34,7 @@ defmodule ExLLM.Adapters.Groq do
   """
   
   alias ExLLM.{Error, ModelConfig}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, ErrorHandler}
   
   use ExLLM.Adapters.OpenAICompatible,
     provider: :groq,
@@ -50,8 +51,8 @@ defmodule ExLLM.Adapters.Groq do
   
   @impl ExLLM.Adapter
   def list_models(options \\ []) do
-    config_provider = get_config_provider(options)
-    config = get_config(config_provider)
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:groq, config_provider)
     
     # Use ModelLoader with API fetching
     ExLLM.ModelLoader.load_models(:groq,
@@ -91,19 +92,9 @@ defmodule ExLLM.Adapters.Groq do
   end
   
   @impl ExLLM.Adapters.OpenAICompatible
-  def parse_error(%{status: 429, body: %{"error" => error}}) do
-    # Groq provides rate limit info in headers
-    message = error["message"] || "Rate limit exceeded"
-    {:error, Error.rate_limit_error("Groq: #{message}")}
-  end
-  
-  def parse_error(%{status: 503}) do
-    {:error, Error.service_unavailable("Groq LPU cluster is at capacity")}
-  end
-  
-  def parse_error(response) do
-    # Fall back to default error handling
-    super(response)
+  def parse_error(%{status: status, body: body}) do
+    # Use shared error handler for consistent error handling
+    ErrorHandler.handle_provider_error(:groq, status, body)
   end
   
   # Private functions
@@ -129,7 +120,7 @@ defmodule ExLLM.Adapters.Groq do
   end
   
   defp fetch_groq_models(config) do
-    api_key = get_api_key(config)
+    api_key = ConfigHelper.get_api_key(config, "GROQ_API_KEY")
     
     if !api_key || api_key == "" do
       {:error, "No API key available"}
@@ -162,8 +153,8 @@ defmodule ExLLM.Adapters.Groq do
           
           {:ok, parsed_models}
           
-        {:ok, %{status: status}} ->
-          {:error, "API returned status #{status}"}
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:groq, status, body)
           
         {:error, reason} ->
           {:error, "Network error: #{inspect(reason)}"}

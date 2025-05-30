@@ -46,8 +46,10 @@ defmodule ExLLM.Adapters.OpenAI do
   """
 
   @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
   alias ExLLM.{Error, Types, ModelConfig}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior}
   require Logger
 
   @default_base_url "https://api.openai.com/v1"
@@ -55,48 +57,25 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @impl true
   def chat(messages, options \\ []) do
-    config_provider =
-      Keyword.get(
-        options,
-        :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
-      )
-
-    config = get_config(config_provider)
-
-    api_key = get_api_key(config)
-
-    if !api_key || api_key == "" do
-      {:error, "OpenAI API key not configured"}
-    else
-      model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
-
-      max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens))
-
-      temperature =
-        Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
-
-      body = %{
-        model: model,
-        messages: format_messages(messages),
-        max_tokens: max_tokens,
-        temperature: temperature
-      }
-
-      headers = [
-        {"authorization", "Bearer #{api_key}"},
-        {"content-type", "application/json"}
-      ]
-
+    with :ok <- MessageFormatter.validate_messages(messages),
+         config_provider <- ConfigHelper.get_config_provider(options),
+         config <- ConfigHelper.get_config(:openai, config_provider),
+         api_key <- ConfigHelper.get_api_key(config, "OPENAI_API_KEY"),
+         {:ok, _} <- validate_api_key(api_key) do
+      
+      model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai))
+      
+      body = build_request_body(messages, model, config, options)
+      headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
-
-      case Req.post(url, json: body, headers: headers) do
-        {:ok, %{status: 200, body: response}} ->
+      
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000) do
+        {:ok, response} ->
           {:ok, parse_response(response, model)}
-
-        {:ok, %{status: status, body: body}} ->
-          Error.api_error(status, body)
-
+          
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+          
         {:error, reason} ->
           {:error, reason}
       end
@@ -105,88 +84,63 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @impl true
   def stream_chat(messages, options \\ []) do
-    config_provider =
-      Keyword.get(
-        options,
-        :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
-      )
-
-    config = get_config(config_provider)
-
-    api_key = get_api_key(config)
-
-    if !api_key || api_key == "" do
-      {:error, "OpenAI API key not configured"}
-    else
-      model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
-
-      max_tokens = Keyword.get(options, :max_tokens, Map.get(config, :max_tokens))
-
-      temperature =
-        Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
-
-      body = %{
-        model: model,
-        messages: format_messages(messages),
-        max_tokens: max_tokens,
-        temperature: temperature,
-        stream: true
-      }
-
-      headers = [
-        {"authorization", "Bearer #{api_key}"},
-        {"content-type", "application/json"}
-      ]
-
+    with :ok <- MessageFormatter.validate_messages(messages),
+         config_provider <- ConfigHelper.get_config_provider(options),
+         config <- ConfigHelper.get_config(:openai, config_provider),
+         api_key <- ConfigHelper.get_api_key(config, "OPENAI_API_KEY"),
+         {:ok, _} <- validate_api_key(api_key) do
+      
+      model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai))
+      
+      body = 
+        messages
+        |> build_request_body(model, config, options)
+        |> Map.put(:stream, true)
+        
+      headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
       parent = self()
-
-      # Start async request task
+      ref = make_ref()
+      
+      # Start streaming task
       Task.start(fn ->
-        case Req.post(url, json: body, headers: headers, receive_timeout: 60_000, into: :self) do
-          {:ok, response} ->
-            if response.status == 200 do
-              handle_stream_response(response, parent, model, "")
-            else
-              send(parent, {:stream_error, Error.api_error(response.status, response.body)})
-            end
-
-          {:error, reason} ->
-            send(parent, {:stream_error, {:error, reason}})
-        end
-      end)
-
-      # Create stream that receives messages
-      stream =
-        Stream.resource(
-          fn -> :ok end,
-          fn state ->
-            receive do
-              {:chunk, chunk} -> {[chunk], state}
-              :stream_done -> {:halt, state}
-              {:stream_error, error} -> throw(error)
-            after
-              100 -> {[], state}
-            end
-          end,
-          fn _ -> :ok end
+        HTTPClient.stream_request(url, body, headers, 
+          fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
+          on_error: fn status, body -> 
+            send(parent, {ref, {:error, ErrorHandler.handle_provider_error(:openai, status, body)}})
+          end
         )
-
+      end)
+      
+      # Create stream that processes chunks
+      stream = Stream.resource(
+        fn -> {ref, model} end,
+        fn {ref, _model} = state ->
+          receive do
+            {^ref, {:chunk, data}} ->
+              case parse_stream_chunk(data) do
+                {:ok, :done} -> {:halt, state}
+                {:ok, chunk} -> {[chunk], state}
+                {:error, _} -> {[], state}  # Skip bad chunks
+              end
+              
+            {^ref, :done} -> {:halt, state}
+            {^ref, {:error, error}} -> throw(error)
+          after
+            100 -> {[], state}
+          end
+        end,
+        fn _ -> :ok end
+      )
+      
       {:ok, stream}
     end
   end
 
   @impl true
   def list_models(options \\ []) do
-    config_provider =
-      Keyword.get(
-        options,
-        :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
-      )
-
-    config = get_config(config_provider)
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
     
     # Use ModelLoader with API fetching
     ExLLM.ModelLoader.load_models(:openai,
@@ -198,35 +152,32 @@ defmodule ExLLM.Adapters.OpenAI do
   end
   
   defp fetch_openai_models(config) do
-    api_key = get_api_key(config)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
 
-    if !api_key || api_key == "" do
-      {:error, "OpenAI API key not configured"}
-    else
-      headers = [
-        {"authorization", "Bearer #{api_key}"},
-        {"content-type", "application/json"}
-      ]
+    case validate_api_key(api_key) do
+      {:error, _} = error -> error
+      {:ok, _} ->
+        headers = build_headers(api_key, config)
+        url = "#{get_base_url(config)}/models"
 
-      url = "#{get_base_url(config)}/models"
+        case Req.get(url, headers: headers) do
+          {:ok, %{status: 200, body: %{"data" => data}}} ->
+            models =
+              data
+              |> Enum.filter(&is_chat_model?/1)
+              |> Enum.map(&parse_api_model/1)
+              |> Enum.sort_by(& &1.id, :desc)
 
-      case Req.get(url, headers: headers) do
-        {:ok, %{status: 200, body: body}} ->
-          models =
-            body["data"]
-            |> Enum.filter(&is_chat_model?/1)
-            |> Enum.map(&parse_api_model/1)
-            |> Enum.sort_by(& &1.id, :desc)
+            {:ok, models}
 
-          {:ok, models}
+          {:ok, %{status: status, body: body}} ->
+            Logger.debug("Failed to fetch OpenAI models: #{status} - #{inspect(body)}")
+            ErrorHandler.handle_provider_error(:openai, status, body)
 
-        {:ok, %{status: status, body: body}} ->
-          Logger.debug("OpenAI API returned status #{status}: #{inspect(body)}")
-          {:error, "API returned status #{status}"}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+          {:error, reason} ->
+            Logger.debug("Failed to fetch OpenAI models: #{inspect(reason)}")
+            {:error, reason}
+        end
     end
   end
   
@@ -305,15 +256,9 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @impl true
   def configured?(options \\ []) do
-    config_provider =
-      Keyword.get(
-        options,
-        :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
-      )
-
-    config = get_config(config_provider)
-    api_key = get_api_key(config)
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
     !is_nil(api_key) && api_key != ""
   end
 
@@ -333,15 +278,73 @@ defmodule ExLLM.Adapters.OpenAI do
     end
   end
 
-  # Private functions
-
-  defp get_config(config_provider) do
-    config_provider.get_all(:openai)
+  # Streaming behavior callback
+  @impl ExLLM.Adapters.Shared.StreamingBehavior
+  def parse_stream_chunk(data) do
+    case data do
+      "[DONE]" -> 
+        {:ok, :done}
+        
+      _ ->
+        case Jason.decode(data) do
+          {:ok, parsed} ->
+            choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
+            delta = choice["delta"] || %{}
+            
+            chunk = StreamingBehavior.create_text_chunk(
+              delta["content"] || "",
+              finish_reason: choice["finish_reason"]
+            )
+            
+            {:ok, chunk}
+            
+          {:error, _} ->
+            {:error, :invalid_json}
+        end
+    end
   end
 
-  defp get_api_key(config) do
-    # First try config, then environment variable
-    Map.get(config, :api_key) || System.get_env("OPENAI_API_KEY")
+  # Private functions
+  
+  defp validate_api_key(nil), do: {:error, "OpenAI API key not configured"}
+  defp validate_api_key(""), do: {:error, "OpenAI API key not configured"}
+  defp validate_api_key(_), do: {:ok, :valid}
+  
+  defp build_request_body(messages, model, config, options) do
+    %{
+      model: model,
+      messages: MessageFormatter.stringify_message_keys(messages),
+      max_tokens: Keyword.get(options, :max_tokens, Map.get(config, :max_tokens)),
+      temperature: Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
+    }
+    |> maybe_add_system_prompt(options)
+    |> maybe_add_functions(options)
+  end
+  
+  defp build_headers(api_key, config) do
+    headers = [
+      {"authorization", "Bearer #{api_key}"}
+    ]
+    
+    if org = Map.get(config, :organization) do
+      [{"openai-organization", org} | headers]
+    else
+      headers
+    end
+  end
+  
+  defp maybe_add_system_prompt(body, options) do
+    case Keyword.get(options, :system) do
+      nil -> body
+      system -> Map.update!(body, :messages, &MessageFormatter.add_system_message(&1, system))
+    end
+  end
+  
+  defp maybe_add_functions(body, options) do
+    case Keyword.get(options, :functions) do
+      nil -> body
+      functions -> Map.put(body, :functions, functions)
+    end
   end
 
   defp get_base_url(config) do
@@ -351,77 +354,8 @@ defmodule ExLLM.Adapters.OpenAI do
       @default_base_url
   end
 
-  defp format_messages(messages) do
-    Enum.map(messages, fn msg ->
-      role = to_string(msg.role || msg["role"])
-      content = format_content_for_openai(msg.content || msg["content"])
 
-      %{
-        "role" => role,
-        "content" => content
-      }
-    end)
-  end
 
-  defp format_content_for_openai(content) when is_binary(content) do
-    # Simple text content
-    content
-  end
-
-  defp format_content_for_openai(content) when is_list(content) do
-    # Multimodal content - OpenAI expects array format
-    Enum.map(content, fn part ->
-      case part do
-        %{"type" => "text", "text" => text} ->
-          %{"type" => "text", "text" => text}
-
-        %{type: "text", text: text} ->
-          %{"type" => "text", "text" => text}
-
-        %{"type" => "image_url", "image_url" => image_url} ->
-          %{"type" => "image_url", "image_url" => image_url}
-
-        %{type: "image_url", image_url: image_url} ->
-          %{"type" => "image_url", "image_url" => format_image_url(image_url)}
-
-        %{"type" => "image", "image" => %{"data" => data, "media_type" => media_type}} ->
-          # Convert base64 to data URL for OpenAI
-          %{
-            "type" => "image_url",
-            "image_url" => %{
-              "url" => "data:#{media_type};base64,#{data}"
-            }
-          }
-
-        %{type: "image", image: %{data: data, media_type: media_type}} ->
-          # Convert base64 to data URL for OpenAI
-          %{
-            "type" => "image_url",
-            "image_url" => %{
-              "url" => "data:#{media_type};base64,#{data}"
-            }
-          }
-
-        _ ->
-          part
-      end
-    end)
-  end
-
-  defp format_content_for_openai(content) do
-    # Fallback - convert to string
-    to_string(content)
-  end
-
-  defp format_image_url(%{url: url} = image_url) do
-    detail = Map.get(image_url, :detail, "auto")
-    %{"url" => url, "detail" => to_string(detail)}
-  end
-
-  defp format_image_url(%{"url" => _} = image_url) do
-    # Already in correct format
-    image_url
-  end
 
   defp parse_response(response, model) do
     choice = get_in(response, ["choices", Access.at(0)]) || %{}
@@ -444,62 +378,8 @@ defmodule ExLLM.Adapters.OpenAI do
     }
   end
 
-  defp parse_sse_event("data: [DONE]"), do: %Types.StreamChunk{content: "", finish_reason: "stop"}
 
-  defp parse_sse_event("data: " <> json) do
-    case Jason.decode(json) do
-      {:ok, data} ->
-        choice = get_in(data, ["choices", Access.at(0)]) || %{}
-        delta = choice["delta"] || %{}
 
-        %Types.StreamChunk{
-          content: delta["content"] || "",
-          finish_reason: choice["finish_reason"]
-        }
-
-      _ ->
-        nil
-    end
-  end
-
-  defp parse_sse_event(_), do: nil
-
-  defp process_sse_chunks(data) do
-    lines = String.split(data, "\n")
-
-    {complete_lines, rest} =
-      case List.last(lines) do
-        "" -> {lines, ""}
-        last_line -> {Enum.drop(lines, -1), last_line}
-      end
-
-    chunks =
-      complete_lines
-      |> Enum.map(&parse_sse_event/1)
-      |> Enum.reject(&is_nil/1)
-
-    {rest, chunks}
-  end
-
-  defp handle_stream_response(response, parent, model, buffer) do
-    %Req.Response.Async{ref: ref} = response.body
-
-    receive do
-      {^ref, {:data, data}} ->
-        {new_buffer, chunks} = process_sse_chunks(buffer <> data)
-        Enum.each(chunks, &send(parent, {:chunk, &1}))
-        handle_stream_response(response, parent, model, new_buffer)
-
-      {^ref, :done} ->
-        send(parent, :stream_done)
-
-      {^ref, {:error, reason}} ->
-        send(parent, {:stream_error, {:error, reason}})
-    after
-      30_000 ->
-        send(parent, {:stream_error, {:error, :timeout}})
-    end
-  end
 
   defp get_context_window(model_id) do
     # Use ModelConfig for context window lookup
@@ -509,10 +389,14 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @impl true
   def embeddings(inputs, options \\ []) do
-    with {:ok, config} <- get_config(options),
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+    
+    with {:ok, _} <- validate_api_key(api_key),
          {:ok, url} <- build_embeddings_url(config),
          {:ok, req_body} <- build_embeddings_request(inputs, config, options),
-         {:ok, response} <- send_embeddings_request(url, req_body, config) do
+         {:ok, response} <- send_embeddings_request(url, req_body, config, api_key) do
       parse_embeddings_response(response, inputs, config, options)
     end
   end
@@ -567,8 +451,7 @@ defmodule ExLLM.Adapters.OpenAI do
   # Private embedding functions
 
   defp build_embeddings_url(config) do
-    base_url = Map.get(config, "base_url", "https://api.openai.com/v1")
-    {:ok, "#{base_url}/embeddings"}
+    {:ok, "#{get_base_url(config)}/embeddings"}
   end
 
   defp build_embeddings_request(inputs, _config, options) do
@@ -592,21 +475,12 @@ defmodule ExLLM.Adapters.OpenAI do
     {:ok, body}
   end
 
-  defp send_embeddings_request(url, body, config) do
-    headers = [
-      {"authorization", "Bearer #{config["api_key"]}"},
-      {"content-type", "application/json"}
-    ]
+  defp send_embeddings_request(url, body, config, api_key) do
+    headers = build_headers(api_key, config)
 
-    case Req.post(url, json: body, headers: headers) do
-      {:ok, %{status: 200, body: body}} ->
-        {:ok, body}
-
-      {:ok, %{status: status, body: body}} ->
-        {:error, Error.api_error(status, body)}
-
-      {:error, reason} ->
-        {:error, Error.connection_error(reason)}
+    case HTTPClient.post_json(url, body, headers, timeout: 30_000) do
+      {:ok, response} -> {:ok, response}
+      {:error, reason} -> {:error, reason}
     end
   end
 

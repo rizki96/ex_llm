@@ -1,5 +1,6 @@
 defmodule ExLLM.Adapters.OpenAICompatible do
   alias ExLLM.{Types, ModelConfig}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior}
   
   @moduledoc """
   Base implementation for OpenAI-compatible API providers.
@@ -75,8 +76,10 @@ defmodule ExLLM.Adapters.OpenAICompatible do
     quote do
       @behaviour ExLLM.Adapter
       @behaviour ExLLM.Adapters.OpenAICompatible
+      @behaviour ExLLM.Adapters.Shared.StreamingBehavior
       
       alias ExLLM.{Error, Types, ModelConfig}
+      alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior}
       require Logger
       
       @provider unquote(provider)
@@ -87,16 +90,19 @@ defmodule ExLLM.Adapters.OpenAICompatible do
       
       @impl ExLLM.Adapter
       def chat(messages, options \\ []) do
-        config_provider = get_config_provider(options)
-        config = get_config(config_provider)
-        
-        api_key = get_api_key(config)
-        if !api_key || api_key == "" do
-          {:error, "#{provider_name()} API key not configured"}
-        else
+        with :ok <- MessageFormatter.validate_messages(messages),
+             config_provider <- ConfigHelper.get_config_provider(options),
+             config <- ConfigHelper.get_config(@provider, config_provider),
+             api_key <- get_api_key(config),
+             {:ok, _} <- validate_api_key(api_key) do
+          
           do_chat(messages, options, config, api_key)
         end
       end
+      
+      defp validate_api_key(nil), do: {:error, "#{provider_name()} API key not configured"}
+      defp validate_api_key(""), do: {:error, "#{provider_name()} API key not configured"}
+      defp validate_api_key(_), do: {:ok, :valid}
       
       @impl ExLLM.Adapter
       def stream_chat(messages, options \\ [], callback) when is_function(callback, 1) do
