@@ -291,8 +291,9 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         Enum.each(complete_lines, fn line ->
           case parse_sse_line(line) do
             {:ok, chunk_data} ->
-              if chunk = parse_stream_chunk(chunk_data) do
-                callback.(chunk)
+              case parse_stream_chunk(chunk_data) do
+                {:ok, chunk} -> callback.(chunk)
+                _ -> :ok
               end
             _ ->
               :ok
@@ -318,17 +319,25 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         end
       end
       
-      defp parse_stream_chunk(data) do
+      # Streaming behavior callback implementation
+      @impl ExLLM.Adapters.Shared.StreamingBehavior
+      def parse_stream_chunk(data) when is_binary(data) do
+        case Jason.decode(data) do
+          {:ok, parsed} -> parse_stream_chunk(parsed)
+          {:error, _} -> {:error, :invalid_json}
+        end
+      end
+      
+      def parse_stream_chunk(data) when is_map(data) do
         case get_in(data, ["choices", Access.at(0), "delta"]) do
-          nil -> nil
+          nil -> 
+            {:ok, StreamingBehavior.create_text_chunk("")}
           delta ->
             content = Map.get(delta, "content", "")
             finish_reason = get_in(data, ["choices", Access.at(0), "finish_reason"])
             
-            %Types.StreamChunk{
-              content: content,
-              finish_reason: finish_reason
-            }
+            chunk = StreamingBehavior.create_text_chunk(content, finish_reason: finish_reason)
+            {:ok, chunk}
         end
       end
       
