@@ -348,16 +348,32 @@ defmodule ExLLM.FunctionCalling do
 
   defp parse_gemini_function_calls(_), do: {:ok, []}
 
-  defp parse_arguments(args) when is_map(args), do: {:ok, args}
+  @doc """
+  Parse function call arguments from JSON string to map.
+  
+  ## Parameters
+  - `arguments` - JSON string or map containing function arguments
+  
+  ## Returns
+  - `{:ok, args_map}` on success
+  - `{:error, reason}` on failure
+  
+  ## Examples
+  
+      {:ok, args} = ExLLM.FunctionCalling.parse_arguments("{\"location\": \"NYC\"}")
+      # => {:ok, %{"location" => "NYC"}}
+  """
+  @spec parse_arguments(String.t() | map()) :: {:ok, map()} | {:error, atom()}
+  def parse_arguments(args) when is_map(args), do: {:ok, args}
 
-  defp parse_arguments(args) when is_binary(args) do
+  def parse_arguments(args) when is_binary(args) do
     case Jason.decode(args) do
       {:ok, parsed} -> {:ok, parsed}
       {:error, _} -> {:error, :invalid_json}
     end
   end
 
-  defp parse_arguments(_), do: {:error, :invalid_arguments}
+  def parse_arguments(_), do: {:error, :invalid_arguments}
 
   defp validate_against_schema(args, schema) do
     # Simple validation - can be enhanced with JSON Schema validation
@@ -477,4 +493,5 @@ defmodule ExLLM.FunctionCalling do
       }
     }
   end
+
 end

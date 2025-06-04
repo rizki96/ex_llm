@@ -26,7 +26,18 @@ defmodule ExLLM.Context do
   def get_context_window(provider, model) do
     provider_atom = if is_binary(provider), do: String.to_atom(provider), else: provider
     
-    case ModelConfig.get_context_window(provider_atom, model) do
+    # Try with the model as-is first
+    context_window = ModelConfig.get_context_window(provider_atom, model)
+    
+    # If not found and model doesn't already have provider prefix, try with prefix
+    context_window = if is_nil(context_window) and not String.starts_with?(model, "#{provider}/") do
+      prefixed_model = "#{provider}/#{model}"
+      ModelConfig.get_context_window(provider_atom, prefixed_model)
+    else
+      context_window
+    end
+    
+    case context_window do
       nil -> 
         raise "Unknown model #{model} for provider #{provider}. " <>
               "Please ensure the model exists in config/models/#{provider}.yml"

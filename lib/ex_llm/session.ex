@@ -341,4 +341,53 @@ defmodule ExLLM.Session do
       output_tokens: Map.get(usage, "output_tokens") || Map.get(usage, :output_tokens, 0)
     }
   end
+
+  @doc """
+  Save session to a JSON file.
+
+  ## Parameters
+  - `session` - The session to save
+  - `file_path` - Path to the file where session will be saved
+
+  ## Returns
+  - `:ok` on success
+  - `{:error, reason}` on failure
+
+  ## Examples
+
+      ExLLM.Session.save_to_file(session, "my_session.json")
+  """
+  @spec save_to_file(Types.Session.t(), String.t()) :: :ok | {:error, term()}
+  def save_to_file(session, file_path) do
+    case to_json(session) do
+      {:ok, json} ->
+        File.write(file_path, json)
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Load session from a JSON file.
+
+  ## Parameters
+  - `file_path` - Path to the file containing session data
+
+  ## Returns
+  - `{:ok, session}` on success
+  - `{:error, reason}` on failure
+
+  ## Examples
+
+      {:ok, session} = ExLLM.Session.load_from_file("my_session.json")
+  """
+  @spec load_from_file(String.t()) :: {:ok, Types.Session.t()} | {:error, term()}
+  def load_from_file(file_path) do
+    case File.read(file_path) do
+      {:ok, json} ->
+        from_json(json)
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 end

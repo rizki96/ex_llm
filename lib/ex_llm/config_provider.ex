@@ -119,7 +119,7 @@ defmodule ExLLM.ConfigProvider do
     defp get_known_config(:ollama, :base_url),
       do: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434")
 
-    defp get_known_config(:ollama, :model), do: System.get_env("OLLAMA_MODEL", "llama2")
+    defp get_known_config(:ollama, :model), do: System.get_env("OLLAMA_MODEL")
 
     defp get_known_config(:openrouter, :api_key), do: System.get_env("OPENROUTER_API_KEY")
 

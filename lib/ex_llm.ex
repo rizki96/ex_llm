@@ -1536,4 +1536,86 @@ defmodule ExLLM do
     :crypto.hash(:sha256, :erlang.term_to_binary(key_data))
     |> Base.encode64(padding: false)
   end
+  
+  # Provider Capabilities API
+  
+  @doc """
+  Get provider capabilities.
+  
+  Returns information about what a provider supports at the API level,
+  including available endpoints, authentication methods, and features.
+  
+  ## Examples
+  
+      {:ok, caps} = ExLLM.get_provider_capabilities(:openai)
+      caps.endpoints
+      # => [:chat, :embeddings, :images, :audio, :completions, :fine_tuning, :files]
+      
+      caps.features
+      # => [:streaming, :function_calling, :cost_tracking, :usage_tracking, ...]
+  """
+  @spec get_provider_capabilities(provider()) :: {:ok, ExLLM.ProviderCapabilities.ProviderInfo.t()} | {:error, :not_found}
+  def get_provider_capabilities(provider) do
+    ExLLM.ProviderCapabilities.get_capabilities(provider)
+  end
+  
+  @doc """
+  Check if a provider supports a specific feature.
+  
+  ## Examples
+  
+      ExLLM.provider_supports?(:openai, :embeddings)
+      # => true
+      
+      ExLLM.provider_supports?(:ollama, :cost_tracking) 
+      # => false
+  """
+  @spec provider_supports?(provider(), atom()) :: boolean()
+  def provider_supports?(provider, feature) do
+    ExLLM.ProviderCapabilities.supports?(provider, feature)
+  end
+  
+  @doc """
+  Find providers that support specific features.
+  
+  ## Examples
+  
+      # Find providers with embeddings support
+      ExLLM.find_providers_with_features([:embeddings])
+      # => [:bedrock, :local, :mock, :ollama, :openai]
+      
+      # Find providers with both streaming and cost tracking
+      ExLLM.find_providers_with_features([:streaming, :cost_tracking])
+      # => [:openai, :anthropic, :groq, ...]
+  """
+  @spec find_providers_with_features(list(atom())) :: list(provider())
+  def find_providers_with_features(features) do
+    ExLLM.ProviderCapabilities.find_providers_with_features(features)
+  end
+  
+  @doc """
+  Compare capabilities across multiple providers.
+  
+  ## Examples
+  
+      comparison = ExLLM.compare_providers([:openai, :anthropic, :ollama])
+      # Returns detailed comparison of features, endpoints, and limitations
+  """
+  @spec compare_providers(list(provider())) :: map()
+  def compare_providers(providers) do
+    ExLLM.ProviderCapabilities.compare_providers(providers)
+  end
+  
+  @doc """
+  List all known providers.
+  
+  ## Examples
+  
+      ExLLM.list_providers()
+      # => [:anthropic, :bedrock, :gemini, :groq, :local, :mock, :ollama, :openai, :openrouter]
+  """
+  @spec list_providers() :: list(provider())
+  def list_providers do
+    ExLLM.ProviderCapabilities.list_providers()
+  end
 end

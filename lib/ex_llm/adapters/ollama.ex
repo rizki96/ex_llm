@@ -67,7 +67,12 @@ defmodule ExLLM.Adapters.Ollama do
 
     config = get_config(config_provider)
 
-    model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
+    raw_model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
+    # Strip provider prefix if present
+    model = strip_provider_prefix(raw_model)
+    
+    # Ensure we have a model
+    model = model || get_default_model()
 
     body = %{
       model: model,
@@ -101,7 +106,12 @@ defmodule ExLLM.Adapters.Ollama do
 
     config = get_config(config_provider)
 
-    model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
+    raw_model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
+    # Strip provider prefix if present
+    model = strip_provider_prefix(raw_model)
+    
+    # Ensure we have a model
+    model = model || get_default_model()
 
     body = %{
       model: model,
@@ -287,9 +297,19 @@ defmodule ExLLM.Adapters.Ollama do
         raise "Missing configuration: No default model found for Ollama. " <>
               "Please ensure config/models/ollama.yml exists and contains a 'default_model' field."
       model ->
-        model
+        # Strip the "ollama/" prefix if present
+        strip_provider_prefix(model)
     end
   end
+  
+  defp strip_provider_prefix(model) when is_binary(model) do
+    case String.split(model, "/", parts: 2) do
+      ["ollama", actual_model] -> actual_model
+      _ -> model
+    end
+  end
+  
+  defp strip_provider_prefix(nil), do: nil
 
   # Private functions
 
@@ -315,8 +335,8 @@ defmodule ExLLM.Adapters.Ollama do
 
   defp parse_response(response, model) do
     usage = %{
-      prompt_tokens: response["prompt_eval_count"] || 0,
-      completion_tokens: response["eval_count"] || 0,
+      input_tokens: response["prompt_eval_count"] || 0,
+      output_tokens: response["eval_count"] || 0,
       total_tokens: (response["prompt_eval_count"] || 0) + (response["eval_count"] || 0)
     }
 
@@ -326,10 +346,7 @@ defmodule ExLLM.Adapters.Ollama do
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
       cost:
-        ExLLM.Cost.calculate("ollama", model, %{
-          input_tokens: usage.prompt_tokens,
-          output_tokens: usage.completion_tokens
-        })
+        ExLLM.Cost.calculate("ollama", model, usage)
     }
   end
 

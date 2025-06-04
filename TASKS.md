@@ -257,6 +257,45 @@
 
 ## Todo
 
+### Example App Development (Priority 0)
+- [x] Create comprehensive example_app that demonstrates all library features
+- [x] Migrate existing examples into the unified app:
+  - [x] Advanced features (retries, context management, etc.)
+  - [x] Caching functionality
+  - [x] Embeddings
+  - [x] Function calling
+  - [x] Local model usage
+  - [x] Model capabilities exploration
+  - [x] Structured outputs with Instructor
+  - [x] Testing with mock adapter
+  - [x] Vision/multimodal features
+- [x] Add configuration system for provider selection
+- [x] Use Ollama with Qwen3 8B (IQ4_XS) as default (fast local model)
+- [x] Create interactive CLI menu for feature selection
+- [x] Add comprehensive error handling and user feedback
+- [x] Document setup and usage instructions
+- [x] Remove deprecated individual example files
+
+### Missing Core Implementations (Priority 0.5)
+- [x] Session persistence (save_to_file/load_from_file in ExLLM.Session)
+- [x] Function calling argument parsing (parse_arguments in ExLLM.FunctionCalling)
+- [x] Model info retrieval (get_model_info in ExLLM.ModelCapabilities)
+- [x] Provider capability tracking system
+  - [x] Create ExLLM.ProviderCapabilities module
+  - [x] Track provider-level features:
+    - [x] Available endpoints (chat, embeddings, images, audio, etc.)
+    - [x] Authentication methods (api_key, oauth, aws_signature, etc.)
+    - [x] Streaming support at provider level
+    - [x] Cost tracking availability
+    - [x] Dynamic model listing support
+    - [x] Batch operations support
+    - [x] File upload capabilities
+    - [x] Rate limiting information
+    - [x] Provider metadata (description, docs, status URLs)
+  - [x] Provider capability discovery API
+  - [x] Integration with ModelCapabilities
+  - [ ] Capability versioning for API versions (future enhancement)
+
 ### LiteLLM-Inspired Core Infrastructure (Priority 1)
 - [x] OpenAI-Compatible base adapter for shared implementation
 - [x] Provider detection pattern (provider/model-name syntax)

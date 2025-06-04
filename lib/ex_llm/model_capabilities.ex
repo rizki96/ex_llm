@@ -577,4 +577,39 @@ defmodule ExLLM.ModelCapabilities do
 
     score
   end
+
+  @doc """
+  Get model information for a specific provider and model.
+  
+  ## Parameters
+  - `provider` - Provider atom (e.g., :openai, :anthropic)
+  - `model` - Model identifier
+  
+  ## Returns
+  - `{:ok, model_info}` on success
+  - `{:error, :not_found}` if model not found
+  
+  ## Examples
+  
+      {:ok, info} = ExLLM.ModelCapabilities.get_model_info(:openai, "gpt-4o")
+  """
+  @spec get_model_info(atom(), String.t()) :: {:ok, ModelInfo.t()} | {:error, :not_found}
+  def get_model_info(provider, model) do
+    # Get the model database
+    db = model_capabilities()
+    
+    # First try with provider prefix
+    key = "#{provider}:#{model}"
+    
+    case Map.get(db, key) do
+      nil ->
+        # Try without provider prefix (some models might be stored without it)
+        case Map.get(db, model) do
+          nil -> {:error, :not_found}
+          info -> {:ok, info}
+        end
+      info ->
+        {:ok, info}
+    end
+  end
 end
