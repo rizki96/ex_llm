@@ -87,6 +87,38 @@ mix docs
 open doc/index.html
 ```
 
+## Model Updates
+
+### Updating Model Metadata
+
+The project uses two methods to keep model configurations up-to-date:
+
+1. **Sync from LiteLLM** (comprehensive metadata for all providers):
+   ```bash
+   ./scripts/update_models.sh --litellm
+   ```
+   - Updates configurations for all 56 providers (not just implemented ones)
+   - Includes pricing, context windows, and capabilities
+   - Requires LiteLLM repository to be cloned alongside this project
+
+2. **Fetch from Provider APIs** (latest models from provider APIs):
+   ```bash
+   # Update all providers with APIs
+   source ~/.env && uv run python scripts/fetch_provider_models.py
+   
+   # Or use the wrapper script
+   ./scripts/update_models.sh
+   ```
+   - Fetches latest models directly from provider APIs
+   - Requires API keys in environment variables for some providers
+   - Updates: Anthropic, OpenAI, Groq, Gemini, OpenRouter, Ollama
+
+### Important Notes
+- Always preserve custom default models (e.g., `gpt-4.1-nano` for OpenAI)
+- The fetch script may reset defaults, so check and fix them after running
+- Both scripts update YAML files in `config/models/`
+- Commit changes with descriptive messages about what was updated
+
 ## Architecture Overview
 
 ExLLM is a unified Elixir client for Large Language Models that provides a consistent interface across multiple providers. The architecture follows these key principles:
