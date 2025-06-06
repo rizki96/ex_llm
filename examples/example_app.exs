@@ -303,7 +303,8 @@ defmodule ExLLM.ExampleApp do
           IO.puts("\nToken usage:")
           IO.puts("  Input: #{response.usage.input_tokens}")
           IO.puts("  Output: #{response.usage.output_tokens}")
-          IO.puts("  Total: #{response.usage.total_tokens}")
+          total = Map.get(response.usage, :total_tokens, response.usage.input_tokens + response.usage.output_tokens)
+          IO.puts("  Total: #{total}")
         end
         
         if response.cost do

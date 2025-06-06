@@ -479,12 +479,17 @@ defmodule ExLLM.Adapters.Mock do
     }
   end
 
-  defp normalize_usage(nil), do: %{input_tokens: 10, output_tokens: 20}
+  defp normalize_usage(nil), do: %{input_tokens: 10, output_tokens: 20, total_tokens: 30}
 
   defp normalize_usage(usage) when is_map(usage) do
+    input = usage[:input_tokens] || usage["input_tokens"] || 10
+    output = usage[:output_tokens] || usage["output_tokens"] || 20
+    total = usage[:total_tokens] || usage["total_tokens"] || (input + output)
+    
     %{
-      input_tokens: usage[:input_tokens] || usage["input_tokens"] || 10,
-      output_tokens: usage[:output_tokens] || usage["output_tokens"] || 20
+      input_tokens: input,
+      output_tokens: output,
+      total_tokens: total
     }
   end
 
@@ -496,7 +501,7 @@ defmodule ExLLM.Adapters.Mock do
     %Types.LLMResponse{
       content: "This is a mock response",
       model: "mock-model",
-      usage: %{input_tokens: 10, output_tokens: 20},
+      usage: %{input_tokens: 10, output_tokens: 20, total_tokens: 30},
       finish_reason: "stop",
       id: generate_id()
     }
