@@ -2135,15 +2135,60 @@ defmodule ExLLM.ExampleApp do
       IO.puts("   • Token usage: Properly adjusted (no double billing)")
       
     else
-      # For real providers, actually try streaming
+      # For real providers, show what stream recovery would look like
+      IO.puts("📝 Note: Stream recovery simulation")
+      IO.puts("   (Actual interruption requires network issues)\n")
+      
+      IO.puts("Starting stream...")
+      IO.puts("─" <> String.duplicate("─", 60))
+      IO.write("   ")
+      
+      # Start streaming with visible progress
+      chunk_count = 0
+      interrupted = false
+      
       case ExLLM.stream_chat(provider, messages, stream_recovery: true) do
         {:ok, stream} ->
-          stream
-          |> Enum.each(fn chunk ->
-            if chunk.content, do: IO.write(chunk.content)
-          end)
-          
-          IO.puts("\n\n✓ Stream completed")
+          try do
+            stream
+            |> Enum.reduce(0, fn chunk, count ->
+              if chunk.content do
+                IO.write(chunk.content)
+                
+                # Simulate interruption detection after some chunks
+                if count == 5 and not interrupted do
+                  IO.puts("\n")
+                  IO.puts("─" <> String.duplicate("─", 60))
+                  IO.puts("⚠️  SIMULATING NETWORK INTERRUPTION")
+                  IO.puts("   (In real usage, this would happen automatically)")
+                  IO.puts("─" <> String.duplicate("─", 60))
+                  IO.puts("")
+                  IO.puts("🔄 Stream recovery would:")
+                  IO.puts("   1. Save partial response")
+                  IO.puts("   2. Identify clean break point")
+                  IO.puts("   3. Prepare recovery request")
+                  IO.puts("   4. Resume from interruption point")
+                  IO.puts("")
+                  IO.puts("─" <> String.duplicate("─", 60))
+                  IO.puts("Continuing stream...")
+                  IO.write("   ")
+                end
+                
+                count + 1
+              else
+                count
+              end
+            end)
+            
+            IO.puts("\n")
+            IO.puts("─" <> String.duplicate("─", 60))
+            IO.puts("✓ STREAM COMPLETED")
+            IO.puts("─" <> String.duplicate("─", 60))
+          rescue
+            e ->
+              IO.puts("\n\n⚠️  Actual stream error: #{inspect(e)}")
+              IO.puts("Stream recovery would automatically handle this!")
+          end
           
         {:error, error} ->
           IO.puts("Error: #{inspect(error)}")
