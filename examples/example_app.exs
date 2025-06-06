@@ -2215,24 +2215,51 @@ defmodule ExLLM.ExampleApp do
     IO.puts("   Automatically choosing the best model for the task...\n")
     
     tasks = [
-      {"What's 2+2?", "Fast, simple task → Using smallest/fastest model"},
-      {"Write a haiku about coding", "Creative task → Using creative model"},
-      {"Analyze this code: def fib(n), do: if n<2, do: n, else: fib(n-1)+fib(n-2)", "Code task → Using code-optimized model"}
+      {"What's 2+2?", :simple_math},
+      {"Write a haiku about coding", :creative_writing},
+      {"Analyze this code: def fib(n), do: if n<2, do: n, else: fib(n-1)+fib(n-2)", :code_analysis},
+      {"Translate 'Hello world' to French", :translation},
+      {"Explain quantum computing to a 5-year-old", :complex_explanation}
     ]
     
-    for {task, reasoning} <- tasks do
+    for {task, task_type} <- tasks do
       IO.puts("📝 Task: #{task}")
-      IO.puts("🤖 #{reasoning}")
       
-      # Simulate model selection based on task
-      selected_model = cond do
-        String.contains?(task, "code") -> "codellama"
-        String.contains?(task, "haiku") || String.contains?(task, "creative") -> "claude-3-sonnet"
-        true -> "gpt-3.5-turbo"
+      # Sophisticated model selection based on task type and requirements
+      {selected_model, reasoning} = case task_type do
+        :simple_math ->
+          {"gpt-4o-mini", "Simple calculation → Fast, efficient model"}
+          
+        :creative_writing ->
+          {"claude-3-7-sonnet-20250219", "Creative task → Claude 3.7 excels at creative writing"}
+          
+        :code_analysis ->
+          {"claude-3-5-sonnet-20241022", "Code analysis → Claude 3.5 Sonnet has superior coding abilities"}
+          
+        :translation ->
+          {"gpt-4o", "Translation → GPT-4o handles multilingual tasks well"}
+          
+        :complex_explanation ->
+          {"claude-opus-4-20250514", "Complex reasoning → Claude 4 Opus for nuanced explanations"}
       end
       
-      IO.puts("✅ Selected: #{selected_model}\n")
+      IO.puts("🤖 #{reasoning}")
+      IO.puts("✅ Selected: #{selected_model}")
+      
+      # Show additional selection criteria
+      IO.puts("   📊 Selection criteria:")
+      IO.puts("      • Task complexity: #{complexity_level(task_type)}")
+      IO.puts("      • Required capabilities: #{required_capabilities(task_type) |> Enum.join(", ")}")
+      IO.puts("      • Estimated tokens: #{estimate_task_tokens(task)}")
+      IO.puts("")
     end
+    
+    IO.puts("\n💡 Real-world Model Selection:")
+    IO.puts("   In production, you would use ExLLM.ModelCapabilities to:")
+    IO.puts("   • Find models with required features")
+    IO.puts("   • Compare costs across providers")
+    IO.puts("   • Consider latency requirements")
+    IO.puts("   • Respect context window limits")
     
     wait_for_continue()
     
@@ -2377,6 +2404,42 @@ defmodule ExLLM.ExampleApp do
       [provider, model] -> {String.to_atom(provider), model}
       _ -> {:unknown, spec}
     end
+  end
+  
+  defp complexity_level(task_type) do
+    case task_type do
+      :simple_math -> "Low"
+      :translation -> "Medium"
+      :creative_writing -> "Medium"
+      :code_analysis -> "High"
+      :complex_explanation -> "High"
+      _ -> "Unknown"
+    end
+  end
+  
+  defp required_capabilities(task_type) do
+    case task_type do
+      :simple_math -> ["basic reasoning"]
+      :creative_writing -> ["creativity", "language fluency"]
+      :code_analysis -> ["code understanding", "technical reasoning"]
+      :translation -> ["multilingual", "cultural awareness"]
+      :complex_explanation -> ["deep reasoning", "simplification", "pedagogy"]
+      _ -> ["general"]
+    end
+  end
+  
+  defp estimate_task_tokens(task) do
+    # Simple estimation based on task length and expected response
+    input_tokens = round(String.length(task) / 4)
+    expected_output = case task do
+      "What's 2+2?" -> 10
+      task when String.contains?(task, "haiku") -> 50
+      task when String.contains?(task, "code") -> 200
+      task when String.contains?(task, "Translate") -> 30
+      task when String.contains?(task, "Explain") -> 300
+      _ -> 100
+    end
+    "~#{input_tokens + expected_output} total"
   end
 end
 
