@@ -24,19 +24,20 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 ## Supported Providers
 
 - **Anthropic Claude** - Full support for all Claude models
-  - claude-3-5-sonnet-20241022
-  - claude-3-5-haiku-20241022
-  - claude-3-opus-20240229
-  - claude-3-sonnet-20240229
-  - claude-3-haiku-20240307
-  - claude-sonnet-4-20250514
+  - claude-opus-4-20250514 (Claude 4 Opus - most capable)
+  - claude-sonnet-4-20250514 (Claude 4 Sonnet - balanced)
+  - claude-3-7-sonnet-20250219 (Claude 3.7 Sonnet)
+  - claude-3-5-sonnet-20241022 (Claude 3.5 Sonnet)
+  - claude-3-5-haiku-20241022 (Claude 3.5 Haiku - fastest)
+  - claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
 
-- **OpenAI** - GPT-4 and GPT-3.5 models
-  - gpt-4-turbo
-  - gpt-4
-  - gpt-4-32k
-  - gpt-3.5-turbo
-  - gpt-3.5-turbo-16k
+- **OpenAI** - Latest GPT models including reasoning models
+  - gpt-4.1 series (gpt-4.1, gpt-4.1-mini, gpt-4.1-nano - default)
+  - o1 reasoning models (o1-pro, o1, o1-mini, o1-preview)
+  - gpt-4o series (gpt-4o, gpt-4o-mini, gpt-4o-latest)
+  - gpt-4-turbo series
+  - gpt-3.5-turbo models
+  - Specialized models for audio, search, and extended output
 
 - **Ollama** - Local model runner
   - Any model available in your Ollama installation
@@ -54,11 +55,12 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - **Writer**: Palmyra X4, Palmyra X5
   - **DeepSeek**: DeepSeek R1
 
-- **Google Gemini** - Gemini models
-  - gemini-pro
-  - gemini-pro-vision
-  - gemini-ultra
-  - gemini-nano
+- **Google Gemini** - Gemini models with multimodal support
+  - gemini-2.5-pro series (experimental advanced models)
+  - gemini-2.0-flash series (fast multimodal)
+  - gemini-1.5-pro and gemini-1.5-flash (1M+ context)
+  - gemini-pro and gemini-pro-vision
+  - Specialized models for image generation and TTS
 
 - **OpenRouter** - Access to 300+ models from multiple providers
   - Claude, GPT-4, Llama, PaLM, and many more
@@ -67,10 +69,19 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - Automatic model discovery
 
 - **Groq** - Fast inference platform
-  - Llama 3.3, 3.1, 3, and 2 models
-  - Mixtral, Gemma, and specialized models
-  - DeepSeek R1 Distill
-  - Optimized for low latency
+  - Llama 4 Scout (17B), Llama 3.3 (70B), Llama 3.1 and 3 series
+  - DeepSeek R1 Distill (default - 70B reasoning model)
+  - QwQ-32B (reasoning model)
+  - Mixtral 8x7B, Gemma series
+  - Mistral Saba and specialized models
+  - Optimized for ultra-low latency inference
+
+- **X.AI** - Grok models with advanced capabilities
+  - grok-beta (131K context)
+  - grok-2 and grok-2-vision models
+  - grok-3 models with reasoning support
+  - Web search and tool use capabilities
+  - Vision support on select models
 
 - **Local Models** via Bumblebee/EXLA
   - microsoft/phi-2 (default)
@@ -117,6 +128,10 @@ config :ex_llm,
   openai: [
     api_key: System.get_env("OPENAI_API_KEY"),
     base_url: "https://api.openai.com"
+  ],
+  xai: [
+    api_key: System.get_env("XAI_API_KEY"),
+    base_url: "https://api.x.ai"
   ],
   ollama: [
     base_url: "http://localhost:11434"

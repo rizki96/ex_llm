@@ -8,12 +8,14 @@ defmodule ExLLM.InstructorTest do
     System.put_env("ANTHROPIC_API_KEY", "test-anthropic-key")
     System.put_env("GOOGLE_API_KEY", "test-google-key")
     System.put_env("GROQ_API_KEY", "test-groq-key")
+    System.put_env("XAI_API_KEY", "test-xai-key")
     
     on_exit(fn ->
       System.delete_env("OPENAI_API_KEY")
       System.delete_env("ANTHROPIC_API_KEY")
       System.delete_env("GOOGLE_API_KEY")
       System.delete_env("GROQ_API_KEY")
+      System.delete_env("XAI_API_KEY")
     end)
   end
 

@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-06-05
+
 ### Added
+- X.AI adapter implementation with complete feature support
+  - Full OpenAI-compatible API integration
+  - Support for all Grok models (Beta, 2, 3, Vision variants)
+  - Streaming, function calling, vision, and structured outputs
+  - Web search and reasoning capabilities
+  - Complete Instructor integration for structured outputs
 - Synced model metadata from LiteLLM (1053 models across 56 providers)
   - New OpenAI models: GPT-4.1 series (gpt-4.1, gpt-4.1-mini, gpt-4.1-nano)
   - New OpenAI O1 reasoning models (o1-pro, o1, o1-mini, o1-preview)
@@ -28,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Anthropic: Set to claude-3-5-sonnet-latest
 - Enhanced Instructor module to support Groq provider
 - Updated example app to include Groq in structured output demos
+- Updated README.md with current model information:
+  - Anthropic: Added Claude 4 series and Claude 3.7
+  - OpenAI: Added GPT-4.1 series and O1 reasoning models
+  - Gemini: Added Gemini 2.5 and 2.0 series
+  - Groq: Added Llama 4 Scout, DeepSeek R1 Distill, and QwQ-32B
+- Task reorganization:
+  - Created DROPPED.md for features that don't align with core library mission
+  - Reorganized TASKS.md with clearer priorities and focused roadmap
+  - Added refactoring tasks to reduce code duplication by ~40%
 
 ### Fixed
 - Instructor integration now correctly separates params and config for chat_completion

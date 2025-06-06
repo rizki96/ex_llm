@@ -213,6 +213,25 @@ defmodule ExLLM.ProviderCapabilities do
       }
     },
     
+    # X.AI
+    xai: %__MODULE__.ProviderInfo{
+      id: :xai,
+      name: "X.AI",
+      description: "Grok models with advanced capabilities",
+      documentation_url: "https://docs.x.ai",
+      endpoints: [:chat],
+      authentication: [:api_key],
+      features: [
+        :streaming, :function_calling, :cost_tracking, :usage_tracking,
+        :system_messages, :vision, :tool_use, :web_search, :reasoning,
+        :json_mode, :structured_outputs, :tool_choice
+      ],
+      limitations: %{
+        max_context_tokens: 131_072,
+        beta_features: [:reasoning]
+      }
+    },
+    
     # Local (Bumblebee)
     local: %__MODULE__.ProviderInfo{
       id: :local,

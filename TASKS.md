@@ -257,6 +257,25 @@
 
 ## Todo
 
+### Priority Overview
+
+**Priority 0 - Immediate (Next 2 weeks)**
+- Code refactoring for shared behaviors (reduce duplication by ~40%)
+- Debug logging levels
+- Complete any remaining core implementations
+
+**Priority 1 - Short Term (Next month)**
+- High-demand provider adapters (Mistral AI, Together AI, Cohere, Perplexity)
+
+**Priority 2 - Medium Term (Next quarter)**
+- Advanced router with cost-based routing and fallbacks
+- Batch processing API
+- Extensible callback system
+
+**Priority 3+ - Long Term**
+- Additional providers based on demand
+- Advanced features and optimizations
+
 ### Example App Development (Priority 0)
 - [x] Create comprehensive example_app that demonstrates all library features
 - [x] Migrate existing examples into the unified app:
@@ -276,7 +295,7 @@
 - [x] Document setup and usage instructions
 - [x] Remove deprecated individual example files
 
-### Missing Core Implementations (Priority 0.5)
+### Missing Core Implementations (Priority 0)
 - [x] Session persistence (save_to_file/load_from_file in ExLLM.Session)
 - [x] Function calling argument parsing (parse_arguments in ExLLM.FunctionCalling)
 - [x] Model info retrieval (get_model_info in ExLLM.ModelCapabilities)
@@ -296,69 +315,80 @@
   - [x] Integration with ModelCapabilities
   - [ ] Capability versioning for API versions (future enhancement)
 
-### LiteLLM-Inspired Core Infrastructure (Priority 1)
+### Code Refactoring - Shared Behaviors & Modules (Priority 0)
+- [ ] Extract streaming into StreamingCoordinator module
+  - [ ] Standardize Task/Stream.resource pattern
+  - [ ] Common SSE parsing and buffering
+  - [ ] Provider-agnostic chunk handling
+  - [ ] Error recovery integration
+- [ ] Create RequestBuilder shared module
+  - [ ] Common request body construction
+  - [ ] Optional parameter handling
+  - [ ] Provider-specific extensions
+- [ ] Implement ModelFetcher behavior
+  - [ ] Standardize model API fetching
+  - [ ] Common parse/filter/transform pipeline
+  - [ ] Integration with ModelLoader
+- [ ] Extract VisionFormatter module
+  - [ ] Provider-specific image formatting
+  - [ ] Content type detection
+  - [ ] Base64 encoding utilities
+- [ ] Enhance existing shared modules
+  - [ ] Extend ResponseBuilder for more formats
+  - [ ] Add provider-specific headers to HTTPClient
+  - [ ] Unify error response parsing
+
+### Advanced Router & Infrastructure (Priority 2)
 - [x] OpenAI-Compatible base adapter for shared implementation
 - [x] Provider detection pattern (provider/model-name syntax)
 - [ ] Advanced router with strategies
-  - [ ] Least-latency routing
   - [ ] Cost-based routing
-  - [ ] Usage-based routing
-  - [ ] Model group aliases
   - [ ] Automatic fallback chains
+  - [ ] Model group aliases
+  - [ ] Least-latency routing
+  - [ ] Usage-based routing
 - [ ] Batch processing API
-- [ ] Semantic caching with similarity search
 - [ ] Health checks and circuit breakers
 
-### New Provider Adapters (Priority 2)
+### New Provider Adapters (Priority 1)
 #### High Priority Providers
 - [x] Groq adapter (fast inference)
+- [x] XAI adapter (Grok models)
 - [ ] Mistral AI adapter (European models)
-- [ ] Cohere adapter (enterprise, rerank API)
 - [ ] Together AI adapter (cost-effective)
-- [ ] Replicate adapter (marketplace)
+- [ ] Cohere adapter (enterprise, rerank API)
 - [ ] Perplexity adapter (search-augmented)
 
-#### Enterprise Providers
+#### Medium Priority Providers
+- [ ] Replicate adapter (marketplace)
 - [ ] Databricks adapter
 - [ ] Vertex AI adapter (Google Cloud)
 - [ ] Azure AI adapter (beyond OpenAI)
-- [ ] Watsonx adapter (IBM)
-- [ ] Sagemaker adapter (AWS)
-
-#### Specialized/Hardware Providers
 - [ ] Fireworks AI adapter
 - [ ] DeepInfra adapter
+
+#### Lower Priority Providers
+- [ ] Watsonx adapter (IBM)
+- [ ] Sagemaker adapter (AWS)
 - [ ] Anyscale adapter
 - [ ] vLLM adapter
 - [ ] Hugging Face Inference API adapter
 - [ ] Baseten adapter
 - [ ] DeepSeek adapter
-- [ ] XAI adapter (Grok models)
 
 ### Provider Feature Enhancements (Priority 3)
 - [ ] Anthropic cache control headers
 - [ ] Vertex AI context caching
 - [ ] Bedrock Converse API support
 - [ ] Provider-specific error mapping
-- [ ] Fake streaming for non-streaming providers
 - [ ] Provider capability detection
 
 ### Observability & Monitoring (Priority 4)
 - [ ] Extensible callback system
-- [ ] Langfuse integration
-- [ ] Langsmith integration
-- [ ] DataDog integration
+- [ ] Telemetry integration for metrics
 - [ ] Custom metrics collection
 - [ ] Request/response logging with redaction
 
-### Enterprise Features (Priority 5)
-- [ ] Proxy server / API gateway mode
-- [ ] Web UI for management
-- [ ] Team and budget management
-- [ ] Rate limiting per API key
-- [ ] SSO/SAML authentication
-- [ ] Audit logs
-- [ ] Service accounts
 
 ### Additional APIs (Priority 6)
 - [ ] Files API for uploads
@@ -380,21 +410,18 @@
 - [ ] Request sanitization
 - [ ] Response validation
 
-### Developer Experience (Priority 8)
-- [ ] Load testing utilities
-- [ ] Enhanced mock system with patterns
+### Developer Experience (Priority 0)
 - [ ] Debug logging levels
+- [ ] Enhanced mock system with patterns
 - [ ] Provider comparison tools
 - [ ] Migration guides from other libraries
 
 ### Features (Existing)
 - [ ] Fine-tuning management
-- [ ] Token-level streaming (not just chunk-level)
 
 ### Advanced Context Management
 - [ ] Semantic chunking for better truncation
 - [ ] Context compression techniques
-- [ ] Multi-conversation context sharing
 - [ ] Dynamic context window adjustment
 - [ ] Token budget allocation strategies
 
@@ -422,6 +449,8 @@
 ## Notes
 
 - The library aims to be the go-to solution for LLM integration in Elixir
+- Focus remains on being a unified, reliable LLM client library
 - All features should work consistently across providers where possible
 - Provider-specific features should be clearly documented
 - Performance and cost efficiency are key priorities
+- Features that belong at the application layer have been moved to DROPPED.md

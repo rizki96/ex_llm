@@ -22,10 +22,12 @@ defmodule ExLLM do
 
   - `:anthropic` - Anthropic Claude models
   - `:openai` - OpenAI GPT models
+  - `:groq` - Groq (fast inference)
   - `:openrouter` - OpenRouter (300+ models from multiple providers)
   - `:ollama` - Local models via Ollama
   - `:bedrock` - AWS Bedrock (multiple providers)
   - `:gemini` - Google Gemini models
+  - `:xai` - X.AI Grok models
   - `:local` - Local models via Bumblebee (Phi-2, Llama 2, Mistral, etc.)
   - `:mock` - Mock adapter for testing
 
@@ -54,9 +56,11 @@ defmodule ExLLM do
 
       export ANTHROPIC_API_KEY="api-..."
       export OPENAI_API_KEY="sk-..."
+      export GROQ_API_KEY="gsk-..."
       export OPENROUTER_API_KEY="sk-or-..."
       export OLLAMA_API_BASE="http://localhost:11434"
       export GOOGLE_API_KEY="your-key"
+      export XAI_API_KEY="xai-..."
       export AWS_ACCESS_KEY_ID="your-key"
       export AWS_SECRET_ACCESS_KEY="your-secret"
 
@@ -140,10 +144,11 @@ defmodule ExLLM do
     ollama: ExLLM.Adapters.Ollama,
     bedrock: ExLLM.Adapters.Bedrock,
     gemini: ExLLM.Adapters.Gemini,
+    xai: ExLLM.Adapters.XAI,
     mock: ExLLM.Adapters.Mock
   }
 
-  @type provider :: :anthropic | :openai | :groq | :openrouter | :ollama | :local | :bedrock | :gemini | :mock
+  @type provider :: :anthropic | :openai | :groq | :openrouter | :ollama | :local | :bedrock | :gemini | :xai | :mock
   @type messages :: [Types.message()]
   @type options :: keyword()
 

@@ -23,6 +23,18 @@ defmodule ExLLM.ProviderCapabilitiesTest do
       assert {:ok, openai_caps} = ProviderCapabilities.get_capabilities(:openai)
       assert is_number(openai_caps.limitations[:max_file_size])
     end
+    
+    test "returns capabilities for xai provider" do
+      assert {:ok, caps} = ProviderCapabilities.get_capabilities(:xai)
+      assert caps.id == :xai
+      assert caps.name == "X.AI"
+      assert :chat in caps.endpoints
+      assert :streaming in caps.features
+      assert :function_calling in caps.features
+      assert :vision in caps.features
+      assert :web_search in caps.features
+      assert caps.authentication == [:api_key]
+    end
   end
   
   describe "supports?/2" do
@@ -106,6 +118,7 @@ defmodule ExLLM.ProviderCapabilitiesTest do
       assert :anthropic in providers
       assert :openai in providers
       assert :ollama in providers
+      assert :xai in providers
       assert providers == Enum.sort(providers)
     end
   end

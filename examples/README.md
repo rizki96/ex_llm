@@ -35,6 +35,10 @@ PROVIDER=anthropic ./example_app.exs
 export GROQ_API_KEY="your-key"
 PROVIDER=groq ./example_app.exs
 
+# X.AI (Grok)
+export XAI_API_KEY="your-key"
+PROVIDER=xai ./example_app.exs
+
 # Mock (Testing - no API key needed)
 PROVIDER=mock ./example_app.exs
 ```
@@ -82,16 +86,16 @@ Demonstrations of stream recovery, dynamic model selection, and more.
 
 ## Provider Support
 
-| Feature | Ollama | OpenAI | Anthropic | Groq | Mock |
-|---------|--------|--------|-----------|------|------|
-| Basic Chat | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Streaming | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Functions | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Vision | ✓ | ✓* | ✓* | ✗ | ✗ |
-| Embeddings | ✓ | ✓ | ✗ | ✗ | ✓ |
-| Cost Tracking | ✗ | ✓ | ✓ | ✓ | ✓ |
+| Feature | Ollama | OpenAI | Anthropic | Groq | X.AI | Mock |
+|---------|--------|--------|-----------|------|------|------|
+| Basic Chat | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Streaming | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Functions | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Vision | ✓ | ✓* | ✓* | ✗ | ✓* | ✗ |
+| Embeddings | ✓ | ✓ | ✗ | ✗ | ✗ | ✓ |
+| Cost Tracking | ✗ | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-\* Only specific models support vision (e.g., gpt-4o, claude-3-5-sonnet)
+\* Only specific models support vision (e.g., gpt-4o, claude-3-5-sonnet, grok-2-vision)
 
 ## Troubleshooting
 

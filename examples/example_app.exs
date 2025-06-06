@@ -61,6 +61,11 @@ defmodule ExLLM.ExampleApp do
       env_var: "GROQ_API_KEY",
       setup: "Set GROQ_API_KEY environment variable"
     },
+    xai: %{
+      name: "X.AI Grok",
+      env_var: "XAI_API_KEY",
+      setup: "Set XAI_API_KEY environment variable"
+    },
     mock: %{
       name: "Mock (Testing)",
       setup: "No setup required - uses mock responses"
