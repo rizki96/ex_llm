@@ -189,6 +189,7 @@ defmodule ExLLM.Instructor do
           :gemini -> Instructor.Adapters.Gemini
           :groq -> Instructor.Adapters.Groq
           :xai -> Instructor.Adapters.XAI
+          :mock -> Instructor.Adapters.OpenAI  # Mock uses OpenAI-compatible format
           :local -> {:error, :unsupported_provider_for_instructor}
           _ -> {:error, :unsupported_provider_for_instructor}
         end
@@ -326,6 +327,11 @@ defmodule ExLLM.Instructor do
         :xai ->
           [
             model: config_provider.get(:xai, :model) || ExLLM.ModelConfig.get_default_model(:xai)
+          ]
+
+        :mock ->
+          [
+            model: "mock-model"
           ]
 
         _ ->

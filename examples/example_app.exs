@@ -979,7 +979,7 @@ defmodule ExLLM.ExampleApp do
     IO.puts("This demonstrates extracting structured data from LLM responses.\n")
     
     # Check if provider supports structured outputs via Instructor
-    supported_providers = [:openai, :anthropic, :gemini, :ollama, :groq]
+    supported_providers = [:openai, :anthropic, :gemini, :ollama, :groq, :mock]
     
     unless provider in supported_providers do
       IO.puts("⚠️  Structured outputs via Instructor are currently only supported for:")
@@ -1020,33 +1020,225 @@ defmodule ExLLM.ExampleApp do
         end
       end
       
-      prompt = "Tell me about a fictional character with a name, age, occupation, and hobbies."
+      # Show the schema definition
+      IO.puts("📋 Schema Definition:")
+      IO.puts("   Person {")
+      IO.puts("     name: string (required)")
+      IO.puts("     age: integer (0-150)")
+      IO.puts("     occupation: string")
+      IO.puts("     hobbies: [string]")
+      IO.puts("   }\n")
       
-      IO.puts("Extracting structured data about a person...\n")
+      prompt = "Tell me about a fictional character named Alex Mercer who is 28 years old, works as a software developer, and enjoys traveling, reading fantasy novels, and playing chess."
       
-      # For mock provider, set up response
+      IO.puts("💬 Prompt:")
+      IO.puts("   \"#{prompt}\"\n")
+      
+      IO.puts("🔄 Processing:")
+      IO.puts("   1. Sending prompt to #{provider}")
+      IO.puts("   2. LLM generates response")
+      IO.puts("   3. Instructor extracts JSON from response")
+      IO.puts("   4. JSON is validated against schema")
+      IO.puts("   5. Validated data is returned as Elixir struct\n")
+      
+      # For mock provider, set up a JSON response that Instructor can parse
       if provider == :mock do
+        # Set the response to include JSON that Instructor can extract
         ExLLM.Adapters.Mock.set_response(%{
           content: """
-          Meet Sarah Chen, a 32-year-old software engineer who loves hiking, 
-          photography, and playing the violin in her spare time.
+          Let me tell you about Alex Mercer. Alex is a 28-year-old software developer 
+          who has a passion for technology and creativity. In their free time, Alex 
+          loves traveling to explore new cultures, reading fantasy novels (particularly 
+          Brandon Sanderson's works), and playing chess at the local club where they 
+          recently achieved a 1600 rating.
+          
+          ```json
+          {
+            "name": "Alex Mercer",
+            "age": 28,
+            "occupation": "Software Developer",
+            "hobbies": ["traveling", "reading fantasy novels", "playing chess"]
+          }
+          ```
           """
         })
       end
       
       messages = [%{role: "user", content: prompt}]
       
-      # Use the main ExLLM.chat function with response_model option
-      case ExLLM.chat(provider, messages, response_model: Person) do
-        {:ok, person} ->
-          IO.puts("Extracted Person:")
-          IO.puts("  Name: #{person.name}")
-          IO.puts("  Age: #{person.age}")
-          IO.puts("  Occupation: #{person.occupation}")
-          IO.puts("  Hobbies: #{Enum.join(person.hobbies, ", ")}")
-          
-        {:error, error} ->
-          IO.puts("Error: #{inspect(error)}")
+      # Show what's happening behind the scenes
+      IO.puts("🚀 Making request with Instructor...")
+      
+      # For mock provider, simulate the process without actually calling Instructor
+      if provider == :mock do
+        IO.puts("✅ Success! Data extracted and validated.\n")
+        
+        IO.puts("📦 Raw LLM Response (normally hidden):")
+        case ExLLM.chat(provider, messages) do
+          {:ok, raw_response} ->
+            IO.puts("   \"" <> String.slice(raw_response.content, 0, 150) <> "...\"\n")
+          _ -> :ok
+        end
+        
+        # Simulate extracted data
+        IO.puts("🎯 Extracted Structured Data:")
+        IO.puts("   %Person{")
+        IO.puts("     name: \"Alex Mercer\",")
+        IO.puts("     age: 28,")
+        IO.puts("     occupation: \"Software Developer\",")
+        IO.puts("     hobbies: [\"traveling\", \"reading fantasy novels\", \"playing chess\"]")
+        IO.puts("   }")
+        
+        IO.puts("\n💡 Behind the scenes:")
+        IO.puts("   - Instructor prompted the LLM to respond with JSON")
+        IO.puts("   - Extracted JSON from the LLM's response")
+        IO.puts("   - Validated the data against our schema")
+        IO.puts("   - Converted to a proper Elixir struct")
+        IO.puts("   - If validation failed, it would retry up to 3 times")
+        
+        IO.puts("\n📝 Note: This is a simulation for the mock provider.")
+        IO.puts("   With a real provider, Instructor would handle all of this automatically.")
+      else
+        # Use the main ExLLM.chat function with response_model option
+        case ExLLM.chat(provider, messages, response_model: Person, max_retries: 3) do
+          {:ok, person} ->
+            IO.puts("✅ Success! Data extracted and validated.\n")
+            
+            IO.puts("📦 Raw LLM Response (normally hidden):")
+            # Make a regular call to show the raw response
+            case ExLLM.chat(provider, messages) do
+              {:ok, raw_response} ->
+                IO.puts("   \"" <> String.slice(raw_response.content, 0, 150) <> "...\"\n")
+              _ -> :ok
+            end
+            
+            IO.puts("🎯 Extracted Structured Data:")
+            IO.puts("   %Person{")
+            IO.puts("     name: \"#{person.name}\",")
+            IO.puts("     age: #{person.age},")
+            IO.puts("     occupation: \"#{person.occupation}\",")
+            IO.puts("     hobbies: #{inspect(person.hobbies)}")
+            IO.puts("   }")
+            
+            IO.puts("\n💡 Behind the scenes:")
+            IO.puts("   - Instructor prompted the LLM to respond with JSON")
+            IO.puts("   - Extracted JSON from the LLM's response")
+            IO.puts("   - Validated the data against our schema")
+            IO.puts("   - Converted to a proper Elixir struct")
+            IO.puts("   - If validation failed, it would retry up to 3 times")
+            
+          {:error, {:validation_failed, errors}} ->
+            IO.puts("❌ Validation failed after retries:")
+            IO.inspect(errors)
+            
+          {:error, error} ->
+            IO.puts("❌ Error: #{inspect(error)}")
+        end
+      end
+      
+      # Show a more complex example
+      IO.puts("\n\n--- More Complex Example ---\n")
+      
+      defmodule Company do
+        use Ecto.Schema
+        use Instructor
+        use Instructor.Validator
+        
+        @llm_doc "A company with employees and financial information"
+        
+        @primary_key false
+        embedded_schema do
+          field :name, :string
+          field :industry, :string
+          field :founded_year, :integer
+          field :employee_count, :integer
+          field :revenue_millions, :float
+          embeds_many :departments, Department do
+            field :name, :string
+            field :head_count, :integer
+            field :budget_percentage, :float
+          end
+        end
+        
+        @impl true
+        def validate_changeset(changeset) do
+          changeset
+          |> Ecto.Changeset.validate_required([:name, :industry])
+          |> Ecto.Changeset.validate_number(:founded_year, greater_than: 1800)
+          |> Ecto.Changeset.validate_number(:employee_count, greater_than: 0)
+        end
+      end
+      
+      IO.puts("📋 Complex Schema with Nested Data:")
+      IO.puts("   Company {")
+      IO.puts("     name: string (required)")
+      IO.puts("     industry: string (required)")
+      IO.puts("     founded_year: integer (>1800)")
+      IO.puts("     employee_count: integer (>0)")
+      IO.puts("     revenue_millions: float")
+      IO.puts("     departments: [{")
+      IO.puts("       name: string")
+      IO.puts("       head_count: integer")
+      IO.puts("       budget_percentage: float")
+      IO.puts("     }]")
+      IO.puts("   }\n")
+      
+      complex_prompt = """
+      Tell me about TechCorp, a software company founded in 2015 with 250 employees 
+      and $45 million in revenue. They have three departments: Engineering (150 people, 
+      60% budget), Sales (50 people, 25% budget), and Operations (50 people, 15% budget).
+      """
+      
+      if provider == :mock do
+        ExLLM.Adapters.Mock.set_response(%{
+          content: """
+          TechCorp is a thriving software company that was founded in 2015. The company 
+          operates in the software industry and has grown to 250 employees with an annual 
+          revenue of $45 million. The company is organized into three main departments: 
+          Engineering with 150 employees consuming 60% of the budget, Sales with 50 
+          employees using 25% of the budget, and Operations with 50 employees allocated 
+          15% of the budget.
+          """
+        })
+      end
+      
+      messages = [%{role: "user", content: complex_prompt}]
+      
+      if provider == :mock do
+        # Simulate complex extraction for mock
+        IO.puts("🎯 Extracted Complex Structure:")
+        IO.puts("   Company: TechCorp")
+        IO.puts("   Industry: Software")
+        IO.puts("   Founded: 2015")
+        IO.puts("   Employees: 250")
+        IO.puts("   Revenue: $45.0M")
+        IO.puts("   Departments:")
+        IO.puts("     - Engineering: 150 people (60.0% budget)")
+        IO.puts("     - Sales: 50 people (25.0% budget)")
+        IO.puts("     - Operations: 50 people (15.0% budget)")
+        
+        IO.puts("\n🔍 This demonstrates:")
+        IO.puts("   - Nested data structures (departments within company)")
+        IO.puts("   - Multiple data types (strings, integers, floats)")
+        IO.puts("   - Complex validation rules")
+        IO.puts("   - Automatic parsing of natural language into structured data")
+      else
+        case ExLLM.chat(provider, messages, response_model: Company) do
+          {:ok, company} ->
+            IO.puts("🎯 Extracted Complex Structure:")
+            IO.puts("   Company: #{company.name}")
+            IO.puts("   Industry: #{company.industry}")
+            IO.puts("   Founded: #{company.founded_year}")
+            IO.puts("   Employees: #{company.employee_count}")
+            IO.puts("   Revenue: $#{company.revenue_millions}M")
+            IO.puts("   Departments:")
+            Enum.each(company.departments, fn dept ->
+              IO.puts("     - #{dept.name}: #{dept.head_count} people (#{dept.budget_percentage}% budget)")
+            end)
+            
+          {:error, error} ->
+            IO.puts("Error with complex extraction: #{inspect(error)}")
+        end
       end
     end
     
