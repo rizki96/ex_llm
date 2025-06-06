@@ -7,6 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-06-05
+
+### Added
+- **Major Code Refactoring** - Reduced code duplication by ~40% through shared modules:
+  - `StreamingCoordinator` - Unified streaming implementation for all adapters
+    - Standardized SSE parsing and buffering
+    - Provider-agnostic chunk handling
+    - Integrated error recovery support
+    - Simplified adapter streaming implementations
+  - `RequestBuilder` - Common request construction patterns
+    - Unified parameter handling across providers
+    - Provider-specific transformations via callbacks
+    - Support for chat, embeddings, and completion endpoints
+  - `ModelFetcher` - Standardized model discovery behavior
+    - Common API fetching patterns
+    - Unified filter/parse/transform pipeline
+    - Integration with ModelLoader for caching
+  - `VisionFormatter` - Centralized vision/multimodal content handling
+    - Provider-specific image formatting (Anthropic, OpenAI, Gemini)
+    - Media type detection from file extensions and magic bytes
+    - Base64 encoding/decoding utilities
+    - Image size validation
+- `DebugLogger` module for configurable debug logging
+  - Configurable log levels (debug, info, warn, error, none)
+  - Component-specific logging control
+  - Request/response logging with redaction
+  - Structured logging with metadata
+  - Performance tracking and timing
+
+### Changed
+- Enhanced `HTTPClient` with unified streaming support via `post_stream/3`
+- Improved error handling consistency across all shared modules
+- Better separation of concerns in adapter implementations
+
+### Technical Improvements
+- Reduced code duplication significantly across adapters
+- More maintainable and testable codebase structure
+- Easier to add new providers using shared behaviors
+- Consistent patterns for common operations
+
 ## [0.3.0] - 2025-06-05
 
 ### Added

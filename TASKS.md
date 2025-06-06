@@ -316,23 +316,23 @@
   - [ ] Capability versioning for API versions (future enhancement)
 
 ### Code Refactoring - Shared Behaviors & Modules (Priority 0)
-- [ ] Extract streaming into StreamingCoordinator module
-  - [ ] Standardize Task/Stream.resource pattern
-  - [ ] Common SSE parsing and buffering
-  - [ ] Provider-agnostic chunk handling
-  - [ ] Error recovery integration
-- [ ] Create RequestBuilder shared module
-  - [ ] Common request body construction
-  - [ ] Optional parameter handling
-  - [ ] Provider-specific extensions
-- [ ] Implement ModelFetcher behavior
-  - [ ] Standardize model API fetching
-  - [ ] Common parse/filter/transform pipeline
-  - [ ] Integration with ModelLoader
-- [ ] Extract VisionFormatter module
-  - [ ] Provider-specific image formatting
-  - [ ] Content type detection
-  - [ ] Base64 encoding utilities
+- [x] Extract streaming into StreamingCoordinator module
+  - [x] Standardize Task/Stream.resource pattern
+  - [x] Common SSE parsing and buffering
+  - [x] Provider-agnostic chunk handling
+  - [x] Error recovery integration
+- [x] Create RequestBuilder shared module
+  - [x] Common request body construction
+  - [x] Optional parameter handling
+  - [x] Provider-specific extensions
+- [x] Implement ModelFetcher behavior
+  - [x] Standardize model API fetching
+  - [x] Common parse/filter/transform pipeline
+  - [x] Integration with ModelLoader
+- [x] Extract VisionFormatter module
+  - [x] Provider-specific image formatting
+  - [x] Content type detection
+  - [x] Base64 encoding utilities
 - [ ] Enhance existing shared modules
   - [ ] Extend ResponseBuilder for more formats
   - [ ] Add provider-specific headers to HTTPClient
@@ -411,7 +411,7 @@
 - [ ] Response validation
 
 ### Developer Experience (Priority 0)
-- [ ] Debug logging levels
+- [x] Debug logging levels
 - [ ] Enhanced mock system with patterns
 - [ ] Provider comparison tools
 - [ ] Migration guides from other libraries

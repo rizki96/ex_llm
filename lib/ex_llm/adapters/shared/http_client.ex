@@ -37,10 +37,21 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
           {:ok, map()} | {:error, term()}
   def post_json(url, body, headers, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    method = Keyword.get(opts, :method, :post)
     
     headers = prepare_headers(headers)
     
-    case Req.post(url, json: body, headers: headers, receive_timeout: timeout) do
+    req_opts = [headers: headers, receive_timeout: timeout]
+    
+    result = case method do
+      :get -> Req.get(url, req_opts)
+      :post -> Req.post(url, [json: body] ++ req_opts)
+      :put -> Req.put(url, [json: body] ++ req_opts)
+      :patch -> Req.patch(url, [json: body] ++ req_opts)
+      :delete -> Req.delete(url, req_opts)
+    end
+    
+    case result do
       {:ok, %{status: status, body: response_body}} when status in 200..299 ->
         # Req already decodes JSON
         {:ok, response_body}
@@ -50,6 +61,46 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
         
       {:error, reason} ->
         Error.connection_error(reason)
+    end
+  end
+  
+  @doc """
+  Make a streaming POST request using Req's into option.
+  
+  This is used by StreamingCoordinator for unified streaming.
+  
+  ## Examples
+  
+      HTTPClient.post_stream(url, body, [
+        headers: headers,
+        into: stream_collector_fn
+      ])
+  """
+  @spec post_stream(String.t(), map(), keyword()) :: {:ok, term()} | {:error, term()}
+  def post_stream(url, body, opts \\ []) do
+    headers = Keyword.get(opts, :headers, []) |> prepare_headers()
+    
+    req_opts = [
+      json: body,
+      headers: headers,
+      receive_timeout: Keyword.get(opts, :receive_timeout, @stream_timeout)
+    ]
+    
+    # Add the into option if provided
+    req_opts = case Keyword.get(opts, :into) do
+      nil -> req_opts
+      collector -> Keyword.put(req_opts, :into, collector)
+    end
+    
+    case Req.post(url, req_opts) do
+      {:ok, %{status: status} = response} when status in 200..299 ->
+        {:ok, response}
+        
+      {:ok, %{status: status, body: body}} ->
+        handle_error_response(status, body)
+        
+      {:error, reason} ->
+        {:error, Error.connection_error(reason)}
     end
   end
   
