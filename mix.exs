@@ -1,7 +1,7 @@
 defmodule ExLLM.MixProject do
   use Mix.Project
 
-  @version "0.2.0"
+  @version "0.2.1"
   @description "Unified Elixir client library for Large Language Models (LLMs)"
 
   def project do
@@ -49,8 +49,8 @@ defmodule ExLLM.MixProject do
       # Configuration file parsing
       {:yaml_elixir, "~> 2.9"},
 
-      # Optional dependency for structured outputs
-      {:instructor, "~> 0.1.0", optional: true},
+      # Structured outputs
+      {:instructor, "~> 0.1.0"},
 
       # Optional dependencies for local model support
       # Comment these out if you have compilation issues

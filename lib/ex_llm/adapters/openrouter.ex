@@ -67,6 +67,7 @@ defmodule ExLLM.Adapters.OpenRouter do
   @behaviour ExLLM.Adapter
 
   alias ExLLM.{ConfigProvider, Error, Types, ModelConfig}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, ModelUtils}
 
   require Logger
 
@@ -160,19 +161,10 @@ defmodule ExLLM.Adapters.OpenRouter do
 
   @impl true
   def default_model do
-    get_default_model()
+    ConfigHelper.ensure_default_model(:openrouter)
   end
 
-  # Private helper to get default model from config
-  defp get_default_model do
-    case ModelConfig.get_default_model(:openrouter) do
-      nil ->
-        raise "Missing configuration: No default model found for OpenRouter. " <>
-              "Please ensure config/models/openrouter.yml exists and contains a 'default_model' field."
-      model ->
-        model
-    end
-  end
+  # Default model fetching moved to shared ConfigHelper module
 
   @impl true
   def list_models(options \\ []) do
@@ -270,7 +262,7 @@ defmodule ExLLM.Adapters.OpenRouter do
   end
 
   defp get_model(config) do
-    Map.get(config, :model) || System.get_env("OPENROUTER_MODEL") || get_default_model()
+    Map.get(config, :model) || System.get_env("OPENROUTER_MODEL") || ConfigHelper.ensure_default_model(:openrouter)
   end
 
   defp get_base_url(config) do

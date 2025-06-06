@@ -2,19 +2,9 @@ defmodule ExLLM.StreamRecoveryTest do
   use ExUnit.Case, async: false
   alias ExLLM.StreamRecovery
   alias ExLLM.Types.StreamChunk
+  import ExLLM.TestHelpers
 
-  setup do
-    # Start StreamRecovery if not already started
-    case GenServer.whereis(StreamRecovery) do
-      nil ->
-        {:ok, _} = StreamRecovery.start_link()
-      _ ->
-        # Clear any existing recovery data
-        :ok
-    end
-
-    :ok
-  end
+  setup :setup_stream_recovery_test
 
   describe "recovery ID generation" do
     test "generates unique recovery IDs" do

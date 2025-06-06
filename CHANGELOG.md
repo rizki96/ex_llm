@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2025-06-05
+
 ### Added
+- Provider Capability Discovery System
+  - New `ExLLM.ProviderCapabilities` module for tracking API-level provider capabilities
+  - Provider feature discovery independent of specific models
+  - Authentication method tracking (API key, OAuth, AWS signature, etc.)
+  - Provider endpoint discovery (chat, embeddings, images, audio, etc.)
+  - Provider recommendations based on required/preferred features
+  - Provider comparison tools for feature analysis
+  - Integrated provider capability functions into main ExLLM module
+  - Added provider capability explorer to example app demo
 - Environment variable wrapper script (`scripts/run_with_env.sh`) for Claude CLI usage
 - Groq models API support (https://api.groq.com/openai/v1/models)
 - Dynamic model loading from provider APIs
@@ -72,6 +83,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Python model fetch script updated to handle Anthropic's API response format
 - OpenRouter pricing parser now handles string values correctly
 - Groq adapter compilation warnings for undefined callbacks
+- DateTime serialization in MessageFormatter for session persistence
+- OpenAI adapter streaming termination handling
+- JSON double-encoding issue in HTTPClient
+- Token field name standardization across adapters (input_tokens/output_tokens)
+- Instructor integration API parameter passing
+- Context management module reference errors in example app
+- Function calling demo error handling with string keys
+- Streaming chat demo now shows token usage and cost estimates
+
+### Changed
+- Made Instructor a required dependency instead of optional
+- OpenAI default model changed to gpt-4.1-nano
+- Instructor now uses dynamic default models from YAML configs
+- Example app no longer hardcodes model names
+
+### Improved
+- Code organization with shared modules to eliminate duplication:
+  - Created `ExLLM.Adapters.Shared.Validation` for API key validation
+  - All adapters now use `ModelUtils.format_model_name` for consistent formatting
+  - All adapters now use `ConfigHelper.ensure_default_model` for default models
+  - Test files updated to use `TestHelpers` consistently
+- Example app enhancements:
+  - Session management shows full conversation history
+  - Function calling demo clearly shows available tools
+  - Advanced features demo now has real implementations
+  - Cost formatting uses decimal notation instead of scientific
+
+### Removed
+- Removed hardcoded model names from adapters
+- Removed `model_capabilities.ex.bak` backup file
+- Removed `DUPLICATE_CODE_ANALYSIS.md` after completing all refactoring
 
 ## [0.2.0] - 2025-05-25
 

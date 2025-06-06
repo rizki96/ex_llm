@@ -450,8 +450,15 @@ defmodule ExLLM.Adapters.Mock do
   defp normalize_response(%Types.LLMResponse{} = response), do: response
   
   defp normalize_response(response) when is_map(response) do
+    # Get content, but don't provide a default if it's explicitly nil or missing
+    content = case {Map.has_key?(response, :content), Map.has_key?(response, "content")} do
+      {true, _} -> Map.get(response, :content)
+      {_, true} -> Map.get(response, "content")
+      _ -> "Mock response"  # Only use default if no content key exists
+    end
+    
     %Types.LLMResponse{
-      content: Map.get(response, :content) || Map.get(response, "content") || "Mock response",
+      content: content,
       model: Map.get(response, :model) || Map.get(response, "model") || "mock-model",
       usage: normalize_usage(Map.get(response, :usage) || Map.get(response, "usage")),
       finish_reason: Map.get(response, :finish_reason) || Map.get(response, "finish_reason") || "stop",
@@ -481,19 +488,8 @@ defmodule ExLLM.Adapters.Mock do
     }
   end
 
-  defp build_response(base_response, _messages, options) do
-    response = base_response
-
-    # Add function calling if requested
-    if _functions = options[:functions] do
-      if base_response.function_call || Agent.get(__MODULE__, & &1.function_call_response) do
-        response
-      else
-        response
-      end
-    else
-      response
-    end
+  defp build_response(base_response, _messages, _options) do
+    base_response
   end
 
   defp default_response do

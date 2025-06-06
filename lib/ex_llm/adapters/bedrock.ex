@@ -51,6 +51,7 @@ defmodule ExLLM.Adapters.Bedrock do
 
   require Logger
   alias ExLLM.{Types, ModelConfig}
+  alias ExLLM.Adapters.Shared.ModelUtils
 
   @default_region "us-east-1"
 
@@ -113,7 +114,7 @@ defmodule ExLLM.Adapters.Bedrock do
   defp bedrock_model_transformer(model_id, config) do
     %Types.Model{
       id: to_string(model_id),
-      name: Map.get(config, :name, format_bedrock_model_name(to_string(model_id))),
+      name: Map.get(config, :name, ModelUtils.format_model_name(to_string(model_id))),
       description: Map.get(config, :description),
       context_window: Map.get(config, :context_window, 4096),
       capabilities: %{
@@ -125,24 +126,7 @@ defmodule ExLLM.Adapters.Bedrock do
     }
   end
   
-  defp format_bedrock_model_name(model_id) do
-    # Extract provider and clean up the name
-    case String.split(model_id, ".", parts: 2) do
-      [provider, model_part] ->
-        provider_name = String.capitalize(provider)
-        model_name = 
-          model_part
-          |> String.replace("-", " ")
-          |> String.replace("_", " ")
-          |> String.split()
-          |> Enum.map(&String.capitalize/1)
-          |> Enum.join(" ")
-        
-        "#{provider_name} #{model_name}"
-      _ ->
-        model_id
-    end
-  end
+  # Model name formatting moved to shared ModelUtils module
 
   # Private functions
 

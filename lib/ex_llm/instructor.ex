@@ -84,24 +84,23 @@ defmodule ExLLM.Instructor do
   require Logger
   alias ExLLM.Types
 
-  @instructor_available Code.ensure_loaded?(Instructor)
-
   @doc """
   Check if instructor is available.
 
+  Since instructor is now a required dependency, this always returns `true`.
+
   ## Returns
-  `true` if the instructor library is available, `false` otherwise.
+  `true` (always)
 
   ## Examples
 
+      # This is now always true, but kept for backwards compatibility
       if ExLLM.Instructor.available?() do
         # Use structured outputs
-      else
-        # Fall back to regular chat
       end
   """
   @spec available?() :: boolean()
-  def available?, do: @instructor_available
+  def available?, do: true
 
   @doc """
   Send a chat request with structured output validation.
@@ -136,11 +135,7 @@ defmodule ExLLM.Instructor do
   @spec chat(ExLLM.provider(), ExLLM.messages(), keyword()) ::
           {:ok, struct() | map()} | {:error, term()}
   def chat(provider, messages, options) do
-    unless available?() do
-      {:error, :instructor_not_available}
-    else
-      do_structured_chat(provider, messages, options)
-    end
+    do_structured_chat(provider, messages, options)
   end
 
   @doc """
@@ -165,15 +160,10 @@ defmodule ExLLM.Instructor do
   @spec parse_response(Types.LLMResponse.t(), module() | map()) ::
           {:ok, struct() | map()} | {:error, term()}
   def parse_response(response, response_model) do
-    unless available?() do
-      {:error, :instructor_not_available}
-    else
-      do_parse_response(response, response_model)
-    end
+    do_parse_response(response, response_model)
   end
 
-  # Private implementation when instructor is available
-  if @instructor_available do
+  # Private implementation
     defp do_structured_chat(provider, messages, options) do
       response_model = Keyword.fetch!(options, :response_model)
 
@@ -204,17 +194,22 @@ defmodule ExLLM.Instructor do
           config_opts = get_provider_config(provider, options)
 
           # Merge configurations (config_opts first, then instructor_opts to allow overrides)
-          final_opts = Keyword.merge(config_opts, instructor_opts)
+          merged_opts = Keyword.merge(config_opts, instructor_opts)
 
-          # Ensure we have an adapter specified for instructor
-          final_opts =
-            case provider do
-              :anthropic -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Anthropic)
-              :openai -> Keyword.put(final_opts, :adapter, Instructor.Adapters.OpenAI)
-              :ollama -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Ollama)
-              :gemini -> Keyword.put(final_opts, :adapter, Instructor.Adapters.Gemini)
-              _ -> final_opts
-            end
+          # Set up the adapter but don't pass it in the API call options
+          adapter = case provider do
+            :anthropic -> Instructor.Adapters.Anthropic
+            :openai -> Instructor.Adapters.OpenAI
+            :ollama -> Instructor.Adapters.Ollama
+            :gemini -> Instructor.Adapters.Gemini
+            _ -> nil
+          end
+
+          # Prepare final options for Instructor.chat_completion
+          # Include adapter and other required fields, but filter out api_key which should be in config
+          final_opts = 
+            merged_opts
+            |> Keyword.put(:adapter, adapter)
 
           # Call instructor
           case apply(Instructor, :chat_completion, [final_opts]) do
@@ -278,26 +273,23 @@ defmodule ExLLM.Instructor do
       case provider do
         :anthropic ->
           [
-            api_key: config_provider.get(:anthropic, :api_key),
-            model: config_provider.get(:anthropic, :model) || "claude-3-haiku-20240307"
+            model: config_provider.get(:anthropic, :model) || ExLLM.ModelConfig.get_default_model(:anthropic)
           ]
 
         :openai ->
           [
-            api_key: config_provider.get(:openai, :api_key),
-            model: config_provider.get(:openai, :model) || "gpt-4"
+            model: config_provider.get(:openai, :model) || ExLLM.ModelConfig.get_default_model(:openai)
           ]
 
         :ollama ->
           [
             base_url: config_provider.get(:ollama, :base_url) || "http://localhost:11434",
-            model: config_provider.get(:ollama, :model) || "llama2"
+            model: config_provider.get(:ollama, :model) || ExLLM.ModelConfig.get_default_model(:ollama)
           ]
 
         :gemini ->
           [
-            api_key: config_provider.get(:gemini, :api_key),
-            model: config_provider.get(:gemini, :model) || "gemini-pro"
+            model: config_provider.get(:gemini, :model) || ExLLM.ModelConfig.get_default_model(:gemini)
           ]
 
         _ ->
@@ -384,16 +376,6 @@ defmodule ExLLM.Instructor do
 
       {:validation_failed, errors}
     end
-  else
-    # Stub implementations when instructor is not available
-    defp do_structured_chat(_provider, _messages, _options) do
-      {:error, :instructor_not_available}
-    end
-
-    defp do_parse_response(_response, _response_model) do
-      {:error, :instructor_not_available}
-    end
-  end
 
   @doc """
   Create a simple schema module at runtime.

@@ -52,6 +52,7 @@ defmodule ExLLM.Adapters.Ollama do
   @behaviour ExLLM.Adapter
 
   alias ExLLM.{Error, Types, ModelConfig}
+  alias ExLLM.Adapters.Shared.ConfigHelper
   require Logger
 
   @default_base_url "http://localhost:11434"
@@ -113,27 +114,37 @@ defmodule ExLLM.Adapters.Ollama do
     # Ensure we have a model
     model = model || get_default_model()
 
+    formatted_messages = format_messages(messages)
+    
     body = %{
       model: model,
-      messages: format_messages(messages),
+      messages: formatted_messages,
       stream: true
     }
+    
+    # Debug log the request
+    Logger.debug("Ollama request - Model: #{model}, Messages: #{inspect(formatted_messages, limit: :infinity)}")
 
     headers = [{"content-type", "application/json"}]
     url = "#{get_base_url(config)}/api/chat"
     parent = self()
 
+    # Clear any stale messages from mailbox
+    flush_mailbox()
+    
     # Start async request task
     Task.start(fn ->
-      case Req.post(url, json: body, headers: headers, receive_timeout: 60_000, into: :self) do
+      case Req.post(url, json: body, headers: headers, receive_timeout: 300_000, into: :self) do
         {:ok, response} ->
           if response.status == 200 do
             handle_stream_response(response, parent, model)
           else
+            Logger.error("Ollama API error - Status: #{response.status}, Body: #{inspect(response.body)}")
             send(parent, {:stream_error, Error.api_error(response.status, response.body)})
           end
 
         {:error, reason} ->
+          Logger.error("Ollama connection error: #{inspect(reason)}")
           send(parent, {:stream_error, Error.connection_error(reason)})
       end
     end)
@@ -144,9 +155,13 @@ defmodule ExLLM.Adapters.Ollama do
         fn -> :ok end,
         fn state ->
           receive do
-            {:chunk, chunk} -> {[chunk], state}
-            :stream_done -> {:halt, state}
-            {:stream_error, error} -> throw(error)
+            {:chunk, chunk} -> 
+              {[chunk], state}
+            :stream_done -> 
+              {:halt, state}
+            {:stream_error, error} -> 
+              Logger.error("Stream error: #{inspect(error)}")
+              throw(error)
           after
             100 -> {[], state}
           end
@@ -292,14 +307,9 @@ defmodule ExLLM.Adapters.Ollama do
 
   # Private helper to get default model from config
   defp get_default_model do
-    case ModelConfig.get_default_model(:ollama) do
-      nil ->
-        raise "Missing configuration: No default model found for Ollama. " <>
-              "Please ensure config/models/ollama.yml exists and contains a 'default_model' field."
-      model ->
-        # Strip the "ollama/" prefix if present
-        strip_provider_prefix(model)
-    end
+    model = ConfigHelper.ensure_default_model(:ollama)
+    # Strip the "ollama/" prefix if present
+    strip_provider_prefix(model)
   end
   
   defp strip_provider_prefix(model) when is_binary(model) do
@@ -350,21 +360,62 @@ defmodule ExLLM.Adapters.Ollama do
     }
   end
 
+  defp flush_mailbox do
+    receive do
+      :stream_done -> 
+        Logger.debug("Flushing stale :stream_done message")
+        flush_mailbox()
+      {:chunk, _} -> 
+        Logger.debug("Flushing stale chunk message")
+        flush_mailbox()
+      {:stream_error, _} -> 
+        Logger.debug("Flushing stale error message")
+        flush_mailbox()
+    after
+      0 -> :ok
+    end
+  end
+
   defp handle_stream_response(response, parent, model) do
     %Req.Response.Async{ref: ref} = response.body
 
     receive do
       {^ref, {:data, data}} ->
         # Parse each line of the NDJSON response
-        data
-        |> String.split("\n", trim: true)
+        lines = String.split(data, "\n", trim: true)
+        
+        # Debug log raw response
+        if length(lines) == 1 and String.contains?(data, "done") do
+          Logger.debug("Ollama single-line response: #{inspect(data)}")
+        end
+        
+        lines
         |> Enum.each(fn line ->
           case Jason.decode(line) do
             {:ok, chunk} ->
               if chunk["done"] do
+                # Check if we got a finish reason or error
+                finish_reason = chunk["finish_reason"]
+                if finish_reason == "error" do
+                  error_msg = chunk["error"] || "Unknown error"
+                  Logger.warning("Ollama streaming error: #{error_msg}")
+                end
+                
+                # Log if we finished without generating any content
+                total_duration = chunk["total_duration"]
+                eval_count = chunk["eval_count"] || 0
+                if eval_count == 0 do
+                  Logger.warning("Ollama finished without generating tokens. Total duration: #{total_duration / 1_000_000}ms")
+                end
+                
                 send(parent, :stream_done)
               else
                 content = get_in(chunk, ["message", "content"]) || ""
+                
+                # Log if we're getting chunks but no content
+                if content == "" do
+                  Logger.debug("Ollama: Received chunk with empty content: #{inspect(chunk)}")
+                end
 
                 stream_chunk = %Types.StreamChunk{
                   content: content,
@@ -380,16 +431,119 @@ defmodule ExLLM.Adapters.Ollama do
           end
         end)
 
+        # Continue receiving more data
         handle_stream_response(response, parent, model)
 
       {^ref, :done} ->
+        Logger.debug("Ollama: Stream done")
         send(parent, :stream_done)
 
       {^ref, {:error, reason}} ->
         send(parent, {:stream_error, {:error, reason}})
     after
-      30_000 ->
+      120_000 ->  # Increase to 2 minutes for slower models
         send(parent, {:stream_error, {:error, :timeout}})
+    end
+  end
+  
+  @impl true
+  def embeddings(inputs, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    
+    raw_model = Keyword.get(options, :model, Map.get(config, :embedding_model, "nomic-embed-text"))
+    # Strip provider prefix if present
+    model = strip_provider_prefix(raw_model)
+    
+    # Process each input
+    embeddings_results = Enum.map(inputs, fn input ->
+      body = %{
+        model: model,
+        prompt: input
+      }
+      
+      headers = [{"content-type", "application/json"}]
+      url = "#{get_base_url(config)}/api/embeddings"
+      
+      case Req.post(url, json: body, headers: headers, receive_timeout: 30_000) do
+        {:ok, %{status: 200, body: body}} ->
+          {:ok, body["embedding"]}
+          
+        {:ok, %{status: status, body: body}} ->
+          {:error, "API returned status #{status}: #{inspect(body)}"}
+          
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end)
+    
+    # Check if all embeddings were successful
+    case Enum.all?(embeddings_results, fn {status, _} -> status == :ok end) do
+      true ->
+        embeddings = Enum.map(embeddings_results, fn {:ok, embedding} -> embedding end)
+        
+        {:ok, %Types.EmbeddingResponse{
+          embeddings: embeddings,
+          model: model,
+          usage: %{
+            input_tokens: estimate_embedding_tokens(inputs),
+            output_tokens: 0,  # Embeddings don't have output tokens
+            total_tokens: estimate_embedding_tokens(inputs)
+          }
+        }}
+        
+      false ->
+        # Find first error
+        {:error, _} = Enum.find(embeddings_results, fn {status, _} -> status == :error end)
+    end
+  end
+  
+  @impl true
+  def list_embedding_models(options \\ []) do
+    case list_models(options) do
+      {:ok, models} ->
+        # Filter to only embedding models
+        embedding_models = 
+          models
+          |> Enum.filter(fn model ->
+            String.contains?(model.name, "embed") || 
+            String.contains?(model.name, "embedding")
+          end)
+          |> Enum.map(fn model ->
+            %Types.EmbeddingModel{
+              name: model.name,
+              dimensions: estimate_embedding_dimensions(model.name),
+              max_inputs: 1,  # Ollama processes one at a time
+              provider: :ollama,
+              description: model.description
+            }
+          end)
+          
+        {:ok, embedding_models}
+        
+      error -> error
+    end
+  end
+  
+  defp estimate_embedding_tokens(inputs) when is_list(inputs) do
+    inputs
+    |> Enum.map(&String.length/1)
+    |> Enum.sum()
+    |> div(4)  # Rough estimate: 4 chars per token
+  end
+  
+  defp estimate_embedding_dimensions(model_name) do
+    cond do
+      String.contains?(model_name, "nomic") -> 768
+      String.contains?(model_name, "mxbai") -> 512
+      String.contains?(model_name, "all-minilm") -> 384
+      true -> 1024  # Default dimension
     end
   end
 end

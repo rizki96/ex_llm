@@ -107,10 +107,65 @@ defmodule ExLLM.ModelCapabilities do
     :frequency_penalty
   ]
 
-  # Model capability database - we'll build this at runtime to avoid compile-time struct issues
+  # Model capability database - we'll build this at runtime from YAML files
   defp model_capabilities do
+    # Get all providers that have YAML config files
+    providers = [
+      :openai, :anthropic, :gemini, :groq, :ollama, :openrouter,
+      :mock, :local, :bedrock, :mistral, :cohere, :perplexity,
+      :deepseek, :together_ai, :anyscale, :replicate
+    ]
+    
+    # Build the capabilities map from YAML files
+    dynamic_capabilities = providers
+    |> Enum.flat_map(fn provider ->
+      models = ExLLM.ModelConfig.get_all_models(provider)
+      
+      Enum.map(models, fn {model_id, config} ->
+        key = "#{provider}:#{model_id}"
+        
+        # Convert capabilities list to Capability structs
+        capabilities = 
+          (Map.get(config, :capabilities, []) || [])
+          |> Enum.map(fn 
+            cap when is_atom(cap) ->
+              {cap, %Capability{feature: cap, supported: true}}
+            cap when is_binary(cap) ->
+              # Handle string capabilities from YAML
+              atom_cap = String.to_atom(cap)
+              {atom_cap, %Capability{feature: atom_cap, supported: true}}
+          end)
+          |> Map.new()
+          
+        # Add default capabilities that most models support
+        default_caps = %{
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true}
+        }
+        
+        info = %ModelInfo{
+          provider: provider,
+          model_id: to_string(model_id),
+          display_name: to_string(model_id),
+          context_window: Map.get(config, :context_window, 4_096),
+          max_output_tokens: Map.get(config, :max_output_tokens),
+          capabilities: Map.merge(default_caps, capabilities),
+          pricing: Map.get(config, :pricing)
+        }
+        
+        {key, info}
+      end)
+    end)
+    |> Map.new()
+    
+    # Merge with hardcoded capabilities for special cases
+    Map.merge(dynamic_capabilities, hardcoded_capabilities())
+  end
+  
+  # Keep some hardcoded entries for models with special capability details
+  defp hardcoded_capabilities do
     %{
-      # OpenAI Models
       "openai:gpt-4-turbo" => %ModelInfo{
         provider: :openai,
         model_id: "gpt-4-turbo",
@@ -406,10 +461,14 @@ defmodule ExLLM.ModelCapabilities do
 
   @doc """
   Find all models that support specific features.
+  
+  This function searches both the hardcoded model database and dynamically
+  loads models from YAML configuration files to provide comprehensive results.
   """
   @spec find_models_with_features(list(atom())) :: list({atom(), String.t()})
   def find_models_with_features(required_features) do
-    model_capabilities()
+    # First get models from the hardcoded database
+    hardcoded_models = model_capabilities()
     |> Enum.filter(fn {_key, info} ->
       Enum.all?(required_features, fn feature ->
         case Map.get(info.capabilities, feature) do
@@ -420,6 +479,47 @@ defmodule ExLLM.ModelCapabilities do
     end)
     |> Enum.map(fn {_key, info} ->
       {info.provider, info.model_id}
+    end)
+    
+    # Then search through YAML files for additional models
+    yaml_models = find_models_in_yaml_configs(required_features)
+    
+    # Combine and deduplicate results
+    (hardcoded_models ++ yaml_models)
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+  
+  # Helper function to search YAML configurations
+  defp find_models_in_yaml_configs(required_features) do
+    providers = [
+      :openai, :anthropic, :gemini, :groq, :ollama, :openrouter,
+      :mock, :local, :bedrock, :mistral, :cohere, :perplexity,
+      :deepseek, :together_ai, :anyscale, :replicate, :azure,
+      :cloudflare, :databricks, :fireworks_ai, :meta_llama,
+      :sambanova, :xai
+    ]
+    
+    providers
+    |> Enum.flat_map(fn provider ->
+      try do
+        models = ExLLM.ModelConfig.get_all_models(provider)
+        
+        models
+        |> Enum.filter(fn {_model_id, config} ->
+          capabilities = Map.get(config, :capabilities, []) || []
+          
+          # Check if all required features are in the capabilities list
+          Enum.all?(required_features, fn feature ->
+            feature in capabilities or to_string(feature) in Enum.map(capabilities, &to_string/1)
+          end)
+        end)
+        |> Enum.map(fn {model_id, _config} ->
+          {provider, to_string(model_id)}
+        end)
+      rescue
+        _ -> []
+      end
     end)
   end
 
@@ -466,10 +566,14 @@ defmodule ExLLM.ModelCapabilities do
 
   @doc """
   Get models grouped by capability.
+  
+  This function searches both the hardcoded model database and dynamically
+  loads models from YAML configuration files to provide comprehensive results.
   """
   @spec models_by_capability(atom()) :: map()
   def models_by_capability(feature) do
-    model_capabilities()
+    # First get models from the hardcoded database
+    hardcoded_result = model_capabilities()
     |> Enum.reduce(%{supported: [], not_supported: []}, fn {_key, info}, acc ->
       case Map.get(info.capabilities, feature) do
         %Capability{supported: true} ->
@@ -479,8 +583,45 @@ defmodule ExLLM.ModelCapabilities do
           %{acc | not_supported: [{info.provider, info.model_id} | acc.not_supported]}
       end
     end)
-    |> Map.update!(:supported, &Enum.reverse/1)
-    |> Map.update!(:not_supported, &Enum.reverse/1)
+    
+    # Then search through YAML files
+    yaml_result = get_yaml_models_by_capability(feature)
+    
+    # Combine results
+    %{
+      supported: (hardcoded_result.supported ++ yaml_result.supported) |> Enum.uniq() |> Enum.sort(),
+      not_supported: (hardcoded_result.not_supported ++ yaml_result.not_supported) |> Enum.uniq() |> Enum.sort()
+    }
+  end
+  
+  # Helper function to get YAML models by capability
+  defp get_yaml_models_by_capability(feature) do
+    providers = [
+      :openai, :anthropic, :gemini, :groq, :ollama, :openrouter,
+      :mock, :local, :bedrock, :mistral, :cohere, :perplexity,
+      :deepseek, :together_ai, :anyscale, :replicate, :azure,
+      :cloudflare, :databricks, :fireworks_ai, :meta_llama,
+      :sambanova, :xai
+    ]
+    
+    providers
+    |> Enum.reduce(%{supported: [], not_supported: []}, fn provider, acc ->
+      try do
+        models = ExLLM.ModelConfig.get_all_models(provider)
+        
+        Enum.reduce(models, acc, fn {model_id, config}, inner_acc ->
+          capabilities = Map.get(config, :capabilities, []) || []
+          
+          if feature in capabilities or to_string(feature) in Enum.map(capabilities, &to_string/1) do
+            %{inner_acc | supported: [{provider, to_string(model_id)} | inner_acc.supported]}
+          else
+            %{inner_acc | not_supported: [{provider, to_string(model_id)} | inner_acc.not_supported]}
+          end
+        end)
+      rescue
+        _ -> acc
+      end
+    end)
   end
 
   @doc """

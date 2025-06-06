@@ -124,6 +124,7 @@ defmodule ExLLM do
     Cost,
     FunctionCalling,
     ModelCapabilities,
+    ProviderCapabilities,
     Session,
     StreamRecovery,
     Types,
@@ -1200,6 +1201,168 @@ defmodule ExLLM do
     ModelCapabilities.models_by_capability(feature)
   end
 
+  # Provider Capability Discovery API
+
+  @doc """
+  Get provider-level capabilities.
+
+  Provider capabilities are API-level features that are independent of specific models.
+  This includes available endpoints, authentication methods, and provider limitations.
+
+  ## Examples
+
+      {:ok, caps} = ExLLM.get_provider_capabilities(:openai)
+      caps.endpoints
+      # => [:chat, :embeddings, :images, :audio, :completions, :fine_tuning, :files]
+      
+      caps.features
+      # => [:streaming, :function_calling, :cost_tracking, :usage_tracking, ...]
+  """
+  @spec get_provider_capabilities(provider()) :: 
+          {:ok, ProviderCapabilities.ProviderInfo.t()} | {:error, :not_found}
+  def get_provider_capabilities(provider) do
+    ProviderCapabilities.get_capabilities(provider)
+  end
+
+  @doc """
+  Check if a provider supports a specific feature or endpoint.
+
+  ## Examples
+
+      ExLLM.provider_supports?(:openai, :embeddings)
+      # => true
+      
+      ExLLM.provider_supports?(:ollama, :cost_tracking)
+      # => false
+      
+      ExLLM.provider_supports?(:anthropic, :computer_use)
+      # => true
+  """
+  @spec provider_supports?(provider(), atom()) :: boolean()
+  def provider_supports?(provider, feature) do
+    ProviderCapabilities.supports?(provider, feature)
+  end
+
+  @doc """
+  Find providers that support all specified features.
+
+  ## Examples
+
+      # Find providers with embeddings and streaming
+      providers = ExLLM.find_providers_with_features([:embeddings, :streaming])
+      # => [:openai, :ollama]
+      
+      # Find providers with vision and function calling
+      providers = ExLLM.find_providers_with_features([:vision, :function_calling])
+      # => [:openai, :anthropic, :gemini]
+  """
+  @spec find_providers_with_features([atom()]) :: [provider()]
+  def find_providers_with_features(features) do
+    ProviderCapabilities.find_providers_with_features(features)
+  end
+
+  @doc """
+  Compare capabilities across multiple providers.
+
+  ## Examples
+
+      comparison = ExLLM.compare_providers([:openai, :anthropic, :ollama])
+      
+      # See all features across providers
+      comparison.features
+      # => [:streaming, :function_calling, :vision, ...]
+      
+      # Check specific provider capabilities
+      comparison.comparison.openai.features
+      # => [:streaming, :function_calling, :cost_tracking, ...]
+  """
+  @spec compare_providers([provider()]) :: map()
+  def compare_providers(providers) do
+    ProviderCapabilities.compare_providers(providers)
+  end
+
+  @doc """
+  Get provider recommendations based on requirements.
+
+  ## Parameters
+  - `requirements` - Map with:
+    - `:required_features` - Features that must be supported
+    - `:preferred_features` - Nice-to-have features
+    - `:required_endpoints` - Required API endpoints
+    - `:exclude_providers` - Providers to exclude
+    - `:prefer_local` - Prefer local providers (default: false)
+    - `:prefer_free` - Prefer free providers (default: false)
+
+  ## Examples
+
+      # Find best providers for multimodal AI
+      recommendations = ExLLM.recommend_providers(%{
+        required_features: [:vision, :streaming],
+        preferred_features: [:audio_input, :function_calling],
+        exclude_providers: [:mock]
+      })
+      # => [
+      #   %{provider: :openai, score: 0.95, matched_features: [...], missing_features: []},
+      #   %{provider: :anthropic, score: 0.80, matched_features: [...], missing_features: [...]}
+      # ]
+      
+      # Find free local providers
+      recommendations = ExLLM.recommend_providers(%{
+        required_features: [:chat],
+        prefer_local: true,
+        prefer_free: true
+      })
+  """
+  @spec recommend_providers(map()) :: [map()]
+  def recommend_providers(requirements \\ %{}) do
+    ProviderCapabilities.recommend_providers(requirements)
+  end
+
+  @doc """
+  List all available providers.
+
+  ## Examples
+
+      providers = ExLLM.list_providers()
+      # => [:anthropic, :bedrock, :gemini, :groq, :local, :mock, :ollama, :openai, :openrouter]
+  """
+  @spec list_providers() :: [provider()]
+  def list_providers do
+    ProviderCapabilities.list_providers()
+  end
+
+  @doc """
+  Check if a provider is local (no API calls).
+
+  ## Examples
+
+      ExLLM.is_local_provider?(:ollama)
+      # => true
+      
+      ExLLM.is_local_provider?(:openai)
+      # => false
+  """
+  @spec is_local_provider?(provider()) :: boolean()
+  def is_local_provider?(provider) do
+    ProviderCapabilities.is_local?(provider)
+  end
+
+  @doc """
+  Check if a provider requires authentication.
+
+  ## Examples
+
+      ExLLM.provider_requires_auth?(:openai)
+      # => true
+      
+      ExLLM.provider_requires_auth?(:local)
+      # => false
+  """
+  @spec provider_requires_auth?(provider()) :: boolean()
+  def provider_requires_auth?(provider) do
+    ProviderCapabilities.requires_auth?(provider)
+  end
+
   # Embeddings API
 
   @doc """
@@ -1537,85 +1700,4 @@ defmodule ExLLM do
     |> Base.encode64(padding: false)
   end
   
-  # Provider Capabilities API
-  
-  @doc """
-  Get provider capabilities.
-  
-  Returns information about what a provider supports at the API level,
-  including available endpoints, authentication methods, and features.
-  
-  ## Examples
-  
-      {:ok, caps} = ExLLM.get_provider_capabilities(:openai)
-      caps.endpoints
-      # => [:chat, :embeddings, :images, :audio, :completions, :fine_tuning, :files]
-      
-      caps.features
-      # => [:streaming, :function_calling, :cost_tracking, :usage_tracking, ...]
-  """
-  @spec get_provider_capabilities(provider()) :: {:ok, ExLLM.ProviderCapabilities.ProviderInfo.t()} | {:error, :not_found}
-  def get_provider_capabilities(provider) do
-    ExLLM.ProviderCapabilities.get_capabilities(provider)
-  end
-  
-  @doc """
-  Check if a provider supports a specific feature.
-  
-  ## Examples
-  
-      ExLLM.provider_supports?(:openai, :embeddings)
-      # => true
-      
-      ExLLM.provider_supports?(:ollama, :cost_tracking) 
-      # => false
-  """
-  @spec provider_supports?(provider(), atom()) :: boolean()
-  def provider_supports?(provider, feature) do
-    ExLLM.ProviderCapabilities.supports?(provider, feature)
-  end
-  
-  @doc """
-  Find providers that support specific features.
-  
-  ## Examples
-  
-      # Find providers with embeddings support
-      ExLLM.find_providers_with_features([:embeddings])
-      # => [:bedrock, :local, :mock, :ollama, :openai]
-      
-      # Find providers with both streaming and cost tracking
-      ExLLM.find_providers_with_features([:streaming, :cost_tracking])
-      # => [:openai, :anthropic, :groq, ...]
-  """
-  @spec find_providers_with_features(list(atom())) :: list(provider())
-  def find_providers_with_features(features) do
-    ExLLM.ProviderCapabilities.find_providers_with_features(features)
-  end
-  
-  @doc """
-  Compare capabilities across multiple providers.
-  
-  ## Examples
-  
-      comparison = ExLLM.compare_providers([:openai, :anthropic, :ollama])
-      # Returns detailed comparison of features, endpoints, and limitations
-  """
-  @spec compare_providers(list(provider())) :: map()
-  def compare_providers(providers) do
-    ExLLM.ProviderCapabilities.compare_providers(providers)
-  end
-  
-  @doc """
-  List all known providers.
-  
-  ## Examples
-  
-      ExLLM.list_providers()
-      # => [:anthropic, :bedrock, :gemini, :groq, :local, :mock, :ollama, :openai, :openrouter]
-  """
-  @spec list_providers() :: list(provider())
-  def list_providers do
-    ExLLM.ProviderCapabilities.list_providers()
-  end
 end

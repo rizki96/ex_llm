@@ -49,7 +49,7 @@ defmodule ExLLM.Adapters.OpenAI do
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
   alias ExLLM.{Error, Types, ModelConfig}
-  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation, ModelUtils}
   require Logger
 
   @default_base_url "https://api.openai.com/v1"
@@ -61,7 +61,7 @@ defmodule ExLLM.Adapters.OpenAI do
          config_provider <- ConfigHelper.get_config_provider(options),
          config <- ConfigHelper.get_config(:openai, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "OPENAI_API_KEY"),
-         {:ok, _} <- validate_api_key(api_key) do
+         {:ok, _} <- Validation.validate_api_key(api_key) do
       
       model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai))
       
@@ -88,7 +88,7 @@ defmodule ExLLM.Adapters.OpenAI do
          config_provider <- ConfigHelper.get_config_provider(options),
          config <- ConfigHelper.get_config(:openai, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "OPENAI_API_KEY"),
-         {:ok, _} <- validate_api_key(api_key) do
+         {:ok, _} <- Validation.validate_api_key(api_key) do
       
       model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai))
       
@@ -110,6 +110,14 @@ defmodule ExLLM.Adapters.OpenAI do
             send(parent, {ref, {:error, ErrorHandler.handle_provider_error(:openai, status, body)}})
           end
         )
+        
+        # Wait for stream completion and forward the done signal
+        receive do
+          :stream_done -> send(parent, {ref, :done})
+          {:stream_error, error} -> send(parent, {ref, {:error, error}})
+        after
+          60_000 -> send(parent, {ref, {:error, :timeout}})
+        end
       end)
       
       # Create stream that processes chunks
@@ -154,7 +162,7 @@ defmodule ExLLM.Adapters.OpenAI do
   defp fetch_openai_models(config) do
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
 
-    case validate_api_key(api_key) do
+    case Validation.validate_api_key(api_key) do
       {:error, _} = error -> error
       {:ok, _} ->
         headers = build_headers(api_key, config)
@@ -204,6 +212,7 @@ defmodule ExLLM.Adapters.OpenAI do
   end
   
   defp format_openai_model_name(model_id) do
+    # Special cases for OpenAI-specific naming
     case model_id do
       "gpt-4.1" -> "GPT-4.1"
       "gpt-4.1-mini" -> "GPT-4.1 Mini"
@@ -214,7 +223,7 @@ defmodule ExLLM.Adapters.OpenAI do
       "o3-mini" -> "O3 Mini"
       "o1" -> "O1"
       "o1-mini" -> "O1 Mini"
-      _ -> model_id
+      _ -> ModelUtils.format_model_name(model_id)
     end
   end
   
@@ -264,19 +273,10 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @impl true
   def default_model do
-    get_default_model()
+    ConfigHelper.ensure_default_model(:openai)
   end
 
-  # Private helper to get default model from config
-  defp get_default_model do
-    case ModelConfig.get_default_model(:openai) do
-      nil ->
-        raise "Missing configuration: No default model found for OpenAI. " <>
-              "Please ensure config/models/openai.yml exists and contains a 'default_model' field."
-      model ->
-        model
-    end
-  end
+  # Default model fetching moved to shared ConfigHelper module
 
   # Streaming behavior callback
   @impl ExLLM.Adapters.Shared.StreamingBehavior
@@ -306,9 +306,7 @@ defmodule ExLLM.Adapters.OpenAI do
 
   # Private functions
   
-  defp validate_api_key(nil), do: {:error, "OpenAI API key not configured"}
-  defp validate_api_key(""), do: {:error, "OpenAI API key not configured"}
-  defp validate_api_key(_), do: {:ok, :valid}
+  # API key validation moved to shared Validation module
   
   defp build_request_body(messages, model, config, options) do
     %{
@@ -359,13 +357,16 @@ defmodule ExLLM.Adapters.OpenAI do
 
   defp parse_response(response, model) do
     choice = get_in(response, ["choices", Access.at(0)]) || %{}
+    message = choice["message"] || %{}
     usage = response["usage"] || %{}
 
     %Types.LLMResponse{
-      content: get_in(choice, ["message", "content"]) || "",
+      content: message["content"] || "",
+      function_call: message["function_call"],
+      tool_calls: message["tool_calls"],
       usage: %{
-        prompt_tokens: usage["prompt_tokens"] || 0,
-        completion_tokens: usage["completion_tokens"] || 0,
+        input_tokens: usage["prompt_tokens"] || 0,
+        output_tokens: usage["completion_tokens"] || 0,
         total_tokens: usage["total_tokens"] || 0
       },
       model: model,
@@ -393,7 +394,7 @@ defmodule ExLLM.Adapters.OpenAI do
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
     
-    with {:ok, _} <- validate_api_key(api_key),
+    with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, url} <- build_embeddings_url(config),
          {:ok, req_body} <- build_embeddings_request(inputs, config, options),
          {:ok, response} <- send_embeddings_request(url, req_body, config, api_key) do

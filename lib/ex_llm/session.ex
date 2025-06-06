@@ -293,7 +293,7 @@ defmodule ExLLM.Session do
       session = %Types.Session{
         id: data["id"],
         llm_backend: data["llm_backend"],
-        messages: data["messages"] || [],
+        messages: normalize_messages(data["messages"] || []),
         context: data["context"] || %{},
         created_at: created_at,
         updated_at: updated_at,
@@ -340,6 +340,49 @@ defmodule ExLLM.Session do
       input_tokens: Map.get(usage, "input_tokens") || Map.get(usage, :input_tokens, 0),
       output_tokens: Map.get(usage, "output_tokens") || Map.get(usage, :output_tokens, 0)
     }
+  end
+
+  defp normalize_messages(messages) when is_list(messages) do
+    Enum.map(messages, &normalize_message/1)
+  end
+
+  defp normalize_message(msg) when is_map(msg) do
+    # Convert string keys to atoms for required fields
+    %{
+      role: msg["role"] || msg[:role],
+      content: msg["content"] || msg[:content]
+    }
+    |> maybe_add_timestamp(msg)
+    |> maybe_add_additional_fields(msg)
+  end
+
+  defp maybe_add_timestamp(normalized_msg, original_msg) do
+    case original_msg["timestamp"] || original_msg[:timestamp] do
+      nil -> normalized_msg
+      timestamp_str when is_binary(timestamp_str) ->
+        case DateTime.from_iso8601(timestamp_str) do
+          {:ok, datetime, _} -> Map.put(normalized_msg, :timestamp, datetime)
+          _ -> normalized_msg
+        end
+      timestamp -> Map.put(normalized_msg, :timestamp, timestamp)
+    end
+  end
+
+  defp maybe_add_additional_fields(normalized_msg, original_msg) do
+    # Add any additional fields that might be present
+    original_msg
+    |> Enum.reduce(normalized_msg, fn
+      {"role", _}, acc -> acc
+      {"content", _}, acc -> acc
+      {"timestamp", _}, acc -> acc
+      {:role, _}, acc -> acc
+      {:content, _}, acc -> acc
+      {:timestamp, _}, acc -> acc
+      {key, value}, acc when is_binary(key) -> 
+        Map.put(acc, String.to_atom(key), value)
+      {key, value}, acc when is_atom(key) -> 
+        Map.put(acc, key, value)
+    end)
   end
 
   @doc """

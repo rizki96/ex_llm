@@ -34,7 +34,8 @@ defmodule ExLLM.Adapters.Groq do
   """
   
   alias ExLLM.{Error, ModelConfig}
-  alias ExLLM.Adapters.Shared.{ConfigHelper, ErrorHandler}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, ErrorHandler, ModelUtils}
+  import ExLLM.Adapters.Shared.ModelUtils, only: [format_model_name: 1]
   
   use ExLLM.Adapters.OpenAICompatible,
     provider: :groq,
@@ -138,8 +139,8 @@ defmodule ExLLM.Adapters.Groq do
           |> Enum.map(fn model ->
             %ExLLM.Types.Model{
               id: model["id"],
-              name: format_model_name(model["id"]),
-              description: generate_model_description(model["id"]),
+              name: ModelUtils.format_model_name(model["id"]),
+              description: ModelUtils.generate_description(model["id"], :groq),
               context_window: model["context_window"] || 4096,
               capabilities: %{
                 supports_streaming: true,
@@ -165,8 +166,8 @@ defmodule ExLLM.Adapters.Groq do
   defp groq_model_transformer(model_id, config) do
     %ExLLM.Types.Model{
       id: to_string(model_id),
-      name: format_model_name(to_string(model_id)),
-      description: generate_model_description(to_string(model_id)),
+      name: ModelUtils.format_model_name(to_string(model_id)),
+      description: ModelUtils.generate_description(to_string(model_id), :groq),
       context_window: Map.get(config, :context_window, 4096),
       capabilities: %{
         supports_streaming: :streaming in Map.get(config, :capabilities, []),
@@ -177,19 +178,7 @@ defmodule ExLLM.Adapters.Groq do
     }
   end
   
-  defp format_model_name(model_id) do
-    model_id
-    |> String.split("-")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
-  end
+  # Model name formatting moved to shared ModelUtils module
   
-  defp generate_model_description(model_id) do
-    cond do
-      String.contains?(model_id, "llama") -> "Meta's Llama model optimized for Groq LPU"
-      String.contains?(model_id, "mixtral") -> "Mistral's mixture of experts model"
-      String.contains?(model_id, "gemma") -> "Google's Gemma model"
-      true -> "Model optimized for Groq LPU"
-    end
-  end
+  # Model description generation moved to shared ModelUtils module
 end

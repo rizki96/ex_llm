@@ -3,19 +3,9 @@ defmodule ExLLM.CacheTest do
 
   alias ExLLM.Cache
   alias ExLLM.Types.LLMResponse
+  import ExLLM.TestHelpers
 
-  setup do
-    # Start cache if not already started
-    case GenServer.whereis(Cache) do
-      nil ->
-        {:ok, _} = Cache.start_link()
-
-      _ ->
-        Cache.clear()
-    end
-
-    :ok
-  end
+  setup :setup_cache_test
 
   describe "basic operations" do
     test "get returns miss for non-existent key" do
@@ -376,7 +366,8 @@ defmodule ExLLM.CacheTest do
       Application.put_env(:ex_llm, :mock_responses, %{
         chat: %ExLLM.Types.LLMResponse{
           content: "Mock response",
-          usage: %{prompt_tokens: 10, completion_tokens: 20, total_tokens: 30},
+          # Note: Internal ExLLM format uses input_tokens/output_tokens
+          usage: %{input_tokens: 10, output_tokens: 20, total_tokens: 30},
           model: "mock-model",
           cost: %{input: 0.01, output: 0.02, total: 0.03}
         }
@@ -401,7 +392,8 @@ defmodule ExLLM.CacheTest do
       Application.put_env(:ex_llm, :mock_responses, %{
         chat: %ExLLM.Types.LLMResponse{
           content: "Different response",
-          usage: %{prompt_tokens: 10, completion_tokens: 20, total_tokens: 30},
+          # Note: Internal ExLLM format uses input_tokens/output_tokens
+          usage: %{input_tokens: 10, output_tokens: 20, total_tokens: 30},
           model: "mock-model",
           cost: %{input: 0.01, output: 0.02, total: 0.03}
         }
@@ -423,7 +415,8 @@ defmodule ExLLM.CacheTest do
       Application.put_env(:ex_llm, :mock_responses, %{
         chat: %ExLLM.Types.LLMResponse{
           content: "New response",
-          usage: %{prompt_tokens: 10, completion_tokens: 20, total_tokens: 30},
+          # Note: Internal ExLLM format uses input_tokens/output_tokens
+          usage: %{input_tokens: 10, output_tokens: 20, total_tokens: 30},
           model: "mock-model",
           cost: %{input: 0.01, output: 0.02, total: 0.03}
         }

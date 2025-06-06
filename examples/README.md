@@ -16,7 +16,7 @@ The comprehensive example application (`example_app.exs`) demonstrates all featu
    ./example_app.exs
    ```
 
-Note: The app uses the `hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS` model which should already be available on your system. This is a 4.6 GB model with efficient IQ4_XS quantization for fast inference.
+Note: The app uses the `hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS` model which can be downloaded from https://huggingface.co/unsloth/Qwen3-8B-GGUF. This is a 4.6 GB model with efficient IQ4_XS quantization for fast inference. If you want to use a different model, you can set the `OLLAMA_MODEL` environment variable to the desired model name, e.g., `OLLAMA_MODEL=llama3.2:3b ./example_app.exs`.
 
 ### Using Other Providers
 
@@ -86,9 +86,9 @@ Demonstrations of stream recovery, dynamic model selection, and more.
 |---------|--------|--------|-----------|------|------|
 | Basic Chat | ✓ | ✓ | ✓ | ✓ | ✓ |
 | Streaming | ✓ | ✓ | ✓ | ✓ | ✓ |
-| Functions | ✗ | ✓ | ✓ | ✓ | ✓ |
-| Vision | ✗ | ✓* | ✓* | ✗ | ✗ |
-| Embeddings | ✗ | ✓ | ✗ | ✗ | ✓ |
+| Functions | ✓ | ✓ | ✓ | ✓ | ✓ |
+| Vision | ✓ | ✓* | ✓* | ✗ | ✗ |
+| Embeddings | ✓ | ✓ | ✗ | ✗ | ✓ |
 | Cost Tracking | ✗ | ✓ | ✓ | ✓ | ✓ |
 
 \* Only specific models support vision (e.g., gpt-4o, claude-3-5-sonnet)

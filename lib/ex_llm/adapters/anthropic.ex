@@ -48,7 +48,7 @@ defmodule ExLLM.Adapters.Anthropic do
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
   alias ExLLM.{Types, ModelConfig}
-  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation}
   import ExLLM.Adapters.OpenAICompatible, only: [format_model_name: 1, default_model_transformer: 2]
 
   @default_base_url "https://api.anthropic.com/v1"
@@ -59,7 +59,7 @@ defmodule ExLLM.Adapters.Anthropic do
          config_provider <- ConfigHelper.get_config_provider(options),
          config <- ConfigHelper.get_config(:anthropic, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY"),
-         {:ok, _} <- validate_api_key(api_key) do
+         {:ok, _} <- Validation.validate_api_key(api_key) do
       
       model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:anthropic))
       
@@ -86,7 +86,7 @@ defmodule ExLLM.Adapters.Anthropic do
          config_provider <- ConfigHelper.get_config_provider(options),
          config <- ConfigHelper.get_config(:anthropic, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY"),
-         {:ok, _} <- validate_api_key(api_key) do
+         {:ok, _} <- Validation.validate_api_key(api_key) do
       
       model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:anthropic))
       
@@ -144,18 +144,9 @@ defmodule ExLLM.Adapters.Anthropic do
   end
 
   @impl true
-  def default_model, do: get_default_model()
+  def default_model, do: ConfigHelper.ensure_default_model(:anthropic)
 
-  # Private helper to get default model from config
-  defp get_default_model do
-    case ModelConfig.get_default_model(:anthropic) do
-      nil ->
-        raise "Missing configuration: No default model found for Anthropic. " <>
-              "Please ensure config/models/anthropic.yml exists and contains a 'default_model' field."
-      model ->
-        model
-    end
-  end
+  # Default model fetching moved to shared ConfigHelper module
 
   @impl true
   def list_models(options \\ []) do
@@ -174,7 +165,7 @@ defmodule ExLLM.Adapters.Anthropic do
   defp fetch_anthropic_models(config) do
     api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
     
-    case validate_api_key(api_key) do
+    case Validation.validate_api_key(api_key) do
       {:error, _} = error -> error
       {:ok, _} ->
         headers = build_headers(api_key)
@@ -268,9 +259,7 @@ defmodule ExLLM.Adapters.Anthropic do
 
   # Private functions
   
-  defp validate_api_key(nil), do: {:error, "Anthropic API key not configured"}
-  defp validate_api_key(""), do: {:error, "Anthropic API key not configured"}
-  defp validate_api_key(_), do: {:ok, :valid}
+  # API key validation moved to shared Validation module
   
   defp build_request_body(messages, model, config, options) do
     # Extract system message if present

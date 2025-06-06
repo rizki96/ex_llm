@@ -2,9 +2,11 @@ defmodule ExLLM.MockTest do
   use ExUnit.Case, async: true
 
   alias ExLLM.Adapters.Mock
+  import ExLLM.TestHelpers
 
   setup do
-    # Ensure mock adapter is started and reset
+    # Using TestHelpers would reset the mock, but we need direct control
+    # for this test suite to test the Mock adapter itself
     Mock.start_link()
     Mock.reset()
     :ok

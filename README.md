@@ -12,7 +12,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 - **Token Estimation**: Heuristic-based token counting for cost prediction
 - **Context Management**: Automatic message truncation to fit model context windows
 - **Session Management**: Built-in conversation state tracking and persistence
-- **Structured Outputs**: Schema validation and retries via instructor_ex integration
+- **Structured Outputs**: Schema validation and retries via Instructor integration
 - **Function Calling**: Unified interface for tool use across providers
 - **Model Discovery**: Query and compare model capabilities across providers
 - **Error Recovery**: Automatic retry with exponential backoff and stream resumption
@@ -253,6 +253,26 @@ comparison = ExLLM.compare_models([
   {:gemini, "gemini-pro"}
 ])
 
+# Provider capabilities - find providers by features
+{:ok, caps} = ExLLM.get_provider_capabilities(:openai)
+IO.puts("Endpoints: #{Enum.join(caps.endpoints, ", ")}")
+# => "Endpoints: chat, embeddings, images, audio, completions, fine_tuning, files"
+
+# Find providers with specific features
+providers = ExLLM.find_providers_with_features([:embeddings, :streaming])
+# => [:openai, :ollama]
+
+# Get provider recommendations
+recommendations = ExLLM.recommend_providers(%{
+  required_features: [:vision, :streaming],
+  preferred_features: [:audio_input, :function_calling],
+  prefer_local: false
+})
+# => [
+#   %{provider: :openai, score: 0.95, matched_features: [...], missing_features: []},
+#   %{provider: :anthropic, score: 0.80, matched_features: [...], missing_features: [:audio_input]}
+# ]
+
 # Context management - automatically truncate long conversations
 long_conversation = [
   %{role: "system", content: "You are a helpful assistant."},
@@ -337,6 +357,17 @@ File.write!("session.json", json)
 - `recommend_models/1` - Get model recommendations based on requirements
 - `models_by_capability/1` - Get models grouped by capability support
 - `list_model_features/0` - List all trackable model features
+
+### Provider Capabilities
+
+- `get_provider_capabilities/1` - Get API-level capabilities for a provider
+- `provider_supports?/2` - Check if a provider supports a feature/endpoint
+- `find_providers_with_features/1` - Find providers that support specific features
+- `compare_providers/1` - Compare capabilities across multiple providers
+- `recommend_providers/1` - Get provider recommendations based on requirements
+- `list_providers/0` - List all available providers
+- `is_local_provider?/1` - Check if a provider runs locally
+- `provider_requires_auth?/1` - Check if a provider requires authentication
 
 ### Error Recovery
 
@@ -610,18 +641,7 @@ clean_session = ExLLM.clear_session(session)
 
 ExLLM integrates with [instructor_ex](https://github.com/thmsmlr/instructor_ex) to provide structured output validation. This allows you to define expected response structures using Ecto schemas and automatically validate LLM responses.
 
-### Installation
-
-Add the optional instructor dependency:
-
-```elixir
-def deps do
-  [
-    {:ex_llm, "~> 0.2.0"},
-    {:instructor, "~> 0.1.0"}  # Optional: for structured outputs
-  ]
-end
-```
+Instructor is included as a dependency of ExLLM, so no additional installation is needed.
 
 ### Basic Usage
 
@@ -778,10 +798,6 @@ case ExLLM.chat(:anthropic, messages, response_model: UserProfile) do
   {:ok, profile} ->
     # Successfully validated structure
     IO.inspect(profile)
-    
-  {:error, :instructor_not_available} ->
-    # Instructor library not installed
-    IO.puts("Please install instructor to use structured outputs")
     
   {:error, {:validation_failed, errors}} ->
     # Validation failed after retries

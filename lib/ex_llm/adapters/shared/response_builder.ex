@@ -96,6 +96,10 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
   
   @doc """
   Extract and normalize usage data from various formats.
+  
+  Maps provider-specific field names to standardized ExLLM format:
+  - API field names: prompt_tokens, completion_tokens (OpenAI, OpenRouter, etc.)
+  - ExLLM field names: input_tokens, output_tokens
   """
   @spec extract_usage(map()) :: map() | nil
   def extract_usage(data) do

@@ -68,6 +68,8 @@ defmodule ExLLM.Adapters.OpenRouterTest do
             "finish_reason" => "stop"
           }
         ],
+        # Note: This mock represents actual API response format from OpenRouter
+        # which uses OpenAI-compatible field names
         "usage" => %{
           "prompt_tokens" => 15,
           "completion_tokens" => 8,

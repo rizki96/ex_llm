@@ -96,6 +96,21 @@ defmodule ExLLM.TestHelpers do
   end
   
   @doc """
+  Set up stream recovery for testing.
+  """
+  def setup_stream_recovery_test(context \\ %{}) do
+    # Start StreamRecovery if not already started
+    case Process.whereis(ExLLM.StreamRecovery) do
+      nil -> 
+        {:ok, _} = ExLLM.StreamRecovery.start_link()
+      _pid -> 
+        :ok
+    end
+    
+    context
+  end
+  
+  @doc """
   Assert that a response has expected structure.
   """
   def assert_valid_response(response) do

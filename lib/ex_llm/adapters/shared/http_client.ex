@@ -39,7 +39,6 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     
     headers = prepare_headers(headers)
-    body = Jason.encode!(body)
     
     case Req.post(url, json: body, headers: headers, receive_timeout: timeout) do
       {:ok, %{status: status, body: response_body}} when status in 200..299 ->
@@ -157,16 +156,27 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   
   Attempts to parse error details from JSON responses.
   """
-  @spec handle_api_error(integer(), String.t()) :: {:error, term()}
+  @spec handle_api_error(integer(), String.t() | map()) :: {:error, term()}
   def handle_api_error(status, body) do
-    case Jason.decode(body) do
-      {:ok, %{"error" => error}} when is_map(error) ->
+    # Handle both string and map bodies (Req might decode JSON automatically)
+    parsed_body = case body do
+      body when is_binary(body) ->
+        case Jason.decode(body) do
+          {:ok, decoded} -> decoded
+          {:error, _} -> %{"error" => body}
+        end
+      body when is_map(body) ->
+        body
+    end
+    
+    case parsed_body do
+      %{"error" => error} when is_map(error) ->
         handle_structured_error(status, error)
         
-      {:ok, %{"error" => message}} when is_binary(message) ->
+      %{"error" => message} when is_binary(message) ->
         categorize_error(status, message)
         
-      {:ok, %{"message" => message}} ->
+      %{"message" => message} ->
         categorize_error(status, message)
         
       _ ->

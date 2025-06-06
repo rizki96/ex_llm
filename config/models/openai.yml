@@ -1,5 +1,5 @@
 provider: openai
-default_model: gpt-4-turbo
+default_model: gpt-4.1-nano
 models:
   gpt-4-1106-preview:
     context_window: 4096

@@ -72,6 +72,8 @@ defmodule ExLLM.Cost do
     end
   end
 
+  def estimate_tokens(%{content: nil}), do: 0
+  
   def estimate_tokens(%{content: content}) do
     estimate_tokens(content)
   end

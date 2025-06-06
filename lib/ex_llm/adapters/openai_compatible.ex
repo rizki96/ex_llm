@@ -1,6 +1,6 @@
 defmodule ExLLM.Adapters.OpenAICompatible do
   alias ExLLM.{Types, ModelConfig}
-  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, ModelUtils}
   
   @moduledoc """
   Base implementation for OpenAI-compatible API providers.
@@ -42,12 +42,11 @@ defmodule ExLLM.Adapters.OpenAICompatible do
   
   @doc """
   Formats a model ID into a human-readable name.
+  
+  Delegates to shared ModelUtils for consistency.
   """
   def format_model_name(model_id) do
-    model_id
-    |> String.split(["-", "_", "/"])
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+    ModelUtils.format_model_name(model_id)
   end
   
   @doc """
@@ -79,7 +78,7 @@ defmodule ExLLM.Adapters.OpenAICompatible do
       @behaviour ExLLM.Adapters.Shared.StreamingBehavior
       
       alias ExLLM.{Error, Types, ModelConfig}
-      alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior}
+      alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation}
       require Logger
       
       @provider unquote(provider)
@@ -94,15 +93,13 @@ defmodule ExLLM.Adapters.OpenAICompatible do
              config_provider <- ConfigHelper.get_config_provider(options),
              config <- ConfigHelper.get_config(@provider, config_provider),
              api_key <- get_api_key(config),
-             {:ok, _} <- validate_api_key(api_key) do
+             {:ok, _} <- Validation.validate_api_key(api_key) do
           
           do_chat(messages, options, config, api_key)
         end
       end
       
-      defp validate_api_key(nil), do: {:error, "#{provider_name()} API key not configured"}
-      defp validate_api_key(""), do: {:error, "#{provider_name()} API key not configured"}
-      defp validate_api_key(_), do: {:ok, :valid}
+      # API key validation moved to shared Validation module
       
       @impl ExLLM.Adapter
       def stream_chat(messages, options \\ [], callback) when is_function(callback, 1) do
@@ -110,10 +107,9 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         config = get_config(config_provider)
         
         api_key = get_api_key(config)
-        if !api_key || api_key == "" do
-          {:error, "#{provider_name()} API key not configured"}
-        else
-          do_stream_chat(messages, options, callback, config, api_key)
+        case Validation.validate_api_key(api_key) do
+          {:ok, _} -> do_stream_chat(messages, options, callback, config, api_key)
+          {:error, _} -> {:error, "#{provider_name()} API key not configured"}
         end
       end
       
@@ -434,7 +430,7 @@ defmodule ExLLM.Adapters.OpenAICompatible do
       
       defp get_default_model(config) do
         Map.get(config, :model) || 
-        ModelConfig.get_default_model(@provider)
+        ConfigHelper.ensure_default_model(@provider)
       end
       
       defp get_model_context_window(model_id) do

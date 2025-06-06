@@ -4,7 +4,8 @@ defmodule ExLLM.ProviderCapabilities do
   
   This module provides information about what features and capabilities
   each provider supports at the API level, independent of specific models.
-  It helps users understand what operations are available with each provider.
+  It helps users understand what operations are available with each provider
+  and assists in provider selection based on required features.
   
   ## Features
   
@@ -12,7 +13,8 @@ defmodule ExLLM.ProviderCapabilities do
   - Authentication method tracking
   - Cost tracking availability
   - API feature support
-  - Provider metadata
+  - Provider metadata and limitations
+  - Feature-based provider recommendations
   
   ## Usage
   
@@ -24,6 +26,13 @@ defmodule ExLLM.ProviderCapabilities do
       
       # Find providers that support specific features
       providers = ExLLM.ProviderCapabilities.find_providers_with_features([:embeddings, :streaming])
+      
+      # Get provider recommendations based on requirements
+      recommended = ExLLM.ProviderCapabilities.recommend_providers(%{
+        required_features: [:streaming, :function_calling],
+        preferred_features: [:vision, :cost_tracking],
+        exclude_providers: [:mock]
+      })
   """
   
   defmodule ProviderInfo do
@@ -454,5 +463,175 @@ defmodule ExLLM.ProviderCapabilities do
           }}
         end)
     }
+  end
+  
+  @doc """
+  Get provider recommendations based on requirements.
+  
+  ## Parameters
+  - `requirements` - Map with:
+    - `:required_features` - List of features that must be supported
+    - `:preferred_features` - List of features that are nice to have
+    - `:required_endpoints` - List of endpoints that must be available
+    - `:exclude_providers` - List of providers to exclude
+    - `:prefer_local` - Boolean to prefer local providers (default: false)
+    - `:prefer_free` - Boolean to prefer free providers (default: false)
+  
+  ## Returns
+  - List of recommended providers sorted by match score
+  
+  ## Examples
+  
+      recommendations = ExLLM.ProviderCapabilities.recommend_providers(%{
+        required_features: [:streaming, :function_calling],
+        preferred_features: [:vision, :cost_tracking],
+        exclude_providers: [:mock]
+      })
+      # => [
+      #   %{provider: :openai, score: 1.0, matched_features: [...], missing_features: []},
+      #   %{provider: :anthropic, score: 0.85, matched_features: [...], missing_features: [...]}
+      # ]
+  """
+  @spec recommend_providers(map()) :: [map()]
+  def recommend_providers(requirements \\ %{}) do
+    required_features = Map.get(requirements, :required_features, [])
+    preferred_features = Map.get(requirements, :preferred_features, [])
+    required_endpoints = Map.get(requirements, :required_endpoints, [])
+    exclude_providers = Map.get(requirements, :exclude_providers, [])
+    prefer_local = Map.get(requirements, :prefer_local, false)
+    prefer_free = Map.get(requirements, :prefer_free, false)
+    
+    provider_database()
+    |> Enum.reject(fn {provider, _} -> provider in exclude_providers end)
+    |> Enum.map(fn {provider, info} ->
+      # Check required features
+      has_required_features = Enum.all?(required_features, fn feature ->
+        feature in info.features or feature in info.endpoints
+      end)
+      
+      # Check required endpoints
+      has_required_endpoints = Enum.all?(required_endpoints, fn endpoint ->
+        endpoint in info.endpoints
+      end)
+      
+      if has_required_features and has_required_endpoints do
+        # Calculate score
+        matched_preferred = Enum.filter(preferred_features, fn feature ->
+          feature in info.features or feature in info.endpoints
+        end)
+        
+        matched_required = Enum.filter(required_features, fn feature ->
+          feature in info.features or feature in info.endpoints
+        end)
+        
+        missing_preferred = preferred_features -- matched_preferred
+        
+        # Base score from matched features
+        score = length(matched_required) * 1.0 + length(matched_preferred) * 0.5
+        
+        # Bonus for local providers
+        score = if prefer_local and provider in [:local, :ollama], do: score + 0.5, else: score
+        
+        # Bonus for free providers
+        score = if prefer_free and provider in [:local, :ollama, :mock], do: score + 0.5, else: score
+        
+        # Penalty for limitations
+        limitation_count = map_size(info.limitations)
+        score = score - (limitation_count * 0.1)
+        
+        # Normalize score
+        max_score = length(required_features) + length(preferred_features) * 0.5 + 1.0
+        normalized_score = score / max_score
+        
+        %{
+          provider: provider,
+          score: normalized_score,
+          matched_features: matched_required ++ matched_preferred,
+          missing_features: missing_preferred,
+          limitations: info.limitations
+        }
+      else
+        nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> Enum.sort_by(& &1.score, :desc)
+  end
+  
+  @doc """
+  Get a provider-specific adapter module.
+  
+  ## Parameters
+  - `provider` - Provider atom
+  
+  ## Returns
+  - Module atom or nil
+  
+  ## Examples
+  
+      ExLLM.ProviderCapabilities.get_adapter_module(:openai)
+      # => ExLLM.Adapters.OpenAI
+  """
+  @spec get_adapter_module(atom()) :: module() | nil
+  def get_adapter_module(provider) do
+    case provider do
+      :anthropic -> ExLLM.Adapters.Anthropic
+      :openai -> ExLLM.Adapters.OpenAI
+      :ollama -> ExLLM.Adapters.Ollama
+      :bedrock -> ExLLM.Adapters.Bedrock
+      :gemini -> ExLLM.Adapters.Gemini
+      :groq -> ExLLM.Adapters.Groq
+      :openrouter -> ExLLM.Adapters.OpenRouter
+      :local -> ExLLM.Adapters.Local
+      :mock -> ExLLM.Adapters.Mock
+      _ -> nil
+    end
+  end
+  
+  @doc """
+  Check if a provider is considered "local" (no API calls).
+  
+  ## Parameters
+  - `provider` - Provider atom
+  
+  ## Returns
+  - Boolean
+  
+  ## Examples
+  
+      ExLLM.ProviderCapabilities.is_local?(:ollama)
+      # => true
+      
+      ExLLM.ProviderCapabilities.is_local?(:openai)
+      # => false
+  """
+  @spec is_local?(atom()) :: boolean()
+  def is_local?(provider) do
+    provider in [:local, :ollama, :mock]
+  end
+  
+  @doc """
+  Check if a provider requires authentication.
+  
+  ## Parameters
+  - `provider` - Provider atom
+  
+  ## Returns
+  - Boolean
+  
+  ## Examples
+  
+      ExLLM.ProviderCapabilities.requires_auth?(:openai)
+      # => true
+      
+      ExLLM.ProviderCapabilities.requires_auth?(:ollama)
+      # => false
+  """
+  @spec requires_auth?(atom()) :: boolean()
+  def requires_auth?(provider) do
+    case get_capabilities(provider) do
+      {:ok, info} -> info.authentication != []
+      {:error, _} -> false
+    end
   end
 end
