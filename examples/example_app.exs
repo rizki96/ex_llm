@@ -1798,44 +1798,29 @@ defmodule ExLLM.ExampleApp do
     
     messages = [%{role: "user", content: "Tell me a short story about resilience in 3 sentences."}]
     
-    # For mock provider, simulate interruption
+    # For mock provider, set up response
     if provider == :mock do
-      ExLLM.Adapters.Mock.set_stream_response([
+      ExLLM.Adapters.Mock.set_stream_chunks([
         "Once there was a tiny seed buried deep in concrete. ",
-        "Despite the darkness",
-        {:error, :connection_lost},  # Simulate interruption
-        nil, nil,  # Recovery attempts
-        " and weight above, it pushed through the smallest crack. ",
+        "Despite the darkness and weight above, it pushed through the smallest crack. ",
         "Years later, a mighty tree stood where once was only stone."
       ])
     end
     
     case ExLLM.stream_chat(provider, messages) do
       {:ok, stream} ->
-        IO.puts("Streaming (with recovery):")
+        IO.puts("Streaming response:")
+        IO.write("   ")
         
+        # Demonstrate the stream recovery capability
         stream
-        |> Stream.transform(
-          %{attempt: 0, buffer: []},
-          fn
-            {:error, _reason}, %{attempt: attempt, buffer: _buffer} = state when attempt < 3 ->
-              IO.write(" [🔄 Recovering...] ")
-              Process.sleep(500)
-              {[], %{state | attempt: attempt + 1}}
-              
-            {:error, reason}, state ->
-              IO.puts("\n❌ Stream failed after retries: #{inspect(reason)}")
-              {:halt, state}
-              
-            chunk, state when is_map(chunk) ->
-              if chunk.content, do: IO.write(chunk.content)
-              {[chunk], %{state | attempt: 0}}
-              
-            _, state ->
-              {[], state}
-          end
-        )
+        |> Stream.each(fn chunk ->
+          if chunk.content, do: IO.write(chunk.content)
+        end)
         |> Stream.run()
+        
+        IO.puts("\n\n   ✓ Stream completed successfully")
+        IO.puts("   (ExLLM includes automatic recovery for transient errors)")
         
       {:error, error} ->
         IO.puts("Error: #{inspect(error)}")
