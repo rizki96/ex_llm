@@ -2445,7 +2445,7 @@ defmodule ExLLM.ExampleApp do
       IO.puts("\n🔄 Applying smart truncation...")
       
       # Simulate truncation - keep system message and as many recent messages as fit
-      truncated_messages = []
+      _truncated_messages = []
       remaining_budget = budget
       
       # Always keep system message
@@ -2488,7 +2488,7 @@ defmodule ExLLM.ExampleApp do
     main_menu(provider)
   end
   
-  defp multi_provider_routing_demo(_provider) do
+  defp multi_provider_routing_demo(provider) do
     IO.puts("\n=== Multi-Provider Routing ===")
     IO.puts("Routing requests to different providers based on capabilities.\n")
     
@@ -2597,7 +2597,7 @@ defmodule ExLLM.ExampleApp do
   end
   
   
-  defp estimate_task_tokens(task) do
+  defp _estimate_task_tokens(task) do
     # Simple estimation based on task length and expected response
     input_tokens = round(String.length(task) / 4)
     expected_output = cond do
