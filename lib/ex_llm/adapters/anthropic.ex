@@ -47,7 +47,7 @@ defmodule ExLLM.Adapters.Anthropic do
   @behaviour ExLLM.Adapter
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
-  alias ExLLM.{Types, ModelConfig}
+  alias ExLLM.Types
   alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation}
   import ExLLM.Adapters.OpenAICompatible, only: [format_model_name: 1, default_model_transformer: 2]
 

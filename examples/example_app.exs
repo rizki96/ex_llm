@@ -2431,13 +2431,13 @@ defmodule ExLLM.ExampleApp do
   defp estimate_task_tokens(task) do
     # Simple estimation based on task length and expected response
     input_tokens = round(String.length(task) / 4)
-    expected_output = case task do
-      "What's 2+2?" -> 10
-      task when String.contains?(task, "haiku") -> 50
-      task when String.contains?(task, "code") -> 200
-      task when String.contains?(task, "Translate") -> 30
-      task when String.contains?(task, "Explain") -> 300
-      _ -> 100
+    expected_output = cond do
+      task == "What's 2+2?" -> 10
+      String.contains?(task, "haiku") -> 50
+      String.contains?(task, "code") -> 200
+      String.contains?(task, "Translate") -> 30
+      String.contains?(task, "Explain") -> 300
+      true -> 100
     end
     "~#{input_tokens + expected_output} total"
   end

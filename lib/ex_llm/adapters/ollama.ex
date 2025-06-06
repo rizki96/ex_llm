@@ -51,7 +51,7 @@ defmodule ExLLM.Adapters.Ollama do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Error, Types, ModelConfig, Logger}
+  alias ExLLM.{Error, Types, Logger}
   alias ExLLM.Adapters.Shared.ConfigHelper
 
   @default_base_url "http://localhost:11434"
@@ -397,14 +397,14 @@ defmodule ExLLM.Adapters.Ollama do
                 finish_reason = chunk["finish_reason"]
                 if finish_reason == "error" do
                   error_msg = chunk["error"] || "Unknown error"
-                  Logger.warning("Ollama streaming error: #{error_msg}")
+                  Logger.warn("Ollama streaming error: #{error_msg}")
                 end
                 
                 # Log if we finished without generating any content
                 total_duration = chunk["total_duration"]
                 eval_count = chunk["eval_count"] || 0
                 if eval_count == 0 do
-                  Logger.warning("Ollama finished without generating tokens. Total duration: #{total_duration / 1_000_000}ms")
+                  Logger.warn("Ollama finished without generating tokens. Total duration: #{total_duration / 1_000_000}ms")
                 end
                 
                 send(parent, :stream_done)

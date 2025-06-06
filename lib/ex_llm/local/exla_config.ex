@@ -51,7 +51,7 @@ defmodule ExLLM.Local.EXLAConfig do
         {:ok, backend_opts}
 
       true ->
-        Logger.warning("EXLA/EMLX not available, falling back to binary backend")
+        Logger.warn("EXLA/EMLX not available, falling back to binary backend")
         {:ok, :binary}
     end
   end

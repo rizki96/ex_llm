@@ -94,7 +94,7 @@ defmodule ExLLM.Adapters.Shared.ModelFetcher do
         {:ok, models}
         
       {:ok, response} ->
-        Logger.warning("Unexpected models API response format: #{inspect(response)}")
+        Logger.warn("Unexpected models API response format: #{inspect(response)}")
         {:error, "Unexpected response format"}
         
       {:error, reason} ->

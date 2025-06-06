@@ -48,7 +48,7 @@ defmodule ExLLM.Adapters.OpenAI do
   @behaviour ExLLM.Adapter
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
-  alias ExLLM.{Error, Types, ModelConfig, Logger}
+  alias ExLLM.{Error, Types, Logger}
   alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation, ModelUtils}
 
   @default_base_url "https://api.openai.com/v1"
@@ -385,7 +385,7 @@ defmodule ExLLM.Adapters.OpenAI do
   defp get_context_window(model_id) do
     # Use ModelConfig for context window lookup
     # This will return nil if model not found, which we handle in the caller
-    ModelConfig.get_context_window(:openai, model_id)
+    ExLLM.ModelConfig.get_context_window(:openai, model_id)
   end
 
   @impl true

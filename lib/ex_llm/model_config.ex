@@ -269,7 +269,7 @@ defmodule ExLLM.ModelConfig do
           normalize_config(config)
 
         {:error, reason} ->
-          Logger.warning("Failed to load model config for #{provider}: #{inspect(reason)}")
+          Logger.warn("Failed to load model config for #{provider}: #{inspect(reason)}")
           nil
       end
     else

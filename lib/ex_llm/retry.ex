@@ -334,7 +334,7 @@ defmodule ExLLM.Retry do
     Logger.log_retry(provider, attempt, policy.max_attempts, reason, delay)
   end
 
-  defp log_success(attempt, start_time, provider) do
+  defp log_success(attempt, start_time, _provider) do
     if attempt > 1 do
       duration = System.monotonic_time(:millisecond) - start_time
       # Log successful retry recovery
@@ -344,9 +344,10 @@ defmodule ExLLM.Retry do
 
   defp log_failure(attempt, reason, provider) do
     # Log final failure after all retries
-    Logger.log_error(provider, {:max_retries_exceeded, reason}, %{
+    Logger.error("Request failed after #{attempt} attempts", [
+      provider: provider,
       attempts: attempt,
       reason: inspect(reason)
-    })
+    ])
   end
 end
