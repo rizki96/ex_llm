@@ -1074,86 +1074,35 @@ defmodule ExLLM.ExampleApp do
       # Show what's happening behind the scenes
       IO.puts("🚀 Making request with Instructor...")
       
-      # For mock provider, simulate the process without actually calling Instructor
-      if provider == :mock do
-        IO.puts("✅ Success! Data extracted and validated.\n")
-        
-        IO.puts("📦 Raw LLM Response (normally hidden):")
-        case ExLLM.chat(provider, messages) do
-          {:ok, raw_response} ->
-            # Show the full response with proper formatting
-            IO.puts("   \"\"\"")
-            raw_response.content
-            |> String.split("\n")
-            |> Enum.each(fn line ->
-              IO.puts("   #{line}")
-            end)
-            IO.puts("   \"\"\"\n")
-          _ -> :ok
-        end
-        
-        # Simulate extracted data
-        IO.puts("🎯 Extracted Structured Data:")
-        IO.puts("   %Person{")
-        IO.puts("     name: \"Alex Mercer\",")
-        IO.puts("     age: 28,")
-        IO.puts("     occupation: \"Software Developer\",")
-        IO.puts("     hobbies: [\"traveling\", \"reading fantasy novels\", \"playing chess\"]")
-        IO.puts("   }")
-        
-        IO.puts("\n💡 Behind the scenes:")
-        IO.puts("   - Instructor prompted the LLM to respond with JSON")
-        IO.puts("   - Extracted JSON from the LLM's response")
-        IO.puts("   - Validated the data against our schema")
-        IO.puts("   - Converted to a proper Elixir struct")
-        IO.puts("   - If validation failed, it would retry up to 3 times")
-        
-        IO.puts("\n📝 Note: This is a simulation for the mock provider.")
-        IO.puts("   With a real provider, Instructor would handle all of this automatically.")
-      else
-        # Use the main ExLLM.chat function with response_model option
-        case ExLLM.chat(provider, messages, response_model: Person, max_retries: 3) do
-          {:ok, person} ->
-            IO.puts("✅ Success! Data extracted and validated.\n")
-            
-            IO.puts("📦 Raw LLM Response (normally hidden):")
-            # Make a regular call to show the raw response
-            case ExLLM.chat(provider, messages) do
-              {:ok, raw_response} ->
-                # Show the full response with proper formatting
-                IO.puts("   \"\"\"")
-                raw_response.content
-                |> String.split("\n")
-                |> Enum.each(fn line ->
-                  IO.puts("   #{line}")
-                end)
-                IO.puts("   \"\"\"\n")
-              _ -> :ok
-            end
-            
-            IO.puts("🎯 Extracted Structured Data:")
-            IO.puts("   %Person{")
-            IO.puts("     name: \"#{person.name}\",")
-            IO.puts("     age: #{person.age},")
-            IO.puts("     occupation: \"#{person.occupation}\",")
-            IO.puts("     hobbies: #{inspect(person.hobbies)}")
-            IO.puts("   }")
-            
-            IO.puts("\n💡 Behind the scenes:")
-            IO.puts("   - Instructor prompted the LLM to respond with JSON")
-            IO.puts("   - Extracted JSON from the LLM's response")
-            IO.puts("   - Validated the data against our schema")
-            IO.puts("   - Converted to a proper Elixir struct")
-            IO.puts("   - If validation failed, it would retry up to 3 times")
-            
-          {:error, {:validation_failed, errors}} ->
-            IO.puts("❌ Validation failed after retries:")
-            IO.inspect(errors)
-            
-          {:error, error} ->
-            IO.puts("❌ Error: #{inspect(error)}")
-        end
+      # Actually use Instructor with the mock provider
+      case ExLLM.chat(provider, messages, response_model: Person, max_retries: 3) do
+        {:ok, person} ->
+          IO.puts("✅ Success! Data extracted and validated.\n")
+          
+          IO.puts("🎯 Extracted Structured Data:")
+          IO.puts("   #{inspect(person, pretty: true)}\n")
+          
+          IO.puts("📊 Individual Fields:")
+          IO.puts("   Name: #{person.name}")
+          IO.puts("   Age: #{person.age}")
+          IO.puts("   Occupation: #{person.occupation}")
+          IO.puts("   Hobbies: #{Enum.join(person.hobbies || [], ", ")}")
+          
+        {:error, {:validation_failed, errors}} ->
+          IO.puts("❌ Validation failed after retries:")
+          IO.inspect(errors)
+          
+        {:error, reason} ->
+          IO.puts("❌ Error: #{inspect(reason)}")
       end
+      
+      IO.puts("\n💡 Behind the scenes:")
+      IO.puts("   - Instructor prompted the LLM to respond with JSON")
+      IO.puts("   - Extracted JSON from the LLM's response") 
+      IO.puts("   - Validated the data against our schema")
+      IO.puts("   - Converted to a proper Elixir struct")
+      IO.puts("   - If validation failed, it would retry up to 3 times")
+    end
       
       # Show a more complex example
       IO.puts("\n\n--- More Complex Example ---\n")
@@ -1259,7 +1208,6 @@ defmodule ExLLM.ExampleApp do
             IO.puts("Error with complex extraction: #{inspect(error)}")
         end
       end
-    end
     
     wait_for_continue() 
     main_menu(provider)

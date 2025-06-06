@@ -28,6 +28,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Updated `provider_supports?/2`, `model_supports?/3`, `find_providers_with_features/1`, and `find_models_with_features/1` to use normalized capabilities
+
+### Fixed
+- Mock provider now properly supports Instructor integration for structured outputs
+- Cost formatting now consistently uses dollars with appropriate decimal places (e.g., "$0.000324" instead of "$0.032¢")
 - Provider and model capability queries now accept any provider's terminology
 - Moved `LOGGER.md`, `PROVIDER_CAPABILITIES.md`, and `DROPPED.md` to `docs/` directory
 - Enhanced provider capabilities with data from API discovery scripts

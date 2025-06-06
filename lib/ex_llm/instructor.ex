@@ -188,7 +188,7 @@ defmodule ExLLM.Instructor do
           :gemini -> Instructor.Adapters.Gemini
           :groq -> Instructor.Adapters.Groq
           :xai -> Instructor.Adapters.XAI
-          :mock -> Instructor.Adapters.OpenAI  # Mock uses OpenAI-compatible format
+          :mock -> :mock_direct  # Handle mock directly without Instructor
           :local -> {:error, :unsupported_provider_for_instructor}
           _ -> {:error, :unsupported_provider_for_instructor}
         end
@@ -196,6 +196,10 @@ defmodule ExLLM.Instructor do
       case adapter do
         {:error, reason} ->
           {:error, reason}
+
+        :mock_direct ->
+          # Handle mock provider directly
+          handle_mock_structured_output(provider, messages, options, response_model)
 
         _adapter_module ->
           # Prepare instructor options
@@ -341,16 +345,46 @@ defmodule ExLLM.Instructor do
 
     defp validate_against_model(data, response_model) when is_atom(response_model) do
       # Ecto schema validation
-      if function_exported?(response_model, :changeset, 2) do
-        changeset = apply(response_model, :changeset, [struct(response_model), data])
+      cond do
+        # Check if it has the standard changeset/2 function
+        function_exported?(response_model, :changeset, 2) ->
+          changeset = apply(response_model, :changeset, [struct(response_model), data])
 
-        if changeset.valid? do
-          {:ok, Ecto.Changeset.apply_changes(changeset)}
-        else
-          {:error, format_changeset_errors(changeset)}
-        end
-      else
-        {:error, :invalid_response_model}
+          if changeset.valid? do
+            {:ok, Ecto.Changeset.apply_changes(changeset)}
+          else
+            {:error, format_changeset_errors(changeset)}
+          end
+          
+        # Check if it's using Instructor.Validator (has validate_changeset/1)
+        function_exported?(response_model, :validate_changeset, 1) ->
+          # Create a basic changeset and apply the validator
+          base_struct = struct(response_model)
+          changeset = Ecto.Changeset.cast(base_struct, data, Map.keys(base_struct) -- [:__struct__, :__meta__])
+          validated_changeset = apply(response_model, :validate_changeset, [changeset])
+          
+          if validated_changeset.valid? do
+            {:ok, Ecto.Changeset.apply_changes(validated_changeset)}
+          else
+            {:error, format_changeset_errors(validated_changeset)}
+          end
+          
+        # Check if it's an embedded schema with __schema__
+        function_exported?(response_model, :__schema__, 1) ->
+          # It's an Ecto schema but without changeset function
+          # Create a basic changeset
+          base_struct = struct(response_model)
+          fields = response_model.__schema__(:fields)
+          changeset = Ecto.Changeset.cast(base_struct, data, fields)
+          
+          if changeset.valid? do
+            {:ok, Ecto.Changeset.apply_changes(changeset)}
+          else
+            {:error, format_changeset_errors(changeset)}
+          end
+          
+        true ->
+          {:error, :invalid_response_model}
       end
     end
 
@@ -450,6 +484,21 @@ defmodule ExLLM.Instructor do
       # This would require runtime module creation which is complex
       # For now, return an error suggesting to use type specs instead
       {:error, :use_type_spec_instead}
+    end
+  end
+
+  # Handle mock provider structured output directly
+  defp handle_mock_structured_output(provider, messages, options, response_model) do
+    # Get regular chat response from mock
+    chat_opts = Keyword.drop(options, [:response_model, :max_retries])
+    
+    case ExLLM.chat(provider, messages, chat_opts) do
+      {:ok, response} ->
+        # Try to parse the response as structured data
+        parse_response(response, response_model)
+        
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 end

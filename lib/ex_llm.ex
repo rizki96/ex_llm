@@ -491,7 +491,7 @@ defmodule ExLLM do
   ## Examples
 
       ExLLM.format_cost(0.0035)
-      # => "$0.350¢"
+      # => "$0.003500"
   """
   @spec format_cost(float()) :: String.t()
   def format_cost(cost) do

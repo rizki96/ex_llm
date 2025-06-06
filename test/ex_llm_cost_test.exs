@@ -74,8 +74,9 @@ defmodule ExLLMCostTest do
 
   describe "cost formatting" do
     test "formats small costs correctly" do
-      assert ExLLM.format_cost(0.005) == "$0.500¢"
-      assert ExLLM.format_cost(0.0035) == "$0.350¢"
+      assert ExLLM.format_cost(0.005) == "$0.005000"
+      assert ExLLM.format_cost(0.0035) == "$0.003500"
+      assert ExLLM.format_cost(0.000324) == "$0.000324"
     end
 
     test "formats medium costs correctly" do

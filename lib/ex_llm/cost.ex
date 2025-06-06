@@ -91,8 +91,7 @@ defmodule ExLLM.Cost do
   def format(cost_in_dollars) do
     cond do
       cost_in_dollars < 0.01 ->
-        cents = cost_in_dollars * 100
-        "$#{:erlang.float_to_binary(cents, decimals: 3)}¢"
+        "$#{:erlang.float_to_binary(cost_in_dollars, decimals: 6)}"
 
       cost_in_dollars < 1.0 ->
         "$#{:erlang.float_to_binary(cost_in_dollars, decimals: 4)}"
