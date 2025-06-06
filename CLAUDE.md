@@ -95,7 +95,12 @@ The project uses two methods to keep model configurations up-to-date:
 
 1. **Sync from LiteLLM** (comprehensive metadata for all providers):
    ```bash
+   # The wrapper script handles virtual environment automatically
    ./scripts/update_models.sh --litellm
+   
+   # Or manually with venv
+   source .venv/bin/activate
+   python scripts/sync_from_litellm.py
    ```
    - Updates configurations for all 56 providers (not just implemented ones)
    - Includes pricing, context windows, and capabilities
@@ -103,10 +108,13 @@ The project uses two methods to keep model configurations up-to-date:
 
 2. **Fetch from Provider APIs** (latest models from provider APIs):
    ```bash
+   # Activate virtual environment first
+   source .venv/bin/activate
+   
    # Update all providers with APIs
    source ~/.env && uv run python scripts/fetch_provider_models.py
    
-   # Or use the wrapper script
+   # Or use the wrapper script (handles venv automatically)
    ./scripts/update_models.sh
    ```
    - Fetches latest models directly from provider APIs
@@ -114,6 +122,8 @@ The project uses two methods to keep model configurations up-to-date:
    - Updates: Anthropic, OpenAI, Groq, Gemini, OpenRouter, Ollama
 
 ### Important Notes
+- **Virtual Environment**: Always activate `.venv` before running Python scripts directly
+- **Dependencies**: Python scripts require `pyyaml` and `requests` (installed in `.venv`)
 - Always preserve custom default models (e.g., `gpt-4.1-nano` for OpenAI)
 - The fetch script may reset defaults, so check and fix them after running
 - Both scripts update YAML files in `config/models/`
