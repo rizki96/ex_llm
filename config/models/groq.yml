@@ -1,291 +1,91 @@
 provider: groq
-models:
-  groq/deepseek-r1-distill-llama-70b:
-    context_window: 128000
-    max_output_tokens: 128000
-    pricing:
-      input: 0.75
-      output: 0.99
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - reasoning
-    - tool_choice
-  groq/llama-3.3-70b-versatile:
-    context_window: 128000
-    max_output_tokens: 32768
-    pricing:
-      input: 0.59
-      output: 0.79
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-  groq/llama-3.3-70b-specdec:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.59
-      output: 0.99
-    capabilities:
-    - streaming
-    - tool_choice
-    deprecation_date: '2025-04-14'
-  groq/llama-guard-3-8b:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.2
-      output: 0.2
-    capabilities:
-    - streaming
-  groq/llama2-70b-4096:
-    context_window: 4096
-    max_output_tokens: 4096
-    pricing:
-      input: 0.7
-      output: 0.8
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-  groq/llama3-8b-8192:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.05
-      output: 0.08
-    capabilities:
-    - streaming
-    - tool_choice
-  groq/llama-3.2-1b-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.04
-      output: 0.04
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-04-14'
-  groq/llama-3.2-3b-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.06
-      output: 0.06
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-04-14'
-  groq/llama-3.2-11b-text-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.18
-      output: 0.18
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2024-10-28'
-  groq/llama-3.2-11b-vision-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.18
-      output: 0.18
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-04-14'
-  groq/llama-3.2-90b-text-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.9
-      output: 0.9
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2024-11-25'
-  groq/llama-3.2-90b-vision-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.9
-      output: 0.9
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-04-14'
-  groq/llama3-70b-8192:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.59
-      output: 0.79
-    capabilities:
-    - streaming
-    - structured_output
-    - tool_choice
-  groq/llama-3.1-8b-instant:
-    context_window: 128000
-    max_output_tokens: 8192
-    pricing:
-      input: 0.05
-      output: 0.08
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-  groq/llama-3.1-70b-versatile:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.59
-      output: 0.79
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-01-24'
-  groq/llama-3.1-405b-reasoning:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.59
-      output: 0.79
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-  groq/meta-llama/llama-4-scout-17b-16e-instruct:
-    context_window: 131072
-    max_output_tokens: 8192
-    pricing:
-      input: 0.11
-      output: 0.34
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-  groq/meta-llama/llama-4-maverick-17b-128e-instruct:
-    context_window: 131072
-    max_output_tokens: 8192
-    pricing:
-      input: 0.2
-      output: 0.6
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-  groq/mistral-saba-24b:
-    context_window: 32000
-    max_output_tokens: 32000
-    pricing:
-      input: 0.79
-      output: 0.79
-    capabilities:
-    - streaming
-  groq/mixtral-8x7b-32768:
-    context_window: 32768
-    max_output_tokens: 32768
-    pricing:
-      input: 0.24
-      output: 0.24
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-03-20'
-  groq/gemma-7b-it:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.07
-      output: 0.07
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2024-12-18'
-  groq/gemma2-9b-it:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.2
-      output: 0.2
-    capabilities:
-    - streaming
-    - structured_output
-  groq/llama3-groq-70b-8192-tool-use-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.89
-      output: 0.89
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-01-06'
-  groq/llama3-groq-8b-8192-tool-use-preview:
-    context_window: 8192
-    max_output_tokens: 8192
-    pricing:
-      input: 0.19
-      output: 0.19
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-01-06'
-  groq/qwen-qwq-32b:
-    context_window: 128000
-    max_output_tokens: 128000
-    pricing:
-      input: 0.29
-      output: 0.39
-    capabilities:
-    - streaming
-    - function_calling
-    - structured_output
-    - reasoning
-    - tool_choice
-  groq/playai-tts:
-    context_window: 10000
-    max_output_tokens: 10000
-    mode: audio_speech
-  groq/whisper-large-v3:
-    mode: audio_transcription
-  groq/whisper-large-v3-turbo:
-    mode: audio_transcription
-  groq/distil-whisper-large-v3-en:
-    mode: audio_transcription
 default_model: groq/deepseek-r1-distill-llama-70b
+models:
+  meta-llama/llama-4-scout-17b-16e-instruct:
+    context_window: 131072
+    capabilities:
+    - streaming
+  playai-tts:
+    context_window: 8192
+    capabilities:
+    - streaming
+  meta-llama/llama-guard-4-12b:
+    context_window: 131072
+    capabilities:
+    - streaming
+  playai-tts-arabic:
+    context_window: 8192
+    capabilities:
+    - streaming
+  allam-2-7b:
+    context_window: 4096
+    capabilities:
+    - streaming
+  compound-beta-mini:
+    context_window: 8192
+    capabilities:
+    - streaming
+  whisper-large-v3-turbo:
+    context_window: 448
+    capabilities:
+    - streaming
+  llama-3.3-70b-versatile:
+    context_window: 131072
+    capabilities:
+    - streaming
+  llama-guard-3-8b:
+    context_window: 8192
+    capabilities:
+    - streaming
+  deepseek-r1-distill-llama-70b:
+    context_window: 131072
+    capabilities:
+    - streaming
+  llama3-8b-8192:
+    context_window: 8192
+    capabilities:
+    - streaming
+  distil-whisper-large-v3-en:
+    context_window: 448
+    capabilities:
+    - streaming
+  meta-llama/llama-4-maverick-17b-128e-instruct:
+    context_window: 131072
+    capabilities:
+    - streaming
+  whisper-large-v3:
+    context_window: 448
+    capabilities:
+    - streaming
+  meta-llama/llama-prompt-guard-2-22m:
+    context_window: 512
+    capabilities:
+    - streaming
+  meta-llama/llama-prompt-guard-2-86m:
+    context_window: 512
+    capabilities:
+    - streaming
+  qwen-qwq-32b:
+    context_window: 131072
+    capabilities:
+    - streaming
+  gemma2-9b-it:
+    context_window: 8192
+    capabilities:
+    - streaming
+  mistral-saba-24b:
+    context_window: 32768
+    capabilities:
+    - streaming
+  compound-beta:
+    context_window: 8192
+    capabilities:
+    - streaming
+  llama-3.1-8b-instant:
+    context_window: 131072
+    capabilities:
+    - streaming
+  llama3-70b-8192:
+    context_window: 8192
+    capabilities:
+    - streaming

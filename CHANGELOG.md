@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New XAI Grok-3 models (grok-3, grok-3-beta, grok-3-fast, grok-3-mini variants)
   - New model capabilities: structured_output, prompt_caching, reasoning, web_search
   - Updated pricing and context windows for all models
+- Fetched latest models from provider APIs (606 models from 6 providers)
+  - New Anthropic models: Claude 4 Opus/Sonnet/Haiku with 32K output tokens
+  - New Groq models: DeepSeek R1 distilled models, QwQ-32B, Mistral Saba
+  - New Gemini models: Gemini 2.5 Pro/Flash, Gemini 2.0 Flash with multimodal support
+  - New OpenAI models: O3/O4 series, GPT-4.5 preview, search-enabled models
+  - Updated context windows and capabilities from live APIs
 - Groq support for structured outputs via Instructor integration
 
 ### Changed
