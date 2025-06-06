@@ -6,6 +6,12 @@ models:
       input: 0.1
       output: 0
     mode: embedding
+  gemini-embedding-001:
+    context_window: 2048
+    pricing:
+      input: 0.15
+      output: 0
+    mode: embedding
   text-embedding-005:
     context_window: 2048
     pricing:

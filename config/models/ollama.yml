@@ -1,30 +1,5 @@
 provider: ollama
-default_model: ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS
 models:
-  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS:
-    context_window: 4096
-    capabilities:
-    - streaming
-  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_NL:
-    context_window: 4096
-    capabilities:
-    - streaming
-  ollama/hf.co/mradermacher/Llama-3.1-8B-UltraLong-2M-Instruct-i1-GGUF:Q6_K:
-    context_window: 4096
-    capabilities:
-    - streaming
-  ollama/hf.co/bartowski/Zyphra_ZR1-1.5B-GGUF:Q8_0:
-    context_window: 4096
-    capabilities:
-    - streaming
-  ollama/nomic-embed-text:latest:
-    context_window: 4096
-    capabilities:
-    - streaming
-  ollama/hf.co/mradermacher/Darkest-muse-v1-GGUF:Q8_0:
-    context_window: 4096
-    capabilities:
-    - streaming
   ollama/codegemma:
     context_window: 8192
     max_output_tokens: 8192
@@ -157,6 +132,4 @@ models:
     context_window: 2048
     max_output_tokens: 2048
     mode: completion
-metadata:
-  updated_at: '2025-05-29T19:28:17.305901'
-  source: ollama_api
+default_model: ollama/codegemma

@@ -30,4 +30,14 @@ models:
     - streaming
     - function_calling
     - tool_choice
+  cerebras/qwen-3-32b:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.4
+      output: 0.8
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
 default_model: cerebras/llama3.1-8b

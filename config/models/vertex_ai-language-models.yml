@@ -261,6 +261,7 @@ models:
     - audio_input
     - structured_output
     - system_messages
+    - web_search
     - pdf_input
     - parallel_function_calling
     - tool_choice
@@ -287,6 +288,7 @@ models:
     - audio_input
     - structured_output
     - system_messages
+    - web_search
     - pdf_input
     - parallel_function_calling
     - tool_choice
@@ -313,6 +315,7 @@ models:
     - audio_output
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_modalities:
@@ -336,6 +339,7 @@ models:
     - audio_output
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     deprecation_date: '2026-02-05'
@@ -357,6 +361,7 @@ models:
     - audio_output
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_modalities:
@@ -374,6 +379,7 @@ models:
     - streaming
     - vision
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_modalities:
@@ -398,6 +404,7 @@ models:
     - structured_output
     - system_messages
     - reasoning
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -425,6 +432,7 @@ models:
     - structured_output
     - system_messages
     - reasoning
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -452,6 +460,7 @@ models:
     - audio_output
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_modalities:
@@ -475,6 +484,7 @@ models:
     - audio_output
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_modalities:
@@ -497,6 +507,7 @@ models:
     - audio_output
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     deprecation_date: '2026-02-25'
@@ -520,6 +531,7 @@ models:
     - structured_output
     - system_messages
     - reasoning
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -546,6 +558,7 @@ models:
     - structured_output
     - system_messages
     - reasoning
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -573,6 +586,7 @@ models:
     - audio_output
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_modalities:
@@ -595,6 +609,7 @@ models:
     - vision
     - structured_output
     - system_messages
+    - web_search
     - parallel_function_calling
     - tool_choice
     supported_modalities:

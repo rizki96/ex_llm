@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Synced model metadata from LiteLLM (1053 models across 56 providers)
+  - New OpenAI models: GPT-4.1 series (gpt-4.1, gpt-4.1-mini, gpt-4.1-nano)
+  - New OpenAI O1 reasoning models (o1-pro, o1, o1-mini, o1-preview)
+  - New XAI Grok-3 models (grok-3, grok-3-beta, grok-3-fast, grok-3-mini variants)
+  - New model capabilities: structured_output, prompt_caching, reasoning, web_search
+  - Updated pricing and context windows for all models
+- Groq support for structured outputs via Instructor integration
+
+### Changed
+- Updated default models:
+  - OpenAI: Set to gpt-4.1-nano
+  - Anthropic: Set to claude-3-5-sonnet-latest
+- Enhanced Instructor module to support Groq provider
+- Updated example app to include Groq in structured output demos
+
+### Fixed
+- Instructor integration now correctly separates params and config for chat_completion
+- Advanced features demo uses correct Mock adapter method (set_stream_chunks)
+- Module reference errors in Context management demo
+
 ## [0.2.1] - 2025-06-05
 
 ### Added
