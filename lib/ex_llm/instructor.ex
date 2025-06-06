@@ -196,7 +196,7 @@ defmodule ExLLM.Instructor do
           # Merge configurations (config_opts first, then instructor_opts to allow overrides)
           merged_opts = Keyword.merge(config_opts, instructor_opts)
 
-          # Set up the adapter but don't pass it in the API call options
+          # Set up the adapter in config
           adapter = case provider do
             :anthropic -> Instructor.Adapters.Anthropic
             :openai -> Instructor.Adapters.OpenAI
@@ -205,14 +205,23 @@ defmodule ExLLM.Instructor do
             _ -> nil
           end
 
-          # Prepare final options for Instructor.chat_completion
-          # Include adapter and other required fields, but filter out api_key which should be in config
-          final_opts = 
-            merged_opts
-            |> Keyword.put(:adapter, adapter)
+          # Prepare params for Instructor.chat_completion (first argument)
+          params = [
+            model: merged_opts[:model],
+            response_model: merged_opts[:response_model],
+            messages: merged_opts[:messages],
+            max_retries: merged_opts[:max_retries] || 0
+          ]
+          
+          # Add optional parameters only if present
+          params = if merged_opts[:temperature], do: Keyword.put(params, :temperature, merged_opts[:temperature]), else: params
+          params = if merged_opts[:max_tokens], do: Keyword.put(params, :max_tokens, merged_opts[:max_tokens]), else: params
 
-          # Call instructor
-          case apply(Instructor, :chat_completion, [final_opts]) do
+          # Prepare config (second argument) with adapter
+          config = [adapter: adapter]
+
+          # Call instructor with params and config as separate arguments
+          case apply(Instructor, :chat_completion, [params, config]) do
             {:ok, result} ->
               {:ok, result}
 

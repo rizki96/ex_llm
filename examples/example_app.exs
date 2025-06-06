@@ -989,8 +989,8 @@ defmodule ExLLM.ExampleApp do
       # Define a schema
       defmodule Person do
         use Ecto.Schema
-        use Instructor.Validator
         use Instructor
+        use Instructor.Validator
         
         @llm_doc """
         A person with basic information including name, age, occupation, and hobbies.
