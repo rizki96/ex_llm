@@ -2,158 +2,120 @@ defmodule ExLLM.InstructorTest do
   use ExUnit.Case, async: true
   alias ExLLM.Instructor
 
-  # Sample schema for testing
-  defmodule TestSchema do
-    use Ecto.Schema
-
-    @primary_key false
-    embedded_schema do
-      field(:name, :string)
-      field(:age, :integer)
-      field(:active, :boolean)
-    end
-
-    def changeset(struct, params) do
-      struct
-      |> Ecto.Changeset.cast(params, [:name, :age, :active])
-      |> Ecto.Changeset.validate_required([:name, :age])
-      |> Ecto.Changeset.validate_number(:age, greater_than: 0)
-    end
+  setup do
+    # Set mock API keys for testing
+    System.put_env("OPENAI_API_KEY", "test-openai-key")
+    System.put_env("ANTHROPIC_API_KEY", "test-anthropic-key")
+    System.put_env("GOOGLE_API_KEY", "test-google-key")
+    System.put_env("GROQ_API_KEY", "test-groq-key")
+    
+    on_exit(fn ->
+      System.delete_env("OPENAI_API_KEY")
+      System.delete_env("ANTHROPIC_API_KEY")
+      System.delete_env("GOOGLE_API_KEY")
+      System.delete_env("GROQ_API_KEY")
+    end)
   end
 
   describe "available?/0" do
-    test "returns boolean indicating if instructor is available" do
-      assert is_boolean(Instructor.available?())
+    test "returns true since instructor is now required" do
+      assert Instructor.available?() == true
     end
   end
 
   describe "chat/3" do
-    @tag :skip_unless_instructor
-    test "returns error when instructor is not available and it's not loaded" do
-      # This test will be skipped if instructor is available
-      unless Instructor.available?() do
-        messages = [%{role: "user", content: "Test"}]
+    test "returns error for unsupported providers" do
+      messages = [%{role: "user", content: "Test"}]
+      unsupported_providers = [:local, :bedrock, :openrouter]
 
-        assert {:error, :instructor_not_available} =
-                 Instructor.chat(:anthropic, messages, response_model: TestSchema)
-      end
-    end
-
-    @tag :skip_unless_instructor
-    test "returns error for unsupported provider" do
-      if Instructor.available?() do
-        messages = [%{role: "user", content: "Test"}]
-
-        # :local is not supported by instructor
+      for provider <- unsupported_providers do
         assert {:error, :unsupported_provider_for_instructor} =
-                 Instructor.chat(:local, messages, response_model: TestSchema)
+                 Instructor.chat(provider, messages, response_model: %{name: :string})
       end
     end
 
-    @tag :skip_unless_instructor
     test "validates response_model is required" do
-      if Instructor.available?() do
-        messages = [%{role: "user", content: "Test"}]
+      messages = [%{role: "user", content: "Test"}]
 
-        assert_raise KeyError, fn ->
-          Instructor.chat(:anthropic, messages, [])
-        end
+      assert_raise KeyError, fn ->
+        Instructor.chat(:anthropic, messages, [])
       end
     end
   end
 
-  describe "parse_response/2" do
-    test "returns error when instructor is not available" do
-      unless Instructor.available?() do
-        response = %ExLLM.Types.LLMResponse{
-          content: ~s({"name": "John", "age": 30}),
-          model: "test-model"
-        }
+  describe "parse_response/2 with simple types" do
+    test "parses valid JSON response" do
+      response = %ExLLM.Types.LLMResponse{
+        content: ~s({"name": "John", "age": 30}),
+        model: "test-model",
+        usage: %{input_tokens: 10, output_tokens: 20},
+        cost: %{input: 0.01, output: 0.02, total: 0.03}
+      }
 
-        assert {:error, :instructor_not_available} =
-                 Instructor.parse_response(response, TestSchema)
-      end
+      type_spec = %{name: :string, age: :integer}
+      assert {:ok, %{name: "John", age: 30}} = Instructor.parse_response(response, type_spec)
     end
 
-    @tag :skip_unless_instructor
-    test "parses valid JSON response into schema" do
-      if Instructor.available?() do
-        response = %ExLLM.Types.LLMResponse{
-          content: ~s({"name": "John", "age": 30, "active": true}),
-          model: "test-model"
-        }
+    test "extracts JSON from markdown code blocks" do
+      response = %ExLLM.Types.LLMResponse{
+        content: """
+        Here's the data:
+        
+        ```json
+        {"name": "Jane", "age": 25}
+        ```
+        """,
+        model: "test-model",
+        usage: %{input_tokens: 10, output_tokens: 20},
+        cost: %{input: 0.01, output: 0.02, total: 0.03}
+      }
 
-        assert {:ok, result} = Instructor.parse_response(response, TestSchema)
-        assert result.name == "John"
-        assert result.age == 30
-        assert result.active == true
-      end
+      type_spec = %{name: :string, age: :integer}
+      assert {:ok, %{name: "Jane", age: 25}} = Instructor.parse_response(response, type_spec)
     end
 
-    @tag :skip_unless_instructor
     test "returns error for invalid JSON" do
-      if Instructor.available?() do
-        response = %ExLLM.Types.LLMResponse{
-          content: "not valid json",
-          model: "test-model"
-        }
+      response = %ExLLM.Types.LLMResponse{
+        content: "not valid json",
+        model: "test-model",
+        usage: %{input_tokens: 10, output_tokens: 20},
+        cost: %{input: 0.01, output: 0.02, total: 0.03}
+      }
 
-        assert {:error, {:json_decode_error, _}} =
-                 Instructor.parse_response(response, TestSchema)
-      end
+      type_spec = %{name: :string}
+      assert {:error, {:json_decode_error, _}} = Instructor.parse_response(response, type_spec)
     end
 
-    @tag :skip_unless_instructor
-    test "returns validation error for invalid data" do
-      if Instructor.available?() do
-        response = %ExLLM.Types.LLMResponse{
-          content: ~s({"name": "John", "age": -5}),
-          model: "test-model"
-        }
+    test "validates types correctly" do
+      response = %ExLLM.Types.LLMResponse{
+        content: ~s({"name": 123, "age": "not a number"}),
+        model: "test-model",
+        usage: %{input_tokens: 10, output_tokens: 20},
+        cost: %{input: 0.01, output: 0.02, total: 0.03}
+      }
 
-        assert {:error, {:validation_failed, _}} =
-                 Instructor.parse_response(response, TestSchema)
-      end
+      type_spec = %{name: :string, age: :integer}
+      assert {:error, {:name, {:invalid_type, :string}}} = Instructor.parse_response(response, type_spec)
     end
 
-    @tag :skip_unless_instructor
-    test "parses response with simple type spec" do
-      if Instructor.available?() do
-        response = %ExLLM.Types.LLMResponse{
-          content: ~s({"name": "John", "age": 30, "tags": ["developer", "elixir"]}),
-          model: "test-model"
-        }
+    test "handles array types" do
+      response = %ExLLM.Types.LLMResponse{
+        content: ~s({"tags": ["elixir", "programming", "functional"]}),
+        model: "test-model",
+        usage: %{input_tokens: 10, output_tokens: 20},
+        cost: %{input: 0.01, output: 0.02, total: 0.03}
+      }
 
-        type_spec = %{
-          name: :string,
-          age: :integer,
-          tags: {:array, :string}
-        }
-
-        assert {:ok, result} = Instructor.parse_response(response, type_spec)
-        assert result.name == "John"
-        assert result.age == 30
-        assert result.tags == ["developer", "elixir"]
-      end
+      type_spec = %{tags: {:array, :string}}
+      assert {:ok, %{tags: ["elixir", "programming", "functional"]}} = 
+             Instructor.parse_response(response, type_spec)
     end
   end
 
   describe "simple_schema/2" do
     test "returns error indicating to use type specs" do
       fields = %{name: :string, age: :integer}
-
       assert {:error, :use_type_spec_instead} = Instructor.simple_schema(fields)
-    end
-  end
-
-  describe "integration with main module" do
-    test "ExLLM.chat/3 returns error when response_model is used without instructor" do
-      unless Instructor.available?() do
-        messages = [%{role: "user", content: "Test"}]
-
-        assert {:error, :instructor_not_available} =
-                 ExLLM.chat(:anthropic, messages, response_model: TestSchema)
-      end
     end
   end
 end

@@ -974,13 +974,15 @@ defmodule ExLLM.ExampleApp do
     IO.puts("This demonstrates extracting structured data from LLM responses.\n")
     
     # Check if provider supports structured outputs via Instructor
-    supported_providers = [:openai, :anthropic, :gemini]
+    supported_providers = [:openai, :anthropic, :gemini, :ollama, :groq]
     
     unless provider in supported_providers do
       IO.puts("⚠️  Structured outputs via Instructor are currently only supported for:")
       IO.puts("   - OpenAI (requires OPENAI_API_KEY)")
       IO.puts("   - Anthropic (requires ANTHROPIC_API_KEY)")
       IO.puts("   - Gemini (requires GOOGLE_API_KEY)")
+      IO.puts("   - Ollama (requires local Ollama server)")
+      IO.puts("   - Groq (requires GROQ_API_KEY)")
       IO.puts("")
       IO.puts("For #{provider}, we'll demonstrate manual JSON extraction instead.")
       

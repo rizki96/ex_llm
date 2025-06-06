@@ -7,9 +7,21 @@ defmodule ExLLM.Instructor do
   define expected response structures using Ecto schemas and automatically
   validates and retries LLM responses.
 
+  ## Supported Providers
+
+  The following providers support structured outputs through Instructor:
+  - `:anthropic` - Claude models
+  - `:openai` - GPT models
+  - `:gemini` - Google Gemini models
+  - `:ollama` - Local Ollama models
+  - `:groq` - Groq cloud models
+
+  Other providers (`:bedrock`, `:openrouter`, `:local`) do not currently
+  support structured outputs through Instructor.
+
   ## Requirements
 
-  This module requires the optional `instructor` dependency:
+  This module requires the `instructor` dependency:
 
       {:instructor, "~> 0.1.0"}
 
@@ -174,6 +186,7 @@ defmodule ExLLM.Instructor do
           :openai -> Instructor.Adapters.OpenAI
           :ollama -> Instructor.Adapters.Ollama
           :gemini -> Instructor.Adapters.Gemini
+          :groq -> Instructor.Adapters.Groq
           :local -> {:error, :unsupported_provider_for_instructor}
           _ -> {:error, :unsupported_provider_for_instructor}
         end
@@ -202,6 +215,7 @@ defmodule ExLLM.Instructor do
             :openai -> Instructor.Adapters.OpenAI
             :ollama -> Instructor.Adapters.Ollama
             :gemini -> Instructor.Adapters.Gemini
+            :groq -> Instructor.Adapters.Groq
             _ -> nil
           end
 
@@ -299,6 +313,11 @@ defmodule ExLLM.Instructor do
         :gemini ->
           [
             model: config_provider.get(:gemini, :model) || ExLLM.ModelConfig.get_default_model(:gemini)
+          ]
+
+        :groq ->
+          [
+            model: config_provider.get(:groq, :model) || ExLLM.ModelConfig.get_default_model(:groq)
           ]
 
         _ ->
