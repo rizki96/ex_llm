@@ -2144,7 +2144,7 @@ defmodule ExLLM.ExampleApp do
       IO.write("   ")
       
       # Start streaming with visible progress
-      chunk_count = 0
+      _chunk_count = 0
       interrupted = false
       
       case ExLLM.stream_chat(provider, messages, stream_recovery: true) do
@@ -2338,7 +2338,7 @@ defmodule ExLLM.ExampleApp do
   
   # Helper functions
   
-  defp safe_gets(prompt, default \\ "") do
+  defp safe_gets(prompt, default) do
     case IO.gets(prompt) do
       :eof -> default
       input -> String.trim(input)
