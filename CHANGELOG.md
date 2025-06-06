@@ -5,7 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.3.2] - 2025-06-06
+
+### Added
+- **Capability Normalization** - Automatic normalization of provider-specific capability names
+  - New `ExLLM.Capabilities` module providing unified capability interface
+  - Normalizes different provider terminologies (e.g., `tool_use` → `function_calling`)
+  - Works transparently with all capability query functions
+  - Comprehensive mappings for common capability variations
+  - Example: `find_providers_with_features([:tool_use])` works across all providers
+- Enhanced provider capability tracking with real-time API discovery
+  - New `fetch_provider_capabilities.py` script for API-based capability detection
+  - Updated `fetch_provider_models.py` with better context window detection
+  - Fixed incorrect context windows (e.g., GPT-4o now correctly shows 128,000)
+  - Automatic capability detection from model IDs
+- New capability normalization demo in example app (option 6 in Provider Capabilities Explorer)
+- **Comprehensive Documentation**
+  - New Quick Start Guide (`docs/QUICKSTART.md`) - Get up and running in 5 minutes
+  - New User Guide (`docs/USER_GUIDE.md`) - Complete documentation of all features
+  - Reorganized documentation into `docs/` directory
+  - Added prominent documentation links to README
+
+### Changed
+- Updated `provider_supports?/2`, `model_supports?/3`, `find_providers_with_features/1`, and `find_models_with_features/1` to use normalized capabilities
+- Provider and model capability queries now accept any provider's terminology
+- Moved `LOGGER.md`, `PROVIDER_CAPABILITIES.md`, and `DROPPED.md` to `docs/` directory
+- Enhanced provider capabilities with data from API discovery scripts
 
 ## [0.3.1] - 2025-06-05
 
@@ -88,7 +113,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Gemini: Added Gemini 2.5 and 2.0 series
   - Groq: Added Llama 4 Scout, DeepSeek R1 Distill, and QwQ-32B
 - Task reorganization:
-  - Created DROPPED.md for features that don't align with core library mission
+  - Created docs/DROPPED.md for features that don't align with core library mission
   - Reorganized TASKS.md with clearer priorities and focused roadmap
   - Added refactoring tasks to reduce code duplication by ~40%
 

@@ -15,6 +15,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 - **Structured Outputs**: Schema validation and retries via Instructor integration
 - **Function Calling**: Unified interface for tool use across providers
 - **Model Discovery**: Query and compare model capabilities across providers
+- **Capability Normalization**: Automatic normalization of provider-specific feature names
 - **Error Recovery**: Automatic retry with exponential backoff and stream resumption
 - **Mock Testing**: Built-in mock adapter for testing without API calls
 - **Type Safety**: Comprehensive typespecs and structured data
@@ -114,6 +115,9 @@ end
 ```
 
 ## Quick Start
+
+📚 **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes  
+📖 **[User Guide](docs/USER_GUIDE.md)** - Comprehensive documentation of all features
 
 ### Configuration
 
@@ -383,6 +387,28 @@ File.write!("session.json", json)
 - `list_providers/0` - List all available providers
 - `is_local_provider?/1` - Check if a provider runs locally
 - `provider_requires_auth?/1` - Check if a provider requires authentication
+
+### Capability Normalization
+
+ExLLM automatically normalizes different capability names used by various providers. This means you can use provider-specific terminology and ExLLM will understand it:
+
+```elixir
+# These all refer to the same capability (function calling)
+ExLLM.provider_supports?(:openai, :function_calling)    # => true
+ExLLM.provider_supports?(:anthropic, :tool_use)         # => true
+ExLLM.provider_supports?(:openai, :tools)               # => true
+
+# Find providers using any terminology
+ExLLM.find_providers_with_features([:tool_use])         # Works!
+ExLLM.find_providers_with_features([:function_calling]) # Also works!
+```
+
+Common normalizations:
+- Function calling: `function_calling`, `tool_use`, `tools`, `functions`
+- Image generation: `image_generation`, `images`, `dalle`, `text_to_image`
+- Speech synthesis: `speech_synthesis`, `tts`, `text_to_speech`
+- Embeddings: `embeddings`, `embed`, `embedding`, `text_embedding`
+- Vision: `vision`, `image_understanding`, `visual_understanding`, `multimodal`
 
 ### Error Recovery
 
@@ -852,7 +878,7 @@ ExLLM.set_config_provider({ExLLM.ConfigProvider.Static, config})
 
 ExLLM provides a unified logging system with fine-grained control over what gets logged and how sensitive data is handled. 
 
-📖 **[Read the full Logger User Guide](LOGGER.md)** for detailed documentation.
+📖 **[Read the full Logger User Guide](docs/LOGGER.md)** for detailed documentation.
 
 ```elixir
 # Quick example
@@ -1296,7 +1322,10 @@ open doc/index.html
 
 #### User Guides
 
-- [Logger User Guide](LOGGER.md) - Comprehensive guide to ExLLM's unified logging system
+- [Quick Start Guide](docs/QUICKSTART.md) - Get started with the most common use cases
+- [User Guide](docs/USER_GUIDE.md) - Comprehensive documentation of all features
+- [Logger User Guide](docs/LOGGER.md) - Comprehensive guide to ExLLM's unified logging system
+- [Provider Capabilities Guide](docs/PROVIDER_CAPABILITIES.md) - How to find and update provider capabilities
 
 ## Roadmap
 

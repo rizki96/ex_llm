@@ -87,6 +87,16 @@ class ModelFetcher:
                         models[model_id]["capabilities"].append("vision")
                     if model.get('supports_system_messages', True):
                         models[model_id]["capabilities"].append("system_messages")
+                    if model.get('supports_prompt_caching', False):
+                        models[model_id]["capabilities"].append("prompt_caching")
+                    if model.get('supports_computer_use', False):
+                        models[model_id]["capabilities"].append("computer_use")
+                    
+                    # Detect capabilities from model ID
+                    if 'claude-3' in model_id:
+                        models[model_id]["capabilities"].extend(["json_mode", "xml_mode", "structured_outputs"])
+                        if 'claude-3-5' in model_id:
+                            models[model_id]["capabilities"].extend(["document_understanding", "latex_rendering"])
                 
                 if models:
                     # Preserve existing config structure
@@ -139,9 +149,57 @@ class ModelFetcher:
                     if any(x in model_id for x in ['embedding', 'tts', 'whisper', 'dall-e']):
                         continue
                         
+                    capabilities = ["streaming", "system_messages"]
+                    
+                    # Detect capabilities from model ID
+                    if 'gpt-4' in model_id:
+                        capabilities.extend(["function_calling", "json_mode"])
+                        if 'vision' in model_id or 'gpt-4o' in model_id:
+                            capabilities.append("vision")
+                        if 'gpt-4o' in model_id:
+                            capabilities.append("structured_outputs")
+                    elif 'gpt-3.5' in model_id:
+                        capabilities.extend(["function_calling", "json_mode"])
+                    elif 'o1' in model_id:
+                        capabilities.extend(["reasoning", "long_context"])
+                    
+                    # Get context window with better defaults
+                    context_window = model.get('context_length', 4096)
+                    
+                    # OpenAI API often returns incorrect context windows, so we override with known values
+                    context_overrides = {
+                        'gpt-4o': 128000,
+                        'gpt-4o-mini': 128000,
+                        'gpt-4-turbo': 128000,
+                        'gpt-4-turbo-preview': 128000,
+                        'gpt-4-0125-preview': 128000,
+                        'gpt-4-1106-preview': 128000,
+                        'gpt-4': 8192,
+                        'gpt-4-0613': 8192,
+                        'gpt-3.5-turbo': 16385,
+                        'gpt-3.5-turbo-0125': 16385,
+                        'gpt-3.5-turbo-1106': 16385,
+                        'gpt-3.5-turbo-16k': 16385,
+                        'o1-preview': 128000,
+                        'o1-mini': 128000,
+                        'o1': 200000,  # o1 has 200k context
+                        'o3': 200000,
+                        'o3-mini': 200000
+                    }
+                    
+                    # Check for exact match first
+                    if model_id in context_overrides:
+                        context_window = context_overrides[model_id]
+                    else:
+                        # Check for partial matches
+                        for pattern, ctx in context_overrides.items():
+                            if pattern in model_id:
+                                context_window = ctx
+                                break
+                    
                     models[model_id] = {
-                        "context_window": model.get('context_length', 4096),
-                        "capabilities": ["streaming"]
+                        "context_window": context_window,
+                        "capabilities": capabilities
                     }
                 
                 if models:
@@ -253,10 +311,24 @@ class ModelFetcher:
                 for model in data.get('models', []):
                     if 'generateContent' in model.get('supportedGenerationMethods', []):
                         model_name = model['name'].replace('models/', '')
+                        capabilities = ["streaming", "function_calling", "system_messages"]
+                        
+                        # Detect capabilities from model name and properties
+                        if 'vision' in model_name or 'gemini-pro-vision' in model_name:
+                            capabilities.append("vision")
+                        if 'gemini-1.5' in model_name:
+                            capabilities.extend(["long_context", "document_understanding", "audio_input"])
+                            if 'pro' in model_name:
+                                capabilities.append("video_understanding")
+                        if model.get('supportsCodeExecution', False):
+                            capabilities.append("code_execution")
+                        if model.get('supportsGrounding', False):
+                            capabilities.append("grounding")
+                            
                         models[f"gemini/{model_name}"] = {
                             "context_window": model.get('inputTokenLimit', 32760),
                             "max_output_tokens": model.get('outputTokenLimit', 2048),
-                            "capabilities": ["streaming", "function_calling"]
+                            "capabilities": capabilities
                         }
                 
                 if models:

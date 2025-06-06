@@ -1,0 +1,262 @@
+provider: gemini
+discovered_at: '2025-06-06T14:31:23.159170'
+endpoints:
+- chat
+- embeddings
+- count_tokens
+features:
+- tool_use
+- structured_outputs
+- system_messages
+- dynamic_model_listing
+- multiple_images
+- grounding
+- citation_metadata
+- safety_settings
+- document_understanding
+- context_caching
+- streaming
+- embeddings
+- json_mode
+- multi_turn_conversations
+- usage_tracking
+- audio_input
+- code_execution
+- long_context
+- cost_tracking
+- vision
+- video_understanding
+- function_calling
+model_capabilities:
+  gemini-1.0-pro-vision-latest:
+    context_window: 12288
+    max_output_tokens: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-pro-vision:
+    context_window: 12288
+    max_output_tokens: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-pro-001:
+    context_window: 2000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-pro-002:
+    context_window: 2000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-pro:
+    context_window: 2000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-flash-001:
+    context_window: 1000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-flash-001-tuning:
+    context_window: 16384
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-flash:
+    context_window: 1000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-flash-002:
+    context_window: 1000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-flash-8b:
+    context_window: 1000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-1.5-flash-8b-001:
+    context_window: 1000000
+    max_output_tokens: 8192
+    capabilities:
+    - long_context
+    - system_messages
+    - document_understanding
+    - vision
+    - streaming
+    - audio_input
+    - json_mode
+    - video_understanding
+    - function_calling
+    - streaming
+    - function_calling
+  gemini-2.0-flash:
+    context_window: 1048576
+    max_output_tokens: 8192
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - grounding
+    - function_calling
+    - code_execution
+    - streaming
+    - function_calling
+  gemini-2.0-flash-001:
+    context_window: 1048576
+    max_output_tokens: 8192
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - grounding
+    - function_calling
+    - code_execution
+    - streaming
+    - function_calling
+  gemini-2.0-flash-lite-001:
+    context_window: 1048576
+    max_output_tokens: 8192
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - grounding
+    - function_calling
+    - code_execution
+    - streaming
+    - function_calling
+  gemini-2.0-flash-lite:
+    context_window: 1048576
+    max_output_tokens: 8192
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - grounding
+    - function_calling
+    - code_execution
+    - streaming
+    - function_calling
+  gemini-2.0-flash-preview-image-generation:
+    context_window: 32768
+    max_output_tokens: 8192
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - grounding
+    - function_calling
+    - code_execution
+    - streaming
+    - function_calling
+  embedding-001:
+    context_window: 2048
+    max_output_tokens: 1
+    capabilities:
+    - embeddings
+  text-embedding-004:
+    context_window: 2048
+    max_output_tokens: 1
+    capabilities:
+    - embeddings

@@ -7,12 +7,16 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - vision
   gemini/gemini-pro-vision:
     context_window: 12288
     max_output_tokens: 4096
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - vision
     pricing:
       input: 0.35
       output: 1.05
@@ -22,6 +26,11 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
+    - video_understanding
     pricing:
       input: 3.5
       output: 10.5
@@ -32,6 +41,11 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
+    - video_understanding
     pricing:
       input: 3.5
       output: 10.5
@@ -42,6 +56,11 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
+    - video_understanding
     pricing:
       input: 3.5
       output: 10.5
@@ -51,6 +70,10 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
     pricing:
       input: 0.075
       output: 0.3
@@ -61,12 +84,20 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
   gemini/gemini-1.5-flash:
     context_window: 1000000
     max_output_tokens: 8192
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
     pricing:
       input: 0.075
       output: 0.3
@@ -76,6 +107,10 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
     pricing:
       input: 0.075
       output: 0.3
@@ -86,18 +121,27 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
   gemini/gemini-1.5-flash-8b-001:
     context_window: 1000000
     max_output_tokens: 8192
     capabilities:
     - streaming
     - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
   gemini/gemini-2.0-flash:
     context_window: 1048576
     max_output_tokens: 8192
     capabilities:
     - streaming
     - function_calling
+    - system_messages
     pricing:
       input: 0.1
       output: 0.4
@@ -115,6 +159,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
     pricing:
       input: 0.1
       output: 0.4
@@ -132,12 +177,14 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
   gemini/gemini-2.0-flash-lite:
     context_window: 1048576
     max_output_tokens: 8192
     capabilities:
     - streaming
     - function_calling
+    - system_messages
     pricing:
       input: 0.075
       output: 0.3
@@ -154,6 +201,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - system_messages
     pricing:
       input: 0.1
       output: 0.4
@@ -571,5 +619,5 @@ models:
     - vision
     - tool_choice
 metadata:
-  updated_at: '2025-06-05T21:45:15.982525'
+  updated_at: '2025-06-06T14:30:54.417664'
   source: gemini_api

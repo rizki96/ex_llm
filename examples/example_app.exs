@@ -218,7 +218,10 @@ defmodule ExLLM.ExampleApp do
       {"Caching Demo", &caching_demo/1, true},
       {"Retry & Error Recovery", &retry_demo/1, true},
       {"Cost Tracking", &cost_tracking_demo/1, capabilities && :cost_tracking in capabilities.features},
-      {"Advanced Features Demo", &advanced_features_demo/1, true}
+      {"Stream Recovery (Auto-resume interrupted streams)", &stream_recovery_demo/1, capabilities && :streaming in capabilities.features},
+      {"Dynamic Model Selection", &dynamic_model_selection_demo/1, true},
+      {"Token Budget Management", &token_budget_demo/1, true},
+      {"Multi-Provider Routing", &multi_provider_routing_demo/1, true}
     ]
     
     # Number the items sequentially and create wrapper functions for unavailable features
@@ -244,6 +247,7 @@ defmodule ExLLM.ExampleApp do
       "Vision/Multimodal (Analyze Images)" -> :vision
       "Embeddings & Semantic Search" -> :embeddings
       "Cost Tracking" -> :cost_tracking
+      "Stream Recovery (Auto-resume interrupted streams)" -> :streaming
       _ -> nil
     end
   end
@@ -1607,6 +1611,7 @@ defmodule ExLLM.ExampleApp do
     IO.puts("3. Compare providers")
     IO.puts("4. Get provider recommendations")
     IO.puts("5. Check authentication requirements")
+    IO.puts("6. Capability normalization demo")
     
     choice = IO.gets("\nChoice: ") |> String.trim()
     
@@ -1616,6 +1621,7 @@ defmodule ExLLM.ExampleApp do
       "3" -> compare_providers()
       "4" -> get_provider_recommendations()
       "5" -> check_auth_requirements()
+      "6" -> capability_normalization_demo()
       _ -> IO.puts("Invalid choice")
     end
     
@@ -1807,6 +1813,62 @@ defmodule ExLLM.ExampleApp do
         IO.puts("#{String.pad_leading("", 12)}   Methods: #{methods}")
       end
     end)
+  end
+  
+  defp capability_normalization_demo do
+    IO.puts("\n=== Capability Normalization Demo ===")
+    IO.puts("ExLLM automatically normalizes different capability names used by various providers.\n")
+    
+    IO.puts("This means you can use any provider's terminology and ExLLM will understand it!")
+    IO.puts("\nExamples of normalized capabilities:\n")
+    
+    examples = [
+      {"Function Calling", ["function_calling", "tool_use", "tools", "functions"]},
+      {"Image Generation", ["image_generation", "images", "dalle", "text_to_image"]},
+      {"Speech Synthesis", ["speech_synthesis", "tts", "text_to_speech", "audio_generation"]},
+      {"Embeddings", ["embeddings", "embed", "embedding", "text_embedding"]},
+      {"Vision", ["vision", "image_understanding", "visual_understanding", "multimodal"]}
+    ]
+    
+    for {normalized_name, variations} <- examples do
+      IO.puts("📌 #{normalized_name}:")
+      IO.puts("   Variations: #{Enum.join(variations, ", ")}")
+    end
+    
+    IO.puts("\n🧪 Let's test it! Enter any capability name to see the normalization:")
+    capability = IO.gets("Capability: ") |> String.trim()
+    
+    if capability != "" do
+      normalized = ExLLM.Capabilities.normalize_capability(capability)
+      IO.puts("\n✨ '#{capability}' normalizes to: :#{normalized}")
+      
+      # Find providers that support this capability
+      providers = ExLLM.Capabilities.find_providers(capability)
+      IO.puts("\nProviders supporting #{normalized}:")
+      
+      if length(providers) == 0 do
+        IO.puts("  No providers found")
+      else
+        Enum.each(providers, fn provider ->
+          {:ok, caps} = ExLLM.get_provider_capabilities(provider)
+          IO.puts("  • #{provider} - #{caps.name}")
+        end)
+      end
+      
+      # Show models too
+      IO.puts("\nModels supporting #{normalized} (first 5):")
+      models = ExLLM.Capabilities.find_models(capability) |> Enum.take(5)
+      
+      if length(models) == 0 do
+        IO.puts("  No models found")
+      else
+        Enum.each(models, fn {provider, model} ->
+          IO.puts("  • #{provider}: #{model}")
+        end)
+      end
+    end
+    
+    IO.puts("\n🎯 Try different provider terms like 'tool_use' (Anthropic) vs 'function_calling' (OpenAI)!")
   end
   
   defp parse_feature_list(""), do: []
@@ -2001,13 +2063,9 @@ defmodule ExLLM.ExampleApp do
     main_menu(provider)
   end
   
-  defp advanced_features_demo(provider) do
-    IO.puts("\n=== Advanced Features ===")
-    IO.puts("This demonstrates multiple advanced features working together.\n")
-    
-    # 1. Stream Recovery Demo
-    IO.puts("1️⃣  Stream Recovery Demo")
-    IO.puts("   Demonstrating stream interruption and automatic recovery...\n")
+  defp stream_recovery_demo(provider) do
+    IO.puts("\n=== Stream Recovery Demo ===")
+    IO.puts("Demonstrating automatic recovery from stream interruptions.\n")
     
     messages = [%{role: "user", content: "Tell me a short story about resilience. Make it inspiring and about 100 words long."}]
     
@@ -2209,108 +2267,240 @@ defmodule ExLLM.ExampleApp do
     
     IO.puts("\n")
     wait_for_continue()
-    
-    # 2. Dynamic Model Selection
-    IO.puts("\n2️⃣  Dynamic Model Selection")
-    IO.puts("   Automatically choosing the best model for the task...\n")
+    main_menu(provider)
+  end
+  
+  defp dynamic_model_selection_demo(provider) do
+    IO.puts("\n=== Dynamic Model Selection ===")
+    IO.puts("Using ExLLM.ModelCapabilities to recommend the best model for each task.\n")
     
     tasks = [
-      {"What's 2+2?", :simple_math},
-      {"Write a haiku about coding", :creative_writing},
-      {"Analyze this code: def fib(n), do: if n<2, do: n, else: fib(n-1)+fib(n-2)", :code_analysis},
-      {"Translate 'Hello world' to French", :translation},
-      {"Explain quantum computing to a 5-year-old", :complex_explanation}
+      {"Simple chat: What's the weather like?", [:streaming], %{max_cost_per_million: 1.0}},
+      {"Analyze this image and describe what you see", [:vision], %{}},
+      {"Call a weather API to get current conditions", [:function_calling], %{}},
+      {"Generate a JSON response with structured data", [:json_mode], %{}},
+      {"Continue our previous conversation about AI", [:multi_turn, :context_caching], %{min_context_window: 8000}},
+      {"Convert this document to embeddings for search", [:embeddings], %{}}
     ]
     
-    for {task, task_type} <- tasks do
+    for {task, required_features, constraints} <- tasks do
       IO.puts("📝 Task: #{task}")
-      
-      # Sophisticated model selection based on task type and requirements
-      {selected_model, reasoning} = case task_type do
-        :simple_math ->
-          {"gpt-4o-mini", "Simple calculation → Fast, efficient model"}
-          
-        :creative_writing ->
-          {"claude-3-7-sonnet-20250219", "Creative task → Claude 3.7 excels at creative writing"}
-          
-        :code_analysis ->
-          {"claude-3-5-sonnet-20241022", "Code analysis → Claude 3.5 Sonnet has superior coding abilities"}
-          
-        :translation ->
-          {"gpt-4o", "Translation → GPT-4o handles multilingual tasks well"}
-          
-        :complex_explanation ->
-          {"claude-opus-4-20250514", "Complex reasoning → Claude 4 Opus for nuanced explanations"}
+      IO.puts("   Required features: #{inspect(required_features)}")
+      if map_size(constraints) > 0 do
+        IO.puts("   Constraints: #{inspect(constraints)}")
       end
       
-      IO.puts("🤖 #{reasoning}")
-      IO.puts("✅ Selected: #{selected_model}")
+      # Use actual ModelCapabilities recommendation system
+      recommendations = ExLLM.ModelCapabilities.recommend_models(
+        features: required_features,
+        limit: 3,
+        constraints: constraints
+      )
       
-      # Show additional selection criteria
-      IO.puts("   📊 Selection criteria:")
-      IO.puts("      • Task complexity: #{complexity_level(task_type)}")
-      IO.puts("      • Required capabilities: #{required_capabilities(task_type) |> Enum.join(", ")}")
-      IO.puts("      • Estimated tokens: #{estimate_task_tokens(task)}")
+      IO.puts("\n   🤖 Top recommendations:")
+      
+      case recommendations do
+        [] ->
+          # If no models found with all features, try finding models with individual features
+          IO.puts("   ❌ No models found with all required features")
+          IO.puts("\n   📊 Models with individual features:")
+          
+          for feature <- required_features do
+            models = ExLLM.ModelCapabilities.find_models_with_features([feature])
+            if length(models) > 0 do
+              IO.puts("      • #{feature}: #{length(models)} models available")
+              # Show first 2 examples
+              models
+              |> Enum.take(2)
+              |> Enum.each(fn {provider, model} ->
+                IO.puts("        - #{provider}:#{model}")
+              end)
+            end
+          end
+          
+        recommendations ->
+          # Show top recommendations with scores
+          recommendations
+          |> Enum.with_index(1)
+          |> Enum.each(fn {{provider, model, %{score: score} = metadata}, idx} ->
+            IO.puts("   #{idx}. #{provider}:#{model}")
+            IO.puts("      Score: #{Float.round(score, 2)}")
+            
+            # Show why this model was selected
+            if metadata[:context_window] do
+              IO.puts("      Context: #{format_number(metadata.context_window)} tokens")
+            end
+            
+            # Try to get cost info
+            case ExLLM.Cost.get_pricing(to_string(provider), model) do
+              {:ok, pricing} ->
+                cost_per_mil = (pricing.input_cost_per_token + pricing.output_cost_per_token) * 1_000_000 / 2
+                IO.puts("      Cost: ~$#{Float.round(cost_per_mil, 2)}/1M tokens")
+              _ ->
+                nil
+            end
+          end)
+      end
+      
       IO.puts("")
     end
     
-    IO.puts("\n💡 Real-world Model Selection:")
-    IO.puts("   In production, you would use ExLLM.ModelCapabilities to:")
-    IO.puts("   • Find models with required features")
-    IO.puts("   • Compare costs across providers")
-    IO.puts("   • Consider latency requirements")
-    IO.puts("   • Respect context window limits")
+    # Demonstrate finding providers with specific features
+    IO.puts("\n💡 Feature Discovery Demo:")
+    IO.puts("   Finding providers with specific capabilities...\n")
+    
+    features_to_check = [:vision, :function_calling, :embeddings, :streaming]
+    
+    for feature <- features_to_check do
+      providers = ExLLM.find_providers_with_features([feature])
+      IO.puts("   #{feature}: #{length(providers)} providers")
+      if length(providers) > 0 do
+        IO.puts("      → #{Enum.join(Enum.take(providers, 5), ", ")}#{if length(providers) > 5, do: " ..."}")
+      end
+    end
+    
+    IO.puts("\n📚 Model Comparison Example:")
+    IO.puts("   Comparing specific models...\n")
+    
+    models_to_compare = [
+      {:openai, "gpt-4o"},
+      {:anthropic, "claude-3-5-sonnet-20241022"},
+      {:openai, "gpt-4o-mini"}
+    ]
+    
+    comparison = ExLLM.ModelCapabilities.compare_models(models_to_compare)
+    
+    case comparison do
+      %{error: reason} ->
+        IO.puts("   ❌ Comparison failed: #{reason}")
+        
+      %{models: models, features: features} ->
+        IO.puts("   Models being compared:")
+        for model <- models do
+          IO.puts("   • #{model.provider}:#{model.model_id} (#{format_number(model.context_window)} tokens)")
+        end
+        
+        IO.puts("\n   Feature support matrix:")
+        # Show a sample of features with their support across models
+        features_to_show = [:streaming, :function_calling, :vision, :embeddings, :json_mode]
+        
+        for feature <- features_to_show do
+          if Map.has_key?(features, feature) do
+            support_list = features[feature]
+            support_indicators = Enum.map(support_list, fn support ->
+              if support.supported, do: "✓", else: "✗"
+            end)
+            
+            IO.puts("   #{String.pad_trailing(to_string(feature), 20)} #{Enum.join(support_indicators, "  ")}")
+          end
+        end
+        
+      _ ->
+        IO.puts("   ❌ Unexpected response format")
+    end
     
     wait_for_continue()
+    main_menu(provider)
+  end
+  
+  defp token_budget_demo(provider) do
+    IO.puts("\n=== Token Budget Management ===")
+    IO.puts("Managing conversation within token limits.\n")
     
-    # 3. Token Budget Management
-    IO.puts("\n3️⃣  Token Budget Management")
-    IO.puts("   Managing conversation within token limits...\n")
-    
-    # Simulate a conversation that grows
-    budget = 1000
+    # Simulate a conversation that grows beyond the budget
+    budget = 500  # Smaller budget to demonstrate truncation
     messages = [
-      %{role: "system", content: "You are a helpful assistant."},
-      %{role: "user", content: "Tell me about space exploration."},
-      %{role: "assistant", content: "Space exploration began in the 1950s with the Space Race..."},
-      %{role: "user", content: "What about Mars missions?"},
-      %{role: "assistant", content: "Mars has been a target for exploration since the 1960s..."},
-      %{role: "user", content: "And future plans?"}
+      %{role: "system", content: "You are a helpful AI assistant with extensive knowledge about space exploration, astronomy, and the history of human spaceflight. Provide detailed and comprehensive answers."},
+      %{role: "user", content: "Tell me about the history of space exploration, including key milestones, important missions, and the countries involved."},
+      %{role: "assistant", content: "Space exploration began in earnest during the Cold War era with the Space Race between the United States and Soviet Union. The Soviets launched Sputnik 1 in 1957, the first artificial satellite. They followed with Luna 2 hitting the Moon in 1959, and Yuri Gagarin becoming the first human in space in 1961. The US responded with the Mercury, Gemini, and Apollo programs, culminating in Neil Armstrong and Buzz Aldrin landing on the Moon in 1969. Since then, we've seen the development of space stations like Mir and the ISS, robotic missions to every planet, and the rise of commercial spaceflight with companies like SpaceX and Blue Origin."},
+      %{role: "user", content: "What about Mars exploration specifically? Which missions have been most successful?"},
+      %{role: "assistant", content: "Mars exploration has been remarkably successful with numerous missions. The Viking landers in 1976 were the first to successfully operate on Mars. NASA's Mars Pathfinder and Sojourner rover arrived in 1997. The Mars Exploration Rovers Spirit and Opportunity launched in 2003, with Opportunity operating for nearly 15 years. Currently active missions include NASA's Curiosity rover (since 2012), InSight lander, Perseverance rover and Ingenuity helicopter (2021), plus orbiters like Mars Reconnaissance Orbiter. The UAE's Hope probe and China's Tianwen-1 with its Zhurong rover also arrived in 2021. These missions have discovered evidence of ancient water, analyzed Martian geology and climate, and are searching for signs of past microbial life."},
+      %{role: "user", content: "What are the future plans for human missions to Mars? Which organizations are working on this?"}
     ]
     
     IO.puts("💰 Token Budget: #{budget} tokens")
     IO.puts("📊 Conversation growth:\n")
     
-    {_total_tokens, _exceeded_budget} = Enum.reduce_while(Enum.with_index(messages), {0, false}, fn {msg, idx}, {acc_tokens, _exceeded} ->
+    # First pass - show token accumulation
+    total_tokens = Enum.reduce(Enum.with_index(messages), 0, fn {msg, idx}, acc_tokens ->
       tokens = ExLLM.Cost.estimate_tokens(msg)
       new_total = acc_tokens + tokens
       
       status = if new_total <= budget, do: "✅", else: "❌"
       role = String.pad_trailing(msg.role, 9)
       
-      IO.puts("   #{status} Message #{idx + 1} (#{role}): #{tokens} tokens | Total: #{new_total}")
+      IO.puts("   #{status} Message #{idx + 1} (#{role}): #{String.pad_leading(to_string(tokens), 3)} tokens | Total: #{String.pad_leading(to_string(new_total), 4)}")
       
-      if new_total > budget do
-        IO.puts("\n⚠️  Exceeded budget! Applying truncation strategy...")
-        IO.puts("   → Removing oldest messages to fit within budget")
-        {:halt, {new_total, true}}
-      else
-        {:cont, {new_total, false}}
-      end
+      new_total
     end)
     
-    wait_for_continue()
+    if total_tokens > budget do
+      IO.puts("\n⚠️  Budget exceeded by #{total_tokens - budget} tokens!")
+      IO.puts("\n📋 Available truncation strategies:")
+      IO.puts("   1. Drop oldest messages (keep system + recent)")
+      IO.puts("   2. Summarize older messages")
+      IO.puts("   3. Keep only system + last N messages")
+      IO.puts("   4. Smart truncation (preserve context)")
+      
+      IO.puts("\n🔄 Applying smart truncation...")
+      
+      # Simulate truncation - keep system message and as many recent messages as fit
+      truncated_messages = []
+      remaining_budget = budget
+      
+      # Always keep system message
+      system_msg = Enum.find(messages, & &1.role == "system")
+      system_tokens = if system_msg, do: ExLLM.Cost.estimate_tokens(system_msg), else: 0
+      remaining_budget = remaining_budget - system_tokens
+      
+      # Take messages from the end that fit
+      recent_messages = messages
+      |> Enum.reverse()
+      |> Enum.filter(& &1.role != "system")
+      |> Enum.reduce_while({[], remaining_budget}, fn msg, {kept, budget_left} ->
+        msg_tokens = ExLLM.Cost.estimate_tokens(msg)
+        if msg_tokens <= budget_left do
+          {:cont, {[msg | kept], budget_left - msg_tokens}}
+        else
+          {:halt, {kept, budget_left}}
+        end
+      end)
+      |> elem(0)
+      
+      truncated_messages = if system_msg, do: [system_msg | recent_messages], else: recent_messages
+      
+      IO.puts("\n📊 After truncation:")
+      total_after = Enum.reduce(Enum.with_index(truncated_messages), 0, fn {msg, idx}, acc ->
+        tokens = ExLLM.Cost.estimate_tokens(msg)
+        new_total = acc + tokens
+        role = String.pad_trailing(msg.role, 9)
+        IO.puts("   ✅ Message #{idx + 1} (#{role}): #{String.pad_leading(to_string(tokens), 3)} tokens | Total: #{String.pad_leading(to_string(new_total), 4)}")
+        new_total
+      end)
+      
+      IO.puts("\n✨ Removed #{length(messages) - length(truncated_messages)} messages")
+      IO.puts("   Final token count: #{total_after}/#{budget} (#{Float.round(total_after / budget * 100, 1)}% of budget)")
+    else
+      IO.puts("\n✅ Conversation fits within budget!")
+    end
     
-    # 4. Multi-Provider Routing
-    IO.puts("\n4️⃣  Multi-Provider Routing")
-    IO.puts("   Routing requests to different providers based on capabilities...\n")
+    wait_for_continue()
+    main_menu(provider)
+  end
+  
+  defp multi_provider_routing_demo(_provider) do
+    IO.puts("\n=== Multi-Provider Routing ===")
+    IO.puts("Routing requests to different providers based on capabilities.\n")
     
     requests = [
       %{task: "Generate an image of a sunset", required: :image_generation},
       %{task: "Embed this text for similarity search", required: :embeddings},
       %{task: "Answer with a structured JSON response", required: :json_mode},
       %{task: "Use this custom function", required: :function_calling},
-      %{task: "Chat normally", required: :chat}
+      %{task: "Chat normally", required: :chat},
+      %{task: "Analyze this image", required: :vision},
+      %{task: "Generate speech from text", required: :speech_synthesis},
+      %{task: "Fine-tune a model", required: :fine_tuning_api}
     ]
     
     for req <- requests do
@@ -2406,27 +2596,6 @@ defmodule ExLLM.ExampleApp do
     end
   end
   
-  defp complexity_level(task_type) do
-    case task_type do
-      :simple_math -> "Low"
-      :translation -> "Medium"
-      :creative_writing -> "Medium"
-      :code_analysis -> "High"
-      :complex_explanation -> "High"
-      _ -> "Unknown"
-    end
-  end
-  
-  defp required_capabilities(task_type) do
-    case task_type do
-      :simple_math -> ["basic reasoning"]
-      :creative_writing -> ["creativity", "language fluency"]
-      :code_analysis -> ["code understanding", "technical reasoning"]
-      :translation -> ["multilingual", "cultural awareness"]
-      :complex_explanation -> ["deep reasoning", "simplification", "pedagogy"]
-      _ -> ["general"]
-    end
-  end
   
   defp estimate_task_tokens(task) do
     # Simple estimation based on task length and expected response

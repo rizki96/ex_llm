@@ -1,0 +1,511 @@
+provider: openai
+discovered_at: '2025-06-06T14:31:22.902747'
+endpoints:
+- fine_tuning
+- completions
+- assistants
+- images
+- vector_stores
+- embeddings
+- threads
+- files
+- runs
+- chat
+- audio
+features:
+- tool_use
+- structured_outputs
+- system_messages
+- dynamic_model_listing
+- logprobs
+- moderation
+- file_uploads
+- assistants_api
+- fine_tuning_api
+- streaming
+- embeddings
+- json_mode
+- batch_operations
+- parallel_function_calling
+- response_format
+- usage_tracking
+- reasoning
+- rate_limiting_headers
+- speech_recognition
+- speech_synthesis
+- code_interpreter
+- long_context
+- cost_tracking
+- vision
+- retrieval
+- seed_control
+- function_calling
+- image_generation
+model_capabilities:
+  gpt-4-0613:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-3.5-turbo:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - json_mode
+    - function_calling
+    - streaming
+  gpt-4o-audio-preview-2025-06-03:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4.1-nano:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-image-1:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - json_mode
+    - function_calling
+    - streaming
+  codex-mini-latest:
+    context_window: 4096
+    capabilities: []
+  gpt-4o-realtime-preview-2025-06-03:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  davinci-002:
+    context_window: 4096
+    capabilities: []
+  babbage-002:
+    context_window: 4096
+    capabilities: []
+  gpt-3.5-turbo-instruct:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - json_mode
+    - function_calling
+    - streaming
+  gpt-3.5-turbo-instruct-0914:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - json_mode
+    - function_calling
+    - streaming
+  gpt-4-1106-preview:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-3.5-turbo-1106:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - json_mode
+    - function_calling
+    - streaming
+  gpt-4-0125-preview:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4-turbo-preview:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-3.5-turbo-0125:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - json_mode
+    - function_calling
+    - streaming
+  gpt-4-turbo:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4-turbo-2024-04-09:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-2024-05-13:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini-2024-07-18:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-2024-08-06:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  chatgpt-4o-latest:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  o1-preview-2024-09-12:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  o1-preview:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  o1-mini-2024-09-12:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  o1-mini:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  gpt-4o-realtime-preview-2024-10-01:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-audio-preview-2024-10-01:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-audio-preview:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-realtime-preview:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  omni-moderation-latest:
+    context_window: 4096
+    capabilities: []
+  omni-moderation-2024-09-26:
+    context_window: 4096
+    capabilities: []
+  gpt-4o-realtime-preview-2024-12-17:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-audio-preview-2024-12-17:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini-realtime-preview-2024-12-17:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini-audio-preview-2024-12-17:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  o1-2024-12-17:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  o1:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  gpt-4o-mini-realtime-preview:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini-audio-preview:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  o3-mini:
+    context_window: 4096
+    capabilities: []
+  o3-mini-2025-01-31:
+    context_window: 4096
+    capabilities: []
+  gpt-4o-2024-11-20:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4.5-preview:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4.5-preview-2025-02-27:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-search-preview-2025-03-11:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-search-preview:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini-search-preview-2025-03-11:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini-search-preview:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-transcribe:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4o-mini-transcribe:
+    context_window: 4096
+    capabilities:
+    - structured_outputs
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  o1-pro-2025-03-19:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  o1-pro:
+    context_window: 4096
+    capabilities:
+    - long_context
+    - reasoning
+  o3-2025-04-16:
+    context_window: 4096
+    capabilities: []
+  o4-mini-2025-04-16:
+    context_window: 4096
+    capabilities: []
+  o3:
+    context_window: 4096
+    capabilities: []
+  o4-mini:
+    context_window: 4096
+    capabilities: []
+  gpt-4.1-2025-04-14:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4.1:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4.1-mini-2025-04-14:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4.1-mini:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-4.1-nano-2025-04-14:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - vision
+    - streaming
+    - json_mode
+    - function_calling
+  gpt-3.5-turbo-16k:
+    context_window: 4096
+    capabilities:
+    - system_messages
+    - json_mode
+    - function_calling
+    - streaming

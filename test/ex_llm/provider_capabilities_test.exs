@@ -86,7 +86,7 @@ defmodule ExLLM.ProviderCapabilitiesTest do
   describe "get_auth_methods/1" do
     test "returns authentication methods for providers" do
       assert [:api_key, :bearer_token] = ProviderCapabilities.get_auth_methods(:openai)
-      assert [:api_key] = ProviderCapabilities.get_auth_methods(:anthropic)
+      assert [:api_key, :bearer_token] = ProviderCapabilities.get_auth_methods(:anthropic)
       assert [] = ProviderCapabilities.get_auth_methods(:ollama)
       assert [] = ProviderCapabilities.get_auth_methods(:local)
     end
@@ -106,8 +106,10 @@ defmodule ExLLM.ProviderCapabilitiesTest do
     end
     
     test "returns correct endpoints for different providers" do
-      assert [:chat] = ProviderCapabilities.get_endpoints(:anthropic)
-      assert [:chat, :embeddings] = ProviderCapabilities.get_endpoints(:ollama)
+      assert [:chat, :messages] = ProviderCapabilities.get_endpoints(:anthropic)
+      endpoints = ProviderCapabilities.get_endpoints(:ollama)
+      assert :chat in endpoints
+      assert :embeddings in endpoints
     end
   end
   

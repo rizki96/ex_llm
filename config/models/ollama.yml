@@ -154,5 +154,5 @@ models:
     max_output_tokens: 2048
     mode: completion
 metadata:
-  updated_at: '2025-06-05T21:45:16.262551'
+  updated_at: '2025-06-06T14:30:54.820943'
   source: ollama_api

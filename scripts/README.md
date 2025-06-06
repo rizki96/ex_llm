@@ -1,11 +1,12 @@
 # Model Configuration Scripts
 
-This directory contains scripts to update model configurations from various sources.
+This directory contains scripts to update model configurations and provider capabilities from various sources.
 
 ## Scripts
 
 - **`update_models.sh`** - Main entry point for all updates
-- **`fetch_provider_models.py`** - Fetches model info from provider APIs
+- **`fetch_provider_models.py`** - Fetches model info from provider APIs with enhanced capability detection
+- **`fetch_provider_capabilities.py`** - Discovers and updates provider capabilities from APIs
 - **`sync_from_litellm.py`** - Syncs model data from LiteLLM's database
 
 ## Usage
@@ -27,6 +28,29 @@ Update a specific provider:
 ./scripts/update_models.sh bedrock
 ```
 
+### Fetch Provider Capabilities
+
+Fetch and save capabilities to YAML files:
+```bash
+python scripts/fetch_provider_capabilities.py
+```
+
+Fetch specific provider capabilities:
+```bash
+python scripts/fetch_provider_capabilities.py openai
+```
+
+Update provider_capabilities.ex with discovered features:
+```bash
+python scripts/fetch_provider_capabilities.py --update-elixir
+```
+
+This will:
+- Query provider APIs for available endpoints and features
+- Detect capabilities from model IDs and API responses
+- Save discovered capabilities to `config/models/{provider}_capabilities.yml`
+- Optionally update the Elixir `provider_capabilities.ex` file
+
 ### Sync from LiteLLM
 
 Sync all 56 providers from LiteLLM (includes providers we haven't implemented):
@@ -46,6 +70,7 @@ export ANTHROPIC_API_KEY="your-key"      # Required for Anthropic models list
 export OPENAI_API_KEY="your-key"         # Required for OpenAI models list
 export GEMINI_API_KEY="your-key"         # Required for Gemini models list
 export GOOGLE_API_KEY="your-key"         # Alternative to GEMINI_API_KEY
+export GROQ_API_KEY="your-key"          # Required for Groq models list
 ```
 
 Note: If API keys are not provided, the script will skip those providers. 
@@ -55,14 +80,20 @@ Use `--litellm` mode for comprehensive model data without needing API keys.
 
 ### Provider API Updates
 - Fetches latest model information directly from provider APIs when available
-- Requires API keys for some providers:
-  - **Anthropic**: Uses `/v1/models` endpoint (requires `x-api-key` header)
-  - **OpenAI**: Uses `/v1/models` endpoint
-  - **Gemini**: Uses Google's models API
-- OpenRouter and Ollama have public APIs (no key required)
+- Enhanced capability detection:
+  - **OpenAI**: Detects vision (GPT-4V), structured outputs (GPT-4o), reasoning (o1 models)
+  - **Anthropic**: Detects tool use, vision, prompt caching, computer use
+  - **Gemini**: Detects long context, video understanding, audio input, code execution
 - Preserves manual additions in YAML files
-- Updates context windows and basic capabilities
+- Updates context windows and capabilities
 - Note: For comprehensive model data including pricing, use `--litellm` mode
+
+### Capability Discovery
+The `fetch_provider_capabilities.py` script:
+- Queries provider APIs for supported endpoints
+- Detects features from model responses
+- Maps common capabilities across providers
+- Can update the main provider_capabilities.ex file
 
 ### LiteLLM Sync
 - Reads from LiteLLM's comprehensive model database
@@ -72,6 +103,7 @@ Use `--litellm` mode for comprehensive model data without needing API keys.
 
 ## YAML Structure
 
+### Model Configuration
 ```yaml
 provider: anthropic
 default_model: "claude-3-5-sonnet-20241022"
@@ -86,8 +118,41 @@ models:
       - streaming
       - function_calling
       - vision
+      - prompt_caching
+      - computer_use
     deprecation_date: "2025-10-01"  # If applicable
 ```
+
+### Capability Discovery
+```yaml
+provider: openai
+discovered_at: "2024-01-06T12:00:00"
+endpoints:
+  - chat
+  - embeddings
+  - images
+  - audio
+  - fine_tuning
+  - assistants
+features:
+  - streaming
+  - function_calling
+  - vision
+  - image_generation
+  - speech_synthesis
+  - speech_recognition
+model_capabilities:
+  gpt-4o:
+    context_window: 128000
+    capabilities:
+      - vision
+      - structured_outputs
+      - function_calling
+```
+
+## API Fetch Status
+
+See [API_FETCH_STATUS.md](API_FETCH_STATUS.md) for details on which providers support API-based model fetching.
 
 ## Troubleshooting
 
@@ -96,3 +161,4 @@ models:
 - **Permission denied**: Run `chmod +x scripts/*.sh scripts/*.py`
 - **Missing dependencies**: Install with `pip3 install requests pyyaml`
 - **LiteLLM sync fails**: Ensure `../litellm` directory exists with `model_prices_and_context_window.json`
+- **Capability update fails**: Review the generated `.new` file before replacing provider_capabilities.ex

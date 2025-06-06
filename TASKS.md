@@ -453,4 +453,4 @@
 - All features should work consistently across providers where possible
 - Provider-specific features should be clearly documented
 - Performance and cost efficiency are key priorities
-- Features that belong at the application layer have been moved to DROPPED.md
+- Features that belong at the application layer have been moved to docs/DROPPED.md

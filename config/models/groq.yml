@@ -1,11 +1,35 @@
 provider: groq
 default_model: groq/deepseek-r1-distill-llama-70b
 models:
-  meta-llama/llama-4-scout-17b-16e-instruct:
-    context_window: 131072
+  whisper-large-v3:
+    context_window: 448
+    capabilities:
+    - streaming
+  distil-whisper-large-v3-en:
+    context_window: 448
+    capabilities:
+    - streaming
+  allam-2-7b:
+    context_window: 4096
     capabilities:
     - streaming
   playai-tts:
+    context_window: 8192
+    capabilities:
+    - streaming
+  llama-3.1-8b-instant:
+    context_window: 131072
+    capabilities:
+    - streaming
+  compound-beta:
+    context_window: 8192
+    capabilities:
+    - streaming
+  llama-3.3-70b-versatile:
+    context_window: 131072
+    capabilities:
+    - streaming
+  llama-guard-3-8b:
     context_window: 8192
     capabilities:
     - streaming
@@ -17,51 +41,35 @@ models:
     context_window: 8192
     capabilities:
     - streaming
-  allam-2-7b:
-    context_window: 4096
+  whisper-large-v3-turbo:
+    context_window: 448
+    capabilities:
+    - streaming
+  mistral-saba-24b:
+    context_window: 32768
     capabilities:
     - streaming
   compound-beta-mini:
     context_window: 8192
     capabilities:
     - streaming
-  whisper-large-v3-turbo:
-    context_window: 448
-    capabilities:
-    - streaming
-  llama-3.3-70b-versatile:
-    context_window: 131072
-    capabilities:
-    - streaming
-  llama-guard-3-8b:
-    context_window: 8192
-    capabilities:
-    - streaming
-  deepseek-r1-distill-llama-70b:
-    context_window: 131072
-    capabilities:
-    - streaming
   llama3-8b-8192:
     context_window: 8192
     capabilities:
     - streaming
-  distil-whisper-large-v3-en:
-    context_window: 448
+  gemma2-9b-it:
+    context_window: 8192
     capabilities:
     - streaming
-  meta-llama/llama-4-maverick-17b-128e-instruct:
+  meta-llama/llama-4-scout-17b-16e-instruct:
     context_window: 131072
     capabilities:
     - streaming
-  whisper-large-v3:
-    context_window: 448
+  llama3-70b-8192:
+    context_window: 8192
     capabilities:
     - streaming
   meta-llama/llama-prompt-guard-2-22m:
-    context_window: 512
-    capabilities:
-    - streaming
-  meta-llama/llama-prompt-guard-2-86m:
     context_window: 512
     capabilities:
     - streaming
@@ -69,23 +77,15 @@ models:
     context_window: 131072
     capabilities:
     - streaming
-  gemma2-9b-it:
-    context_window: 8192
-    capabilities:
-    - streaming
-  mistral-saba-24b:
-    context_window: 32768
-    capabilities:
-    - streaming
-  compound-beta:
-    context_window: 8192
-    capabilities:
-    - streaming
-  llama-3.1-8b-instant:
+  meta-llama/llama-4-maverick-17b-128e-instruct:
     context_window: 131072
     capabilities:
     - streaming
-  llama3-70b-8192:
-    context_window: 8192
+  deepseek-r1-distill-llama-70b:
+    context_window: 131072
+    capabilities:
+    - streaming
+  meta-llama/llama-prompt-guard-2-86m:
+    context_window: 512
     capabilities:
     - streaming

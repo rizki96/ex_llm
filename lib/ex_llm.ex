@@ -122,6 +122,7 @@ defmodule ExLLM do
 
   alias ExLLM.{
     Cache,
+    Capabilities,
     Context,
     Cost,
     FunctionCalling,
@@ -1101,7 +1102,8 @@ defmodule ExLLM do
   """
   @spec model_supports?(provider(), String.t(), atom()) :: boolean()
   def model_supports?(provider, model_id, feature) do
-    ModelCapabilities.supports?(provider, model_id, feature)
+    # Use the Capabilities module which handles normalization
+    Capabilities.model_supports?(provider, model_id, feature)
   end
 
   @doc """
@@ -1122,7 +1124,10 @@ defmodule ExLLM do
   """
   @spec find_models_with_features(list(atom())) :: list({provider(), String.t()})
   def find_models_with_features(required_features) do
-    ModelCapabilities.find_models_with_features(required_features)
+    # Normalize features first, then find models
+    required_features
+    |> Enum.map(&Capabilities.normalize_capability/1)
+    |> ModelCapabilities.find_models_with_features()
   end
 
   @doc """
@@ -1244,7 +1249,8 @@ defmodule ExLLM do
   """
   @spec provider_supports?(provider(), atom()) :: boolean()
   def provider_supports?(provider, feature) do
-    ProviderCapabilities.supports?(provider, feature)
+    # Use the Capabilities module which handles normalization
+    Capabilities.supports?(provider, feature)
   end
 
   @doc """
@@ -1262,7 +1268,19 @@ defmodule ExLLM do
   """
   @spec find_providers_with_features([atom()]) :: [provider()]
   def find_providers_with_features(features) do
-    ProviderCapabilities.find_providers_with_features(features)
+    # Use the new Capabilities module for normalized lookups
+    features
+    |> Enum.map(&ExLLM.Capabilities.normalize_capability/1)
+    |> Enum.reduce(nil, fn feature, acc ->
+      providers = ExLLM.Capabilities.find_providers(feature)
+      if acc == nil do
+        providers
+      else
+        # Only keep providers that support all features
+        Enum.filter(acc, &(&1 in providers))
+      end
+    end)
+    |> Kernel.||([])
   end
 
   @doc """
@@ -1604,7 +1622,7 @@ defmodule ExLLM do
   @spec supports_vision?(provider(), String.t()) :: boolean()
   def supports_vision?(provider, model) do
     Vision.supports_vision?(provider) and
-      ModelCapabilities.supports?(provider, model, :vision)
+      Capabilities.model_supports?(provider, model, :vision)
   end
 
   @doc """

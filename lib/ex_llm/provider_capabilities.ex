@@ -82,18 +82,24 @@ defmodule ExLLM.ProviderCapabilities do
       description: "OpenAI API with GPT-4, GPT-3.5, DALL-E, and more",
       documentation_url: "https://platform.openai.com/docs",
       status_url: "https://status.openai.com",
-      endpoints: [:chat, :embeddings, :images, :audio, :completions, :fine_tuning, :files],
+      endpoints: [:assistants, :audio, :chat, :completions, :embeddings, :files, :fine_tuning, :images, :runs, :threads, :vector_stores],
       authentication: [:api_key, :bearer_token],
       features: [
-        :streaming, :function_calling, :cost_tracking, :usage_tracking,
-        :dynamic_model_listing, :batch_operations, :file_uploads,
-        :rate_limiting_headers, :system_messages, :json_mode,
-        :vision, :audio_input, :audio_output, :tool_use
+        :assistants_api, :batch_operations, :code_interpreter, :cost_tracking, 
+        :dynamic_model_listing, :embeddings, :file_uploads, :fine_tuning_api, 
+        :function_calling, :image_generation, :json_mode, :logprobs, 
+        :long_context, :moderation, :parallel_function_calling, :rate_limiting_headers, 
+        :reasoning, :response_format, :retrieval, :seed_control, 
+        :speech_recognition, :speech_synthesis, :streaming, :structured_outputs, 
+        :system_messages, :tool_use, :usage_tracking, :vision
       ],
       limitations: %{
         max_file_size: 512 * 1024 * 1024, # 512MB
-        max_context_tokens: 128_000,
-        rate_limits_vary_by_tier: true
+        max_context_tokens: 128_000, # GPT-4 Turbo
+        max_output_tokens: 16_384, # GPT-4o
+        rate_limits_vary_by_tier: true,
+        image_generation_size_limits: ["256x256", "512x512", "1024x1024", "1792x1024", "1024x1792"],
+        audio_file_size_limit: 25 * 1024 * 1024 # 25MB
       }
     },
     
@@ -104,17 +110,24 @@ defmodule ExLLM.ProviderCapabilities do
       description: "Claude AI models with advanced reasoning capabilities",
       documentation_url: "https://docs.anthropic.com",
       status_url: "https://status.anthropic.com",
-      endpoints: [:chat],
-      authentication: [:api_key],
+      endpoints: [:chat, :messages],
+      authentication: [:api_key, :bearer_token],
       features: [
-        :streaming, :function_calling, :cost_tracking, :usage_tracking,
-        :dynamic_model_listing, :rate_limiting_headers, :system_messages,
-        :vision, :tool_use, :context_caching, :computer_use
+        :batch_processing, :code_execution, :computer_use, :context_caching, 
+        :cost_tracking, :document_understanding, :function_calling, :json_mode, 
+        :latex_rendering, :long_context, :multiple_images, :prompt_caching, 
+        :rate_limiting_headers, :streaming, :structured_outputs, :system_messages, 
+        :tool_use, :usage_tracking, :vision, :xml_mode
       ],
       limitations: %{
-        max_context_tokens: 200_000,
+        max_context_tokens: 200_000, # Claude 3
         max_output_tokens: 8_192,
-        beta_features: [:computer_use, :context_caching]
+        max_images_per_request: 20,
+        max_image_size: 5 * 1024 * 1024, # 5MB per image
+        beta_features: [:computer_use, :context_caching, :prompt_caching],
+        no_fine_tuning: true,
+        no_embeddings: true,
+        no_image_generation: true
       }
     },
     
@@ -124,16 +137,25 @@ defmodule ExLLM.ProviderCapabilities do
       name: "Google Gemini",
       description: "Google's multimodal AI models",
       documentation_url: "https://ai.google.dev/docs",
-      endpoints: [:chat],
-      authentication: [:api_key, :service_account],
+      endpoints: [:chat, :count_tokens, :embeddings],
+      authentication: [:api_key, :service_account, :oauth2],
       features: [
-        :streaming, :function_calling, :cost_tracking, :usage_tracking,
-        :dynamic_model_listing, :system_messages, :vision,
-        :tool_use, :json_mode
+        :audio_input, :citation_metadata, :code_execution, :context_caching, 
+        :cost_tracking, :document_understanding, :dynamic_model_listing, :embeddings, 
+        :function_calling, :grounding, :json_mode, :long_context, 
+        :multi_turn_conversations, :multiple_images, :safety_settings, :streaming, 
+        :structured_outputs, :system_messages, :tool_use, :usage_tracking, 
+        :video_understanding, :vision
       ],
       limitations: %{
-        max_context_tokens: 1_000_000, # Gemini 1.5 Pro
-        requires_google_cloud_for_some_features: true
+        max_context_tokens: 2_000_000, # Gemini 1.5 Pro (experimental)
+        standard_context_tokens: 1_000_000,
+        max_output_tokens: 8_192,
+        max_images_per_request: 16,
+        max_video_length_seconds: 3600, # 1 hour
+        requires_google_cloud_for_some_features: true,
+        rate_limits_vary_by_model: true,
+        no_fine_tuning_via_api: true
       }
     },
     
@@ -143,16 +165,22 @@ defmodule ExLLM.ProviderCapabilities do
       name: "Ollama",
       description: "Run large language models locally",
       documentation_url: "https://github.com/ollama/ollama",
-      endpoints: [:chat, :embeddings],
+      endpoints: [:chat, :embeddings, :generate, :list, :show, :pull, :push, :delete, :copy],
       authentication: [], # No auth required for local
       features: [
         :streaming, :usage_tracking, :dynamic_model_listing,
-        :system_messages
+        :system_messages, :keep_alive, :raw_mode, :custom_templates,
+        :model_management, :context_window_override, :temperature_control,
+        :seed_control, :stop_sequences, :mirostat, :numa_control
       ],
       limitations: %{
         no_cost_tracking: true,
         performance_depends_on_hardware: true,
-        limited_function_calling: true
+        limited_function_calling: true,
+        vision_depends_on_model: true,
+        no_image_generation: true,
+        no_audio_support: true,
+        local_only: true
       }
     },
     
@@ -162,16 +190,21 @@ defmodule ExLLM.ProviderCapabilities do
       name: "AWS Bedrock",
       description: "Fully managed foundation models from AWS",
       documentation_url: "https://docs.aws.amazon.com/bedrock",
-      endpoints: [:chat, :embeddings],
-      authentication: [:aws_signature],
+      endpoints: [:chat, :embeddings, :invoke_model, :invoke_model_with_response_stream, :converse, :converse_stream],
+      authentication: [:aws_signature, :iam_role],
       features: [
         :streaming, :function_calling, :cost_tracking, :usage_tracking,
-        :system_messages, :vision, :tool_use
+        :system_messages, :vision, :tool_use, :multi_provider_models,
+        :guardrails, :knowledge_bases, :agents, :fine_tuning,
+        :model_evaluation, :provisioned_throughput, :json_mode,
+        :document_understanding, :code_interpretation, :batch_inference
       ],
       limitations: %{
         requires_aws_account: true,
         model_access_requires_approval: true,
-        region_specific_availability: true
+        region_specific_availability: true,
+        pricing_varies_by_model_provider: true,
+        some_models_require_commitment: true
       }
     },
     

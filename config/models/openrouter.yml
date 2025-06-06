@@ -315,7 +315,7 @@ models:
     - streaming
     pricing:
       input: 0.06
-      output: 0.25
+      output: 0.24
   qwen/qwen3-32b:free:
     context_window: 40960
     max_output_tokens: null
@@ -1732,12 +1732,12 @@ models:
     capabilities:
     - streaming
   meta-llama/llama-3.1-8b-instruct:
-    context_window: 16384
+    context_window: 131000
     max_output_tokens: null
     capabilities:
     - streaming
     pricing:
-      input: 0.02
+      input: 0.019000000000000003
       output: 0.03
   meta-llama/llama-3.1-405b-instruct:
     context_window: 32768
@@ -1767,7 +1767,7 @@ models:
     - streaming
     pricing:
       input: 0.01
-      output: 0.03
+      output: 0.029
   openai/gpt-4o-mini:
     context_window: 128000
     max_output_tokens: null
@@ -2904,5 +2904,5 @@ models:
     - streaming
     - tool_choice
 metadata:
-  updated_at: '2025-06-05T21:45:16.220187'
+  updated_at: '2025-06-06T14:30:54.717968'
   source: openrouter_api
