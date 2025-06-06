@@ -22,7 +22,7 @@ defmodule ExLLM.Local.EXLAConfig do
   - Parallel execution configuration
   """
 
-  require Logger
+  alias ExLLM.Logger
 
   @doc """
   Configure EXLA/EMLX backend with optimal settings based on available hardware.

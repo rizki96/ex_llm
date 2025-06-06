@@ -848,6 +848,43 @@ config = %{
 ExLLM.set_config_provider({ExLLM.ConfigProvider.Static, config})
 ```
 
+### Logging
+
+ExLLM provides a unified logging system with fine-grained control over what gets logged and how sensitive data is handled. 
+
+📖 **[Read the full Logger User Guide](LOGGER.md)** for detailed documentation.
+
+```elixir
+# Quick example
+alias ExLLM.Logger
+
+Logger.info("Starting chat completion")
+Logger.with_context(provider: :openai, operation: :chat) do
+  Logger.info("Sending request")
+  # ... make API call ...
+  Logger.info("Request completed", tokens: 150, duration_ms: 230)
+end
+```
+
+Configure logging in your `config/config.exs`:
+
+```elixir
+config :ex_llm,
+  log_level: :info,
+  log_components: %{
+    requests: true,
+    responses: true,
+    streaming: false,  # Can be noisy
+    retries: true,
+    cache: false,
+    models: true
+  },
+  log_redaction: %{
+    api_keys: true,    # Always recommended
+    content: false     # Set true in production
+  }
+```
+
 ### Custom Configuration Provider
 
 ```elixir
@@ -1256,6 +1293,10 @@ mix docs
 # Open in browser
 open doc/index.html
 ```
+
+#### User Guides
+
+- [Logger User Guide](LOGGER.md) - Comprehensive guide to ExLLM's unified logging system
 
 ## Roadmap
 

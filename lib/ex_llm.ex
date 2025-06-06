@@ -120,13 +120,12 @@ defmodule ExLLM do
       end)
   """
 
-  require Logger
-
   alias ExLLM.{
     Cache,
     Context,
     Cost,
     FunctionCalling,
+    Logger,
     ModelCapabilities,
     ProviderCapabilities,
     Session,

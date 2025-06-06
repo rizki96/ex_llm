@@ -11,7 +11,7 @@ defmodule ExLLM.ModelConfig do
   Configuration files are located in `config/models/` and organized by provider.
   """
 
-  require Logger
+  alias ExLLM.Logger
 
   @config_dir Path.join([File.cwd!(), "config", "models"])
   @providers [:anthropic, :openai, :openrouter, :gemini, :ollama, :bedrock]

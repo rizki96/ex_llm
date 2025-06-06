@@ -37,7 +37,7 @@ defmodule ExLLM.Cache do
   """
 
   use GenServer
-  require Logger
+  alias ExLLM.Logger
 
   # alias ExLLM.Cache.Storage
 
@@ -75,9 +75,19 @@ defmodule ExLLM.Cache do
   """
   @spec get(String.t()) :: {:ok, any()} | :miss
   def get(key) do
-    GenServer.call(__MODULE__, {:get, key})
+    result = GenServer.call(__MODULE__, {:get, key})
+    
+    # Log cache access
+    case result do
+      {:ok, _} -> Logger.log_cache_event(:hit, key)
+      :miss -> Logger.log_cache_event(:miss, key)
+    end
+    
+    result
   catch
-    :exit, _ -> :miss
+    :exit, _ -> 
+      Logger.log_cache_event(:error, key, %{reason: :genserver_not_running})
+      :miss
   end
 
   @doc """
@@ -85,9 +95,16 @@ defmodule ExLLM.Cache do
   """
   @spec put(String.t(), any(), keyword()) :: :ok
   def put(key, value, opts \\ []) do
+    # Log cache write
+    Logger.log_cache_event(:put, key, %{
+      ttl: Keyword.get(opts, :ttl, @default_ttl)
+    })
+    
     GenServer.cast(__MODULE__, {:put, key, value, opts})
   catch
-    :exit, _ -> :ok
+    :exit, _ -> 
+      Logger.log_cache_event(:error, key, %{reason: :genserver_not_running})
+      :ok
   end
 
   @doc """
@@ -105,6 +122,7 @@ defmodule ExLLM.Cache do
   """
   @spec clear() :: :ok
   def clear do
+    Logger.log_cache_event(:clear, "all")
     GenServer.call(__MODULE__, :clear)
   catch
     :exit, _ -> :ok

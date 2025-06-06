@@ -30,7 +30,7 @@ defmodule ExLLM.Retry do
         jitter: true
   """
 
-  require Logger
+  alias ExLLM.Logger
 
   @default_max_attempts 3
   # 1 second
@@ -105,7 +105,8 @@ defmodule ExLLM.Retry do
   """
   def with_retry(fun, opts \\ []) do
     policy = build_policy(opts)
-    execute_with_retry(fun, policy, 1)
+    provider = Keyword.get(opts, :provider, :unknown)
+    execute_with_retry(fun, policy, 1, provider)
   end
 
   @doc """
@@ -114,7 +115,7 @@ defmodule ExLLM.Retry do
   def with_provider_retry(provider, fun, opts \\ []) do
     provider_policy = get_provider_policy(provider)
     policy = merge_policies(provider_policy, build_policy(opts))
-    execute_with_retry(fun, policy, 1)
+    execute_with_retry(fun, policy, 1, provider)
   end
 
   @doc """
@@ -184,23 +185,23 @@ defmodule ExLLM.Retry do
 
   # Private functions
 
-  defp execute_with_retry(fun, policy, attempt) do
+  defp execute_with_retry(fun, policy, attempt, provider) do
     start_time = System.monotonic_time(:millisecond)
 
     case fun.() do
       {:ok, _} = success ->
-        log_success(attempt, start_time)
+        log_success(attempt, start_time, provider)
         success
 
       {:error, reason} = error ->
         if should_retry?(reason, attempt, policy) do
           delay = calculate_delay(attempt, policy)
-          log_retry(attempt, reason, delay)
+          log_retry(attempt, reason, delay, provider, policy)
 
           Process.sleep(delay)
-          execute_with_retry(fun, policy, attempt + 1)
+          execute_with_retry(fun, policy, attempt + 1, provider)
         else
-          log_failure(attempt, reason)
+          log_failure(attempt, reason, provider)
           error
         end
 
@@ -211,12 +212,12 @@ defmodule ExLLM.Retry do
     exception ->
       if should_retry?(exception, attempt, policy) do
         delay = calculate_delay(attempt, policy)
-        log_retry(attempt, exception, delay)
+        log_retry(attempt, exception, delay, provider, policy)
 
         Process.sleep(delay)
-        execute_with_retry(fun, policy, attempt + 1)
+        execute_with_retry(fun, policy, attempt + 1, provider)
       else
-        log_failure(attempt, exception)
+        log_failure(attempt, exception, provider)
         reraise exception, __STACKTRACE__
       end
   end
@@ -329,18 +330,23 @@ defmodule ExLLM.Retry do
     delay + jitter_amount
   end
 
-  defp log_retry(attempt, reason, delay) do
-    Logger.info("Retry attempt #{attempt} after #{delay}ms due to: #{inspect(reason)}")
+  defp log_retry(attempt, reason, delay, provider, policy) do
+    Logger.log_retry(provider, attempt, policy.max_attempts, reason, delay)
   end
 
-  defp log_success(attempt, start_time) do
+  defp log_success(attempt, start_time, provider) do
     if attempt > 1 do
       duration = System.monotonic_time(:millisecond) - start_time
+      # Log successful retry recovery
       Logger.info("Request succeeded after #{attempt} attempts (#{duration}ms)")
     end
   end
 
-  defp log_failure(attempt, reason) do
-    Logger.error("Request failed after #{attempt} attempts: #{inspect(reason)}")
+  defp log_failure(attempt, reason, provider) do
+    # Log final failure after all retries
+    Logger.log_error(provider, {:max_retries_exceeded, reason}, %{
+      attempts: attempt,
+      reason: inspect(reason)
+    })
   end
 end

@@ -94,8 +94,7 @@ defmodule ExLLM.Instructor do
       )
   """
 
-  require Logger
-  alias ExLLM.Types
+  alias ExLLM.{Types, Logger}
 
   @doc """
   Check if instructor is available.

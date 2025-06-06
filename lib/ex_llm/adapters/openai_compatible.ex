@@ -77,9 +77,8 @@ defmodule ExLLM.Adapters.OpenAICompatible do
       @behaviour ExLLM.Adapters.OpenAICompatible
       @behaviour ExLLM.Adapters.Shared.StreamingBehavior
       
-      alias ExLLM.{Error, Types, ModelConfig}
+      alias ExLLM.{Error, Types, ModelConfig, Logger}
       alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation}
-      require Logger
       
       @provider unquote(provider)
       @default_base_url unquote(default_base_url)

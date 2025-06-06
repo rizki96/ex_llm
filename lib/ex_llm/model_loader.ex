@@ -8,8 +8,7 @@ defmodule ExLLM.ModelLoader do
   3. Cache results to avoid repeated API calls
   """
   
-  require Logger
-  alias ExLLM.{Types, ModelConfig}
+  alias ExLLM.{Types, ModelConfig, Logger}
   
   @cache_ttl_seconds 3600  # 1 hour cache
   @cache_table :ex_llm_model_cache

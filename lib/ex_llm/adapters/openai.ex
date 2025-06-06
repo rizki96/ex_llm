@@ -48,9 +48,8 @@ defmodule ExLLM.Adapters.OpenAI do
   @behaviour ExLLM.Adapter
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
-  alias ExLLM.{Error, Types, ModelConfig}
+  alias ExLLM.{Error, Types, ModelConfig, Logger}
   alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation, ModelUtils}
-  require Logger
 
   @default_base_url "https://api.openai.com/v1"
   @default_temperature 0.7
@@ -69,7 +68,7 @@ defmodule ExLLM.Adapters.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
       
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000) do
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
         {:ok, response} ->
           {:ok, parse_response(response, model)}
           
@@ -108,7 +107,8 @@ defmodule ExLLM.Adapters.OpenAI do
           fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
           on_error: fn status, body -> 
             send(parent, {ref, {:error, ErrorHandler.handle_provider_error(:openai, status, body)}})
-          end
+          end,
+          provider: :openai
         )
         
         # Wait for stream completion and forward the done signal
@@ -168,8 +168,8 @@ defmodule ExLLM.Adapters.OpenAI do
         headers = build_headers(api_key, config)
         url = "#{get_base_url(config)}/models"
 
-        case Req.get(url, headers: headers) do
-          {:ok, %{status: 200, body: %{"data" => data}}} ->
+        case HTTPClient.post_json(url, %{}, headers, method: :get, provider: :openai) do
+          {:ok, %{"data" => data}} ->
             models =
               data
               |> Enum.filter(&is_chat_model?/1)
@@ -178,7 +178,7 @@ defmodule ExLLM.Adapters.OpenAI do
 
             {:ok, models}
 
-          {:ok, %{status: status, body: body}} ->
+          {:error, {:api_error, %{status: status, body: body}}} ->
             Logger.debug("Failed to fetch OpenAI models: #{status} - #{inspect(body)}")
             ErrorHandler.handle_provider_error(:openai, status, body)
 

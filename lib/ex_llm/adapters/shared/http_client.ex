@@ -13,6 +13,7 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   """
   
   alias ExLLM.Error
+  alias ExLLM.Logger
   
   @default_timeout 60_000  # 60 seconds
   @stream_timeout 300_000  # 5 minutes for streaming
@@ -38,10 +39,16 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   def post_json(url, body, headers, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
     method = Keyword.get(opts, :method, :post)
+    provider = Keyword.get(opts, :provider, :unknown)
     
     headers = prepare_headers(headers)
     
+    # Log request
+    Logger.log_request(provider, url, body, headers)
+    
     req_opts = [headers: headers, receive_timeout: timeout]
+    
+    start_time = System.monotonic_time(:millisecond)
     
     result = case method do
       :get -> Req.get(url, req_opts)
@@ -51,15 +58,32 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
       :delete -> Req.delete(url, req_opts)
     end
     
+    duration = System.monotonic_time(:millisecond) - start_time
+    
     case result do
       {:ok, %{status: status, body: response_body}} when status in 200..299 ->
+        # Log successful response
+        Logger.log_response(provider, %{status: status, body: response_body}, duration)
         # Req already decodes JSON
         {:ok, response_body}
         
       {:ok, %{status: status, body: response_body}} ->
+        # Log error response
+        Logger.error("API error response", 
+          provider: provider,
+          status: status,
+          body: response_body,
+          duration_ms: duration
+        )
         handle_error_response(status, response_body)
         
       {:error, reason} ->
+        # Log connection error
+        Logger.error("Connection error",
+          provider: provider,
+          error: reason,
+          duration_ms: duration
+        )
         Error.connection_error(reason)
     end
   end
@@ -79,6 +103,13 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   @spec post_stream(String.t(), map(), keyword()) :: {:ok, term()} | {:error, term()}
   def post_stream(url, body, opts \\ []) do
     headers = Keyword.get(opts, :headers, []) |> prepare_headers()
+    provider = Keyword.get(opts, :provider, :unknown)
+    
+    # Log streaming request
+    Logger.log_stream_event(provider, :request_start, %{
+      url: url,
+      body_preview: inspect(body, limit: 100)
+    })
     
     req_opts = [
       json: body,
@@ -94,12 +125,15 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     
     case Req.post(url, req_opts) do
       {:ok, %{status: status} = response} when status in 200..299 ->
+        Logger.log_stream_event(provider, :response_ok, %{status: status})
         {:ok, response}
         
       {:ok, %{status: status, body: body}} ->
+        Logger.log_stream_event(provider, :response_error, %{status: status, body: body})
         handle_error_response(status, body)
         
       {:error, reason} ->
+        Logger.log_stream_event(provider, :connection_error, %{reason: inspect(reason)})
         {:error, Error.connection_error(reason)}
     end
   end
@@ -244,10 +278,19 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   
   defp handle_req_stream_response(response, parent, callback, buffer, opts) do
     %Req.Response.Async{ref: ref} = response.body
+    provider = Keyword.get(opts, :provider, :unknown)
     
     receive do
       {^ref, {:data, data}} ->
         {events, new_buffer} = parse_sse_chunks(data, buffer)
+        
+        # Log chunk received if streaming logging is enabled
+        if length(events) > 0 do
+          Logger.log_stream_event(provider, :chunk_received, %{
+            event_count: length(events),
+            buffer_size: byte_size(new_buffer)
+          })
+        end
         
         Enum.each(events, fn event ->
           if event.data != "[DONE]" do
@@ -258,13 +301,16 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
         handle_req_stream_response(response, parent, callback, new_buffer, opts)
         
       {^ref, :done} ->
+        Logger.log_stream_event(provider, :stream_complete, %{})
         send(parent, :stream_done)
         
       {^ref, {:error, reason}} ->
+        Logger.log_stream_event(provider, :stream_error, %{reason: inspect(reason)})
         send(parent, {:stream_error, Error.connection_error(reason)})
         
     after
       Keyword.get(opts, :recv_timeout, @stream_timeout) ->
+        Logger.log_stream_event(provider, :stream_timeout, %{timeout_ms: @stream_timeout})
         send(parent, {:stream_error, {:error, :timeout}})
     end
   end

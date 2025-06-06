@@ -15,9 +15,8 @@ defmodule ExLLM.Adapters.Shared.ModelFetcher do
   to reduce code duplication.
   """
   
-  alias ExLLM.Types
+  alias ExLLM.{Types, Logger}
   alias ExLLM.Adapters.Shared.{HTTPClient, ConfigHelper, ModelUtils}
-  require Logger
   
   @doc """
   Callback to fetch models from the provider's API.

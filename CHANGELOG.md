@@ -29,14 +29,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Media type detection from file extensions and magic bytes
     - Base64 encoding/decoding utilities
     - Image size validation
-- `DebugLogger` module for configurable debug logging
-  - Configurable log levels (debug, info, warn, error, none)
-  - Component-specific logging control
-  - Request/response logging with redaction
-  - Structured logging with metadata
-  - Performance tracking and timing
+- Unified `ExLLM.Logger` module replacing multiple logging approaches
+  - Single consistent API for all logging needs
+  - Simple Logger-like interface: `Logger.info("message")`
+  - Automatic context tracking with `with_context/2`
+  - Structured logging for LLM-specific events (requests, retries, streaming)
+  - Configurable log levels and component filtering
+  - Security features: API key and content redaction
+  - Performance tracking with automatic duration measurement
 
 ### Changed
+- **BREAKING:** Replaced all `Logger` and `DebugLogger` usage with unified `ExLLM.Logger`
+  - All modules now use `alias ExLLM.Logger` instead of `require Logger`
+  - Consistent logging interface across the entire codebase
+  - Simplified developer experience with one logging API
 - Enhanced `HTTPClient` with unified streaming support via `post_stream/3`
 - Improved error handling consistency across all shared modules
 - Better separation of concerns in adapter implementations

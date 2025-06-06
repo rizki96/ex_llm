@@ -51,9 +51,8 @@ defmodule ExLLM.Adapters.Ollama do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Error, Types, ModelConfig}
+  alias ExLLM.{Error, Types, ModelConfig, Logger}
   alias ExLLM.Adapters.Shared.ConfigHelper
-  require Logger
 
   @default_base_url "http://localhost:11434"
 

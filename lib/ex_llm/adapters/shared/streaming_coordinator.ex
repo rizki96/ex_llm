@@ -12,9 +12,8 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   - Provider-agnostic streaming patterns
   """
   
-  alias ExLLM.Types
+  alias ExLLM.{Types, Logger}
   alias ExLLM.Adapters.Shared.HTTPClient
-  require Logger
   
   @doc """
   Start a streaming request with unified handling.
