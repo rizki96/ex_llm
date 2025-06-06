@@ -28,7 +28,6 @@ defmodule ExLLM.DebugLogger do
   
   require Logger
   
-  @log_levels [:debug, :info, :warn, :error, :none]
   
   @doc """
   Log an outgoing API request.
@@ -67,11 +66,13 @@ defmodule ExLLM.DebugLogger do
       }
       
       # Add response preview if in debug mode
-      if level == :debug do
-        log_data = Map.put(log_data, :preview, get_preview(response))
+      final_log_data = if level == :debug do
+        Map.put(log_data, :preview, get_preview(response))
+      else
+        log_data
       end
       
-      log(level, "ExLLM API Response", log_data)
+      log(level, "ExLLM API Response", final_log_data)
     end
   end
   

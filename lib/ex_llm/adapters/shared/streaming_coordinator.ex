@@ -13,7 +13,7 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   """
   
   alias ExLLM.Types
-  alias ExLLM.Adapters.Shared.{StreamingBehavior, HTTPClient}
+  alias ExLLM.Adapters.Shared.HTTPClient
   require Logger
   
   @doc """
@@ -177,10 +177,10 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   end
   
   defp handle_stream_error(reason, callback, recovery_id, options) do
+    # Create an error chunk without the error field
     error_chunk = %Types.StreamChunk{
-      content: "",
-      finish_reason: "error",
-      error: reason
+      content: "Error: #{inspect(reason)}",
+      finish_reason: "error"
     }
     
     # Check if error is recoverable
@@ -205,13 +205,13 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   
   # Stream recovery state management
   
-  defp save_stream_state(recovery_id, url, request, headers, options) do
+  defp save_stream_state(recovery_id, _url, _request, _headers, _options) do
     # This would integrate with ExLLM.StreamRecovery
     # For now, we'll just log
     Logger.debug("Saving stream state for recovery: #{recovery_id}")
   end
   
-  defp save_stream_chunk(recovery_id, chunk, chunk_count) do
+  defp save_stream_chunk(recovery_id, _chunk, chunk_count) do
     # This would integrate with ExLLM.StreamRecovery
     Logger.debug("Saving chunk #{chunk_count} for stream #{recovery_id}")
   end
@@ -239,8 +239,11 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   ## Example
   
       def stream_chat(messages, options, callback) do
+        base_url = "https://api.openai.com/v1"
+        api_key = "your-api-key"
+        
         StreamingCoordinator.simple_stream(
-          url: "#{base_url}/chat/completions",
+          url: "\#{base_url}/chat/completions",
           request: build_request(messages, options),
           headers: build_headers(api_key),
           callback: callback,

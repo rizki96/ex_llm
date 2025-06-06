@@ -13,7 +13,6 @@ defmodule ExLLM.Adapters.Shared.RequestBuilder do
   - Message formatting
   """
   
-  alias ExLLM.Adapters.Shared.MessageFormatter
   
   @doc """
   Callback for provider-specific request transformations.
@@ -269,7 +268,7 @@ defmodule ExLLM.Adapters.Shared.RequestBuilder do
     if is_map(value), do: value, else: nil
   end
   
-  defp get_value(map, []), do: nil
+  defp get_value(_map, []), do: nil
   defp get_value(map, [key | rest]) do
     case Map.get(map, key) do
       nil -> get_value(map, rest)
