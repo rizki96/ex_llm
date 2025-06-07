@@ -1361,19 +1361,7 @@ defmodule ExLLM.ExampleApp do
       IO.puts("#{i}. #{doc}")
     end)
     
-    # For mock, create fake embeddings
-    if provider == :mock do
-      # Create somewhat meaningful fake embeddings
-      embeddings = Enum.map(documents, fn doc ->
-        base = :erlang.phash2(doc) / 1000000
-        for _ <- 1..10, do: base + (:rand.uniform() - 0.5) * 0.1
-      end)
-      
-      ExLLM.Adapters.Mock.set_response(%{
-        embeddings: embeddings,
-        usage: %{input_tokens: 50}
-      })
-    end
+    # Mock adapter now generates meaningful embeddings automatically
     
     IO.puts("\nGenerating embeddings...")
     
@@ -1386,13 +1374,6 @@ defmodule ExLLM.ExampleApp do
         query = IO.gets("\nEnter search query: ") |> String.trim()
         
         # Get query embedding
-        if provider == :mock do
-          query_emb = for _ <- 1..10, do: :rand.uniform()
-          ExLLM.Adapters.Mock.set_response(%{
-            embeddings: [query_emb],
-            usage: %{input_tokens: 10}
-          })
-        end
         
         case ExLLM.embeddings(provider, [query]) do
           {:ok, query_response} ->

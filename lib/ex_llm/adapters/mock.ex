@@ -326,10 +326,10 @@ defmodule ExLLM.Adapters.Mock do
 
           # Default mock embeddings
           true ->
-            # Generate random embeddings
+            # Generate pseudo-semantic embeddings based on content
             embeddings =
-              Enum.map(inputs, fn _ ->
-                Enum.map(1..384, fn _ -> :rand.uniform() * 2 - 1 end)
+              Enum.map(inputs, fn input ->
+                generate_mock_embedding(input)
               end)
 
             response = %Types.EmbeddingResponse{
@@ -552,5 +552,92 @@ defmodule ExLLM.Adapters.Mock do
     if Keyword.get(options, :capture_requests, false) do
       capture_request(type, input, options)
     end
+  end
+
+  # Generate a mock embedding with some semantic meaning
+  defp generate_mock_embedding(text) do
+    # Normalize text
+    normalized = String.downcase(text)
+    
+    # Create a base embedding vector (384 dimensions to match common models)
+    embedding = List.duplicate(0.0, 384)
+    
+    # Define semantic features and their positions in the embedding
+    features = %{
+      # Animals/nature (positions 0-49)
+      "cat" => {0, 0.8},
+      "dog" => {5, 0.8},
+      "animal" => {10, 0.6},
+      "mat" => {15, 0.3},
+      "garden" => {20, 0.7},
+      "park" => {25, 0.7},
+      "sunny" => {30, 0.9},
+      "warm" => {35, 0.8},
+      "weather" => {40, 0.7},
+      "sun" => {30, 0.85},
+      
+      # Technology (positions 50-99)
+      "machine" => {50, 0.9},
+      "learning" => {55, 0.9},
+      "artificial" => {60, 0.9},
+      "intelligence" => {65, 0.9},
+      "technology" => {70, 0.8},
+      "process" => {75, 0.6},
+      "natural" => {80, 0.5},
+      "language" => {85, 0.7},
+      "transform" => {90, 0.6},
+      
+      # Actions (positions 100-149)
+      "play" => {100, 0.7},
+      "fetch" => {105, 0.6},
+      "love" => {110, 0.5},
+      "sat" => {115, 0.4},
+      "sit" => {115, 0.4}
+    }
+    
+    # Apply features based on words in text
+    embedding = Enum.reduce(features, embedding, fn {word, {position, strength}}, emb ->
+      if String.contains?(normalized, word) do
+        # Set the feature at the position with some noise
+        List.update_at(emb, position, fn _ -> 
+          strength + (:rand.uniform() - 0.5) * 0.1 
+        end)
+        |> add_related_features(position, strength * 0.5)
+      else
+        emb
+      end
+    end)
+    
+    # Add some random noise to make it more realistic
+    embedding
+    |> Enum.with_index()
+    |> Enum.map(fn {val, _idx} ->
+      if val == 0.0 do
+        # Small random values for unused dimensions
+        (:rand.uniform() - 0.5) * 0.1
+      else
+        # Keep feature values with small noise
+        val + (:rand.uniform() - 0.5) * 0.05
+      end
+    end)
+  end
+  
+  # Add related features nearby to create more realistic embeddings
+  defp add_related_features(embedding, position, strength) do
+    # Add decreasing values to nearby positions
+    nearby_positions = [
+      {position - 2, strength * 0.3},
+      {position - 1, strength * 0.5},
+      {position + 1, strength * 0.5},
+      {position + 2, strength * 0.3}
+    ]
+    
+    Enum.reduce(nearby_positions, embedding, fn {pos, val}, emb ->
+      if pos >= 0 and pos < length(emb) do
+        List.update_at(emb, pos, fn current -> current + val end)
+      else
+        emb
+      end
+    end)
   end
 end

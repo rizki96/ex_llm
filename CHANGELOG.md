@@ -33,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Mock provider now properly supports Instructor integration for structured outputs
 - Cost formatting now consistently uses dollars with appropriate decimal places (e.g., "$0.000324" instead of "$0.032¢")
 - Anthropic provider now includes required `max_tokens` parameter when using Instructor
+- Mock provider now generates semantically meaningful embeddings for realistic similarity search
 - Provider and model capability queries now accept any provider's terminology
 - Moved `LOGGER.md`, `PROVIDER_CAPABILITIES.md`, and `DROPPED.md` to `docs/` directory
 - Enhanced provider capabilities with data from API discovery scripts
