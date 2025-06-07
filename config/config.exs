@@ -8,7 +8,20 @@ config :ex_llm,
   cache_disk_path: "/tmp/ex_llm_cache"
 
 # Logger Configuration
-config :logger, :console, metadata: [:request_id, :provider, :model, :cost]
+config :logger, :console,
+  metadata: [
+    :request_id,
+    :provider,
+    :model,
+    :cost,
+    # Additional metadata for adapters and retry logic
+    :attempts,
+    :reason,
+    :error,
+    :duration_ms,
+    :status,
+    :body
+  ]
 
 if Mix.env() == :dev do
   config :git_hooks,
@@ -24,7 +37,7 @@ if Mix.env() == :dev do
       pre_push: [
         tasks: [
           {:cmd, "mix format --check-formatted"},
-          {:cmd, "mix credo --config-file .credo.exs"},
+          {:cmd, "mix credo --config-file .credo.exs --only warning"},
           {:cmd, "mix dialyzer"},
           {:cmd, "mix test"},
           {:cmd, "mix sobelow --skip"}

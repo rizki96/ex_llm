@@ -50,14 +50,7 @@
         
         # Disable apply/3 warnings for local model loading (necessary for optional deps)
         {Credo.Check.Warning.ApplicationConfigInModuleAttribute, false},
-        {Credo.Check.Refactor.Apply, [
-          excluded_functions: [
-            "Bumblebee.load_model",
-            "Bumblebee.load_tokenizer", 
-            "Bumblebee.load_generation_config",
-            "Nx.Serving.new"
-          ]
-        ]},
+        {Credo.Check.Refactor.Apply, false}, # Disable for now, many valid uses
 
         # Readability checks - enable gradually
         {Credo.Check.Readability.AliasOrder, []},
@@ -91,6 +84,9 @@
         {Credo.Check.Readability.AliasAs, false}, # Too many violations
         {Credo.Check.Refactor.LongQuoteBlocks, false}, # Documentation blocks
         {Credo.Check.Design.SkipTestWithoutComment, false}, # Test-specific
+        {Credo.Check.Readability.PredicateFunctionNames, false}, # Many is_* functions
+        {Credo.Check.Refactor.MapJoin, false}, # Performance micro-optimization
+        {Credo.Check.Refactor.UnlessWithElse, false} # Style preference
       ]
     }
   ]

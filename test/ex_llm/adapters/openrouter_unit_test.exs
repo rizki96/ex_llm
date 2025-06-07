@@ -372,7 +372,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       lines = String.split(chunk_data, "\n", trim: true)
       data_lines = Enum.filter(lines, &String.starts_with?(&1, "data: "))
 
-      assert length(data_lines) == 0
+      assert Enum.empty?(data_lines)
     end
   end
 
