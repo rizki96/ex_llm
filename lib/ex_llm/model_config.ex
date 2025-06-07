@@ -95,14 +95,16 @@ defmodule ExLLM.ModelConfig do
   """
   def get_default_model(provider) when is_atom(provider) do
     case get_provider_config(provider) do
-      nil -> 
+      nil ->
         raise "Missing configuration file: config/models/#{provider}.yml. " <>
-              "Please ensure the YAML configuration file exists and is properly formatted."
-      config -> 
+                "Please ensure the YAML configuration file exists and is properly formatted."
+
+      config ->
         case Map.get(config, :default_model) do
           nil ->
             raise "Missing 'default_model' in config/models/#{provider}.yml. " <>
-                  "Please add a default_model field to the configuration."
+                    "Please add a default_model field to the configuration."
+
           model ->
             model
         end
@@ -187,11 +189,11 @@ defmodule ExLLM.ModelConfig do
 
   @doc """
   Gets the full configuration for a specific model.
-  
+
   Returns the model configuration map or nil if not found.
-  
+
   ## Examples
-  
+
       iex> ExLLM.ModelConfig.get_model_config(:openai, "gpt-4o")
       %{
         context_window: 128000,
@@ -201,14 +203,16 @@ defmodule ExLLM.ModelConfig do
   """
   def get_model_config(provider, model) when is_atom(provider) and is_binary(model) do
     case get_provider_config(provider) do
-      nil -> nil
-      config -> 
+      nil ->
+        nil
+
+      config ->
         models = Map.get(config, :models, %{})
         # Try both string and atom keys
         Map.get(models, model) || Map.get(models, String.to_atom(model))
     end
   end
-  
+
   @doc """
   Reloads all configuration from files.
 

@@ -227,44 +227,45 @@ defmodule ExLLM.Adapters.Mock do
       nil ->
         # Return stream based on mode
         Agent.get(__MODULE__, fn state ->
-      case state.response_mode do
-        :error ->
-          {:error, state.error_response}
+          case state.response_mode do
+            :error ->
+              {:error, state.error_response}
 
-        _ ->
-          chunks =
-            if state.function_call_response do
-              # Include function call in stream
-              state.stream_chunks ++
-                [
-                  %Types.StreamChunk{
-                    content: nil,
-                    finish_reason: "function_call"
-                  }
-                ]
-            else
-              state.stream_chunks
-            end
+            _ ->
+              chunks =
+                if state.function_call_response do
+                  # Include function call in stream
+                  state.stream_chunks ++
+                    [
+                      %Types.StreamChunk{
+                        content: nil,
+                        finish_reason: "function_call"
+                      }
+                    ]
+                else
+                  state.stream_chunks
+                end
 
-          stream =
-            Stream.map(chunks, fn chunk ->
-              # Add small delay to simulate real streaming
-              Process.sleep(10)
-              chunk
-            end)
+              stream =
+                Stream.map(chunks, fn chunk ->
+                  # Add small delay to simulate real streaming
+                  Process.sleep(10)
+                  chunk
+                end)
 
-          {:ok, stream}
-      end
-    end)
+              {:ok, stream}
+          end
+        end)
 
       {:error, _} = error ->
         error
 
       chunks when is_list(chunks) ->
-        {:ok, Stream.map(chunks, fn 
-          {:error, reason} -> raise "Stream error: #{inspect(reason)}"
-          chunk -> chunk
-        end)}
+        {:ok,
+         Stream.map(chunks, fn
+           {:error, reason} -> raise "Stream error: #{inspect(reason)}"
+           chunk -> chunk
+         end)}
 
       response when is_function(response, 2) ->
         case response.(messages, options) do
@@ -305,7 +306,7 @@ defmodule ExLLM.Adapters.Mock do
   @impl true
   def embeddings(inputs, options \\ []) do
     ensure_started()
-    
+
     # Normalize inputs to list
     inputs = if is_binary(inputs), do: [inputs], else: inputs
 
@@ -409,12 +410,12 @@ defmodule ExLLM.Adapters.Mock do
             }
           }
         ]
-        
+
         {:ok, models}
-        
+
       models when is_list(models) ->
         {:ok, models}
-        
+
       {:error, _} = error ->
         error
     end
@@ -448,20 +449,23 @@ defmodule ExLLM.Adapters.Mock do
   end
 
   defp normalize_response(%Types.LLMResponse{} = response), do: response
-  
+
   defp normalize_response(response) when is_map(response) do
     # Get content, but don't provide a default if it's explicitly nil or missing
-    content = case {Map.has_key?(response, :content), Map.has_key?(response, "content")} do
-      {true, _} -> Map.get(response, :content)
-      {_, true} -> Map.get(response, "content")
-      _ -> "Mock response"  # Only use default if no content key exists
-    end
-    
+    content =
+      case {Map.has_key?(response, :content), Map.has_key?(response, "content")} do
+        {true, _} -> Map.get(response, :content)
+        {_, true} -> Map.get(response, "content")
+        # Only use default if no content key exists
+        _ -> "Mock response"
+      end
+
     %Types.LLMResponse{
       content: content,
       model: Map.get(response, :model) || Map.get(response, "model") || "mock-model",
       usage: normalize_usage(Map.get(response, :usage) || Map.get(response, "usage")),
-      finish_reason: Map.get(response, :finish_reason) || Map.get(response, "finish_reason") || "stop",
+      finish_reason:
+        Map.get(response, :finish_reason) || Map.get(response, "finish_reason") || "stop",
       id: Map.get(response, :id) || Map.get(response, "id") || generate_id(),
       function_call: Map.get(response, :function_call) || Map.get(response, "function_call"),
       tool_calls: Map.get(response, :tool_calls) || Map.get(response, "tool_calls"),
@@ -484,8 +488,8 @@ defmodule ExLLM.Adapters.Mock do
   defp normalize_usage(usage) when is_map(usage) do
     input = usage[:input_tokens] || usage["input_tokens"] || 10
     output = usage[:output_tokens] || usage["output_tokens"] || 20
-    total = usage[:total_tokens] || usage["total_tokens"] || (input + output)
-    
+    total = usage[:total_tokens] || usage["total_tokens"] || input + output
+
     %{
       input_tokens: input,
       output_tokens: output,
@@ -558,10 +562,10 @@ defmodule ExLLM.Adapters.Mock do
   defp generate_mock_embedding(text) do
     # Normalize text
     normalized = String.downcase(text)
-    
+
     # Create a base embedding vector (384 dimensions to match common models)
     embedding = List.duplicate(0.0, 384)
-    
+
     # Define semantic features and their positions in the embedding
     features = %{
       # Animals/nature (positions 0-49)
@@ -575,7 +579,7 @@ defmodule ExLLM.Adapters.Mock do
       "warm" => {35, 0.8},
       "weather" => {40, 0.7},
       "sun" => {30, 0.85},
-      
+
       # Technology (positions 50-99)
       "machine" => {50, 0.9},
       "learning" => {55, 0.9},
@@ -586,7 +590,7 @@ defmodule ExLLM.Adapters.Mock do
       "natural" => {80, 0.5},
       "language" => {85, 0.7},
       "transform" => {90, 0.6},
-      
+
       # Actions (positions 100-149)
       "play" => {100, 0.7},
       "fetch" => {105, 0.6},
@@ -594,20 +598,21 @@ defmodule ExLLM.Adapters.Mock do
       "sat" => {115, 0.4},
       "sit" => {115, 0.4}
     }
-    
+
     # Apply features based on words in text
-    embedding = Enum.reduce(features, embedding, fn {word, {position, strength}}, emb ->
-      if String.contains?(normalized, word) do
-        # Set the feature at the position with some noise
-        List.update_at(emb, position, fn _ -> 
-          strength + (:rand.uniform() - 0.5) * 0.1 
-        end)
-        |> add_related_features(position, strength * 0.5)
-      else
-        emb
-      end
-    end)
-    
+    embedding =
+      Enum.reduce(features, embedding, fn {word, {position, strength}}, emb ->
+        if String.contains?(normalized, word) do
+          # Set the feature at the position with some noise
+          List.update_at(emb, position, fn _ ->
+            strength + (:rand.uniform() - 0.5) * 0.1
+          end)
+          |> add_related_features(position, strength * 0.5)
+        else
+          emb
+        end
+      end)
+
     # Add some random noise to make it more realistic
     embedding
     |> Enum.with_index()
@@ -621,7 +626,7 @@ defmodule ExLLM.Adapters.Mock do
       end
     end)
   end
-  
+
   # Add related features nearby to create more realistic embeddings
   defp add_related_features(embedding, position, strength) do
     # Add decreasing values to nearby positions
@@ -631,7 +636,7 @@ defmodule ExLLM.Adapters.Mock do
       {position + 1, strength * 0.5},
       {position + 2, strength * 0.3}
     ]
-    
+
     Enum.reduce(nearby_positions, embedding, fn {pos, val}, emb ->
       if pos >= 0 and pos < length(emb) do
         List.update_at(emb, pos, fn current -> current + val end)

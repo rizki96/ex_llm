@@ -209,7 +209,8 @@ defmodule ExLLM.FunctionCalling do
       name: func["name"] || Map.get(func, :name),
       description: func["description"] || Map.get(func, :description, ""),
       parameters:
-        func["input_schema"] || Map.get(func, :input_schema) || func["parameters"] || Map.get(func, :parameters),
+        func["input_schema"] || Map.get(func, :input_schema) || func["parameters"] ||
+          Map.get(func, :parameters),
       handler: func["handler"] || func[:handler]
     }
   end
@@ -350,16 +351,16 @@ defmodule ExLLM.FunctionCalling do
 
   @doc """
   Parse function call arguments from JSON string to map.
-  
+
   ## Parameters
   - `arguments` - JSON string or map containing function arguments
-  
+
   ## Returns
   - `{:ok, args_map}` on success
   - `{:error, reason}` on failure
-  
+
   ## Examples
-  
+
       {:ok, args} = ExLLM.FunctionCalling.parse_arguments("{\"location\": \"NYC\"}")
       # => {:ok, %{"location" => "NYC"}}
   """
@@ -493,5 +494,4 @@ defmodule ExLLM.FunctionCalling do
       }
     }
   end
-
 end

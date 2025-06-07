@@ -49,7 +49,16 @@ defmodule ExLLM.Adapters.OpenAI do
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
   alias ExLLM.{Error, Types, Logger}
-  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation, ModelUtils}
+
+  alias ExLLM.Adapters.Shared.{
+    ConfigHelper,
+    HTTPClient,
+    ErrorHandler,
+    MessageFormatter,
+    StreamingBehavior,
+    Validation,
+    ModelUtils
+  }
 
   @default_base_url "https://api.openai.com/v1"
   @default_temperature 0.7
@@ -61,20 +70,24 @@ defmodule ExLLM.Adapters.OpenAI do
          config <- ConfigHelper.get_config(:openai, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "OPENAI_API_KEY"),
          {:ok, _} <- Validation.validate_api_key(api_key) do
-      
-      model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai))
-      
+      model =
+        Keyword.get(
+          options,
+          :model,
+          Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai)
+        )
+
       body = build_request_body(messages, model, config, options)
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
-      
+
       case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
         {:ok, response} ->
           {:ok, parse_response(response, model)}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -88,29 +101,39 @@ defmodule ExLLM.Adapters.OpenAI do
          config <- ConfigHelper.get_config(:openai, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "OPENAI_API_KEY"),
          {:ok, _} <- Validation.validate_api_key(api_key) do
-      
-      model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai))
-      
-      body = 
+      model =
+        Keyword.get(
+          options,
+          :model,
+          Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai)
+        )
+
+      body =
         messages
         |> build_request_body(model, config, options)
         |> Map.put(:stream, true)
-        
+
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
       parent = self()
       ref = make_ref()
-      
+
       # Start streaming task
       Task.start(fn ->
-        HTTPClient.stream_request(url, body, headers, 
+        HTTPClient.stream_request(
+          url,
+          body,
+          headers,
           fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
-          on_error: fn status, body -> 
-            send(parent, {ref, {:error, ErrorHandler.handle_provider_error(:openai, status, body)}})
+          on_error: fn status, body ->
+            send(
+              parent,
+              {ref, {:error, ErrorHandler.handle_provider_error(:openai, status, body)}}
+            )
           end,
           provider: :openai
         )
-        
+
         # Wait for stream completion and forward the done signal
         receive do
           :stream_done -> send(parent, {ref, :done})
@@ -119,28 +142,33 @@ defmodule ExLLM.Adapters.OpenAI do
           60_000 -> send(parent, {ref, {:error, :timeout}})
         end
       end)
-      
+
       # Create stream that processes chunks
-      stream = Stream.resource(
-        fn -> {ref, model} end,
-        fn {ref, _model} = state ->
-          receive do
-            {^ref, {:chunk, data}} ->
-              case parse_stream_chunk(data) do
-                {:ok, :done} -> {:halt, state}
-                {:ok, chunk} -> {[chunk], state}
-                {:error, _} -> {[], state}  # Skip bad chunks
-              end
-              
-            {^ref, :done} -> {:halt, state}
-            {^ref, {:error, error}} -> throw(error)
-          after
-            100 -> {[], state}
-          end
-        end,
-        fn _ -> :ok end
-      )
-      
+      stream =
+        Stream.resource(
+          fn -> {ref, model} end,
+          fn {ref, _model} = state ->
+            receive do
+              {^ref, {:chunk, data}} ->
+                case parse_stream_chunk(data) do
+                  {:ok, :done} -> {:halt, state}
+                  {:ok, chunk} -> {[chunk], state}
+                  # Skip bad chunks
+                  {:error, _} -> {[], state}
+                end
+
+              {^ref, :done} ->
+                {:halt, state}
+
+              {^ref, {:error, error}} ->
+                throw(error)
+            after
+              100 -> {[], state}
+            end
+          end,
+          fn _ -> :ok end
+        )
+
       {:ok, stream}
     end
   end
@@ -149,21 +177,24 @@ defmodule ExLLM.Adapters.OpenAI do
   def list_models(options \\ []) do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
-    
+
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(:openai,
-      Keyword.merge(options, [
-        api_fetcher: fn(_opts) -> fetch_openai_models(config) end,
+    ExLLM.ModelLoader.load_models(
+      :openai,
+      Keyword.merge(options,
+        api_fetcher: fn _opts -> fetch_openai_models(config) end,
         config_transformer: &openai_model_transformer/2
-      ])
+      )
     )
   end
-  
+
   defp fetch_openai_models(config) do
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
 
     case Validation.validate_api_key(api_key) do
-      {:error, _} = error -> error
+      {:error, _} = error ->
+        error
+
       {:ok, _} ->
         headers = build_headers(api_key, config)
         url = "#{get_base_url(config)}/models"
@@ -188,20 +219,21 @@ defmodule ExLLM.Adapters.OpenAI do
         end
     end
   end
-  
+
   defp is_chat_model?(model) do
     id = model["id"]
     # Include GPT models, O models, and exclude instruction-tuned variants
+    # Exclude old snapshots
     (String.contains?(id, "gpt") || String.starts_with?(id, "o")) &&
       not String.contains?(id, "instruct") &&
-      not String.contains?(id, "0301") &&  # Exclude old snapshots
+      not String.contains?(id, "0301") &&
       not String.contains?(id, "0314") &&
       not String.contains?(id, "0613")
   end
-  
+
   defp parse_api_model(model) do
     model_id = model["id"]
-    
+
     %Types.Model{
       id: model_id,
       name: format_openai_model_name(model_id),
@@ -210,7 +242,7 @@ defmodule ExLLM.Adapters.OpenAI do
       capabilities: infer_model_capabilities(model_id)
     }
   end
-  
+
   defp format_openai_model_name(model_id) do
     # Special cases for OpenAI-specific naming
     case model_id do
@@ -226,19 +258,19 @@ defmodule ExLLM.Adapters.OpenAI do
       _ -> ModelUtils.format_model_name(model_id)
     end
   end
-  
+
   defp infer_model_capabilities(model_id) do
     # Base capabilities for all OpenAI models
     base_features = [:streaming, :function_calling]
-    
+
     # Add vision for multimodal models
-    features = 
+    features =
       if String.contains?(model_id, "4o") || String.contains?(model_id, "4.1") do
         [:vision | base_features]
       else
         base_features
       end
-    
+
     %{
       supports_streaming: true,
       supports_functions: true,
@@ -246,7 +278,7 @@ defmodule ExLLM.Adapters.OpenAI do
       features: features
     }
   end
-  
+
   # Transform config data to OpenAI model format
   defp openai_model_transformer(model_id, config) do
     %Types.Model{
@@ -282,22 +314,23 @@ defmodule ExLLM.Adapters.OpenAI do
   @impl ExLLM.Adapters.Shared.StreamingBehavior
   def parse_stream_chunk(data) do
     case data do
-      "[DONE]" -> 
+      "[DONE]" ->
         {:ok, :done}
-        
+
       _ ->
         case Jason.decode(data) do
           {:ok, parsed} ->
             choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
             delta = choice["delta"] || %{}
-            
-            chunk = StreamingBehavior.create_text_chunk(
-              delta["content"] || "",
-              finish_reason: choice["finish_reason"]
-            )
-            
+
+            chunk =
+              StreamingBehavior.create_text_chunk(
+                delta["content"] || "",
+                finish_reason: choice["finish_reason"]
+              )
+
             {:ok, chunk}
-            
+
           {:error, _} ->
             {:error, :invalid_json}
         end
@@ -305,39 +338,40 @@ defmodule ExLLM.Adapters.OpenAI do
   end
 
   # Private functions
-  
+
   # API key validation moved to shared Validation module
-  
+
   defp build_request_body(messages, model, config, options) do
     %{
       model: model,
       messages: MessageFormatter.stringify_message_keys(messages),
       max_tokens: Keyword.get(options, :max_tokens, Map.get(config, :max_tokens)),
-      temperature: Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
+      temperature:
+        Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
     }
     |> maybe_add_system_prompt(options)
     |> maybe_add_functions(options)
   end
-  
+
   defp build_headers(api_key, config) do
     headers = [
       {"authorization", "Bearer #{api_key}"}
     ]
-    
+
     if org = Map.get(config, :organization) do
       [{"openai-organization", org} | headers]
     else
       headers
     end
   end
-  
+
   defp maybe_add_system_prompt(body, options) do
     case Keyword.get(options, :system) do
       nil -> body
       system -> Map.update!(body, :messages, &MessageFormatter.add_system_message(&1, system))
     end
   end
-  
+
   defp maybe_add_functions(body, options) do
     case Keyword.get(options, :functions) do
       nil -> body
@@ -351,9 +385,6 @@ defmodule ExLLM.Adapters.OpenAI do
       System.get_env("OPENAI_API_BASE") ||
       @default_base_url
   end
-
-
-
 
   defp parse_response(response, model) do
     choice = get_in(response, ["choices", Access.at(0)]) || %{}
@@ -379,9 +410,6 @@ defmodule ExLLM.Adapters.OpenAI do
     }
   end
 
-
-
-
   defp get_context_window(model_id) do
     # Use ModelConfig for context window lookup
     # This will return nil if model not found, which we handle in the caller
@@ -393,7 +421,7 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, url} <- build_embeddings_url(config),
          {:ok, req_body} <- build_embeddings_request(inputs, config, options),

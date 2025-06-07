@@ -81,7 +81,12 @@ defmodule ExLLM.Adapters.Gemini do
     if !api_key || api_key == "" do
       {:error, "Google API key not configured"}
     else
-      model = Keyword.get(options, :model, Map.get(config, :model, ConfigHelper.ensure_default_model(:gemini)))
+      model =
+        Keyword.get(
+          options,
+          :model,
+          Map.get(config, :model, ConfigHelper.ensure_default_model(:gemini))
+        )
 
       with {:ok, request_body} <- build_request_body(messages, options),
            {:ok, response} <- call_gemini_api(model, request_body, api_key) do
@@ -106,7 +111,12 @@ defmodule ExLLM.Adapters.Gemini do
     if !api_key || api_key == "" do
       {:error, "Google API key not configured"}
     else
-      model = Keyword.get(options, :model, Map.get(config, :model, ConfigHelper.ensure_default_model(:gemini)))
+      model =
+        Keyword.get(
+          options,
+          :model,
+          Map.get(config, :model, ConfigHelper.ensure_default_model(:gemini))
+        )
 
       with {:ok, request_body} <- build_request_body(messages, options) do
         stream_gemini_api(model, request_body, api_key)
@@ -124,16 +134,17 @@ defmodule ExLLM.Adapters.Gemini do
       )
 
     config = get_config(config_provider)
-    
+
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(:gemini,
-      Keyword.merge(options, [
-        api_fetcher: fn(_opts) -> fetch_gemini_models(config) end,
+    ExLLM.ModelLoader.load_models(
+      :gemini,
+      Keyword.merge(options,
+        api_fetcher: fn _opts -> fetch_gemini_models(config) end,
         config_transformer: &gemini_model_transformer/2
-      ])
+      )
     )
   end
-  
+
   defp fetch_gemini_models(config) do
     api_key = get_api_key(config)
 
@@ -161,15 +172,15 @@ defmodule ExLLM.Adapters.Gemini do
       end
     end
   end
-  
+
   defp is_gemini_chat_model?(model) do
     # Filter for Gemini chat models
     String.starts_with?(model["name"], "models/gemini")
   end
-  
+
   defp parse_gemini_api_model(model) do
     model_id = String.replace_prefix(model["name"], "models/", "")
-    
+
     %Types.Model{
       id: model_id,
       name: Map.get(model, "displayName", model_id),
@@ -178,26 +189,32 @@ defmodule ExLLM.Adapters.Gemini do
       capabilities: parse_gemini_capabilities(model)
     }
   end
-  
+
   defp get_input_token_limit(model) do
     get_in(model, ["inputTokenLimit"]) || 1_048_576
   end
-  
+
   defp parse_gemini_capabilities(model) do
     supported_methods = Map.get(model, "supportedGenerationMethods", [])
-    
+
     features = []
-    features = if "generateContent" in supported_methods, do: [:streaming | features], else: features
+
+    features =
+      if "generateContent" in supported_methods, do: [:streaming | features], else: features
+
     features = if model["name"] =~ "vision", do: [:vision | features], else: features
-    
+
     %{
       supports_streaming: "generateContent" in supported_methods,
-      supports_functions: false,  # Gemini uses different mechanism
-      supports_vision: model["name"] =~ "vision" || String.contains?(model["name"], "gemini-1.5") || String.contains?(model["name"], "gemini-2"),
+      # Gemini uses different mechanism
+      supports_functions: false,
+      supports_vision:
+        model["name"] =~ "vision" || String.contains?(model["name"], "gemini-1.5") ||
+          String.contains?(model["name"], "gemini-2"),
       features: features
     }
   end
-  
+
   # Transform config data to Gemini model format
   defp gemini_model_transformer(model_id, config) do
     %Types.Model{
@@ -213,7 +230,7 @@ defmodule ExLLM.Adapters.Gemini do
       }
     }
   end
-  
+
   # Model name formatting moved to shared ModelUtils module
 
   @impl true

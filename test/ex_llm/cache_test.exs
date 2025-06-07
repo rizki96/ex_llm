@@ -217,6 +217,7 @@ defmodule ExLLM.CacheTest do
   describe "complex cache key scenarios" do
     test "handles messages with image content" do
       provider = :openai
+
       messages = [
         %{
           role: "user",
@@ -226,11 +227,12 @@ defmodule ExLLM.CacheTest do
           ]
         }
       ]
+
       options = [model: "gpt-4-vision-preview"]
 
       key = Cache.generate_cache_key(provider, messages, options)
       assert is_binary(key)
-      
+
       # Same content should generate same key
       key2 = Cache.generate_cache_key(provider, messages, options)
       assert key == key2
@@ -239,6 +241,7 @@ defmodule ExLLM.CacheTest do
     test "handles messages with base64 images" do
       provider = :anthropic
       base64_data = Base.encode64("fake image data")
+
       messages = [
         %{
           role: "user",
@@ -248,13 +251,14 @@ defmodule ExLLM.CacheTest do
           ]
         }
       ]
-      
+
       key = Cache.generate_cache_key(provider, messages, [])
       assert is_binary(key)
     end
 
     test "handles deeply nested message structures" do
       provider = :openai
+
       messages = [
         %{
           role: "system",
@@ -277,24 +281,26 @@ defmodule ExLLM.CacheTest do
           ]
         }
       ]
-      
-      key = Cache.generate_cache_key(provider, messages, [temperature: 0])
+
+      key = Cache.generate_cache_key(provider, messages, temperature: 0)
       assert is_binary(key)
     end
   end
 
   describe "concurrent access" do
     test "handles concurrent puts and gets" do
-      tasks = for i <- 1..100 do
-        Task.async(fn ->
-          key = "concurrent-#{rem(i, 10)}"
-          if rem(i, 2) == 0 do
-            Cache.put(key, %{value: i})
-          else
-            Cache.get(key)
-          end
-        end)
-      end
+      tasks =
+        for i <- 1..100 do
+          Task.async(fn ->
+            key = "concurrent-#{rem(i, 10)}"
+
+            if rem(i, 2) == 0 do
+              Cache.put(key, %{value: i})
+            else
+              Cache.get(key)
+            end
+          end)
+        end
 
       results = Task.await_many(tasks, 5000)
       assert length(results) == 100
@@ -302,28 +308,30 @@ defmodule ExLLM.CacheTest do
 
     test "handles concurrent cache operations with TTL" do
       key = "ttl-concurrent-#{System.unique_integer()}"
-      
+
       # First, prime the cache
-      {:ok, _cached_value} = Cache.with_cache(key, [cache: true, cache_ttl: 1000], fn ->
-        {:ok, %LLMResponse{content: "cached-result"}}
-      end)
-      
-      # Now multiple tasks should all get the cached value
-      tasks = for _i <- 1..10 do
-        Task.async(fn ->
-          Cache.with_cache(key, [cache: true], fn ->
-            # This shouldn't execute since value is cached
-            {:ok, %LLMResponse{content: "should-not-see-this"}}
-          end)
+      {:ok, _cached_value} =
+        Cache.with_cache(key, [cache: true, cache_ttl: 1000], fn ->
+          {:ok, %LLMResponse{content: "cached-result"}}
         end)
-      end
+
+      # Now multiple tasks should all get the cached value
+      tasks =
+        for _i <- 1..10 do
+          Task.async(fn ->
+            Cache.with_cache(key, [cache: true], fn ->
+              # This shouldn't execute since value is cached
+              {:ok, %LLMResponse{content: "should-not-see-this"}}
+            end)
+          end)
+        end
 
       results = Task.await_many(tasks, 5000)
-      
+
       # All should get the same cached result
-      assert Enum.all?(results, fn {:ok, result} -> 
-        result.content == "cached-result"
-      end)
+      assert Enum.all?(results, fn {:ok, result} ->
+               result.content == "cached-result"
+             end)
     end
   end
 
@@ -333,22 +341,22 @@ defmodule ExLLM.CacheTest do
       # But let's explicitly test the backend behavior
       backend = Cache.Storage.ETS
       table = :test_cache_table
-      
+
       # Start a new ETS table
       {:ok, state} = backend.init(name: table)
-      
+
       # Test put and get
       key = "backend-test"
       value = %{data: "test"}
       expires_at = System.system_time(:millisecond) + 1000
-      
+
       assert {:ok, _state} = backend.put(key, value, expires_at, state)
       assert {:ok, ^value, _state} = backend.get(key, state)
-      
+
       # Test delete
       assert {:ok, _state} = backend.delete(key, state)
       assert {:miss, _state} = backend.get(key, state)
-      
+
       # Test clear
       backend.put("key1", "val1", :infinity, state)
       backend.put("key2", "val2", :infinity, state)
@@ -362,7 +370,7 @@ defmodule ExLLM.CacheTest do
     setup do
       # Configure mock adapter
       original_config = Application.get_env(:ex_llm, :mock_responses, %{})
-      
+
       Application.put_env(:ex_llm, :mock_responses, %{
         chat: %ExLLM.Types.LLMResponse{
           content: "Mock response",
@@ -372,22 +380,22 @@ defmodule ExLLM.CacheTest do
           cost: %{input: 0.01, output: 0.02, total: 0.03}
         }
       })
-      
+
       on_exit(fn ->
         Application.put_env(:ex_llm, :mock_responses, original_config)
       end)
-      
+
       :ok
     end
 
     test "caches LLM responses when enabled" do
       messages = [%{role: "user", content: "Hello"}]
       options = [cache: true, cache_ttl: 5000]
-      
+
       # First call - cache miss
       {:ok, response1} = ExLLM.chat(:mock, messages, options)
       assert response1.content == "Mock response"
-      
+
       # Modify mock to return different response
       Application.put_env(:ex_llm, :mock_responses, %{
         chat: %ExLLM.Types.LLMResponse{
@@ -398,19 +406,20 @@ defmodule ExLLM.CacheTest do
           cost: %{input: 0.01, output: 0.02, total: 0.03}
         }
       })
-      
+
       # Second call - should get cached response
       {:ok, response2} = ExLLM.chat(:mock, messages, options)
-      assert response2.content == "Mock response"  # Still the cached response
+      # Still the cached response
+      assert response2.content == "Mock response"
     end
 
     test "bypasses cache when disabled" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       # First call with cache
       {:ok, response1} = ExLLM.chat(:mock, messages, cache: true)
       assert response1.content == "Mock response"
-      
+
       # Change mock response
       Application.put_env(:ex_llm, :mock_responses, %{
         chat: %ExLLM.Types.LLMResponse{
@@ -421,7 +430,7 @@ defmodule ExLLM.CacheTest do
           cost: %{input: 0.01, output: 0.02, total: 0.03}
         }
       })
-      
+
       # Second call without cache - should get new response
       {:ok, response2} = ExLLM.chat(:mock, messages, cache: false)
       assert response2.content == "New response"

@@ -111,58 +111,73 @@ defmodule ExLLM.ModelCapabilities do
   defp model_capabilities do
     # Get all providers that have YAML config files
     providers = [
-      :openai, :anthropic, :gemini, :groq, :ollama, :openrouter,
-      :mock, :local, :bedrock, :mistral, :cohere, :perplexity,
-      :deepseek, :together_ai, :anyscale, :replicate
+      :openai,
+      :anthropic,
+      :gemini,
+      :groq,
+      :ollama,
+      :openrouter,
+      :mock,
+      :local,
+      :bedrock,
+      :mistral,
+      :cohere,
+      :perplexity,
+      :deepseek,
+      :together_ai,
+      :anyscale,
+      :replicate
     ]
-    
+
     # Build the capabilities map from YAML files
-    dynamic_capabilities = providers
-    |> Enum.flat_map(fn provider ->
-      models = ExLLM.ModelConfig.get_all_models(provider)
-      
-      Enum.map(models, fn {model_id, config} ->
-        key = "#{provider}:#{model_id}"
-        
-        # Convert capabilities list to Capability structs
-        capabilities = 
-          (Map.get(config, :capabilities, []) || [])
-          |> Enum.map(fn 
-            cap when is_atom(cap) ->
-              {cap, %Capability{feature: cap, supported: true}}
-            cap when is_binary(cap) ->
-              # Handle string capabilities from YAML
-              atom_cap = String.to_atom(cap)
-              {atom_cap, %Capability{feature: atom_cap, supported: true}}
-          end)
-          |> Map.new()
-          
-        # Add default capabilities that most models support
-        default_caps = %{
-          multi_turn: %Capability{feature: :multi_turn, supported: true},
-          temperature_control: %Capability{feature: :temperature_control, supported: true},
-          stop_sequences: %Capability{feature: :stop_sequences, supported: true}
-        }
-        
-        info = %ModelInfo{
-          provider: provider,
-          model_id: to_string(model_id),
-          display_name: to_string(model_id),
-          context_window: Map.get(config, :context_window, 4_096),
-          max_output_tokens: Map.get(config, :max_output_tokens),
-          capabilities: Map.merge(default_caps, capabilities),
-          pricing: Map.get(config, :pricing)
-        }
-        
-        {key, info}
+    dynamic_capabilities =
+      providers
+      |> Enum.flat_map(fn provider ->
+        models = ExLLM.ModelConfig.get_all_models(provider)
+
+        Enum.map(models, fn {model_id, config} ->
+          key = "#{provider}:#{model_id}"
+
+          # Convert capabilities list to Capability structs
+          capabilities =
+            (Map.get(config, :capabilities, []) || [])
+            |> Enum.map(fn
+              cap when is_atom(cap) ->
+                {cap, %Capability{feature: cap, supported: true}}
+
+              cap when is_binary(cap) ->
+                # Handle string capabilities from YAML
+                atom_cap = String.to_atom(cap)
+                {atom_cap, %Capability{feature: atom_cap, supported: true}}
+            end)
+            |> Map.new()
+
+          # Add default capabilities that most models support
+          default_caps = %{
+            multi_turn: %Capability{feature: :multi_turn, supported: true},
+            temperature_control: %Capability{feature: :temperature_control, supported: true},
+            stop_sequences: %Capability{feature: :stop_sequences, supported: true}
+          }
+
+          info = %ModelInfo{
+            provider: provider,
+            model_id: to_string(model_id),
+            display_name: to_string(model_id),
+            context_window: Map.get(config, :context_window, 4_096),
+            max_output_tokens: Map.get(config, :max_output_tokens),
+            capabilities: Map.merge(default_caps, capabilities),
+            pricing: Map.get(config, :pricing)
+          }
+
+          {key, info}
+        end)
       end)
-    end)
-    |> Map.new()
-    
+      |> Map.new()
+
     # Merge with hardcoded capabilities for special cases
     Map.merge(dynamic_capabilities, hardcoded_capabilities())
   end
-  
+
   # Keep some hardcoded entries for models with special capability details
   defp hardcoded_capabilities do
     %{
@@ -191,219 +206,219 @@ defmodule ExLLM.ModelCapabilities do
         },
         release_date: ~D[2023-11-06]
       },
-    "openai:gpt-4" => %ModelInfo{
-      provider: :openai,
-      model_id: "gpt-4",
-      display_name: "GPT-4",
-      context_window: 8_192,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{feature: :function_calling, supported: true},
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true}
+      "openai:gpt-4" => %ModelInfo{
+        provider: :openai,
+        model_id: "gpt-4",
+        display_name: "GPT-4",
+        context_window: 8_192,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{feature: :function_calling, supported: true},
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true}
+        },
+        release_date: ~D[2023-03-14]
       },
-      release_date: ~D[2023-03-14]
-    },
-    "openai:gpt-3.5-turbo" => %ModelInfo{
-      provider: :openai,
-      model_id: "gpt-3.5-turbo",
-      display_name: "GPT-3.5 Turbo",
-      context_window: 4_096,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{feature: :function_calling, supported: true},
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        json_mode: %Capability{feature: :json_mode, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true}
+      "openai:gpt-3.5-turbo" => %ModelInfo{
+        provider: :openai,
+        model_id: "gpt-3.5-turbo",
+        display_name: "GPT-3.5 Turbo",
+        context_window: 4_096,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{feature: :function_calling, supported: true},
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          json_mode: %Capability{feature: :json_mode, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true}
+        },
+        release_date: ~D[2022-11-30]
       },
-      release_date: ~D[2022-11-30]
-    },
 
-    # Anthropic Models
-    "anthropic:claude-3-opus-20240229" => %ModelInfo{
-      provider: :anthropic,
-      model_id: "claude-3-opus-20240229",
-      display_name: "Claude 3 Opus",
-      context_window: 200_000,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{
-          feature: :function_calling,
-          supported: true,
-          details: %{tools_api: true}
+      # Anthropic Models
+      "anthropic:claude-3-opus-20240229" => %ModelInfo{
+        provider: :anthropic,
+        model_id: "claude-3-opus-20240229",
+        display_name: "Claude 3 Opus",
+        context_window: 200_000,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{
+            feature: :function_calling,
+            supported: true,
+            details: %{tools_api: true}
+          },
+          vision: %Capability{
+            feature: :vision,
+            supported: true,
+            details: %{formats: ["image/jpeg", "image/png", "image/gif", "image/webp"]}
+          },
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true},
+          top_p: %Capability{feature: :top_p, supported: true}
         },
-        vision: %Capability{
-          feature: :vision,
-          supported: true,
-          details: %{formats: ["image/jpeg", "image/png", "image/gif", "image/webp"]}
-        },
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true},
-        top_p: %Capability{feature: :top_p, supported: true}
+        release_date: ~D[2024-02-29]
       },
-      release_date: ~D[2024-02-29]
-    },
-    "anthropic:claude-3-sonnet-20240229" => %ModelInfo{
-      provider: :anthropic,
-      model_id: "claude-3-sonnet-20240229",
-      display_name: "Claude 3 Sonnet",
-      context_window: 200_000,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{
-          feature: :function_calling,
-          supported: true,
-          details: %{tools_api: true}
+      "anthropic:claude-3-sonnet-20240229" => %ModelInfo{
+        provider: :anthropic,
+        model_id: "claude-3-sonnet-20240229",
+        display_name: "Claude 3 Sonnet",
+        context_window: 200_000,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{
+            feature: :function_calling,
+            supported: true,
+            details: %{tools_api: true}
+          },
+          vision: %Capability{feature: :vision, supported: true},
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true}
         },
-        vision: %Capability{feature: :vision, supported: true},
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true}
+        release_date: ~D[2024-02-29]
       },
-      release_date: ~D[2024-02-29]
-    },
-    "anthropic:claude-3-haiku-20240307" => %ModelInfo{
-      provider: :anthropic,
-      model_id: "claude-3-haiku-20240307",
-      display_name: "Claude 3 Haiku",
-      context_window: 200_000,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{
-          feature: :function_calling,
-          supported: true,
-          details: %{tools_api: true}
+      "anthropic:claude-3-haiku-20240307" => %ModelInfo{
+        provider: :anthropic,
+        model_id: "claude-3-haiku-20240307",
+        display_name: "Claude 3 Haiku",
+        context_window: 200_000,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{
+            feature: :function_calling,
+            supported: true,
+            details: %{tools_api: true}
+          },
+          vision: %Capability{feature: :vision, supported: true},
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true}
         },
-        vision: %Capability{feature: :vision, supported: true},
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true}
+        release_date: ~D[2024-03-07]
       },
-      release_date: ~D[2024-03-07]
-    },
-    "anthropic:claude-3-5-sonnet-20241022" => %ModelInfo{
-      provider: :anthropic,
-      model_id: "claude-3-5-sonnet-20241022",
-      display_name: "Claude 3.5 Sonnet",
-      context_window: 200_000,
-      max_output_tokens: 8_192,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{
-          feature: :function_calling,
-          supported: true,
-          details: %{tools_api: true, computer_use: true}
+      "anthropic:claude-3-5-sonnet-20241022" => %ModelInfo{
+        provider: :anthropic,
+        model_id: "claude-3-5-sonnet-20241022",
+        display_name: "Claude 3.5 Sonnet",
+        context_window: 200_000,
+        max_output_tokens: 8_192,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{
+            feature: :function_calling,
+            supported: true,
+            details: %{tools_api: true, computer_use: true}
+          },
+          vision: %Capability{feature: :vision, supported: true},
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true},
+          context_caching: %Capability{feature: :context_caching, supported: true}
         },
-        vision: %Capability{feature: :vision, supported: true},
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true},
-        context_caching: %Capability{feature: :context_caching, supported: true}
+        release_date: ~D[2024-10-22]
       },
-      release_date: ~D[2024-10-22]
-    },
 
-    # Google Gemini Models
-    "gemini:gemini-pro" => %ModelInfo{
-      provider: :gemini,
-      model_id: "gemini-pro",
-      display_name: "Gemini Pro",
-      context_window: 30_720,
-      max_output_tokens: 2_048,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{feature: :function_calling, supported: true},
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true},
-        top_p: %Capability{feature: :top_p, supported: true}
-      },
-      release_date: ~D[2023-12-06]
-    },
-    "gemini:gemini-pro-vision" => %ModelInfo{
-      provider: :gemini,
-      model_id: "gemini-pro-vision",
-      display_name: "Gemini Pro Vision",
-      context_window: 12_288,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        vision: %Capability{
-          feature: :vision,
-          supported: true,
-          details: %{
-            formats: ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"]
-          }
+      # Google Gemini Models
+      "gemini:gemini-pro" => %ModelInfo{
+        provider: :gemini,
+        model_id: "gemini-pro",
+        display_name: "Gemini Pro",
+        context_window: 30_720,
+        max_output_tokens: 2_048,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{feature: :function_calling, supported: true},
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true},
+          top_p: %Capability{feature: :top_p, supported: true}
         },
-        multi_turn: %Capability{
-          feature: :multi_turn,
-          supported: false,
-          limitations: ["Single turn only for vision"]
-        },
-        temperature_control: %Capability{feature: :temperature_control, supported: true}
+        release_date: ~D[2023-12-06]
       },
-      release_date: ~D[2023-12-06]
-    },
+      "gemini:gemini-pro-vision" => %ModelInfo{
+        provider: :gemini,
+        model_id: "gemini-pro-vision",
+        display_name: "Gemini Pro Vision",
+        context_window: 12_288,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          vision: %Capability{
+            feature: :vision,
+            supported: true,
+            details: %{
+              formats: ["image/png", "image/jpeg", "image/webp", "image/heic", "image/heif"]
+            }
+          },
+          multi_turn: %Capability{
+            feature: :multi_turn,
+            supported: false,
+            limitations: ["Single turn only for vision"]
+          },
+          temperature_control: %Capability{feature: :temperature_control, supported: true}
+        },
+        release_date: ~D[2023-12-06]
+      },
 
-    # Local Models (via Bumblebee)
-    "local:microsoft/phi-2" => %ModelInfo{
-      provider: :local,
-      model_id: "microsoft/phi-2",
-      display_name: "Phi-2",
-      context_window: 2_048,
-      max_output_tokens: 2_048,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true}
+      # Local Models (via Bumblebee)
+      "local:microsoft/phi-2" => %ModelInfo{
+        provider: :local,
+        model_id: "microsoft/phi-2",
+        display_name: "Phi-2",
+        context_window: 2_048,
+        max_output_tokens: 2_048,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true}
+        }
+      },
+      "local:meta-llama/Llama-2-7b-hf" => %ModelInfo{
+        provider: :local,
+        model_id: "meta-llama/Llama-2-7b-hf",
+        display_name: "Llama 2 7B",
+        context_window: 4_096,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true},
+          stop_sequences: %Capability{feature: :stop_sequences, supported: true}
+        }
+      },
+
+      # Mock Model (for testing)
+      "mock:mock-model" => %ModelInfo{
+        provider: :mock,
+        model_id: "mock-model",
+        display_name: "Mock Model",
+        context_window: 4_096,
+        max_output_tokens: 4_096,
+        capabilities: %{
+          streaming: %Capability{feature: :streaming, supported: true},
+          function_calling: %Capability{feature: :function_calling, supported: true},
+          vision: %Capability{feature: :vision, supported: true},
+          system_messages: %Capability{feature: :system_messages, supported: true},
+          multi_turn: %Capability{feature: :multi_turn, supported: true},
+          temperature_control: %Capability{feature: :temperature_control, supported: true}
+        }
       }
-    },
-    "local:meta-llama/Llama-2-7b-hf" => %ModelInfo{
-      provider: :local,
-      model_id: "meta-llama/Llama-2-7b-hf",
-      display_name: "Llama 2 7B",
-      context_window: 4_096,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true},
-        stop_sequences: %Capability{feature: :stop_sequences, supported: true}
-      }
-    },
-
-    # Mock Model (for testing)
-    "mock:mock-model" => %ModelInfo{
-      provider: :mock,
-      model_id: "mock-model",
-      display_name: "Mock Model",
-      context_window: 4_096,
-      max_output_tokens: 4_096,
-      capabilities: %{
-        streaming: %Capability{feature: :streaming, supported: true},
-        function_calling: %Capability{feature: :function_calling, supported: true},
-        vision: %Capability{feature: :vision, supported: true},
-        system_messages: %Capability{feature: :system_messages, supported: true},
-        multi_turn: %Capability{feature: :multi_turn, supported: true},
-        temperature_control: %Capability{feature: :temperature_control, supported: true}
-      }
-    }
     }
   end
 
@@ -461,54 +476,73 @@ defmodule ExLLM.ModelCapabilities do
 
   @doc """
   Find all models that support specific features.
-  
+
   This function searches both the hardcoded model database and dynamically
   loads models from YAML configuration files to provide comprehensive results.
   """
   @spec find_models_with_features(list(atom())) :: list({atom(), String.t()})
   def find_models_with_features(required_features) do
     # First get models from the hardcoded database
-    hardcoded_models = model_capabilities()
-    |> Enum.filter(fn {_key, info} ->
-      Enum.all?(required_features, fn feature ->
-        case Map.get(info.capabilities, feature) do
-          %Capability{supported: true} -> true
-          _ -> false
-        end
+    hardcoded_models =
+      model_capabilities()
+      |> Enum.filter(fn {_key, info} ->
+        Enum.all?(required_features, fn feature ->
+          case Map.get(info.capabilities, feature) do
+            %Capability{supported: true} -> true
+            _ -> false
+          end
+        end)
       end)
-    end)
-    |> Enum.map(fn {_key, info} ->
-      {info.provider, info.model_id}
-    end)
-    
+      |> Enum.map(fn {_key, info} ->
+        {info.provider, info.model_id}
+      end)
+
     # Then search through YAML files for additional models
     yaml_models = find_models_in_yaml_configs(required_features)
-    
+
     # Combine and deduplicate results
     (hardcoded_models ++ yaml_models)
     |> Enum.uniq()
     |> Enum.sort()
   end
-  
+
   # Helper function to search YAML configurations
   defp find_models_in_yaml_configs(required_features) do
     providers = [
-      :openai, :anthropic, :gemini, :groq, :ollama, :openrouter,
-      :mock, :local, :bedrock, :mistral, :cohere, :perplexity,
-      :deepseek, :together_ai, :anyscale, :replicate, :azure,
-      :cloudflare, :databricks, :fireworks_ai, :meta_llama,
-      :sambanova, :xai
+      :openai,
+      :anthropic,
+      :gemini,
+      :groq,
+      :ollama,
+      :openrouter,
+      :mock,
+      :local,
+      :bedrock,
+      :mistral,
+      :cohere,
+      :perplexity,
+      :deepseek,
+      :together_ai,
+      :anyscale,
+      :replicate,
+      :azure,
+      :cloudflare,
+      :databricks,
+      :fireworks_ai,
+      :meta_llama,
+      :sambanova,
+      :xai
     ]
-    
+
     providers
     |> Enum.flat_map(fn provider ->
       try do
         models = ExLLM.ModelConfig.get_all_models(provider)
-        
+
         models
         |> Enum.filter(fn {_model_id, config} ->
           capabilities = Map.get(config, :capabilities, []) || []
-          
+
           # Check if all required features are in the capabilities list
           Enum.all?(required_features, fn feature ->
             feature in capabilities or to_string(feature) in Enum.map(capabilities, &to_string/1)
@@ -566,56 +600,82 @@ defmodule ExLLM.ModelCapabilities do
 
   @doc """
   Get models grouped by capability.
-  
+
   This function searches both the hardcoded model database and dynamically
   loads models from YAML configuration files to provide comprehensive results.
   """
   @spec models_by_capability(atom()) :: map()
   def models_by_capability(feature) do
     # First get models from the hardcoded database
-    hardcoded_result = model_capabilities()
-    |> Enum.reduce(%{supported: [], not_supported: []}, fn {_key, info}, acc ->
-      case Map.get(info.capabilities, feature) do
-        %Capability{supported: true} ->
-          %{acc | supported: [{info.provider, info.model_id} | acc.supported]}
+    hardcoded_result =
+      model_capabilities()
+      |> Enum.reduce(%{supported: [], not_supported: []}, fn {_key, info}, acc ->
+        case Map.get(info.capabilities, feature) do
+          %Capability{supported: true} ->
+            %{acc | supported: [{info.provider, info.model_id} | acc.supported]}
 
-        _ ->
-          %{acc | not_supported: [{info.provider, info.model_id} | acc.not_supported]}
-      end
-    end)
-    
+          _ ->
+            %{acc | not_supported: [{info.provider, info.model_id} | acc.not_supported]}
+        end
+      end)
+
     # Then search through YAML files
     yaml_result = get_yaml_models_by_capability(feature)
-    
+
     # Combine results
     %{
-      supported: (hardcoded_result.supported ++ yaml_result.supported) |> Enum.uniq() |> Enum.sort(),
-      not_supported: (hardcoded_result.not_supported ++ yaml_result.not_supported) |> Enum.uniq() |> Enum.sort()
+      supported:
+        (hardcoded_result.supported ++ yaml_result.supported) |> Enum.uniq() |> Enum.sort(),
+      not_supported:
+        (hardcoded_result.not_supported ++ yaml_result.not_supported)
+        |> Enum.uniq()
+        |> Enum.sort()
     }
   end
-  
+
   # Helper function to get YAML models by capability
   defp get_yaml_models_by_capability(feature) do
     providers = [
-      :openai, :anthropic, :gemini, :groq, :ollama, :openrouter,
-      :mock, :local, :bedrock, :mistral, :cohere, :perplexity,
-      :deepseek, :together_ai, :anyscale, :replicate, :azure,
-      :cloudflare, :databricks, :fireworks_ai, :meta_llama,
-      :sambanova, :xai
+      :openai,
+      :anthropic,
+      :gemini,
+      :groq,
+      :ollama,
+      :openrouter,
+      :mock,
+      :local,
+      :bedrock,
+      :mistral,
+      :cohere,
+      :perplexity,
+      :deepseek,
+      :together_ai,
+      :anyscale,
+      :replicate,
+      :azure,
+      :cloudflare,
+      :databricks,
+      :fireworks_ai,
+      :meta_llama,
+      :sambanova,
+      :xai
     ]
-    
+
     providers
     |> Enum.reduce(%{supported: [], not_supported: []}, fn provider, acc ->
       try do
         models = ExLLM.ModelConfig.get_all_models(provider)
-        
+
         Enum.reduce(models, acc, fn {model_id, config}, inner_acc ->
           capabilities = Map.get(config, :capabilities, []) || []
-          
+
           if feature in capabilities or to_string(feature) in Enum.map(capabilities, &to_string/1) do
             %{inner_acc | supported: [{provider, to_string(model_id)} | inner_acc.supported]}
           else
-            %{inner_acc | not_supported: [{provider, to_string(model_id)} | inner_acc.not_supported]}
+            %{
+              inner_acc
+              | not_supported: [{provider, to_string(model_id)} | inner_acc.not_supported]
+            }
           end
         end)
       rescue
@@ -691,23 +751,25 @@ defmodule ExLLM.ModelCapabilities do
     score = 100.0
 
     # Prefer local models if requested
-    score = if Keyword.get(requirements, :prefer_local, false) do
-      if model_info.provider == :local, do: score + 50, else: score
-    else
-      score
-    end
+    score =
+      if Keyword.get(requirements, :prefer_local, false) do
+        if model_info.provider == :local, do: score + 50, else: score
+      else
+        score
+      end
 
     # Prefer larger context windows
     context_bonus = :math.log(model_info.context_window) * 2
     score = score + context_bonus
 
     # Penalize deprecated models
-    score = if model_info.deprecation_date &&
-         Date.compare(Date.utc_today(), model_info.deprecation_date) == :gt do
-      score - 50
-    else
-      score
-    end
+    score =
+      if model_info.deprecation_date &&
+           Date.compare(Date.utc_today(), model_info.deprecation_date) == :gt do
+        score - 50
+      else
+        score
+      end
 
     # Bonus for more capabilities
     capability_count =
@@ -721,27 +783,27 @@ defmodule ExLLM.ModelCapabilities do
 
   @doc """
   Get model information for a specific provider and model.
-  
+
   ## Parameters
   - `provider` - Provider atom (e.g., :openai, :anthropic)
   - `model` - Model identifier
-  
+
   ## Returns
   - `{:ok, model_info}` on success
   - `{:error, :not_found}` if model not found
-  
+
   ## Examples
-  
+
       {:ok, info} = ExLLM.ModelCapabilities.get_model_info(:openai, "gpt-4o")
   """
   @spec get_model_info(atom(), String.t()) :: {:ok, ModelInfo.t()} | {:error, :not_found}
   def get_model_info(provider, model) do
     # Get the model database
     db = model_capabilities()
-    
+
     # First try with provider prefix
     key = "#{provider}:#{model}"
-    
+
     case Map.get(db, key) do
       nil ->
         # Try without provider prefix (some models might be stored without it)
@@ -749,6 +811,7 @@ defmodule ExLLM.ModelCapabilities do
           nil -> {:error, :not_found}
           info -> {:ok, info}
         end
+
       info ->
         {:ok, info}
     end

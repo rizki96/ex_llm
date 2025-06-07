@@ -21,7 +21,7 @@ defmodule ExLLM.Adapters.XAI do
   - `grok-2-vision-1212` - Grok 2 with vision support
   - `grok-3-beta` - Grok 3 Beta with reasoning capabilities
   - `grok-3-mini-beta` - Smaller, faster Grok 3 variant
-  
+
   See `config/models/xai.yml` for the full list of models.
 
   ## Features
@@ -63,6 +63,7 @@ defmodule ExLLM.Adapters.XAI do
   @behaviour ExLLM.Adapter
 
   alias ExLLM.{ConfigProvider, Types}
+
   alias ExLLM.Adapters.Shared.{
     ErrorHandler,
     HTTPClient,
@@ -79,16 +80,17 @@ defmodule ExLLM.Adapters.XAI do
          model <- Keyword.get(options, :model, config.model) || default_model(),
          formatted_messages = messages,
          {:ok, request_body} <- build_request_body(formatted_messages, model, options) do
-      
       headers = build_headers(config)
-      
-      case HTTPClient.post_json("#{@base_url}/chat/completions", request_body, headers, timeout: @timeout) do
+
+      case HTTPClient.post_json("#{@base_url}/chat/completions", request_body, headers,
+             timeout: @timeout
+           ) do
         {:ok, response} ->
           parse_response(response, model)
-        
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:xai, status, body)
-        
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -102,56 +104,60 @@ defmodule ExLLM.Adapters.XAI do
          model <- Keyword.get(options, :model, config.model) || default_model(),
          formatted_messages = messages,
          {:ok, request_body} <- build_request_body(formatted_messages, model, options) do
-      
       headers = build_headers(config)
       url = "#{@base_url}/chat/completions"
       parent = self()
       ref = make_ref()
-      
+
       # Start streaming task
       Task.start(fn ->
-        HTTPClient.stream_request(url, request_body, headers, 
+        HTTPClient.stream_request(
+          url,
+          request_body,
+          headers,
           fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
-          on_error: fn status, body -> 
+          on_error: fn status, body ->
             send(parent, {ref, {:error, ErrorHandler.handle_provider_error(:xai, status, body)}})
           end
         )
-        
+
         # Signal stream completion
         send(parent, {ref, :done})
       end)
-      
+
       # Create stream that processes chunks
-      stream = Stream.resource(
-        fn -> {ref, model, ""} end,
-        fn {ref, model, buffer} = state ->
-          receive do
-            {^ref, {:chunk, data}} ->
-              # Accumulate data and parse SSE events
-              new_buffer = buffer <> data
-              {events, remaining} = extract_sse_events(new_buffer)
-              
-              chunks = Enum.flat_map(events, fn event ->
-                case parse_sse_event(event, model) do
-                  {:ok, chunk} -> [chunk]
-                  _ -> []
-                end
-              end)
-              
-              {chunks, {ref, model, remaining}}
-              
-            {^ref, :done} -> 
-              {:halt, state}
-              
-            {^ref, {:error, error}} -> 
-              throw(error)
-          after
-            100 -> {[], state}
-          end
-        end,
-        fn _ -> :ok end
-      )
-      
+      stream =
+        Stream.resource(
+          fn -> {ref, model, ""} end,
+          fn {ref, model, buffer} = state ->
+            receive do
+              {^ref, {:chunk, data}} ->
+                # Accumulate data and parse SSE events
+                new_buffer = buffer <> data
+                {events, remaining} = extract_sse_events(new_buffer)
+
+                chunks =
+                  Enum.flat_map(events, fn event ->
+                    case parse_sse_event(event, model) do
+                      {:ok, chunk} -> [chunk]
+                      _ -> []
+                    end
+                  end)
+
+                {chunks, {ref, model, remaining}}
+
+              {^ref, :done} ->
+                {:halt, state}
+
+              {^ref, {:error, error}} ->
+                throw(error)
+            after
+              100 -> {[], state}
+            end
+          end,
+          fn _ -> :ok end
+        )
+
       {:ok, stream}
     end
   end
@@ -160,25 +166,27 @@ defmodule ExLLM.Adapters.XAI do
   def list_models(_options \\ []) do
     # X.AI doesn't provide a models endpoint, so we return our configured models
     models = ExLLM.ModelConfig.get_all_models(:xai)
-    
-    formatted_models = Enum.map(models, fn {id, model_data} ->
-      # Convert string capabilities to atoms
-      capabilities = model_data
-      |> Map.get(:capabilities, [])
-      |> Enum.map(fn
-        cap when is_binary(cap) -> String.to_atom(cap)
-        cap when is_atom(cap) -> cap
+
+    formatted_models =
+      Enum.map(models, fn {id, model_data} ->
+        # Convert string capabilities to atoms
+        capabilities =
+          model_data
+          |> Map.get(:capabilities, [])
+          |> Enum.map(fn
+            cap when is_binary(cap) -> String.to_atom(cap)
+            cap when is_atom(cap) -> cap
+          end)
+
+        %Types.Model{
+          id: to_string(id),
+          name: "X.AI " <> format_model_name(to_string(id)),
+          context_window: Map.get(model_data, :context_window, 131_072),
+          max_output_tokens: Map.get(model_data, :max_output_tokens),
+          capabilities: capabilities
+        }
       end)
-      
-      %Types.Model{
-        id: to_string(id),
-        name: "X.AI " <> format_model_name(to_string(id)),
-        context_window: Map.get(model_data, :context_window, 131072),
-        max_output_tokens: Map.get(model_data, :max_output_tokens),
-        capabilities: capabilities
-      }
-    end)
-    
+
     {:ok, formatted_models}
   end
 
@@ -195,34 +203,37 @@ defmodule ExLLM.Adapters.XAI do
 
   def function_call(messages, functions, options \\ []) do
     # X.AI supports function calling through the tools parameter
-    tools = Enum.map(functions, fn function ->
-      %{
-        type: "function",
-        function: function
-      }
-    end)
-    
-    options = options
-    |> Keyword.put(:tools, tools)
-    |> Keyword.put_new(:tool_choice, "auto")
-    
+    tools =
+      Enum.map(functions, fn function ->
+        %{
+          type: "function",
+          function: function
+        }
+      end)
+
+    options =
+      options
+      |> Keyword.put(:tools, tools)
+      |> Keyword.put_new(:tool_choice, "auto")
+
     chat(messages, options)
   end
-  
+
   @impl true
   def configured?(options \\ []) do
     config_provider = Keyword.get(options, :config_provider, ConfigProvider.Env)
-    
-    api_key = if is_atom(config_provider) do
-      config_provider.get(:xai, :api_key)
-    else
-      # It's a pid (Static provider)
-      ExLLM.ConfigProvider.Static.get(config_provider, [:xai, :api_key])
-    end
-    
+
+    api_key =
+      if is_atom(config_provider) do
+        config_provider.get(:xai, :api_key)
+      else
+        # It's a pid (Static provider)
+        ExLLM.ConfigProvider.Static.get(config_provider, [:xai, :api_key])
+      end
+
     not is_nil(api_key) and api_key != ""
   end
-  
+
   @impl true
   def default_model(_options \\ []) do
     ExLLM.ModelConfig.get_default_model(:xai) || "xai/grok-beta"
@@ -232,12 +243,12 @@ defmodule ExLLM.Adapters.XAI do
 
   defp get_config(options) do
     config_provider = Keyword.get(options, :config_provider, ConfigProvider.Env)
-    
+
     config = %{
       api_key: config_provider.get(:xai, :api_key),
       model: Keyword.get(options, :model)
     }
-    
+
     {:ok, config}
   end
 
@@ -260,49 +271,54 @@ defmodule ExLLM.Adapters.XAI do
       presence_penalty: Keyword.get(options, :presence_penalty),
       n: Keyword.get(options, :n, 1)
     }
-    
+
     # Add optional parameters
-    body = if tools = Keyword.get(options, :tools) do
-      body
-      |> Map.put(:tools, tools)
-      |> Map.put(:tool_choice, Keyword.get(options, :tool_choice, "auto"))
-    else
-      body
-    end
-    
-    body = if response_format = Keyword.get(options, :response_format) do
-      Map.put(body, :response_format, response_format)
-    else
-      body
-    end
-    
+    body =
+      if tools = Keyword.get(options, :tools) do
+        body
+        |> Map.put(:tools, tools)
+        |> Map.put(:tool_choice, Keyword.get(options, :tool_choice, "auto"))
+      else
+        body
+      end
+
+    body =
+      if response_format = Keyword.get(options, :response_format) do
+        Map.put(body, :response_format, response_format)
+      else
+        body
+      end
+
     # Remove nil values
-    body = body
-    |> Enum.reject(fn {_, v} -> is_nil(v) end)
-    |> Enum.into(%{})
-    
+    body =
+      body
+      |> Enum.reject(fn {_, v} -> is_nil(v) end)
+      |> Enum.into(%{})
+
     {:ok, body}
   end
 
   defp parse_response(response, model) do
     case response do
-        %{"choices" => [%{"message" => message} | _]} = response ->
-          usage = Map.get(response, "usage", %{})
-          
-          # Handle function calls
-          content = if function_call = Map.get(message, "tool_calls") do
+      %{"choices" => [%{"message" => message} | _]} = response ->
+        usage = Map.get(response, "usage", %{})
+
+        # Handle function calls
+        content =
+          if function_call = Map.get(message, "tool_calls") do
             # Format tool calls for compatibility
-            tool_calls = Enum.map(function_call, fn call ->
-              %{
-                id: Map.get(call, "id"),
-                type: Map.get(call, "type", "function"),
-                function: %{
-                  name: get_in(call, ["function", "name"]),
-                  arguments: get_in(call, ["function", "arguments"])
+            tool_calls =
+              Enum.map(function_call, fn call ->
+                %{
+                  id: Map.get(call, "id"),
+                  type: Map.get(call, "type", "function"),
+                  function: %{
+                    name: get_in(call, ["function", "name"]),
+                    arguments: get_in(call, ["function", "arguments"])
+                  }
                 }
-              }
-            end)
-            
+              end)
+
             %{
               tool_calls: tool_calls,
               content: Map.get(message, "content")
@@ -310,32 +326,33 @@ defmodule ExLLM.Adapters.XAI do
           else
             Map.get(message, "content", "")
           end
-          
-          llm_response = %Types.LLMResponse{
-            content: content,
-            model: model,
-            usage: %{
-              input_tokens: Map.get(usage, "prompt_tokens", 0),
-              output_tokens: Map.get(usage, "completion_tokens", 0)
-            },
-            cost: calculate_cost(usage, model)
-          }
-          
-          {:ok, llm_response}
-        
-        error ->
-          {:error, {:invalid_response, error}}
-      end
+
+        llm_response = %Types.LLMResponse{
+          content: content,
+          model: model,
+          usage: %{
+            input_tokens: Map.get(usage, "prompt_tokens", 0),
+            output_tokens: Map.get(usage, "completion_tokens", 0)
+          },
+          cost: calculate_cost(usage, model)
+        }
+
+        {:ok, llm_response}
+
+      error ->
+        {:error, {:invalid_response, error}}
+    end
   end
 
   defp extract_sse_events(buffer) do
     # Split buffer into events based on double newlines
     parts = String.split(buffer, "\n\n", trim: true)
-    
+
     # Check if the last part is complete (ends with newline)
     case List.last(parts) do
-      nil -> 
+      nil ->
         {[], buffer}
+
       last_part ->
         if String.ends_with?(buffer, "\n\n") do
           # All parts are complete events
@@ -346,54 +363,59 @@ defmodule ExLLM.Adapters.XAI do
         end
     end
   end
-  
+
   defp parse_sse_event(event, model) do
     # Extract data from SSE event
     case Regex.run(~r/^data: (.+)$/m, event) do
-      [_, "[DONE]"] -> 
+      [_, "[DONE]"] ->
         {:ok, :done}
-        
+
       [_, json_data] ->
         case Jason.decode(json_data) do
           {:ok, %{"choices" => [%{"delta" => delta} | _]}} ->
             content = Map.get(delta, "content", "")
-            
+
             # Handle function calls in streaming
-            function_call = if tool_calls = Map.get(delta, "tool_calls") do
-              Enum.map(tool_calls, fn call ->
-                %{
-                  index: Map.get(call, "index"),
-                  id: Map.get(call, "id"),
-                  type: Map.get(call, "type"),
-                  function: Map.get(call, "function")
-                }
-              end)
-            end
-            
-            chunk_data = if function_call do
-              %{content: content, tool_calls: function_call}
-            else
-              content
-            end
-            
-            {:ok, %Types.StreamChunk{
-              content: chunk_data,
-              model: model,
-              finish_reason: nil
-            }}
-          
-          {:ok, %{"choices" => [%{"finish_reason" => reason} | _]} = _data} when not is_nil(reason) ->
+            function_call =
+              if tool_calls = Map.get(delta, "tool_calls") do
+                Enum.map(tool_calls, fn call ->
+                  %{
+                    index: Map.get(call, "index"),
+                    id: Map.get(call, "id"),
+                    type: Map.get(call, "type"),
+                    function: Map.get(call, "function")
+                  }
+                end)
+              end
+
+            chunk_data =
+              if function_call do
+                %{content: content, tool_calls: function_call}
+              else
+                content
+              end
+
+            {:ok,
+             %Types.StreamChunk{
+               content: chunk_data,
+               model: model,
+               finish_reason: nil
+             }}
+
+          {:ok, %{"choices" => [%{"finish_reason" => reason} | _]} = _data}
+          when not is_nil(reason) ->
             # Final chunk with finish reason
-            {:ok, %Types.StreamChunk{
-              content: "",
-              model: model,
-              finish_reason: reason
-            }}
-          
+            {:ok,
+             %Types.StreamChunk{
+               content: "",
+               model: model,
+               finish_reason: reason
+             }}
+
           _ ->
             {:error, :invalid_chunk}
         end
-        
+
       _ ->
         {:error, :invalid_event}
     end
@@ -401,14 +423,14 @@ defmodule ExLLM.Adapters.XAI do
 
   defp calculate_cost(usage, model) do
     model_config = ExLLM.ModelConfig.get_model_config(:xai, model)
-    
+
     if model_config && model_config.pricing do
       input_tokens = Map.get(usage, "prompt_tokens", 0)
       output_tokens = Map.get(usage, "completion_tokens", 0)
-      
+
       input_cost = input_tokens * model_config.pricing.input / 1_000_000
       output_cost = output_tokens * model_config.pricing.output / 1_000_000
-      
+
       %{
         input: input_cost,
         output: output_cost,

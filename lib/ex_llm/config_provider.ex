@@ -130,7 +130,7 @@ defmodule ExLLM.ConfigProvider do
       do: System.get_env("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
     defp get_known_config(:openrouter, :app_name), do: System.get_env("OPENROUTER_APP_NAME")
-    
+
     defp get_known_config(:openrouter, :app_url), do: System.get_env("OPENROUTER_APP_URL")
 
     defp get_known_config(_, _), do: nil

@@ -358,13 +358,17 @@ defmodule ExLLM.Session do
 
   defp maybe_add_timestamp(normalized_msg, original_msg) do
     case original_msg["timestamp"] || original_msg[:timestamp] do
-      nil -> normalized_msg
+      nil ->
+        normalized_msg
+
       timestamp_str when is_binary(timestamp_str) ->
         case DateTime.from_iso8601(timestamp_str) do
           {:ok, datetime, _} -> Map.put(normalized_msg, :timestamp, datetime)
           _ -> normalized_msg
         end
-      timestamp -> Map.put(normalized_msg, :timestamp, timestamp)
+
+      timestamp ->
+        Map.put(normalized_msg, :timestamp, timestamp)
     end
   end
 
@@ -372,15 +376,28 @@ defmodule ExLLM.Session do
     # Add any additional fields that might be present
     original_msg
     |> Enum.reduce(normalized_msg, fn
-      {"role", _}, acc -> acc
-      {"content", _}, acc -> acc
-      {"timestamp", _}, acc -> acc
-      {:role, _}, acc -> acc
-      {:content, _}, acc -> acc
-      {:timestamp, _}, acc -> acc
-      {key, value}, acc when is_binary(key) -> 
+      {"role", _}, acc ->
+        acc
+
+      {"content", _}, acc ->
+        acc
+
+      {"timestamp", _}, acc ->
+        acc
+
+      {:role, _}, acc ->
+        acc
+
+      {:content, _}, acc ->
+        acc
+
+      {:timestamp, _}, acc ->
+        acc
+
+      {key, value}, acc when is_binary(key) ->
         Map.put(acc, String.to_atom(key), value)
-      {key, value}, acc when is_atom(key) -> 
+
+      {key, value}, acc when is_atom(key) ->
         Map.put(acc, key, value)
     end)
   end
@@ -405,6 +422,7 @@ defmodule ExLLM.Session do
     case to_json(session) do
       {:ok, json} ->
         File.write(file_path, json)
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -429,6 +447,7 @@ defmodule ExLLM.Session do
     case File.read(file_path) do
       {:ok, json} ->
         from_json(json)
+
       {:error, reason} ->
         {:error, reason}
     end

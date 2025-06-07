@@ -176,47 +176,49 @@ defmodule ExLLM.Instructor do
   end
 
   # Private implementation
-    defp do_structured_chat(provider, messages, options) do
-      response_model = Keyword.fetch!(options, :response_model)
+  defp do_structured_chat(provider, messages, options) do
+    response_model = Keyword.fetch!(options, :response_model)
 
-      # Convert ExLLM provider to instructor adapter
-      adapter =
-        case provider do
-          :anthropic -> Instructor.Adapters.Anthropic
-          :openai -> Instructor.Adapters.OpenAI
-          :ollama -> Instructor.Adapters.Ollama
-          :gemini -> Instructor.Adapters.Gemini
-          :groq -> Instructor.Adapters.Groq
-          :xai -> Instructor.Adapters.XAI
-          :mock -> :mock_direct  # Handle mock directly without Instructor
-          :local -> {:error, :unsupported_provider_for_instructor}
-          _ -> {:error, :unsupported_provider_for_instructor}
-        end
+    # Convert ExLLM provider to instructor adapter
+    adapter =
+      case provider do
+        :anthropic -> Instructor.Adapters.Anthropic
+        :openai -> Instructor.Adapters.OpenAI
+        :ollama -> Instructor.Adapters.Ollama
+        :gemini -> Instructor.Adapters.Gemini
+        :groq -> Instructor.Adapters.Groq
+        :xai -> Instructor.Adapters.XAI
+        # Handle mock directly without Instructor
+        :mock -> :mock_direct
+        :local -> {:error, :unsupported_provider_for_instructor}
+        _ -> {:error, :unsupported_provider_for_instructor}
+      end
 
-      case adapter do
-        {:error, reason} ->
-          {:error, reason}
+    case adapter do
+      {:error, reason} ->
+        {:error, reason}
 
-        :mock_direct ->
-          # Handle mock provider directly
-          handle_mock_structured_output(provider, messages, options, response_model)
+      :mock_direct ->
+        # Handle mock provider directly
+        handle_mock_structured_output(provider, messages, options, response_model)
 
-        _adapter_module ->
-          # Prepare instructor options
-          instructor_opts =
-            options
-            |> Keyword.take([:model, :temperature, :max_tokens, :max_retries])
-            |> Keyword.put(:response_model, response_model)
-            |> Keyword.put(:messages, prepare_messages_for_instructor(messages))
+      _adapter_module ->
+        # Prepare instructor options
+        instructor_opts =
+          options
+          |> Keyword.take([:model, :temperature, :max_tokens, :max_retries])
+          |> Keyword.put(:response_model, response_model)
+          |> Keyword.put(:messages, prepare_messages_for_instructor(messages))
 
-          # Get configuration from ExLLM's config provider
-          config_opts = get_provider_config(provider, options)
+        # Get configuration from ExLLM's config provider
+        config_opts = get_provider_config(provider, options)
 
-          # Merge configurations (config_opts first, then instructor_opts to allow overrides)
-          merged_opts = Keyword.merge(config_opts, instructor_opts)
+        # Merge configurations (config_opts first, then instructor_opts to allow overrides)
+        merged_opts = Keyword.merge(config_opts, instructor_opts)
 
-          # Set up the adapter in config
-          adapter = case provider do
+        # Set up the adapter in config
+        adapter =
+          case provider do
             :anthropic -> Instructor.Adapters.Anthropic
             :openai -> Instructor.Adapters.OpenAI
             :ollama -> Instructor.Adapters.Ollama
@@ -226,252 +228,279 @@ defmodule ExLLM.Instructor do
             _ -> nil
           end
 
-          # Ensure we have a model
-          model = merged_opts[:model] || Keyword.get(options, :model) || ExLLM.default_model(provider)
-          
-          # Prepare params for Instructor.chat_completion (first argument)
-          params = [
-            model: model,
-            response_model: merged_opts[:response_model],
-            messages: merged_opts[:messages],
-            max_retries: merged_opts[:max_retries] || 0
-          ]
-          
-          # Add optional parameters only if present
-          params = if merged_opts[:temperature], do: Keyword.put(params, :temperature, merged_opts[:temperature]), else: params
-          
-          # For Anthropic, max_tokens is required
-          params = case provider do
-            :anthropic -> Keyword.put(params, :max_tokens, merged_opts[:max_tokens] || 4096)
-            _ -> if merged_opts[:max_tokens], do: Keyword.put(params, :max_tokens, merged_opts[:max_tokens]), else: params
+        # Ensure we have a model
+        model =
+          merged_opts[:model] || Keyword.get(options, :model) || ExLLM.default_model(provider)
+
+        # Prepare params for Instructor.chat_completion (first argument)
+        params = [
+          model: model,
+          response_model: merged_opts[:response_model],
+          messages: merged_opts[:messages],
+          max_retries: merged_opts[:max_retries] || 0
+        ]
+
+        # Add optional parameters only if present
+        params =
+          if merged_opts[:temperature],
+            do: Keyword.put(params, :temperature, merged_opts[:temperature]),
+            else: params
+
+        # For Anthropic, max_tokens is required
+        params =
+          case provider do
+            :anthropic ->
+              Keyword.put(params, :max_tokens, merged_opts[:max_tokens] || 4096)
+
+            _ ->
+              if merged_opts[:max_tokens],
+                do: Keyword.put(params, :max_tokens, merged_opts[:max_tokens]),
+                else: params
           end
 
-          # Prepare config (second argument) with adapter
-          config = case provider do
+        # Prepare config (second argument) with adapter
+        config =
+          case provider do
             :ollama ->
               # Ollama needs base_url in config
               base_url = merged_opts[:base_url] || "http://localhost:11434"
               [adapter: adapter, base_url: base_url]
+
             _ ->
               [adapter: adapter]
           end
 
-          # Call instructor with params and config as separate arguments
-          case apply(Instructor, :chat_completion, [params, config]) do
-            {:ok, result} ->
-              {:ok, result}
+        # Call instructor with params and config as separate arguments
+        case apply(Instructor, :chat_completion, [params, config]) do
+          {:ok, result} ->
+            {:ok, result}
 
-            {:error, errors} when is_list(errors) ->
-              # Convert instructor validation errors to ExLLM format
-              {:error, format_validation_errors(errors)}
+          {:error, errors} when is_list(errors) ->
+            # Convert instructor validation errors to ExLLM format
+            {:error, format_validation_errors(errors)}
 
-            {:error, reason} ->
-              {:error, reason}
-          end
-      end
+          {:error, reason} ->
+            {:error, reason}
+        end
     end
+  end
 
-    defp do_parse_response(%Types.LLMResponse{content: content}, response_model) do
-      # Extract JSON from the content (handle markdown-wrapped JSON)
-      json_content = extract_json_from_content(content)
+  defp do_parse_response(%Types.LLMResponse{content: content}, response_model) do
+    # Extract JSON from the content (handle markdown-wrapped JSON)
+    json_content = extract_json_from_content(content)
 
-      # Try to parse the content as JSON and validate against the model
-      with {:ok, json} <- Jason.decode(json_content),
-           {:ok, validated} <- validate_against_model(json, response_model) do
-        {:ok, validated}
-      else
-        {:error, %Jason.DecodeError{} = error} ->
-          {:error, {:json_decode_error, Exception.message(error)}}
+    # Try to parse the content as JSON and validate against the model
+    with {:ok, json} <- Jason.decode(json_content),
+         {:ok, validated} <- validate_against_model(json, response_model) do
+      {:ok, validated}
+    else
+      {:error, %Jason.DecodeError{} = error} ->
+        {:error, {:json_decode_error, Exception.message(error)}}
 
-        {:error, reason} ->
-          {:error, reason}
-      end
+      {:error, reason} ->
+        {:error, reason}
     end
+  end
 
-    defp extract_json_from_content(content) do
-      # Try to extract JSON from markdown code blocks
-      case Regex.run(~r/```(?:json)?\s*\n?(.*?)\n?```/s, content) do
-        [_, json] ->
-          String.trim(json)
+  defp extract_json_from_content(content) do
+    # Try to extract JSON from markdown code blocks
+    case Regex.run(~r/```(?:json)?\s*\n?(.*?)\n?```/s, content) do
+      [_, json] ->
+        String.trim(json)
 
-        nil ->
-          # Try to find JSON object or array directly
-          case Regex.run(~r/(\{[\s\S]*\}|\[[\s\S]*\])/s, content) do
-            [_, json] -> json
-            nil -> content
-          end
-      end
+      nil ->
+        # Try to find JSON object or array directly
+        case Regex.run(~r/(\{[\s\S]*\}|\[[\s\S]*\])/s, content) do
+          [_, json] -> json
+          nil -> content
+        end
     end
+  end
 
-    defp prepare_messages_for_instructor(messages) do
-      Enum.map(messages, fn msg ->
-        %{
-          role: Map.get(msg, :role, "user"),
-          content: Map.get(msg, :content, "")
-        }
-      end)
-    end
+  defp prepare_messages_for_instructor(messages) do
+    Enum.map(messages, fn msg ->
+      %{
+        role: Map.get(msg, :role, "user"),
+        content: Map.get(msg, :content, "")
+      }
+    end)
+  end
 
-    defp get_provider_config(provider, options) do
-      config_provider = Keyword.get(options, :config_provider, ExLLM.ConfigProvider.Env)
+  defp get_provider_config(provider, options) do
+    config_provider = Keyword.get(options, :config_provider, ExLLM.ConfigProvider.Env)
 
-      case provider do
-        :anthropic ->
-          [
-            model: config_provider.get(:anthropic, :model) || ExLLM.ModelConfig.get_default_model(:anthropic)
-          ]
+    case provider do
+      :anthropic ->
+        [
+          model:
+            config_provider.get(:anthropic, :model) ||
+              ExLLM.ModelConfig.get_default_model(:anthropic)
+        ]
 
-        :openai ->
-          [
-            model: config_provider.get(:openai, :model) || ExLLM.ModelConfig.get_default_model(:openai)
-          ]
+      :openai ->
+        [
+          model:
+            config_provider.get(:openai, :model) || ExLLM.ModelConfig.get_default_model(:openai)
+        ]
 
-        :ollama ->
-          model = config_provider.get(:ollama, :model) || ExLLM.ModelConfig.get_default_model(:ollama)
-          # Strip ollama/ prefix if present
-          model = case String.split(model || "", "/", parts: 2) do
+      :ollama ->
+        model =
+          config_provider.get(:ollama, :model) || ExLLM.ModelConfig.get_default_model(:ollama)
+
+        # Strip ollama/ prefix if present
+        model =
+          case String.split(model || "", "/", parts: 2) do
             ["ollama", actual_model] -> actual_model
             _ -> model
           end
-          [
-            base_url: config_provider.get(:ollama, :base_url) || "http://localhost:11434",
-            model: model
-          ]
 
-        :gemini ->
-          [
-            model: config_provider.get(:gemini, :model) || ExLLM.ModelConfig.get_default_model(:gemini)
-          ]
+        [
+          base_url: config_provider.get(:ollama, :base_url) || "http://localhost:11434",
+          model: model
+        ]
 
-        :groq ->
-          [
-            model: config_provider.get(:groq, :model) || ExLLM.ModelConfig.get_default_model(:groq)
-          ]
+      :gemini ->
+        [
+          model:
+            config_provider.get(:gemini, :model) || ExLLM.ModelConfig.get_default_model(:gemini)
+        ]
 
-        :xai ->
-          [
-            model: config_provider.get(:xai, :model) || ExLLM.ModelConfig.get_default_model(:xai)
-          ]
+      :groq ->
+        [
+          model: config_provider.get(:groq, :model) || ExLLM.ModelConfig.get_default_model(:groq)
+        ]
 
-        :mock ->
-          [
-            model: "mock-model"
-          ]
+      :xai ->
+        [
+          model: config_provider.get(:xai, :model) || ExLLM.ModelConfig.get_default_model(:xai)
+        ]
 
-        _ ->
-          []
-      end
-      |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+      :mock ->
+        [
+          model: "mock-model"
+        ]
+
+      _ ->
+        []
     end
+    |> Enum.reject(fn {_k, v} -> is_nil(v) end)
+  end
 
-    defp validate_against_model(data, response_model) when is_atom(response_model) do
-      # Ecto schema validation
-      cond do
-        # Check if it has the standard changeset/2 function
-        function_exported?(response_model, :changeset, 2) ->
-          changeset = apply(response_model, :changeset, [struct(response_model), data])
+  defp validate_against_model(data, response_model) when is_atom(response_model) do
+    # Ecto schema validation
+    cond do
+      # Check if it has the standard changeset/2 function
+      function_exported?(response_model, :changeset, 2) ->
+        changeset = apply(response_model, :changeset, [struct(response_model), data])
 
-          if changeset.valid? do
-            {:ok, Ecto.Changeset.apply_changes(changeset)}
-          else
-            {:error, format_changeset_errors(changeset)}
-          end
-          
-        # Check if it's using Instructor.Validator (has validate_changeset/1)
-        function_exported?(response_model, :validate_changeset, 1) ->
-          # Create a basic changeset and apply the validator
-          base_struct = struct(response_model)
-          changeset = Ecto.Changeset.cast(base_struct, data, Map.keys(base_struct) -- [:__struct__, :__meta__])
-          validated_changeset = apply(response_model, :validate_changeset, [changeset])
-          
-          if validated_changeset.valid? do
-            {:ok, Ecto.Changeset.apply_changes(validated_changeset)}
-          else
-            {:error, format_changeset_errors(validated_changeset)}
-          end
-          
-        # Check if it's an embedded schema with __schema__
-        function_exported?(response_model, :__schema__, 1) ->
-          # It's an Ecto schema but without changeset function
-          # Create a basic changeset
-          base_struct = struct(response_model)
-          fields = response_model.__schema__(:fields)
-          changeset = Ecto.Changeset.cast(base_struct, data, fields)
-          
-          if changeset.valid? do
-            {:ok, Ecto.Changeset.apply_changes(changeset)}
-          else
-            {:error, format_changeset_errors(changeset)}
-          end
-          
-        true ->
-          {:error, :invalid_response_model}
-      end
+        if changeset.valid? do
+          {:ok, Ecto.Changeset.apply_changes(changeset)}
+        else
+          {:error, format_changeset_errors(changeset)}
+        end
+
+      # Check if it's using Instructor.Validator (has validate_changeset/1)
+      function_exported?(response_model, :validate_changeset, 1) ->
+        # Create a basic changeset and apply the validator
+        base_struct = struct(response_model)
+
+        changeset =
+          Ecto.Changeset.cast(
+            base_struct,
+            data,
+            Map.keys(base_struct) -- [:__struct__, :__meta__]
+          )
+
+        validated_changeset = apply(response_model, :validate_changeset, [changeset])
+
+        if validated_changeset.valid? do
+          {:ok, Ecto.Changeset.apply_changes(validated_changeset)}
+        else
+          {:error, format_changeset_errors(validated_changeset)}
+        end
+
+      # Check if it's an embedded schema with __schema__
+      function_exported?(response_model, :__schema__, 1) ->
+        # It's an Ecto schema but without changeset function
+        # Create a basic changeset
+        base_struct = struct(response_model)
+        fields = response_model.__schema__(:fields)
+        changeset = Ecto.Changeset.cast(base_struct, data, fields)
+
+        if changeset.valid? do
+          {:ok, Ecto.Changeset.apply_changes(changeset)}
+        else
+          {:error, format_changeset_errors(changeset)}
+        end
+
+      true ->
+        {:error, :invalid_response_model}
     end
+  end
 
-    defp validate_against_model(data, type_spec) when is_map(type_spec) do
-      # Simple type validation
-      validate_simple_types(data, type_spec)
+  defp validate_against_model(data, type_spec) when is_map(type_spec) do
+    # Simple type validation
+    validate_simple_types(data, type_spec)
+  end
+
+  defp validate_simple_types(data, type_spec) do
+    result =
+      Enum.reduce_while(type_spec, %{}, fn {key, type}, acc ->
+        str_key = to_string(key)
+
+        case validate_type(Map.get(data, str_key), type) do
+          {:ok, value} ->
+            {:cont, Map.put(acc, key, value)}
+
+          {:error, reason} ->
+            {:halt, {:error, {key, reason}}}
+        end
+      end)
+
+    case result do
+      {:error, _} = error -> error
+      validated -> {:ok, validated}
     end
+  end
 
-    defp validate_simple_types(data, type_spec) do
-      result =
-        Enum.reduce_while(type_spec, %{}, fn {key, type}, acc ->
-          str_key = to_string(key)
+  defp validate_type(value, :string) when is_binary(value), do: {:ok, value}
+  defp validate_type(value, :integer) when is_integer(value), do: {:ok, value}
+  defp validate_type(value, :float) when is_float(value), do: {:ok, value}
+  defp validate_type(value, :float) when is_integer(value), do: {:ok, value * 1.0}
+  defp validate_type(value, :boolean) when is_boolean(value), do: {:ok, value}
 
-          case validate_type(Map.get(data, str_key), type) do
-            {:ok, value} ->
-              {:cont, Map.put(acc, key, value)}
+  defp validate_type(value, {:array, type}) when is_list(value) do
+    validated = Enum.map(value, &validate_type(&1, type))
 
-            {:error, reason} ->
-              {:halt, {:error, {key, reason}}}
-          end
+    case Enum.find(validated, &match?({:error, _}, &1)) do
+      nil -> {:ok, Enum.map(validated, fn {:ok, v} -> v end)}
+      error -> error
+    end
+  end
+
+  defp validate_type(_, type), do: {:error, {:invalid_type, type}}
+
+  defp format_validation_errors(errors) when is_list(errors) do
+    formatted =
+      Enum.map(errors, fn
+        {field, {msg, _opts}} -> "#{field}: #{msg}"
+        {field, msg} when is_binary(msg) -> "#{field}: #{msg}"
+        error -> inspect(error)
+      end)
+
+    {:validation_failed, formatted}
+  end
+
+  defp format_changeset_errors(changeset) do
+    errors =
+      Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+        Enum.reduce(opts, msg, fn {key, value}, acc ->
+          String.replace(acc, "%{#{key}}", to_string(value))
         end)
+      end)
 
-      case result do
-        {:error, _} = error -> error
-        validated -> {:ok, validated}
-      end
-    end
-
-    defp validate_type(value, :string) when is_binary(value), do: {:ok, value}
-    defp validate_type(value, :integer) when is_integer(value), do: {:ok, value}
-    defp validate_type(value, :float) when is_float(value), do: {:ok, value}
-    defp validate_type(value, :float) when is_integer(value), do: {:ok, value * 1.0}
-    defp validate_type(value, :boolean) when is_boolean(value), do: {:ok, value}
-
-    defp validate_type(value, {:array, type}) when is_list(value) do
-      validated = Enum.map(value, &validate_type(&1, type))
-
-      case Enum.find(validated, &match?({:error, _}, &1)) do
-        nil -> {:ok, Enum.map(validated, fn {:ok, v} -> v end)}
-        error -> error
-      end
-    end
-
-    defp validate_type(_, type), do: {:error, {:invalid_type, type}}
-
-    defp format_validation_errors(errors) when is_list(errors) do
-      formatted =
-        Enum.map(errors, fn
-          {field, {msg, _opts}} -> "#{field}: #{msg}"
-          {field, msg} when is_binary(msg) -> "#{field}: #{msg}"
-          error -> inspect(error)
-        end)
-
-      {:validation_failed, formatted}
-    end
-
-    defp format_changeset_errors(changeset) do
-      errors =
-        Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-          Enum.reduce(opts, msg, fn {key, value}, acc ->
-            String.replace(acc, "%{#{key}}", to_string(value))
-          end)
-        end)
-
-      {:validation_failed, errors}
-    end
+    {:validation_failed, errors}
+  end
 
   @doc """
   Create a simple schema module at runtime.
@@ -512,12 +541,12 @@ defmodule ExLLM.Instructor do
   defp handle_mock_structured_output(provider, messages, options, response_model) do
     # Get regular chat response from mock
     chat_opts = Keyword.drop(options, [:response_model, :max_retries])
-    
+
     case ExLLM.chat(provider, messages, chat_opts) do
       {:ok, response} ->
         # Try to parse the response as structured data
         parse_response(response, response_model)
-        
+
       {:error, reason} ->
         {:error, reason}
     end

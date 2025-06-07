@@ -5,11 +5,12 @@ defmodule ExLLM.RetryTest do
   describe "with_retry/2" do
     test "succeeds on first attempt" do
       counter = :counters.new(1, [])
-      
-      result = Retry.with_retry(fn ->
-        :counters.add(counter, 1, 1)
-        {:ok, "success"}
-      end)
+
+      result =
+        Retry.with_retry(fn ->
+          :counters.add(counter, 1, 1)
+          {:ok, "success"}
+        end)
 
       assert result == {:ok, "success"}
       assert :counters.get(counter, 1) == 1
@@ -17,17 +18,21 @@ defmodule ExLLM.RetryTest do
 
     test "retries on failure and eventually succeeds" do
       counter = :counters.new(1, [])
-      
-      result = Retry.with_retry(fn ->
-        _count = :counters.add(counter, 1, 1)
-        current = :counters.get(counter, 1)
-        
-        if current < 3 do
-          {:error, {:network_error, "temporary failure"}}
-        else
-          {:ok, "success after #{current} attempts"}
-        end
-      end, max_attempts: 5)
+
+      result =
+        Retry.with_retry(
+          fn ->
+            _count = :counters.add(counter, 1, 1)
+            current = :counters.get(counter, 1)
+
+            if current < 3 do
+              {:error, {:network_error, "temporary failure"}}
+            else
+              {:ok, "success after #{current} attempts"}
+            end
+          end,
+          max_attempts: 5
+        )
 
       assert {:ok, "success after 3 attempts"} = result
       assert :counters.get(counter, 1) == 3
@@ -35,11 +40,15 @@ defmodule ExLLM.RetryTest do
 
     test "gives up after max attempts" do
       counter = :counters.new(1, [])
-      
-      result = Retry.with_retry(fn ->
-        :counters.add(counter, 1, 1)
-        {:error, {:network_error, "persistent failure"}}
-      end, max_attempts: 3)
+
+      result =
+        Retry.with_retry(
+          fn ->
+            :counters.add(counter, 1, 1)
+            {:error, {:network_error, "persistent failure"}}
+          end,
+          max_attempts: 3
+        )
 
       assert {:error, {:network_error, "persistent failure"}} = result
       assert :counters.get(counter, 1) == 3
@@ -47,93 +56,117 @@ defmodule ExLLM.RetryTest do
 
     test "does not retry on non-retryable errors" do
       counter = :counters.new(1, [])
-      
-      result = Retry.with_retry(fn ->
-        :counters.add(counter, 1, 1)
-        {:error, {:invalid_api_key, "Invalid key"}}
-      end, max_attempts: 5)
+
+      result =
+        Retry.with_retry(
+          fn ->
+            :counters.add(counter, 1, 1)
+            {:error, {:invalid_api_key, "Invalid key"}}
+          end,
+          max_attempts: 5
+        )
 
       assert {:error, {:invalid_api_key, "Invalid key"}} = result
-      assert :counters.get(counter, 1) == 1  # No retries
+      # No retries
+      assert :counters.get(counter, 1) == 1
     end
 
     test "applies exponential backoff" do
       start_time = System.monotonic_time(:millisecond)
       agent = Agent.start_link(fn -> [] end) |> elem(1)
-      
-      result = Retry.with_retry(fn ->
-        current_time = System.monotonic_time(:millisecond)
-        Agent.update(agent, fn attempts -> attempts ++ [current_time - start_time] end)
-        attempts = Agent.get(agent, & &1)
-        
-        if length(attempts) < 3 do
-          {:error, {:network_error, "retry me"}}
-        else
-          {:ok, attempts}
-        end
-      end, base_delay: 10, max_attempts: 3, jitter: false)
+
+      result =
+        Retry.with_retry(
+          fn ->
+            current_time = System.monotonic_time(:millisecond)
+            Agent.update(agent, fn attempts -> attempts ++ [current_time - start_time] end)
+            attempts = Agent.get(agent, & &1)
+
+            if length(attempts) < 3 do
+              {:error, {:network_error, "retry me"}}
+            else
+              {:ok, attempts}
+            end
+          end,
+          base_delay: 10,
+          max_attempts: 3,
+          jitter: false
+        )
 
       {:ok, attempts} = result
       # Verify delays increase exponentially
       [first, second, third] = attempts
-      
+
       # First attempt is immediate
       assert first < 5
-      
+
       # Second attempt should be after ~10ms (base_delay)
       assert second >= 10
-      assert second < 30  # Allow more tolerance for CI/slow systems
-      
+      # Allow more tolerance for CI/slow systems
+      assert second < 30
+
       # Third attempt should be after ~20ms more (base_delay * 2)
       assert third - second >= 20
-      assert third - second < 40  # Allow more tolerance
+      # Allow more tolerance
+      assert third - second < 40
     end
 
     @tag :skip
     test "respects max_delay option" do
       counter = :counters.new(1, [])
       delays = []
-      
-      Retry.with_retry(fn ->
-        :counters.add(counter, 1, 1)
-        count = :counters.get(counter, 1)
-        
-        if count > 1 do
-          _delays = delays ++ [System.monotonic_time(:millisecond)]
-        end
-        
-        if count < 5 do
-          {:error, :retry}
-        else
-          {:ok, delays}
-        end
-      end, base_delay: 100, max_delay: 150, max_attempts: 5)
+
+      Retry.with_retry(
+        fn ->
+          :counters.add(counter, 1, 1)
+          count = :counters.get(counter, 1)
+
+          if count > 1 do
+            _delays = delays ++ [System.monotonic_time(:millisecond)]
+          end
+
+          if count < 5 do
+            {:error, :retry}
+          else
+            {:ok, delays}
+          end
+        end,
+        base_delay: 100,
+        max_delay: 150,
+        max_attempts: 5
+      )
 
       # Calculate actual delays between attempts
-      actual_delays = delays
+      actual_delays =
+        delays
         |> Enum.chunk_every(2, 1, :discard)
         |> Enum.map(fn [a, b] -> b - a end)
-      
+
       # All delays should be capped at max_delay (150ms) + some jitter
       assert Enum.all?(actual_delays, fn delay -> delay <= 200 end)
     end
 
     test "handles exceptions" do
       counter = :counters.new(1, [])
-      
-      result = Retry.with_retry(fn ->
-        _count = :counters.add(counter, 1, 1)
-        current = :counters.get(counter, 1)
-        
-        if current < 2 do
-          raise "Temporary error"
-        else
-          {:ok, "recovered"}
-        end
-      end, max_attempts: 3, retry_on: fn
-        exception when is_exception(exception) -> true  
-        _ -> false
-      end)
+
+      result =
+        Retry.with_retry(
+          fn ->
+            _count = :counters.add(counter, 1, 1)
+            current = :counters.get(counter, 1)
+
+            if current < 2 do
+              raise "Temporary error"
+            else
+              {:ok, "recovered"}
+            end
+          end,
+          max_attempts: 3,
+          retry_on: fn
+            exception when is_exception(exception) -> true
+            _ -> false
+          end
+        )
 
       assert {:ok, "recovered"} = result
       assert :counters.get(counter, 1) == 2
@@ -145,11 +178,13 @@ defmodule ExLLM.RetryTest do
       # Create a default policy for testing
       policy = %Retry.RetryPolicy{
         max_attempts: 3,
-        retry_on: nil  # Use default retry condition
+        # Use default retry condition
+        retry_on: nil
       }
+
       {:ok, policy: policy}
     end
-    
+
     test "retryable errors", %{policy: policy} do
       assert Retry.should_retry?({:timeout, "timeout"}, 1, policy)
       assert Retry.should_retry?({:network_error, "error"}, 1, policy)
@@ -224,7 +259,7 @@ defmodule ExLLM.RetryTest do
   describe "calculate_delay/2" do
     test "exponential growth" do
       base_delay = 100
-      
+
       # Create a policy without jitter for predictable results
       policy = %Retry.RetryPolicy{
         base_delay: base_delay,
@@ -232,11 +267,11 @@ defmodule ExLLM.RetryTest do
         multiplier: 2,
         jitter: false
       }
-      
+
       delay1 = Retry.calculate_delay(1, policy)
       delay2 = Retry.calculate_delay(2, policy)
       delay3 = Retry.calculate_delay(3, policy)
-      
+
       # Verify exponential growth (power of 2)
       assert delay1 == base_delay
       assert delay2 == base_delay * 2
@@ -251,11 +286,12 @@ defmodule ExLLM.RetryTest do
         multiplier: 2,
         jitter: false
       }
-      
-      delays = for attempt <- 1..10 do
-        Retry.calculate_delay(attempt, policy)
-      end
-      
+
+      delays =
+        for attempt <- 1..10 do
+          Retry.calculate_delay(attempt, policy)
+        end
+
       # All delays should be capped at max_delay
       assert Enum.all?(delays, fn d -> d <= 500 end)
       # Later attempts should be capped at exactly max_delay
@@ -264,7 +300,7 @@ defmodule ExLLM.RetryTest do
 
     test "adds jitter" do
       base_delay = 100
-      
+
       # Create a policy with jitter enabled
       policy = %Retry.RetryPolicy{
         base_delay: base_delay,
@@ -272,16 +308,18 @@ defmodule ExLLM.RetryTest do
         multiplier: 2,
         jitter: true
       }
-      
+
       # Generate multiple delays for same attempt
-      delays = for _ <- 1..100 do
-        Retry.calculate_delay(1, policy)
-      end
-      
+      delays =
+        for _ <- 1..100 do
+          Retry.calculate_delay(1, policy)
+        end
+
       # Should have variation due to jitter
       unique_delays = Enum.uniq(delays)
-      assert length(unique_delays) > 10  # Some variation expected
-      
+      # Some variation expected
+      assert length(unique_delays) > 10
+
       # All should be within expected range (base_delay with up to 25% added jitter)
       assert Enum.all?(delays, fn d -> d >= base_delay and d <= base_delay * 1.25 end)
     end
@@ -290,7 +328,7 @@ defmodule ExLLM.RetryTest do
   describe "integration with provider policies" do
     test "retries with provider-specific policy" do
       counter = :counters.new(1, [])
-      
+
       # Simulate API call with provider
       api_call = fn provider ->
         Retry.with_provider_retry(
@@ -298,7 +336,7 @@ defmodule ExLLM.RetryTest do
           fn ->
             _count = :counters.add(counter, 1, 1)
             current = :counters.get(counter, 1)
-            
+
             if current < 2 do
               {:error, {:api_error, %{status: 503}}}
             else
@@ -307,11 +345,12 @@ defmodule ExLLM.RetryTest do
           end
         )
       end
-      
+
       # Test different providers
       for provider <- [:openai, :anthropic, :gemini, :local] do
-        :counters.put(counter, 1, 0)  # Reset counter
-        
+        # Reset counter
+        :counters.put(counter, 1, 0)
+
         result = api_call.(provider)
         assert match?({:ok, _}, result)
         {:ok, message} = result
@@ -324,29 +363,31 @@ defmodule ExLLM.RetryTest do
   describe "retry with custom predicate" do
     test "custom retry predicate" do
       counter = :counters.new(1, [])
-      
+
       custom_should_retry = fn
         :special_error -> true
         _ -> false
       end
-      
-      result = Retry.with_retry(
-        fn ->
-          _count = :counters.add(counter, 1, 1)
-          current = :counters.get(counter, 1)
-          
-          case current do
-            1 -> {:error, :special_error}
-            2 -> {:error, :non_retryable}
-            _ -> {:ok, "should not reach"}
-          end
-        end,
-        max_attempts: 3,
-        retry_on: custom_should_retry
-      )
-      
+
+      result =
+        Retry.with_retry(
+          fn ->
+            _count = :counters.add(counter, 1, 1)
+            current = :counters.get(counter, 1)
+
+            case current do
+              1 -> {:error, :special_error}
+              2 -> {:error, :non_retryable}
+              _ -> {:ok, "should not reach"}
+            end
+          end,
+          max_attempts: 3,
+          retry_on: custom_should_retry
+        )
+
       assert {:error, :non_retryable} = result
-      assert :counters.get(counter, 1) == 2  # Retried once, then stopped
+      # Retried once, then stopped
+      assert :counters.get(counter, 1) == 2
     end
   end
 end

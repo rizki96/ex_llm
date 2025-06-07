@@ -145,13 +145,13 @@ defmodule ExLLM.Error do
   @spec get_error_reason({:error, error_reason()} | term()) :: error_reason() | nil
   def get_error_reason({:error, reason}), do: reason
   def get_error_reason(_), do: nil
-  
+
   @doc """
   Creates a standardized authentication error.
-  
+
   ## Parameters
   - `message` - Error message
-  
+
   ## Returns
   Authentication error
   """
@@ -159,13 +159,13 @@ defmodule ExLLM.Error do
   def authentication_error(message) do
     {:error, {:authentication_error, message}}
   end
-  
+
   @doc """
   Creates a standardized rate limit error.
-  
+
   ## Parameters
   - `message` - Error message
-  
+
   ## Returns
   Rate limit error
   """
@@ -173,13 +173,13 @@ defmodule ExLLM.Error do
   def rate_limit_error(message) do
     {:error, {:rate_limit_error, message}}
   end
-  
+
   @doc """
   Creates a standardized unknown error.
-  
+
   ## Parameters
   - `reason` - Error reason
-  
+
   ## Returns
   Unknown error
   """
@@ -187,13 +187,13 @@ defmodule ExLLM.Error do
   def unknown_error(reason) do
     {:error, {:unknown_error, reason}}
   end
-  
+
   @doc """
   Creates a service unavailable error.
-  
+
   ## Parameters
   - `message` - Error message
-  
+
   ## Returns
   Service unavailable error
   """

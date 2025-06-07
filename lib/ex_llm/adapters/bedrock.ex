@@ -86,7 +86,8 @@ defmodule ExLLM.Adapters.Bedrock do
     case ExLLM.ModelConfig.get_default_model(:bedrock) do
       nil ->
         raise "Missing configuration: No default model found for Bedrock. " <>
-              "Please ensure config/models/bedrock.yml exists and contains a 'default_model' field."
+                "Please ensure config/models/bedrock.yml exists and contains a 'default_model' field."
+
       model ->
         model
     end
@@ -95,20 +96,21 @@ defmodule ExLLM.Adapters.Bedrock do
   @impl true
   def list_models(options \\ []) do
     # Use ModelLoader with API fetching from Bedrock
-    ExLLM.ModelLoader.load_models(:bedrock,
-      Keyword.merge(options, [
-        api_fetcher: fn(opts) -> fetch_bedrock_models(opts) end,
+    ExLLM.ModelLoader.load_models(
+      :bedrock,
+      Keyword.merge(options,
+        api_fetcher: fn opts -> fetch_bedrock_models(opts) end,
         config_transformer: &bedrock_model_transformer/2
-      ])
+      )
     )
   end
-  
+
   defp fetch_bedrock_models(options) do
     with {:ok, client} <- get_bedrock_client(options) do
       list_foundation_models(client)
     end
   end
-  
+
   # Transform config data to Bedrock model format
   defp bedrock_model_transformer(model_id, config) do
     %Types.Model{
@@ -124,7 +126,7 @@ defmodule ExLLM.Adapters.Bedrock do
       }
     }
   end
-  
+
   # Model name formatting moved to shared ModelUtils module
 
   # Private functions
@@ -193,16 +195,17 @@ defmodule ExLLM.Adapters.Bedrock do
     model = Keyword.get(options, :model, config[:model] || default_model())
 
     # Try to find the model ID from config first
-    model_id = 
+    model_id =
       case ModelConfig.get_model_config(:bedrock, model) do
-        nil -> 
+        nil ->
           # If not found in config, assume it's already a full model ID
           model
+
         model_config ->
           # Use the bedrock_id field if available, otherwise use the model key
           Map.get(model_config, :bedrock_id, model)
       end
-    
+
     {:ok, model_id}
   end
 
@@ -447,12 +450,12 @@ defmodule ExLLM.Adapters.Bedrock do
   # defp parse_bedrock_api_model(model) do
   #   # Implementation removed
   # end
-  
+
   # Commented out - unused function
   # defp infer_bedrock_context_window(model_id) do
   #   # Implementation removed
   # end
-  
+
   # Commented out - unused function
   # defp infer_bedrock_capabilities(model_id) do
   #   # Implementation removed
@@ -586,7 +589,7 @@ defmodule ExLLM.Adapters.Bedrock do
       end
     end)
   end
-  
+
   # AWS SDK stub functions - replace these when adding aws-elixir dependency
   defp create_aws_client(_access_key, _secret_key, _session_token, _region) do
     # Stub implementation - returns a dummy client

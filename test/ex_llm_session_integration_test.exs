@@ -57,7 +57,7 @@ defmodule ExLLM.SessionIntegrationTest do
 
   describe "chat_with_session" do
     @describetag :integration
-    
+
     setup do
       # Skip if no API key is configured
       if System.get_env("ANTHROPIC_API_KEY") do

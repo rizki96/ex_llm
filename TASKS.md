@@ -68,6 +68,26 @@
 
 ## Recently Completed
 
+### Ollama Adapter Full API Implementation ✅
+- [x] Fixed critical bugs
+  - [x] Embeddings endpoint corrected to `/api/embed`
+  - [x] Embeddings request format using `input` parameter
+  - [x] Batch embeddings support
+- [x] Added all missing endpoints
+  - [x] `/api/generate` for non-chat completions with streaming
+  - [x] `/api/show` for model information
+  - [x] `/api/copy`, `/api/delete` for model management
+  - [x] `/api/pull`, `/api/push` for model distribution
+  - [x] `/api/ps` for running models, `/api/version` for version info
+- [x] Added comprehensive parameter support
+  - [x] `options` object with all model-specific settings
+  - [x] GPU settings, memory settings, sampling parameters
+  - [x] `context` parameter for stateful conversations
+  - [x] `keep_alive` for model memory management
+- [x] Multimodal support with proper image handling
+- [x] Enhanced response format with timing metadata
+- [x] Structured output support with format parameter
+
 ### Enhanced Streaming Error Recovery ✅
 - [x] Core streaming recovery infrastructure (via ExLLM.StreamRecovery)
   - [x] Save partial responses during streaming
@@ -314,6 +334,18 @@
   - [x] Provider capability discovery API
   - [x] Integration with ModelCapabilities
   - [ ] Capability versioning for API versions (future enhancement)
+
+
+### Ollama Adapter - Remaining Low Priority Items
+- [ ] `/api/blobs/:digest` endpoints for blob management
+  - [ ] GET /api/blobs/:digest - Check if a blob exists
+  - [ ] HEAD /api/blobs/:digest - Check blob existence (headers only)
+  - [ ] POST /api/blobs/:digest - Create a blob
+  - [ ] Used internally by Ollama for model layer management
+- [ ] Parse and expose created_at timestamps in responses
+  - [ ] Add metadata field to LLMResponse and StreamChunk types
+  - [ ] Include timing information (total_duration, load_duration, etc.)
+  - [ ] Preserve model context for stateful conversations
 
 ### Code Refactoring - Shared Behaviors & Modules (Priority 0)
 - [x] Extract streaming into StreamingCoordinator module

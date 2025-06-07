@@ -148,7 +148,17 @@ defmodule ExLLM do
     mock: ExLLM.Adapters.Mock
   }
 
-  @type provider :: :anthropic | :openai | :groq | :openrouter | :ollama | :local | :bedrock | :gemini | :xai | :mock
+  @type provider ::
+          :anthropic
+          | :openai
+          | :groq
+          | :openrouter
+          | :ollama
+          | :local
+          | :bedrock
+          | :gemini
+          | :xai
+          | :mock
   @type messages :: [Types.message()]
   @type options :: keyword()
 
@@ -338,6 +348,7 @@ defmodule ExLLM do
   def stream_chat(provider_or_model, messages, options \\ []) do
     # Detect provider from model string if needed
     {provider, options} = detect_provider(provider_or_model, options)
+
     case get_adapter(provider) do
       {:ok, adapter} ->
         # Apply context management if enabled
@@ -543,10 +554,9 @@ defmodule ExLLM do
   def prepare_messages(messages, options \\ []) do
     provider = Keyword.get(options, :provider, :openai)
     model = Keyword.get(options, :model) || default_model(provider)
-    
+
     Context.truncate_messages(messages, provider, model, options)
   end
-
 
   @doc """
   Validate that messages fit within a model's context window.
@@ -562,10 +572,9 @@ defmodule ExLLM do
   def validate_context(messages, options \\ []) do
     provider = Keyword.get(options, :provider, :openai)
     model = Keyword.get(options, :model) || default_model(provider)
-    
+
     Context.validate_context(messages, provider, model, options)
   end
-
 
   @doc """
   Get default model for a provider.
@@ -851,8 +860,9 @@ defmodule ExLLM do
 
     # Apply context truncation if needed
     case Context.validate_context(messages, provider, model, context_options) do
-      {:ok, _tokens} -> 
+      {:ok, _tokens} ->
         messages
+
       {:error, _reason} ->
         Context.truncate_messages(messages, provider, model, context_options)
     end
@@ -879,6 +889,7 @@ defmodule ExLLM do
           else
             result
           end
+
         _ ->
           result
       end
@@ -1236,7 +1247,7 @@ defmodule ExLLM do
       caps.features
       # => [:streaming, :function_calling, :cost_tracking, :usage_tracking, ...]
   """
-  @spec get_provider_capabilities(provider()) :: 
+  @spec get_provider_capabilities(provider()) ::
           {:ok, ProviderCapabilities.ProviderInfo.t()} | {:error, :not_found}
   def get_provider_capabilities(provider) do
     ProviderCapabilities.get_capabilities(provider)
@@ -1282,6 +1293,7 @@ defmodule ExLLM do
     |> Enum.map(&ExLLM.Capabilities.normalize_capability/1)
     |> Enum.reduce(nil, fn feature, acc ->
       providers = ExLLM.Capabilities.find_providers(feature)
+
       if acc == nil do
         providers
       else
@@ -1445,10 +1457,13 @@ defmodule ExLLM do
       {:ok, adapter} ->
         # Ensure module is loaded
         Code.ensure_loaded(adapter)
-        
+
         # Check if adapter supports embeddings
         # Note: embeddings/2 with default args exports both embeddings/1 and embeddings/2
-        has_embeddings = function_exported?(adapter, :embeddings, 2) or function_exported?(adapter, :embeddings, 1)
+        has_embeddings =
+          function_exported?(adapter, :embeddings, 2) or
+            function_exported?(adapter, :embeddings, 1)
+
         if has_embeddings do
           # Use cache if enabled
           # For embeddings, generate a different type of cache key
@@ -1482,7 +1497,9 @@ defmodule ExLLM do
     case get_adapter(provider) do
       {:ok, adapter} ->
         Code.ensure_loaded(adapter)
-        if function_exported?(adapter, :list_embedding_models, 1) or function_exported?(adapter, :list_embedding_models, 0) do
+
+        if function_exported?(adapter, :list_embedding_models, 1) or
+             function_exported?(adapter, :list_embedding_models, 0) do
           adapter.list_embedding_models(options)
         else
           # No embedding models if not supported
@@ -1699,12 +1716,14 @@ defmodule ExLLM do
       [provider_str, model] ->
         # Found provider/model pattern
         provider = String.to_atom(provider_str)
+
         if Map.has_key?(@providers, provider) do
           {provider, Keyword.put(options, :model, model)}
         else
           # Unknown provider, treat as model string
           {:openai, Keyword.put(options, :model, provider_or_model)}
         end
+
       [_] ->
         # No slash, treat as model for default provider
         {:openai, Keyword.put(options, :model, provider_or_model)}
@@ -1730,5 +1749,4 @@ defmodule ExLLM do
     :crypto.hash(:sha256, :erlang.term_to_binary(key_data))
     |> Base.encode64(padding: false)
   end
-  
 end

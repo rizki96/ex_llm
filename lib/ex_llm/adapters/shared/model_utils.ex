@@ -1,19 +1,19 @@
 defmodule ExLLM.Adapters.Shared.ModelUtils do
   @moduledoc """
   Shared utilities for model management across adapters.
-  
+
   Provides common functionality for:
   - Model name formatting and normalization
   - Description generation based on model characteristics
   - Capability inference from model IDs
   - Model categorization and filtering
   """
-  
+
   @doc """
   Format a model ID into a human-readable name.
-  
+
   ## Examples
-  
+
       iex> ModelUtils.format_model_name("gpt-4-turbo")
       "GPT 4 Turbo"
       
@@ -28,7 +28,7 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
     |> Enum.map(&capitalize_part/1)
     |> Enum.join(" ")
   end
-  
+
   defp capitalize_part(part) do
     cond do
       # Keep version numbers as-is
@@ -39,26 +39,27 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
       true -> String.capitalize(part)
     end
   end
-  
+
   @doc """
   Generate a model description based on its ID and characteristics.
-  
+
   ## Examples
-  
+
       iex> ModelUtils.generate_description("gpt-4-turbo", :openai)
       "OpenAI's GPT-4 Turbo model with improved performance"
   """
   @spec generate_description(String.t(), atom()) :: String.t()
   def generate_description(model_id, provider) do
-    base = case provider do
-      :openai -> "OpenAI's"
-      :anthropic -> "Anthropic's"
-      :groq -> "Groq-optimized"
-      :gemini -> "Google's"
-      :meta -> "Meta's"
-      _ -> "Provider's"
-    end
-    
+    base =
+      case provider do
+        :openai -> "OpenAI's"
+        :anthropic -> "Anthropic's"
+        :groq -> "Groq-optimized"
+        :gemini -> "Google's"
+        :meta -> "Meta's"
+        _ -> "Provider's"
+      end
+
     cond do
       String.contains?(model_id, "turbo") -> "#{base} optimized model with improved performance"
       String.contains?(model_id, "mini") -> "#{base} lightweight model for fast responses"
@@ -68,10 +69,10 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
       true -> "#{base} language model"
     end
   end
-  
+
   @doc """
   Infer model capabilities from its ID and provider.
-  
+
   Returns a map with capability flags.
   """
   @spec infer_capabilities(String.t(), atom()) :: map()
@@ -83,17 +84,19 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
       supports_json_mode: provider in [:openai, :groq],
       features: []
     }
-    
+
     # Add vision support for known vision models
-    base_capabilities = if contains_any?(model_id, ["vision", "4o", "gemini-pro-vision", "claude-3"]) do
-      %{base_capabilities | 
-        supports_vision: true,
-        features: [:vision | base_capabilities.features]
-      }
-    else
-      base_capabilities
-    end
-    
+    base_capabilities =
+      if contains_any?(model_id, ["vision", "4o", "gemini-pro-vision", "claude-3"]) do
+        %{
+          base_capabilities
+          | supports_vision: true,
+            features: [:vision | base_capabilities.features]
+        }
+      else
+        base_capabilities
+      end
+
     # Add function calling to features if supported
     if base_capabilities.supports_functions do
       %{base_capabilities | features: [:function_calling | base_capabilities.features]}
@@ -101,7 +104,7 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
       base_capabilities
     end
   end
-  
+
   @doc """
   Check if a model ID indicates a chat/conversational model.
   """
@@ -109,15 +112,15 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
   def is_chat_model?(model_id) do
     chat_indicators = ["chat", "turbo", "claude", "gemini", "llama", "mixtral"]
     non_chat_indicators = ["embed", "whisper", "tts", "dall-e", "stable"]
-    
+
     contains_any?(model_id, chat_indicators) and not contains_any?(model_id, non_chat_indicators)
   end
-  
+
   @doc """
   Extract model family from model ID.
-  
+
   ## Examples
-  
+
       iex> ModelUtils.get_model_family("gpt-4-turbo-preview")
       "gpt-4"
       
@@ -138,9 +141,9 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
       true -> model_id
     end
   end
-  
+
   # Private helpers
-  
+
   defp contains_any?(string, substrings) do
     string_lower = String.downcase(string)
     Enum.any?(substrings, &String.contains?(string_lower, &1))

@@ -1,0 +1,2922 @@
+# List Async Chat Completions
+Source: https://docs.perplexity.ai/api-reference/async-chat-completions-get
+
+get /async/chat/completions
+Lists all asynchronous chat completion requests for the authenticated user.
+
+
+
+# Create Async Chat Completion
+Source: https://docs.perplexity.ai/api-reference/async-chat-completions-post
+
+post /async/chat/completions
+Creates an asynchronous chat completion job.
+
+
+
+# Get Async Chat Completion Response
+Source: https://docs.perplexity.ai/api-reference/async-chat-completions-request_id-get
+
+get /async/chat/completions/{request_id}
+Retrieves the status and result of a specific asynchronous chat completion job.
+
+
+
+# Chat Completions
+Source: https://docs.perplexity.ai/api-reference/chat-completions-post
+
+post /chat/completions
+Generates a model's response for the given chat conversation.
+
+
+
+# Changelog
+Source: https://docs.perplexity.ai/changelog/changelog
+
+
+
+<AccordionGroup>
+  <Accordion title="New: Academic Filter for Scholarly Research" description="June 2025">
+    We're excited to announce the release of our new academic filter feature, allowing you to tailor your searches specifically to academic and scholarly sources. By setting `search_mode: "academic"` in your API requests, you can now prioritize results from peer-reviewed papers, journal articles, and research publications.
+
+    This feature is particularly valuable for:
+
+    * Students and researchers working on academic papers
+    * Professionals requiring scientifically accurate information
+    * Anyone seeking research-based answers instead of general web content
+
+    The academic filter works seamlessly with other search parameters like `search_context_size` and date filters, giving you precise control over your research queries.
+
+    **Example:**
+
+    ```bash
+    curl --request POST \
+      --url https://api.perplexity.ai/chat/completions \
+      --header 'accept: application/json' \
+      --header 'authorization: Bearer YOUR_API_KEY' \
+      --header 'content-type: application/json' \
+      --data '{
+        "model": "sonar-pro",
+        "messages": [{"role": "user", "content": "What is the scientific name of the lions mane mushroom?"}],
+        "stream": false,
+        "search_mode": "academic",
+        "web_search_options": {"search_context_size": "low"}
+    }'
+    ```
+
+    For detailed documentation and implementation examples, please see our [Academic Filter Guide](https://docs.perplexity.ai/guides/academic-filter-guide).
+  </Accordion>
+
+  <Accordion title="New: Reasoning Effort Parameter for Sonar Deep Research" description="May 2025">
+    We're excited to announce our new reasoning effort feature for sonar-deep-research. This lets you control how much computational effort the AI dedicates to each query. You can choose from "low", "medium", or "high" to get faster, simpler answers or deeper, more thorough responses.
+
+    This feature has a direct impact on the amount of reasoning tokens consumed for each query, giving you the ability to control costs while balancing between speed and thoroughness.
+
+    **Options:**
+
+    * `"low"`: Faster, simpler answers with reduced token usage
+    * `"medium"`: Balanced approach (default)
+    * `"high"`: Deeper, more thorough responses with increased token usage
+
+    **Example:**
+
+    ```bash
+    curl --request POST \
+      --url https://api.perplexity.ai/chat/completions \
+      --header 'accept: application/json' \
+      --header 'authorization: Bearer ${PPLX_KEY}' \
+      --header 'content-type: application/json' \
+      --data '{
+        "model": "sonar-deep-research",
+        "messages": [{"role": "user", "content": "What should I know before markets open today?"}],
+        "stream": true,
+        "reasoning_effort": "low"
+      }'
+    ```
+
+    For detailed documentation and implementation examples, please see:
+    [Sonar Deep Research Documentation](https://docs.perplexity.ai/models/models/sonar-deep-research)
+  </Accordion>
+
+  <Accordion title="New: Asynchronous API for Sonar Deep Research" description="May 2025">
+    We're excited to announce the addition of an asynchronous API for Sonar Deep Research, designed specifically for research-intensive tasks that may take longer to process.
+
+    This new API allows you to submit requests and retrieve results later, making it ideal for complex research queries that require extensive processing time.
+
+    The asynchronous API endpoints include:
+
+    1. `GET https://api.perplexity.ai/async/chat/completions` - Lists all asynchronous chat completion requests for the authenticated user
+    2. `POST https://api.perplexity.ai/async/chat/completions` - Creates an asynchronous chat completion job
+    3. `GET https://api.perplexity.ai/async/chat/completions/{request_id}` - Retrieves the status and result of a specific asynchronous chat completion job
+
+    **Note:** Async requests have a time-to-live (TTL) of 7 days. After this period, the request and its results will no longer be accessible.
+
+    For detailed documentation and implementation examples, please see:
+    [Sonar Deep Research Documentation](https://docs.perplexity.ai/models/models/sonar-deep-research)
+  </Accordion>
+
+  <Accordion title="Enhanced API Responses with Search Results" description="May 2025">
+    We've improved our API responses to give you more visibility into search data by adding a new `search_results` field to the JSON response object.
+
+    This enhancement provides direct access to the search results used by our models, giving you more transparency and control over the information being used to generate responses.
+
+    The `search_results` field includes:
+
+    * `title`: The title of the search result page
+    * `url`: The URL of the search result
+    * `date`: The publication date of the content
+
+    **Example:**
+
+    ```json
+    "search_results": [
+      {
+        "title": "Understanding Large Language Models",
+        "url": "https://example.com/llm-article",
+        "date": "2023-12-25"
+      },
+      {
+        "title": "Advances in AI Research",
+        "url": "https://example.com/ai-research",
+        "date": "2024-03-15"
+      }
+    ]
+    ```
+
+    This update makes it easier to:
+
+    * Verify the sources used in generating responses
+    * Create custom citation formats for your applications
+    * Filter or prioritize certain sources based on your needs
+
+    **Important: The `citations` field is being deprecated in favor of the new `search_results` field.** Please update your applications to use the `search_results` field, as the `citations` field will be removed in a future update.
+
+    The `search_results` field is now available across all our search-enabled models.
+  </Accordion>
+
+  <Accordion title="New API Portal for Organization Management" description="April 2025">
+    We are excited to announce the release of our new API portal, designed to help you better manage your organization and API usage.
+
+    With this portal, you can:
+
+    * Organize and manage your API keys more effectively.
+    * Gain insights into your API usage and team activity.
+    * Streamline collaboration within your organization.
+
+    Check it out here:\
+    [https://www.perplexity.ai/account/api/group](https://www.perplexity.ai/account/api/group)
+  </Accordion>
+
+  <Accordion title="New: Location filtering in search" description="April 2025">
+    Looking to narrow down your search results based on users' locations?\
+    We now support user location filtering, allowing you to retrieve results only from a particular user location.
+
+    Check out the [guide](https://docs.perplexity.ai/guides/user-location-filter-guide).
+  </Accordion>
+
+  <Accordion title="Image uploads now available for all users!" description="April 2025">
+    You can now upload images to Sonar and use them as part of your multimodal search experience.\
+    Give it a try by following our image upload guide:\
+    [https://docs.perplexity.ai/guides/image-guide](https://docs.perplexity.ai/guides/image-guide)
+  </Accordion>
+
+  <Accordion title="New: Date range filtering in search" description="April 2025">
+    Looking to narrow down your search results to specific dates?\
+    We now support date range filtering, allowing you to retrieve results only from a particular timeframe.
+
+    Check out the guide:\
+    [https://docs.perplexity.ai/guides/date-range-filter-guide](https://docs.perplexity.ai/guides/date-range-filter-guide)
+  </Accordion>
+
+  <Accordion title="Clarified: Search context pricing update" description="April 2025">
+    We've fully transitioned to our new pricing model: citation tokens are no longer charged.\
+    If you were already using the `search_context_size` parameter, you've been on this model already.
+
+    This change makes pricing simpler and cheaper for everyone — with no downside.
+
+    View the updated pricing:\
+    [https://docs.perplexity.ai/guides/pricing](https://docs.perplexity.ai/guides/pricing)
+  </Accordion>
+
+  <Accordion title="All features now available to everyone" description="April 2025">
+    We've removed all feature gating based on tiered spending. These were previously only available to users of Tier 3 and above.
+
+    That means **every user now has access to all API capabilities**, regardless of usage volume or spend. Rate limits are still applicable.\
+    Whether you're just getting started or scaling up, you get the full power of Sonar out of the box.
+  </Accordion>
+
+  <Accordion title="Structured Outputs Available for All Users" description="March 2025">
+    We're excited to announce that structured outputs are now available to all Perplexity API users, regardless of tier level. Based on valuable feedback from our developer community, we've removed the previous Tier 3 requirement for this feature.
+
+    **What's available now:**
+
+    * JSON structured outputs are supported across all models
+    * Both JSON and Regex structured outputs are supported for `sonar` and `sonar-reasoning` models
+
+    **Coming soon:**
+
+    * Full Regex support for all models
+
+    This change allows developers to create more reliable and consistent applications from day one. We believe in empowering our community with the tools they need to succeed, and we're committed to continuing to improve accessibility to our advanced features.
+
+    Thank you for your feedback—it helps us make Perplexity API better for everyone.
+  </Accordion>
+
+  <Accordion title="Improved Sonar Models: New Search Modes" description="March 2025">
+    We're excited to announce significant improvements to our Sonar models that deliver superior performance at lower costs. Our latest benchmark testing confirms that Sonar and Sonar Pro now outperform leading competitors while maintaining more affordable pricing.
+
+    Key updates include:
+
+    * **Three new search modes** across most Sonar models:
+      * High: Maximum depth for complex queries
+      * Medium: Balanced approach for moderate complexity
+      * Low: Cost-efficient for straightforward queries (equivalent to current pricing)
+
+    * **Simplified billing structure**:
+      * Transparent pricing for input/output tokens
+      * No charges for citation tokens in responses (except for Sonar Deep Research)
+
+    The current billing structure will be supported as the default option for 30 days (until April 18, 2025). During this period, the new search modes will be available as opt-in features.
+
+    **Important Note:** After April 18, 2025, Sonar Pro and Sonar Reasoning Pro will not return Citation tokens or number of search results in the usage field in the API response.
+  </Accordion>
+
+  <Accordion title="API model deprecation notice" description="January 2025">
+    Please note that as of February 22, 2025, several models and model name aliases will no longer be accessible. The following model names will no longer be available via API:
+
+    `llama-3.1-sonar-small-128k-online`
+
+    `llama-3.1-sonar-large-128k-online`
+
+    `llama-3.1-sonar-huge-128k-online`
+
+    We recommend updating your applications to use our recently released Sonar or Sonar Pro models – you can learn more about them here. Thank you for being a Perplexity API user.
+  </Accordion>
+
+  <Accordion title="Build with Perplexity's new APIs" description="January 2025">
+    We are expanding API offerings with the most efficient and cost-effective search solutions available:  **Sonar** and **Sonar Pro**.
+
+    **Sonar** gives you fast, straightforward answers
+
+    **Sonar Pro** tackles complex questions that need deeper research and provides more sources
+
+    Both models offer built-in citations, automated scaling of rate limits, and public access to advanced features like structured outputs and search domain filters. And don't worry, we never train on your data. Your information stays yours.
+
+    You can learn more about our new APIs here - [http://sonar.perplexity.ai/](http://sonar.perplexity.ai/)
+  </Accordion>
+
+  <Accordion title="Citations Public Release and Increased Default Rate Limits" description="November 2024">
+    We are excited to announce the public availability of citations in the Perplexity API. In addition, we have also increased our default rate limit for the sonar online models to 50 requests/min for all users.
+
+    Effective immediately, all API users will see citations returned as part of their requests by default. This is not a breaking change. The **return\_citations** parameter will no longer have any effect.
+
+    If you have any questions or need assistance, feel free to reach out to our team at [api@perplexity.ai](mailto:api@perplexity.ai)
+  </Accordion>
+
+  <Accordion title="Introducing New and Improved Sonar Models." description="July 2024">
+    We are excited to announce the launch of our latest Perplexity Sonar models:
+
+    **Online Models** -
+    `llama-3.1-sonar-small-128k-online`
+    `llama-3.1-sonar-large-128k-online`
+
+    **Chat Models** -
+    `llama-3.1-sonar-small-128k-chat`
+    `llama-3.1-sonar-large-128k-chat`
+
+    These new additions surpass the performance of the previous iteration. For detailed information on our supported models, please visit our model card documentation.
+
+    **\[Action Required]** Model Deprecation Notice
+    Please note that several models will no longer be accessible effective 8/12/2024. We recommend updating your applications to use models in the Llama-3.1 family immediately.
+
+    The following model names will no longer be available via API -
+    `llama-3-sonar-small-32k-online`
+    `llama-3-sonar-large-32k-online`
+    `llama-3-sonar-small-32k-chat`
+    `llama-3-sonar-large-32k-chat`
+    `llama-3-8b-instruct`
+    `llama-3-70b-instruct`
+    `mistral-7b-instruct`
+    `mixtral-8x7b-instruct`
+
+    We recommend switching to models in the Llama-3.1 family:
+
+    **Online Models** -
+    `llama-3.1-sonar-small-128k-online`
+    `llama-3.1-sonar-large-128k-online`
+
+    **Chat Models** -
+    `llama-3.1-sonar-small-128k-chat`
+    `llama-3.1-sonar-large-128k-chat`
+
+    **Instruct Models** -
+    `llama-3.1-70b-instruct`
+    `llama-3.1-8b-instruct`
+
+    If you have any questions, please email [support@perplexity.ai](mailto:support@perplexity.ai).
+    Thank you for being a Perplexity API user.
+
+    Stay curious,
+
+    Team Perplexity
+  </Accordion>
+
+  <Accordion title="Model Deprecation Notice" description="April 2024">
+    Please note that as of May 14, several models and model name aliases will no longer be accessible. We recommend updating your applications to use models in the Llama-3 family immediately. The following model names will no longer be available via API:
+
+    `codellama-70b-instruct`
+    `mistral-7b-instruct`
+    `mixtral-8x22b-instruct`
+    `pplx-7b-chat`
+    `pplx-7b-online`
+  </Accordion>
+</AccordionGroup>
+
+
+# Community & Support
+Source: https://docs.perplexity.ai/discussions/discussions
+
+
+
+<CardGroup cols={2}>
+  <Card title="Join the Conversation" icon="comments" iconType="solid" color="#4F46E5">
+    Our vibrant developer community is ready to welcome you! Connect, share ideas, and collaborate with fellow developers building with the Perplexity API.
+
+    * [Developer Forum](https://community.perplexity.ai/) - Technical conversations & showcases
+    * [Discord Community](https://discord.gg/perplexity-ai) - Real-time chat & support
+    * [Follow @PPLXDevs](https://twitter.com/PPLXDevs) - Latest updates & announcements
+  </Card>
+
+  <Card title="We're Here to Help" icon="headset" iconType="solid" color="#10B981">
+    Have questions or need assistance? Our dedicated team is committed to your success.
+
+    * **Direct Support**: [api@perplexity.ai](mailto:api@perplexity.ai)
+
+    >
+
+    * **Response Time**: We aim to respond within 24 hours on business days
+
+    >
+
+    * **Office Hours**: Weekly office hours at 6 PM ET with James Liounis, Sonar's Customer Success Lead. You can register [here](https://events.zoom.us/ev/Akzh8Q9GwGtQ8-5yeP1A6B0kQBND1W67rbimE3koC4L_L4ZP65f2~Ag4nJHk6gbPxvgM1f_OCr6BzgyKoKK7hLYpE3HmzJ69MnMG3CvFABoNg6Q).
+  </Card>
+</CardGroup>
+
+## Developer Resources
+
+<Steps>
+  <Step title="Report Issues">
+    Found a bug? Help us improve! Submit detailed bug reports through our [GitHub Issue Tracker](https://github.com/ppl-ai/api-discussion/issues/new/choose). Select the appropriate template to help us resolve your issue faster.
+  </Step>
+
+  <Step title="Share Your Work">
+    Built something amazing with the Perplexity API? We'd love to showcase your work!
+
+    * Contribute to our [API Cookbook](https://github.com/ppl-ai/api-cookbook) by following the instructions [here](https://github.com/ppl-ai/api-cookbook/blob/main/CONTRIBUTING.md).
+    * Share on X/Twitter with [@PPLXDevs](https://twitter.com/PPLXDevs)
+    * Present at our monthly developer showcase
+  </Step>
+
+  <Step title="Get Featured">
+    Exceptional projects may be featured in our newsletter, blog, and social media channels. Let us amplify your work to thousands of developers and AI enthusiasts!
+  </Step>
+</Steps>
+
+## Community Highlights
+
+<CardGroup cols={3}>
+  <Card title="Developer Spotlight" icon="star" iconType="solid">
+    Every month, we feature standout projects from our community. [See current highlights](https://github.com/ppl-ai/api-cookbook/blob/main/README.md)
+  </Card>
+
+  <Card title="Upcoming Events" icon="calendar" iconType="solid">
+    Join Perplexity co-founder & CTO Denis Yarats for an overview of our API on April 24 at 11am PT. Denis will provide an introduction to Perplexity's APIs, share benchmark results, and API use cases. New API users who register will get \$50 in free API credits. Register [here](https://events.zoom.us/ev/AldnHwtVxAaIduuxGDzfji4Sgt60oiFFj0hB6-eI74wz9PjxxE9l~AunhmxJPTSCCVS_EYLAWb2fK13t6nBzjAOSliIKRkiK7vl4pDG5iQpKWbw).
+  </Card>
+
+  <Card title="Knowledge Base" icon="book" iconType="solid">
+    Explore tutorials, FAQs, and best practices from our team and community contributors. [Browse resources](https://github.com/ppl-ai/api-discussion/)
+  </Card>
+</CardGroup>
+
+## Community Guidelines
+
+We're committed to fostering an inclusive, helpful, and respectful community. Please follow these guidelines in all interactions:
+
+1. **Be respectful** - Treat everyone with courtesy and professionalism
+2. **Be constructive** - Provide helpful feedback and solutions
+3. **Share knowledge** - Help others learn and grow
+4. **Stay on topic** - Keep discussions relevant to the Perplexity API
+5. **No spam or self-promotion** - Share your work in appropriate channels
+
+
+# Frequently Asked Questions
+Source: https://docs.perplexity.ai/faq/faq
+
+
+
+<AccordionGroup>
+  <Accordion title="Why isn't the `response_format` parameter working for reasoning models?">
+    The `sonar-reasoning-pro` model is designed to output a `<think>` section containing reasoning tokens, immediately followed by a valid JSON object. As a result, the `response_format` parameter does not remove these reasoning tokens from the output.
+
+    We recommend using a custom parser to extract the valid JSON portion. An example implementation can be found [here](https://github.com/ppl-ai/api-discussion/blob/main/utils/extract_json_reasoning_models.py).
+  </Accordion>
+
+  <Accordion title="Does the API use content filtering or SafeSearch?">
+    Yes, for the API, content filtering in the form of SafeSearch is turned on by default. This helps filter out potentially offensive and inappropriate content, including pornography, from search results. SafeSearch is an automated filter that works across search results to provide a safer experience. You can learn more about SafeSearch on the [official Wikipedia page](https://en.wikipedia.org/wiki/SafeSearch).
+  </Accordion>
+
+  <Accordion title="How do I file a bug report and what happens afterward?">
+    To file a bug report, please use our GitHub repository and file the bug in [issues](https://github.com/ppl-ai/api-discussion/issues). Once you've submitted your report, we kindly ask that you share the link to the issue with us via email at [api@perplexity.ai](mailto:api@perplexity.ai) so we can track it on our end.
+
+    We truly appreciate your patience, and we'll get back to you as soon as possible. Due to the current volume of reports, it may take a little time for us to respond—but rest assured, we're on it.
+  </Accordion>
+
+  <Accordion title="Where are Perplexity's language models hosted?">
+    Our compute is hosted via Amazon Web Services in North America. By default, the API has zero day retention of user prompt data, which is never used for AI training.
+  </Accordion>
+
+  <Accordion title="How can I upgrade to the next usage tier?">
+    The only way for an account to be upgraded to the next usage tier is through all-time credit purchase.
+
+    Here are the spending criteria associated with each tier:
+
+    | Tier   | Credit Purchase (all time) |
+    | ------ | -------------------------- |
+    | Tier 0 | -                          |
+    | Tier 1 | \$50                       |
+    | Tier 2 | \$250                      |
+    | Tier 3 | \$500                      |
+    | Tier 4 | \$1000                     |
+    | Tier 5 | \$5000                     |
+  </Accordion>
+
+  <Accordion title="How can I track my spend/usage per API key?">
+    We offer a way to track your billing per API key. You can do this by navigating to the following location:
+
+    **Settings > View Dashboard > Invoice history > Invoices**
+
+    Then click on any invoice and each item from the total bill will have a code at the end of it (e.g., pro (743S)). Those 4 characters are the last 4 of your API key.
+  </Accordion>
+
+  <Accordion title="How do I request a new feature?">
+    A Feature Request is a suggestion to improve or add new functionality to the Perplexity Sonar API, such as:
+
+    * Requesting support for a new model or capability (e.g., image processing, fine-tuning options)
+    * Asking for new API parameters (e.g., additional filters, search options)
+    * Suggesting performance improvements (e.g., faster response times, better citation handling)
+    * Enhancing existing API features (e.g., improving streaming reliability, adding new output formats)
+
+    If your request aligns with these, please submit a feature request here: [Github Feature requests](https://github.com/ppl-ai/api-discussion/issues)
+  </Accordion>
+
+  <Accordion title="Why are the results from the API different from the UI? ">
+    1. The API uses the same search system as the UI with differences in configuration—so their outputs may differ.
+    2. The underlying AI model might differ between the API and the UI for a given query.
+    3. We give users the power to tune the API to their respective use cases using sampling parameters like `presence_penalty`, `top_p`, etc. Custom tuning to specific use cases might lead to less generalization compared to the UI. We set optimized defaults and recommend not to explicitly provide sampling parameters in your API requests.
+  </Accordion>
+
+  <Accordion title="Will user data submitted through the API be used for model training or other purposes?">
+    We collect the following types of information:
+
+    **API Usage Data:** We collect billable usage metadata such as the number of requests and tokens. You can view your own usage in the [Perplexity API dashboard](https://perplexity.ai/settings/api).
+
+    **User Account Information:** When you create an account with us, we collect your name, email address, and other relevant contact information.
+
+    We do not retain any query data sent through the API and do not train on any of your data.
+  </Accordion>
+
+  <Accordion title="Does the API currently support web browsing?">
+    Yes, the [Sonar Models](https://docs.perplexity.ai/guides/model-cards) leverage information from Perplexity's search index and the public internet.
+  </Accordion>
+
+  <Accordion title="What are the limitations to the number of API calls?">
+    You can find our [rate limits here](https://docs.perplexity.ai/guides/usage-tiers).
+  </Accordion>
+
+  <Accordion title="What's the best way to stay up to date with API updates?">
+    We email users about new developments and also post in the [changelog](/changelog.mdx).
+  </Accordion>
+
+  <Accordion title="How should I respond to 401: Authorization errors?">
+    401 error codes indicate that the provided API key is invalid, deleted, or belongs to an account which ran out of credits. You likely need to purchase more credits in the [Perplexity API dashboard](https://perplexity.ai/settings/api). You can avoid this issue by configuring auto-top-up.
+  </Accordion>
+
+  <Accordion title="Do you support fine-tuning?">
+    Currently, we do not support fine-tuning.
+  </Accordion>
+
+  <Accordion title="I have another question or an issue">
+    Please reach out to [api@perplexity.ai](mailto:api@perplexity.ai) or [support@perplexity.ai](mailto:support@perplexity.ai) for other API inquiries. You can also post on our [discussion forum](https://github.com/ppl-ai/api-discussion/discussions) and we will get back to you.
+  </Accordion>
+
+  <Accordion title="Does Perplexity provide service quality assurances such as service uptime, frequency of failures, and target recovery time in the event of a failure?">
+    We do not guarantee this at the moment.
+  </Accordion>
+
+  <Accordion title="Where are your DeepSeek reasoning models behind Sonar Reasoning and Sonar Reasoning Pro hosted? Is my data going to China?">
+    The models are hosted in the US and we do not train on any of your data. And no, your data is not going to China.
+  </Accordion>
+
+  <Accordion title="Are your reasoning APIs that use DeepSeek uncensored?">
+    Yes, our reasoning APIs that use DeepSeek's models are uncensored and on par with the other APIs in terms of content moderation.
+  </Accordion>
+
+  <Accordion title="Do you expose CoTs if I use your reasoning APIs or Deep Research API?">
+    We expose the CoTs for Sonar Reasoning Pro and Sonar Reasoning. We don't currently expose the CoTs for Deep Research.
+  </Accordion>
+
+  <Accordion title="Does R1-1776 search the web?">
+    R1-1776 is an offline chat model that does not search the web. So this model might not have the most up-to-date information beyond its training cutoff date—which should be the same as R1.
+  </Accordion>
+
+  <Accordion title="Are the reasoning tokens in Deep Research same as CoTs in the answer?">
+    Reasoning tokens in Deep Research are a bit different than the CoTs in the answer—these tokens are used to reason through the research material before generating the final output via the CoTs.
+  </Accordion>
+
+  <Accordion title="Is the internet data access provided by the API identical to that of Perplexity's web interface?">
+    Yes, the API offers exactly the same internet data access as Perplexity's web platform.
+  </Accordion>
+
+  <Accordion title="To what extent is the API OpenAI compatible?">
+    The Perplexity API is designed to be broadly compatible with OpenAI's chat completions endpoint. It adopts a similar structure—including fields such as `id`, `model`, and `usage`—and supports analogous parameters like `model`, `messages`, and `stream`.
+
+    **Key Differences from the standard OpenAI response include:**
+
+    * **Response Object Structure:**
+      * OpenAI responses typically have an `object` value of `"chat.completion"` and a `created` timestamp, whereas our response uses `object: "response"` and a `created_at` field.
+      * Instead of a `choices` array, our response content is provided under an `output` array that contains detailed message objects.
+
+    * **Message Details:**
+      * Each message in our output includes a `type` (usually `"message"`), a unique `id`, and a `status`.
+      * The actual text is nested within a `content` array that contains objects with `type`, `text`, and an `annotations` array for additional context.
+
+    * **Additional Fields:**
+      * Our API response provides extra meta-information (such as `status`, `error`, `incomplete_details`, `instructions`, and `max_output_tokens`) that are not present in standard OpenAI responses.
+      * The `usage` field also differs, offering detailed breakdowns of input and output tokens (including fields like `input_tokens_details` and `output_tokens_details`).
+
+    These differences are intended to provide enhanced functionality and additional context while maintaining broad compatibility with OpenAI's API design.
+  </Accordion>
+</AccordionGroup>
+
+
+# API Roadmap
+Source: https://docs.perplexity.ai/feature-roadmap
+
+Upcoming features and improvements for the Perplexity API designed to enhance your development experience.
+
+Our roadmap is shaped by our users - have a feature in mind? Submit your suggestion [here](https://community.perplexity.ai/) and help us build the future of AI together.
+
+<AccordionGroup>
+  <Accordion title="File Search & Connectors" description="Expanded data access">
+    Expanding your ability to access and process information:
+
+    * Search across various file types
+    * Integration with external data sources
+    * Parity with enterprise connector capabilities
+
+    This feature will allow your applications to tap into a broader range of data sources for more comprehensive insights.
+  </Accordion>
+
+  <Accordion title="Expanded Structured Outputs Support" description="Enhanced response formatting">
+    We're expanding our structured outputs capabilities:
+
+    * **Universal JSON Support**: JSON structured outputs are now available for all models across all tiers
+    * **Complete Regex Support**: Extending regex pattern support to all models (currently available for `sonar` and `sonar-reasoning`)
+    * **Advanced Schema Validation**: Enhanced validation options for more reliable structured data
+    * **Output Templates**: Pre-defined templates for common use cases
+
+    This expansion will make it easier to build applications that require consistent, structured data from our API responses.
+  </Accordion>
+
+  <Accordion title="Documentation Overhaul" description="More comprehensive resources">
+    We're committed to making our documentation a truly exceptional resource:
+
+    * **Improved Layout**: Optimized structure for better self-serve workflows
+    * **Consistent Design**: Unified branding between our landing page and documentation
+    * **Enhanced Content**: Revised explanations for better developer understanding
+    * **Vertical-Specific Guides**: Specialized documentation for publishers, merchants, and other industry partners
+    * **High-Fidelity Demos**: More comprehensive examples beyond our basic cookbook demos
+    * **Comprehensive Prompt Guide**: In-depth resources to help you build effectively with our search + LLM API
+    * **API Selection Guides**: Clear guidance on which API is best suited for specific scenarios
+
+    These improvements will help you get up to speed faster and make the most of our API capabilities.
+  </Accordion>
+
+  <Accordion title="Increased Rate Limits" description="Support for high-volume applications">
+    We're scaling our infrastructure to support significantly higher request volumes:
+
+    * Working toward supporting use cases up to 100K RPM
+    * Designed for high-growth startups and enterprise applications
+
+    This enhancement will ensure our API can grow alongside your application's user base and processing needs.
+  </Accordion>
+
+  <Accordion title="Better Error Handling" description="Clearer troubleshooting">
+    Improving our error framework:
+
+    * More descriptive error messages
+    * Clearer guidance on resolving common issues
+
+    This will reduce debugging time and help you understand and address issues more efficiently.
+  </Accordion>
+
+  <Accordion title="Multimedia Capabilities" description="Beyond text processing">
+    Broadening the types of content you can work with:
+
+    * **URL Parsing**: Extract and analyze content from web pages
+
+    These features will enable new use cases and richer interactions within your applications.
+  </Accordion>
+
+  <Accordion title="Search as its own API" description="Standalone search functionality">
+    We're working on exposing search results as a standalone API/product, separate from the end-to-end integration with the LLM.
+
+    This feature will allow developers to:
+
+    * Directly access search results without invoking the LLM.
+    * Build custom workflows and applications leveraging search capabilities independently.
+
+    This will provide greater flexibility for developers who only need search functionality.
+  </Accordion>
+
+  <Accordion title="Context Management / Memory" description="Improved context handling">
+    We're addressing the limitations of managing context in API calls by introducing new context management features.
+
+    Key improvements include:
+
+    * **Efficient Context Storage**: Avoid appending responses from previous API calls to new ones, reducing the risk of exceeding context windows.
+    * **Session-Based Memory**: Enable session-based memory to maintain context across multiple API calls without manual intervention.
+
+    These enhancements will make it easier to build applications that require persistent context without hitting technical limitations.
+  </Accordion>
+</AccordionGroup>
+
+## Timeline and Availability
+
+This roadmap represents our current development priorities. Features will be released incrementally, with some becoming available in the coming months and others planned for later in the year.
+
+We'll announce new feature availability through our [changelog](/changelog) and via email notifications to API users.
+
+
+# Academic Filter Guide
+Source: https://docs.perplexity.ai/guides/academic-filter-guide
+
+
+
+<Note>
+  The `search_mode: "academic"` parameter allows you to tailor your searches specifically to academic and scholarly sources, prioritizing peer-reviewed papers, journal articles, and research publications.
+</Note>
+
+## Overview
+
+The academic filter—sometimes referred to as "academic mode" or "Focus: Academic"—is a feature in Perplexity that allows users to target their searches specifically to academic and scholarly sources. This is especially useful for students, researchers, and professionals who require peer-reviewed papers, journal articles, and research-focused answers rather than general web content.
+
+When you activate the academic filter by setting `search_mode: "academic"`, Perplexity prioritizes results from scholarly databases, journals, and reputable academic publications, filtering out non-academic or general web sources. This ensures that the answers you receive are grounded in research and scholarly consensus.
+
+## Key Features and Functionality
+
+* **Source Filtering**: Prioritizes scholarly databases, academic journals, and research publications
+* **Research Focus**: Returns results based on peer-reviewed research rather than general web content
+* **Enhanced Precision**: Provides more technical and discipline-specific information for academic queries
+* **Compatibility**: Works with other search parameters like `search_context_size` to further refine results
+
+## Usage Examples
+
+### Basic Academic Search
+
+This example shows how to perform a basic search using the academic filter.
+
+<CodeGroup>
+  ```bash cURL
+  curl --request POST \
+    --url https://api.perplexity.ai/chat/completions \
+    --header 'accept: application/json' \
+    --header 'authorization: Bearer YOUR_API_KEY' \
+    --header 'content-type: application/json' \
+    --data '{
+      "model": "sonar-pro",
+      "messages": [{"role": "user", "content": "What is the scientific name of the lions mane mushroom?"}],
+      "stream": false,
+      "search_mode": "academic",
+      "web_search_options": {"search_context_size": "low"}
+  }'
+  ```
+
+  ```python Python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {
+      "accept": "application/json",
+      "authorization": "Bearer YOUR_API_KEY",
+      "content-type": "application/json"
+  }
+  payload = {
+      "model": "sonar-pro",
+      "messages": [{"role": "user", "content": "What is the scientific name of the lions mane mushroom?"}],
+      "stream": False,
+      "search_mode": "academic",
+      "web_search_options": {"search_context_size": "low"}
+  }
+
+  response = requests.post(url, headers=headers, json=payload)
+  print(response.json())
+  ```
+
+  ```javascript Node.js
+  const axios = require('axios');
+
+  const url = "https://api.perplexity.ai/chat/completions";
+  const headers = {
+    "accept": "application/json",
+    "authorization": "Bearer YOUR_API_KEY",
+    "content-type": "application/json"
+  };
+  const payload = {
+    "model": "sonar-pro",
+    "messages": [{"role": "user", "content": "What is the scientific name of the lions mane mushroom?"}],
+    "stream": false,
+    "search_mode": "academic",
+    "web_search_options": {"search_context_size": "low"}
+  };
+
+  axios.post(url, payload, { headers })
+    .then(response => console.log(response.data))
+    .catch(error => console.error(error));
+  ```
+</CodeGroup>
+
+### Combining Academic Mode with Other Parameters
+
+You can combine the academic filter with other parameters for more refined searches:
+
+<CodeGroup>
+  ```bash cURL
+  curl --request POST \
+    --url https://api.perplexity.ai/chat/completions \
+    --header 'accept: application/json' \
+    --header 'authorization: Bearer YOUR_API_KEY' \
+    --header 'content-type: application/json' \
+    --data '{
+      "model": "sonar-deep-research",
+      "messages": [{"role": "user", "content": "What are the latest findings on neural networks for image recognition?"}],
+      "stream": false,
+      "search_mode": "academic",
+      "search_after_date_filter": "1/1/2023",
+      "web_search_options": {"search_context_size": "high"}
+  }'
+  ```
+
+  ```python Python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {
+      "accept": "application/json",
+      "authorization": "Bearer YOUR_API_KEY",
+      "content-type": "application/json"
+  }
+  payload = {
+      "model": "sonar-deep-research",
+      "messages": [{"role": "user", "content": "What are the latest findings on neural networks for image recognition?"}],
+      "stream": False,
+      "search_mode": "academic",
+      "search_after_date_filter": "1/1/2023",
+      "web_search_options": {"search_context_size": "high"}
+  }
+
+  response = requests.post(url, headers=headers, json=payload)
+  print(response.json())
+  ```
+</CodeGroup>
+
+## Recommended Use Cases
+
+The academic filter is particularly valuable for:
+
+1. **Research Literature Reviews**: When you need to gather scholarly information on a specific topic
+2. **Technical and Scientific Queries**: For questions requiring scientifically accurate, peer-reviewed answers
+3. **Academic Writing Assistance**: When working on papers, theses, or dissertations that require scholarly sources
+4. **Educational Support**: For students and educators requiring academically rigorous information
+
+## Best Practices
+
+### Optimizing Academic Searches
+
+* **Be Specific**: Formulate clear, focused questions to receive more precise academic responses
+* **Use Technical Terminology**: Include field-specific terms to better target relevant academic literature
+* **Combine with Date Filters**: For the most recent research, combine with `search_after_date_filter`
+* **Adjust Context Size**: Use higher `search_context_size` values for more comprehensive academic responses
+
+### Performance Considerations
+
+* Academic searches may sometimes take slightly longer due to the specialized nature of scholarly databases
+* Consider using models like `sonar-deep-research` for particularly complex academic inquiries
+* For more comprehensive literature reviews, set `stream: false` to receive complete responses
+
+### Limitations
+
+* Availability of academic sources varies by field and topic
+* Very recent research (published within the last few months) may not always be included
+* Some paywalled or subscription-only academic content may not be fully accessible
+
+⸻
+
+
+# API Group
+Source: https://docs.perplexity.ai/guides/api-organization
+
+Learn how to use the Perplexity API Portal to manage access, usage, billing, and team collaboration.
+
+This guide walks through how to set up API organizations.
+
+<Note>
+  If you are new to the API Portal, start by creating an API Group to organize your users and resources. Please refer to the previous guide for this.
+</Note>
+
+## Accessing the API Portal
+
+Once signed in, navigate to the left-hand sidebar and expand the **API** section to access your API group and related settings.
+
+![API Group Location](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/api_group_location.png)
+
+***
+
+## Creating and Managing an API Group
+
+To set up your organization:
+
+1. Click **API Group** in the left sidebar.
+2. Fill out your organization’s name, address, and tax details.
+
+<Info>
+  Your organization name and address will appear on invoices and help us support you better.
+</Info>
+
+### Fields include:
+
+* Organization name and description
+* Address (Line 1, Line 2, City, State, Zip, Country)
+* Tax ID
+
+![API Group Details](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/api_group_details.png)
+
+***
+
+## Adding and Managing Members
+
+Admins can invite team members to the organization with specific roles: **Admin** or **Member**.
+
+### To Add a Member:
+
+1. Click **+ Add Member**.
+
+   ![Click on Add Member](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/click_on_add_member.png)
+
+2. Enter the user’s email address and click **Invite**.
+
+   ![Enter New Member Email](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/enter_new_member_email.png)
+
+3. The invited user will receive an email with a link to join your group.
+
+### Filtering Members by Role
+
+Use the dropdown to filter your list of team members by role.
+
+![Filter Members by Role](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/filter_members_by_role.png)
+
+### Roles
+
+* **Admin**: Full access to invite/remove members, manage billing, and view usage data.
+* **Member**: Can view usage and account limits but cannot modify settings.
+
+<Warning>
+  Only Admins can make changes to billing and member permissions.
+</Warning>
+
+***
+
+## Billing and Payment Methods
+
+Admins can manage billing under the **API Billing** tab. This includes:
+
+* Adding or updating credit card information
+* Enabling or disabling auto-reload
+* Viewing invoice history and usage tier
+
+![API Billing](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/api_billing.png)
+
+* Register your credit card to get started
+
+<Note>
+  This step will not charge your credit card. It just stores payment information for later API usage.
+</Note>
+
+***
+
+## Viewing Usage Metrics
+
+All members can view API usage by selecting **Usage Metrics** from the sidebar.
+
+Features include:
+
+* Total API call trends over time
+* Breakdown by API model and key
+* Optional date range filters
+
+<Check>
+  Usage metrics help you monitor API activity and optimize for cost or performance.
+</Check>
+
+***
+
+## Viewing Rate Limits and Tiers
+
+You can view your API rate limits and organization tier under the **Usage Tier** section in the billing view.
+
+Details shown:
+
+* Current rate limits per API
+* Tier level
+
+***
+
+## Managing API Keys
+
+<Info>
+  The API key is a long-lived access token that can be used until it is manually refreshed or deleted.
+</Info>
+
+* Every API call needs a valid API key. You must send the API key as a bearer token in the Authorization header with each API request.
+
+Admins can generate and revoke API keys from the **API Keys** tab.
+
+### To create a key:
+
+* Click **+ Create Key** to generate a new API key.
+
+![Generate API Keys](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/generate_api_keys.png)
+
+<Warning>
+  API keys are sensitive credentials. Never expose them in client-side code or share them in public repositories.
+</Warning>
+
+<Warning>
+  If you run out of credits, your API keys will be blocked until you add to your credit balance. You can avoid this by configuring "Automatic Top Up", which refreshes your balance whenever you drop below \$2.
+</Warning>
+
+![Auto Reload](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/auto_reload.png)
+
+
+# Perplexity Crawlers
+Source: https://docs.perplexity.ai/guides/bots
+
+We strive to improve our service every day by delivering the best search experience possible. To achieve this, we collect data using web crawlers (“robots”) and user agents that gather and index information from the internet, operating either automatically or in response to user requests. Webmasters can use the following robots.txt tags to manage how their sites and content interact with Perplexity. Each setting works independently, and it may take up to 24 hours for our systems to reflect changes.
+
+| User Agent      | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| :-------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PerplexityBot   | `PerplexityBot` is designed to surface and link websites in search results on Perplexity. It is not used to crawl content for AI foundation models. To ensure your site appears in search results, we recommend allowing `PerplexityBot` in your site’s `robots.txt` file and permitting requests from our published IP ranges listed below.<br /><br />Full user-agent string: `Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; PerplexityBot/1.0; +https://perplexity.ai/perplexitybot)`<br /><br />Published IP addresses: [https://www.perplexity.com/perplexitybot.json](https://www.perplexity.com/perplexitybot.json)                                                                                                                                        |
+| Perplexity‑User | `Perplexity-User` supports user actions within Perplexity. When users ask Perplexity a question, it might visit a web page to help provide an accurate answer and include a link to the page in its response. `Perplexity-User` controls which sites these user requests can access. It is not used for web crawling or to collect content for training AI foundation models.<br /><br />Full user-agent string: `Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perplexity-User/1.0; +https://perplexity.ai/perplexity-user)`<br /><br />Published IP addresses: [https://www.perplexity.com/perplexity-user.json](https://www.perplexity.com/perplexity-user.json)<br /><br />Since a user requested the fetch, this fetcher generally ignores robots.txt rules. |
+
+
+# Sonar Cookbook
+Source: https://docs.perplexity.ai/guides/cookbook
+
+Guides designed to help developers build with Sonar
+
+You can view the cookbook [here](https://github.com/ppl-ai/api-cookbook).
+
+
+# Date Range Filter Guide
+Source: https://docs.perplexity.ai/guides/date-range-filter-guide
+
+
+
+<Note>
+  The `search_after_date_filter` and `search_before_date_filter` parameters allow you to restrict search results to a specific publication date range. Only results with publication dates falling between these dates will be returned.
+</Note>
+
+<Info>
+  Dates must be provided in the "%m/%d/%Y" format (e.g., "3/1/2025"). These filters are optional—you may supply either one or both as needed.
+</Info>
+
+## Overview
+
+The `search_after_date_filter` and `search_before_date_filter` parameters control which search results are returned by limiting them to a specific publication date range. This feature is useful when you need to:
+•	Narrow down search results to a particular time period
+•	Exclude outdated or overly recent content
+•	Improve relevance by focusing on content published within a defined window
+
+To constrain search results by publication date, include the following fields in your request payload:
+
+```bash
+"search_after_date_filter": "3/1/2025",
+"search_before_date_filter": "3/5/2025"
+```
+
+These filters will be applied in addition to any other search parameters (for example, domain filters).
+
+## Examples
+
+**1. Limiting Results to a Specific Date Range**
+
+This example limits search results to content published between March 1, 2025, and March 5, 2025.
+
+**Request Example**
+
+<CodeGroup>
+  ```bash
+  curl --location 'https://api.perplexity.ai/chat/completions' \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar-pro",
+      "messages": [
+        {"role": "system", "content": "You are an expert on current events."},
+        {"role": "user", "content": "Show me tech news published this week."}
+      ],
+      "search_after_date_filter": "3/1/2025",
+      "search_before_date_filter": "3/5/2025",
+      "search_recency_filter": "month"
+  }'
+  ```
+
+  ```python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+      "model": "sonar-pro",
+      "messages": [
+          {"role": "system", "content": "You are an expert on current events."},
+          {"role": "user", "content": "Show me tech news published this week."}
+      ],
+      "search_after_date_filter": "3/1/2025",
+      "search_before_date_filter": "3/5/2025",
+      "search_recency_filter": "month"
+  }
+
+  response = requests.post(url, headers=headers, json=payload)
+  print(response.json())
+  ```
+</CodeGroup>
+
+**2. Filtering with a Single Date Parameter**
+
+If you only wish to restrict the results to those published on or after a specific date, include just the `search_after_date_filter`:
+
+```bash
+payload = {
+    "model": "sonar-pro",
+    "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Show me news articles published after March 1, 2025."}
+    ],
+    "search_after_date_filter": "3/1/2025",
+    "search_recency_filter": "month"
+}
+```
+
+## Best Practices
+
+**Date Format**
+•	Strict Format: Dates must match the “%m/%d/%Y” format exactly. For example, the date “3/1/2025” or “03/01/2025” is acceptable.
+•	Consistency: Use one or both filters consistently based on your search needs. Combining both provides a clear range.
+
+**Client-Side Validation**
+•	Regex Check: Validate date strings on the client side (or via the API) using a regex such as:
+
+<CodeGroup>
+  ```bash
+  date_regex='^(0?[1-9]|1[0-2])/(0?[1-9]|[12][0-9]|3[01])/[0-9]{4}$'
+  ```
+
+  ```python
+  date_regex = r'^(0?[1-9]|1[0-2])/(0?[1-9]|[12]\d|3[01])/\d{4}$'
+  ```
+</CodeGroup>
+
+This ensures that dates conform to the required format before sending the request.
+
+**Performance Considerations**
+•	Narrowing the Search: Applying date range filters typically reduces the number of results, which may improve response times and result relevance.
+•	Avoid Over-Restriction: Ensure that the date range is neither too narrow (limiting useful results) nor too broad (defeating the purpose of the filter).
+
+⸻
+
+
+# Initial Setup
+Source: https://docs.perplexity.ai/guides/getting-started
+
+Learn how to set up your group, generate API keys, and make your first API call.
+
+## Setting Up Your Group
+
+To get started with the Perplexity API:
+
+1. Navigate to your **API Group** [section](https://www.perplexity.ai/account/api/group) of your **Account** [page](https://www.perplexity.ai/account/details).
+2. Fill out your group’s name, address, and tax details.
+
+![Organization Setup](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/onboarding_flow/create_new_api_group.png)
+
+## Setting up your billing
+
+* Register your credit card to get started
+
+![API Billing](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/api_billing.png)
+
+<Note>
+  This step will not charge your credit card. It just stores payment information for later API usage.
+</Note>
+
+***
+
+## Generating an API Key
+
+Every API call requires a valid API key. To generate one:
+
+1. Go to the **API Keys** tab in the API Portal.
+2. Click **+ Create Key** to generate a new API key.
+
+<Info>
+  The API key is a long-lived access token that can be used until it is manually refreshed or deleted.
+</Info>
+
+![Generate API Key](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/generate_api_keys.png)
+
+<Warning>
+  API keys are sensitive credentials. Never expose them in client-side code or share them in public repositories.
+</Warning>
+
+***
+
+## Making Your First API Call
+
+* Once you have your API key, you can make your first API call.
+* Send the API key as a bearer token in the Authorization header with each request.
+
+### Example API Call
+
+<CodeGroup>
+  ```cURL cURL
+  curl --location 'https://api.perplexity.ai/chat/completions' \
+  --header 'accept: application/json' \
+  --header 'content-type: application/json' \
+  --header 'Authorization: Bearer {API_KEY}' \
+  --data '{
+    "model": "sonar-pro",
+    "messages": [
+      {
+        "role": "system",
+        "content": "Be precise and concise."
+      },
+      {
+        "role": "user",
+        "content": "How many stars are there in our galaxy?"
+      }
+    ]
+  }'
+  ```
+
+  ```python python
+  from openai import OpenAI
+
+  YOUR_API_KEY = "INSERT API KEY HERE"
+
+  messages = [
+      {
+          "role": "system",
+          "content": (
+              "You are an artificial intelligence assistant and you need to "
+              "engage in a helpful, detailed, polite conversation with a user."
+          ),
+      },
+      {   
+          "role": "user",
+          "content": (
+              "How many stars are in the universe?"
+          ),
+      },
+  ]
+
+  client = OpenAI(api_key=YOUR_API_KEY, base_url="https://api.perplexity.ai")
+
+  # chat completion without streaming
+  response = client.chat.completions.create(
+      model="sonar-pro",
+      messages=messages,
+  )
+  print(response)
+
+  # chat completion with streaming
+  response_stream = client.chat.completions.create(
+      model="sonar-pro",
+      messages=messages,
+      stream=True,
+  )
+  for response in response_stream:
+      print(response)
+  ```
+</CodeGroup>
+
+<Note>
+  If you run out of credits, your API keys will be blocked until you add to your credit balance. You can avoid this by configuring "Automatic Top Up," which refreshes your balance whenever it drops below a certain threshold.
+</Note>
+
+![Auto Reload](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/api_portal/auto_reload.png)
+
+
+# Image Filters Guide
+Source: https://docs.perplexity.ai/guides/image-filter-guide
+
+Control image results with domain and format filters using the Perplexity API.
+
+<Note>
+  The `image_domain_filter` and `image_format_filter` parameters allow you to control the sources and file types of image results returned by the Sonar models.
+</Note>
+
+<Warning>
+  You can include a maximum of 10 entries in each of the filter lists. These filters currently apply only when `"return_images": true` is set in your request.
+</Warning>
+
+## Overview
+
+The `image_domain_filter` and `image_format_filter` parameters give you fine-grained control over image results returned by the Sonar models. Use these filters to:
+
+* Exclude specific image providers (e.g., Getty Images)
+* Restrict to a specific file format (e.g., `.gif`)
+
+To use these filters, your request must include `"return_images": true`.
+
+```json
+{
+  "image_domain_filter": ["-gettyimages.com"],
+  "image_format_filter": ["gif"]
+}
+
+	•	Prefix domains with - to exclude them
+	•	Use lowercase file extensions like gif, jpg, or png
+```
+
+⸻
+
+## Examples
+
+### 1. Exclude Specific Image Domains
+
+This request filters out images from Getty Images.
+
+<CodeGroup>
+  ```cURL cURL
+  curl --request POST \
+    --url https://api.perplexity.ai/chat/completions \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar",
+      "return_images": true,
+      "image_domain_filter": ["-gettyimages.com"],
+      "messages": [
+        {"role": "user", "content": "Show me images of Mount Everest"}
+      ]
+    }'
+  ```
+
+  ```python python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+    "model": "sonar",
+    "return_images": True,
+    "image_domain_filter": ["-gettyimages.com"],
+    "messages": [
+      {"role": "user", "content": "Show me images of Mount Everest"}
+    ]
+  }
+
+  response = requests.post(url, headers=headers, json=payload).json()
+  print(response["choices"][0]["message"]["content"])
+  ```
+</CodeGroup>
+
+⸻
+
+### 2. Only Return GIFs
+
+This request restricts results to GIF images.
+
+<CodeGroup>
+  ```cURL cURL
+  curl --request POST \
+    --url https://api.perplexity.ai/chat/completions \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar",
+      "return_images": true,
+      "image_format_filter": ["gif"],
+      "messages": [
+        {"role": "user", "content": "Show me a funny cat gif"}
+      ]
+    }'
+  ```
+
+  ```python python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+    "model": "sonar",
+    "return_images": True,
+    "image_format_filter": ["gif"],
+    "messages": [
+      {"role": "user", "content": "Show me a funny cat gif"}
+    ]
+  }
+
+  response = requests.post(url, headers=headers, json=payload).json()
+  print(response["choices"][0]["message"]["content"])
+  ```
+</CodeGroup>
+
+⸻
+
+## 3. Combine Domain and Format Filters
+
+You can combine both filters for precise control.
+
+<CodeGroup>
+  ```cURL cURL
+  curl --request POST \
+    --url https://api.perplexity.ai/chat/completions \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar",
+      "return_images": true,
+      "image_domain_filter": ["-gettyimages.com"],
+      "image_format_filter": ["gif"],
+      "messages": [
+        {"role": "user", "content": "Show me a gif of a dog"}
+      ]
+    }'
+  ```
+
+  ```python python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+    "model": "sonar",
+    "return_images": True,
+    "image_domain_filter": ["-gettyimages.com"],
+    "image_format_filter": ["gif"],
+    "messages": [
+      {"role": "user", "content": "Show me a gif of a dog"}
+    ]
+  }
+
+  response = requests.post(url, headers=headers, json=payload).json()
+  print(response["choices"][0]["message"]["content"])
+  ```
+</CodeGroup>
+
+⸻
+
+## Best Practices
+
+**Domain Filtering**
+•	Use simple domain names like example.com or -gettyimages.com
+•	Do not include http\://, https\://, or subdomains
+
+**Format Filtering**
+•	File extensions must be lowercase: \["jpg"], not \["JPG"]
+•	Omit dot prefix: use gif, not .gif
+
+**Filter Strategy**
+•	You can mix inclusion and exclusion in domain filters
+•	Keep lists short (≤10 entries) for performance and relevance
+
+**Performance Notes**
+•	Filters may slightly increase response time
+•	Overly restrictive filters may reduce result quality or quantity
+
+
+# Image Guide
+Source: https://docs.perplexity.ai/guides/image-guide
+
+Learn how to use Sonar's image upload feature.
+
+<Note>
+  The image upload feature allows you to include images in your API requests to support multi-modal conversations alongside text. Images can be provided either as base64 encoded strings within a data URI or as standard HTTPS URLs.
+</Note>
+
+<Warning>
+  * When using base64 encoding, the API currently only supports images up to 5 MB per image.
+  * Supported formats for base64 encoded images: PNG (image/png), JPEG (image/jpeg), WEBP (image/webp), and GIF (image/gif).
+  * When using an HTTPS URL, the model will attempt to fetch the image from the provided URL. Ensure the URL is publicly accessible.
+</Warning>
+
+Image uploads can be useful for:
+
+* Asking questions about visual content (e.g., text in a screenshot, diagram interpretation)
+* Providing context for follow-up queries
+* Analyzing visual media as part of a multi-turn conversation
+
+⸻
+
+## Overview
+
+To include an image in a request, you can either:
+
+1. Encode the image as a base64 string and embed it in a data URI using the following format:
+   ```bash
+   data:image/png;base64,<BASE64_ENCODED_IMAGE>
+   ```
+   Replace `image/png` with the correct MIME type if you're using JPEG or GIF (`image/jpeg` or `image/gif`).
+2. Provide a standard HTTPS URL pointing directly to the image file:
+   ```
+   https://example.com/path/to/your/image.png
+   ```
+
+This data URI or HTTPS URL should be included in your API request as part of a `messages` array, using the `image_url` content type.
+
+⸻
+
+## Request Format
+
+Images must be embedded in the `messages` array, alongside any text input. Each image should be provided using the following structure:
+
+**Using Base64 Data URI:**
+
+```json
+{
+  "type": "image_url",
+  "image_url": {
+    "url": "data:image/png;base64,<BASE64_ENCODED_IMAGE>"
+  }
+}
+```
+
+**Using HTTPS URL:**
+
+```json
+{
+  "type": "image_url",
+  "image_url": {
+    "url": "https://example.com/path/to/your/image.png"
+  }
+}
+```
+
+⸻
+
+## Examples
+
+<Tabs>
+  <Tab title="Base64 Encoding">
+    <Info>Use this method when you have the image file locally and want to embed it directly into the request payload. Remember the 5MB size limit and supported formats (PNG, JPEG, WEBP, GIF).</Info>
+
+    <CodeGroup>
+      ```bash cURL (Base64)
+      curl --location 'https://api.perplexity.ai/chat/completions' \
+      --header 'accept: application/json' \
+      --header 'content-type: application/json' \
+      --header 'Authorization: Bearer YOUR_API_KEY' \
+      --data '{
+        "model": "sonar-pro",
+        "stream": false,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Can you describe this image?"
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..." // Replace with your base64 string
+                }
+              }
+            ]
+          }
+        ]
+      }'
+      ```
+
+      ```python Python (Base64)
+      import requests
+      import base64
+
+      # Read and encode image as base64
+      try:
+          with open("path/to/your/image.png", "rb") as image_file:
+              base64_image = base64.b64encode(image_file.read()).decode("utf-8")
+          image_data_uri = f"data:image/png;base64,{base64_image}" # Ensure correct MIME type
+      except FileNotFoundError:
+          print("Error: Image file not found.")
+          exit()
+
+      # API request payload
+      url = "https://api.perplexity.ai/chat/completions"
+      headers = {
+          "Authorization": "Bearer YOUR_API_KEY",
+          "accept": "application/json",
+          "content-type": "application/json"
+      }
+      payload = {
+          "model": "sonar-pro",
+          "messages": [
+              {
+                  "role": "user",
+                  "content": [
+                      {"type": "text", "text": "Can you describe this image?"},
+                      {"type": "image_url", "image_url": {"url": image_data_uri}}
+                  ]
+              }
+          ],
+          "stream": False
+      }
+
+      try:
+          response = requests.post(url, headers=headers, json=payload)
+          response.raise_for_status() # Raise an exception for bad status codes
+          print(response.json())
+      except requests.exceptions.RequestException as e:
+          print(f"API Request failed: {e}")
+      ```
+    </CodeGroup>
+  </Tab>
+
+  <Tab title="HTTPS URL">
+    <Info>Use this method to reference an image hosted online. Ensure the URL is publicly accessible and points directly to the image file.</Info>
+
+    <CodeGroup>
+      ```bash cURL (HTTPS URL)
+      curl --location 'https://api.perplexity.ai/chat/completions' \
+      --header 'accept: application/json' \
+      --header 'content-type: application/json' \
+      --header 'Authorization: Bearer YOUR_API_KEY' \
+      --data '{
+        "model": "sonar-pro",
+        "stream": false,
+        "messages": [
+          {
+            "role": "user",
+            "content": [
+              {
+                "type": "text",
+                "text": "Can you describe the image at this URL?"
+              },
+              {
+                "type": "image_url",
+                "image_url": {
+                  "url": "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg" // Example HTTPS URL
+                }
+              }
+            ]
+          }
+        ]
+      }'
+      ```
+
+      ```python Python (HTTPS URL)
+      import requests
+
+      # API request payload with HTTPS URL
+      url = "https://api.perplexity.ai/chat/completions"
+      headers = {
+          "Authorization": "Bearer YOUR_API_KEY",
+          "accept": "application/json",
+          "content-type": "application/json"
+      }
+      image_https_url = "https://upload.wikimedia.org/wikipedia/commons/thumb/d/dd/Gfp-wisconsin-madison-the-nature-boardwalk.jpg/2560px-Gfp-wisconsin-madison-the-nature-boardwalk.jpg" # Example HTTPS URL
+
+      payload = {
+          "model": "sonar-pro",
+          "messages": [
+              {
+                  "role": "user",
+                  "content": [
+                      {"type": "text", "text": "Can you describe the image at this URL?"},
+                      {"type": "image_url", "image_url": {"url": image_https_url}}
+                  ]
+              }
+          ],
+          "stream": False
+      }
+
+      try:
+          response = requests.post(url, headers=headers, json=payload)
+          response.raise_for_status() # Raise an exception for bad status codes
+          print(response.json())
+      except requests.exceptions.RequestException as e:
+          print(f"API Request failed: {e}")
+      ```
+    </CodeGroup>
+  </Tab>
+</Tabs>
+
+<Warning>
+  * Image and regex cannot be used together in the same request.
+  * `sonar-deep-research` does not support image input.
+  * Ensure provided HTTPS URLs are publicly accessible.
+</Warning>
+
+
+# Integrating MCP with Perplexity's Sonar API
+Source: https://docs.perplexity.ai/guides/mcp-server
+
+Learn about the MCP server implementation for the Sonar API.
+
+## What is MCP?
+
+The **Model Context Protocol (MCP)** is an open standard designed to connect AI assistants with the systems where data lives. By providing a universal interface for AI applications to access structured and unstructured data, MCP eliminates the need for custom integrations, enabling AI models to retrieve real-time, relevant information more efficiently. Learn more about MCP [here](https://modelcontextprotocol.io/introduction).
+
+## MCP Server for Perplexity's Sonar API
+
+Our **MCP server implementation** for Sonar allows any AI-powered tool to perform real-time, web-wide research using Perplexity’s powerful search engine. This server acts as a bridge between AI applications and the Sonar, enabling seamless integration for retrieving and synthesizing relevant, up-to-date information from the web.
+
+### How It Works
+
+* The **Perplexity Ask MCP Server** follows MCP’s **open standard**, allowing any AI assistant or automation tool to connect to the **Sonar API** for live web searches.
+* AI models can query the server for information retrieval, leveraging Perplexity’s search capabilities to return the most relevant insights.
+
+### Example: Using MCP with Claude
+
+Claude is one example of how this MCP server can be used effectively. When connected to Claude, the **Perplexity Ask MCP Server** enables it to **perform live web searches** and return **highly relevant, up-to-date responses**, enhancing its ability to provide real-time knowledge.
+
+### Where to Find the Documentation
+
+Developers looking to integrate and deploy the **Perplexity Ask MCP Server** can find our implementation, detailed documentation, and setup instructions in our official MCP repository:
+
+📖 [**Perplexity Ask MCP Server**](https://github.com/ppl-ai/modelcontextprotocol/tree/main)
+
+This includes:
+
+* Implementation code
+* Setup instructions
+* Configuration steps
+* API usage guidelines
+* Deployment and troubleshooting tips
+
+
+# Pricing
+Source: https://docs.perplexity.ai/guides/pricing
+
+
+
+## **Non-Reasoning Models**
+
+*Models optimized for fast, cost-effective search and information retrieval.*
+
+<CardGroup cols={2}>
+  <Card title="Sonar Pro">
+    <Icon icon="magnifying-glass" iconType="solid" />
+
+    Advanced search model optimized for complex queries and deeper content understanding.\
+    [Learn more →](../models/models/sonar-pro)
+
+    **Pricing:**
+
+    | Metric                          | High   | Medium   | Low    |
+    | ------------------------------- | :----: | :------: | :----: |
+    | **Input Tokens (Per Million)**  |   \$3  |    \$3   |   \$3  |
+    | **Output Tokens (Per Million)** |  \$15  |   \$15   |  \$15  |
+    | **Price per 1000 Requests**     |  \$14  |   \$10   |   \$6  |
+  </Card>
+
+  <Card title="Sonar">
+    <Icon icon="bolt" iconType="solid" />
+
+    Lightweight, cost-effective search model designed for quick, grounded answers.\
+    [Learn more →](../models/models/sonar)
+
+    **Pricing:**
+
+    | Metric                          | High   | Medium   | Low    |
+    | ------------------------------- | :----: | :------: | :----: |
+    | **Input Tokens (Per Million)**  |   \$1  |    \$1   |   \$1  |
+    | **Output Tokens (Per Million)** |   \$1  |    \$1   |   \$1  |
+    | **Price per 1000 Requests**     |  \$12  |    \$8   |   \$5  |
+  </Card>
+</CardGroup>
+
+***
+
+## **Reasoning Models**
+
+*Models optimized for multi-step reasoning, problem-solving, and real-time search.*
+
+<CardGroup cols={2}>
+  <Card title="Sonar Reasoning Pro">
+    <Icon icon="brain" iconType="solid" />
+
+    Enhanced reasoning model with multi-step problem-solving capabilities and real-time search.\
+    [Learn more →](../models/models/sonar-reasoning-pro)
+
+    **Pricing:**
+
+    | Metric                          | High   | Medium   | Low    |
+    | ------------------------------- | :----: | :------: | :----: |
+    | **Input Tokens (Per Million)**  |   \$2  |    \$2   |   \$2  |
+    | **Output Tokens (Per Million)** |   \$8  |    \$8   |   \$8  |
+    | **Price per 1000 Requests**     |  \$14  |   \$10   |   \$6  |
+  </Card>
+
+  <Card title="Sonar Reasoning">
+    <Icon icon="puzzle-piece" iconType="solid" />
+
+    Quick problem-solving and reasoning model, ideal for evaluating complex queries.\
+    [Learn more →](../models/models/sonar-reasoning)
+
+    **Pricing:**
+
+    | Metric                          | High   | Medium   | Low    |
+    | ------------------------------- | :----: | :------: | :----: |
+    | **Input Tokens (Per Million)**  |   \$1  |    \$1   |   \$1  |
+    | **Output Tokens (Per Million)** |   \$5  |    \$5   |   \$5  |
+    | **Price per 1000 Requests**     |  \$12  |    \$8   |   \$5  |
+  </Card>
+</CardGroup>
+
+***
+
+## **Deep Research Models**
+
+*Models designed for exhaustive research, expert-level analysis, and detailed report generation.*
+
+<CardGroup cols={1}>
+  <Card title="Sonar Deep Research">
+    <Icon icon="chart-bar" iconType="solid" />
+
+    Best suited for exhaustive research, generating detailed reports and in-depth insights.\
+    [Learn more →](../models/models/sonar-deep-research)
+
+    **Pricing:**
+
+    | Metric                                | Cost   |
+    | ------------------------------------- | :----: |
+    | **Input Tokens (Per Million)**        |   \$2  |
+    | **Output Tokens (Per Million)**       |   \$8  |
+    | **Citation Tokens (Per Million)**     |   \$2  |
+    | **Price per 1000 Search Queries**     |   \$5  |
+    | **Reasoning Tokens (Per Million)**    |   \$3  |
+  </Card>
+</CardGroup>
+
+***
+
+## **Offline Model**
+
+*For private, factual-based answering without real-time web search.*
+
+<CardGroup cols={1}>
+  <Card title="r1-1776">
+    <Icon icon="server" iconType="solid" />
+
+    Offline chat model that does not use search but provides local AI capabilities.\
+    [Learn more →](../models/models/r1-1776)
+
+    **Pricing:**
+
+    | Metric                            |  Cost   |
+    | --------------------------------- | :-----: |
+    | **Input Tokens (Per Million)**    | \$2     |
+    | **Output Tokens (Per Million)**   | \$8     |
+  </Card>
+</CardGroup>
+
+***
+
+### **Tracking Spend Per API Key**
+
+You can track billing for each of your API keys by following these steps:
+
+1. Navigate to the [API section](https://www.perplexity.ai/account/api) of your **Settings** and click on **Usage Metrics**
+   ![Navigate to dashboard](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/guides/assets/pricing/view_dashboard.png)
+
+2. Select **Invoice history** > **Invoices**
+   ![View invoice history](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/guides/assets/pricing/view_invoice_history.png)
+
+3. Click on any invoice to view details
+   ![View spend per API key](https://mintlify.s3.us-west-1.amazonaws.com/perplexity/guides/assets/pricing/view_spend_per_api_key.png)
+
+4. Each item from the total bill will have a code at the end (e.g., pro (743S))
+   * The 4 characters in parentheses are the last 4 characters of your API key
+
+
+# Prompt Guide
+Source: https://docs.perplexity.ai/guides/prompt-guide
+
+
+
+## System Prompt
+
+You can use the system prompt to provide instructions related to style, tone, and language of the response.
+
+<Warning>
+  The real-time search component of our models does not attend to the system prompt.
+</Warning>
+
+**Example of a system prompt**
+
+```
+You are a helpful AI assistant.
+
+Rules:
+1. Provide only the final answer. It is important that you do not include any explanation on the steps below.
+2. Do not show the intermediate steps information.
+
+Steps:
+1. Decide if the answer should be a brief sentence or a list of suggestions.
+2. If it is a list of suggestions, first, write a brief and natural introduction based on the original query.
+3. Followed by a list of suggestions, each suggestion should be split by two newlines.
+```
+
+## User Prompt
+
+You should use the user prompt to pass in the actual query for which you need an answer for. The user prompt will be used to kick off a real-time web search to make sure the answer has the latest and the most relevant information needed.
+
+**Example of a user prompt**
+
+```
+What are the best sushi restaurants in the world currently?
+```
+
+# Web Search Models: General Prompting Guidelines
+
+Our web search-powered models combine the capabilities of LLMs with real-time web searches. Understanding how they differ from traditional LLMs will help you craft more effective prompts.
+
+## Best Practices for Prompting Web Search Models
+
+<CardGroup cols={2}>
+  <Card title="Be Specific and Contextual">
+    Unlike traditional LLMs, our web search models require specificity to retrieve relevant search results. Adding just 2-3 extra words of context can dramatically improve performance.
+
+    **Good Example**: "Explain recent advances in climate prediction models for urban planning"
+
+    **Poor Example**: "Tell me about climate models"
+  </Card>
+
+  <Card title="Avoid Few-Shot Prompting">
+    While few-shot prompting works well for traditional LLMs, it confuses web search models by triggering searches for your examples rather than your actual query.
+
+    **Good Example**: "Summarize the current research on mRNA vaccine technology"
+
+    **Poor Example**: "Here's an example of a good summary about vaccines: \[example text]. Now summarize the current research on mRNA vaccines."
+  </Card>
+
+  <Card title="Think Like a Web Search User">
+    Craft prompts with search-friendly terms that would appear on relevant web pages. Consider how experts in the field would describe the topic online.
+
+    **Good Example**: "Compare the energy efficiency ratings of heat pumps vs. traditional HVAC systems for residential use"
+
+    **Poor Example**: "Tell me which home heating is better"
+  </Card>
+
+  <Card title="Provide Relevant Context">
+    Include critical context to guide the web search toward the most relevant content, but keep prompts concise and focused.
+
+    **Good Example**: "Explain the impact of the 2023 EU digital markets regulations on app store competition for small developers"
+
+    **Poor Example**: "What are the rules for app stores?"
+  </Card>
+</CardGroup>
+
+## Web Search Model Pitfalls to Avoid
+
+<CardGroup cols={2}>
+  <Card title="Overly Generic Questions">
+    Generic prompts lead to scattered web search results and unfocused responses. Always narrow your scope.
+
+    **Avoid**: "What's happening in AI?"
+
+    **Instead**: "What are the three most significant commercial applications of generative AI in healthcare in the past year?"
+  </Card>
+
+  <Card title="Traditional LLM Techniques">
+    Prompting strategies designed for traditional LLMs often don't work well with web search models. Adapt your approach accordingly.
+
+    **Avoid**: "Act as an expert chef and give me a recipe for sourdough bread. Start by explaining the history of sourdough, then list ingredients, then..."
+
+    **Instead**: "What's a reliable sourdough bread recipe for beginners? Include ingredients and step-by-step instructions."
+  </Card>
+
+  <Card title="Complex Multi-Part Requests">
+    Complex prompts with multiple unrelated questions can confuse the search component. Focus on one topic per query.
+
+    **Avoid**: "Explain quantum computing, and also tell me about regenerative agriculture, and provide stock market predictions."
+
+    **Instead**: "Explain quantum computing principles that might impact cryptography in the next decade."
+  </Card>
+
+  <Card title="Assuming Search Intent">
+    Don't assume the model will search for what you intended without specific direction. Be explicit about exactly what information you need.
+
+    **Avoid**: "Tell me about the latest developments."
+
+    **Instead**: "What are the latest developments in offshore wind energy technology announced in the past 6 months?"
+  </Card>
+</CardGroup>
+
+### Advanced Techniques
+
+<Tip>
+  We recommend for users *not* to tune language parameters such as `temperature`, as the default settings for these have already been optimized.
+</Tip>
+
+<CardGroup cols={1}>
+  <Card title="Parameter Optimization">
+    Adjust model parameters based on your specific needs:
+
+    * **Search Domain Filter**: Limit results to trusted sources for research-heavy queries.
+    * **Search Context Size**: Use "high" for comprehensive research questions and "low" for simple factual queries.
+
+    Example configuration for technical documentation:
+
+    ```json
+    {
+      "search_domain_filter": ["wikipedia.org", "docs.python.org"],
+      "web_search_options": {
+        "search_context_size": "medium"
+      }
+    }
+    ```
+  </Card>
+</CardGroup>
+
+### Tips for Different Query Types
+
+| Query Type              | Best Practices                                                                                                                         |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **Factual Research**    | • Use specific questions  • Use search domain filters for academic sources  • Consider "high" search context size                      |
+| **Creative Content**    | • Provide detailed style guidelines in system prompt  • Specify tone, voice, and audience                                              |
+| **Technical Questions** | • Include relevant technical context  • Specify preferred programming language/framework  • Use domain filters for documentation sites |
+| **Analysis & Insights** | • Request step-by-step reasoning  • Ask for specific metrics or criteria                                                               |
+
+
+# Search Context Size
+Source: https://docs.perplexity.ai/guides/search-context-size-guide
+
+
+
+<Note>
+  The `search_context_size` parameter allows you to control how much search context is retrieved from the web during query resolution, letting you balance cost and comprehensiveness.
+</Note>
+
+<Warning>
+  * Default `search_context_size` is `low`
+  * Selecting `"high"` increases search costs due to more extensive web retrieval. Use `"low"` when cost efficiency is critical.
+</Warning>
+
+## Overview
+
+The `search_context_size` field—passed via the `web_search_options` object—determines how much search context is retrieved by the Sonar models. This setting can help you optimize for either:
+
+* Cost savings with minimal search input (`low`)
+* Comprehensive answers by maximizing retrieved information (`high`)
+* A balance of both (`medium`)
+
+This flexibility allows teams to tune their API usage to their budget and use case.
+
+To enable this feature, include the web\_search\_options.search\_context\_size parameter in your request payload:
+
+```bash
+"web_search_options": {
+  "search_context_size": "medium"
+}
+```
+
+## Best Practices
+
+**Choosing the Right Context Size**
+
+* `low`: Best for short factual queries or when operating under strict token cost constraints.
+* `medium`: The default and best suited for general use cases.
+* `high`: Use for deep research, exploratory questions, or when citations and evidence coverage are critical.
+
+**Cost Optimization**
+
+* Selecting `low` or `medium` can significantly reduce overall token usage, especially at scale.
+* Consider defaulting to `low` for high-volume endpoints and selectively upgrading to `high` for complex user prompts.
+
+Combining with Other Filters
+
+* You can use `search_context_size` alongside other features like `search_domain_filter` to further control the scope of search.
+* Combining `medium` with a focused domain filter often gives a good tradeoff between quality and cost.
+
+Performance Considerations
+
+* Larger context sizes may slightly increase response latency due to more extensive search and reranking.
+* If you’re batching queries or supporting real-time interfaces, test with different settings to balance user experience and runtime.
+
+## Examples
+
+**1. Minimal Search Context ("low")**
+
+This option limits the search context retrieved for the model, reducing cost per request while still producing useful responses for simpler questions.
+
+## Request
+
+<CodeGroup>
+  ```bash cURL
+  curl --request POST \
+    --url https://api.perplexity.ai/chat/completions \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar",
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be precise and concise."
+        },
+        {
+          "role": "user",
+          "content": "How many stars are there in our galaxy?"
+        }
+      ],
+      "web_search_options": {
+        "search_context_size": "low"
+      }
+    }'
+  ```
+
+  ```python python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+      "model": "sonar",
+      "messages": [
+          {"role": "system", "content": "Be precise and concise."},
+          {"role": "user", "content": "How many stars are there in our galaxy?"}
+      ],
+      "web_search_options": {
+          "search_context_size": "low"
+      }
+  }
+
+  response = requests.post(url, headers=headers, json=payload).json()
+  print(response["choices"][0]["message"]["content"])
+  ```
+</CodeGroup>
+
+**Pro-tip**: Use `low` when cost optimization is more important than answer completeness.
+
+**2. Comprehensive Search Context ("high")**
+
+This option maximizes the amount of search context used to answer the question, resulting in more thorough and nuanced responses.
+
+## Request
+
+<CodeGroup>
+  ```bash cURL
+  curl --request POST \
+    --url https://api.perplexity.ai/chat/completions \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar-reasoning-pro",
+      "messages": [
+        {
+          "role": "system",
+          "content": "Be precise and concise."
+        },
+        {
+          "role": "user",
+          "content": "Explain the economic causes of the 2008 financial crisis."
+        }
+      ],
+      "web_search_options": {
+        "search_context_size": "high"
+      }
+    }'
+  ```
+
+  ```python python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+      "model": "sonar-reasoning-pro",
+      "messages": [
+          {"role": "system", "content": "Be precise and concise."},
+          {"role": "user", "content": "Explain the economic causes of the 2008 financial crisis."}
+      ],
+      "web_search_options": {
+          "search_context_size": "high"
+      }
+  }
+  response = requests.post(url, headers=headers, json=payload).json()
+  print(response["choices"][0]["message"]["content"])
+  ```
+</CodeGroup>
+
+**Pro-tip**: Use `high` for research-heavy or nuanced queries where coverage matters more than cost.
+
+⸻
+
+
+# Search Domain Filter Guide
+Source: https://docs.perplexity.ai/guides/search-domain-filters
+
+
+
+<Note>
+  The `search_domain_filter` feature allows you to limit search results to specific domains or exclude certain domains from search results.
+</Note>
+
+<Warning>
+  You can add a maximum of 10 domains to the `search_domain_filter` list.
+</Warning>
+
+## Overview
+
+The `search_domain_filter` parameter allows you to control which websites are included in or excluded from the search results used by the Sonar models. This feature is particularly useful when you want to:
+
+* Restrict search results to trusted sources
+* Filter out specific domains from search results
+* Focus research on particular websites
+
+Enabling domain filtering can be done by adding a `search_domain_filter` field in the request:
+
+```
+"search_domain_filter": [
+  "<domain1>",
+  "<domain2>",
+  ...
+]
+```
+
+Each entry in the list should be a simple domain name. To exclude a domain, prefix it with a minus sign (`-`).
+
+## Examples
+
+### 1. Allowlist Specific Domains
+
+This example shows how to limit search results to only include content from specific domains.
+
+**Request**
+
+```python
+import requests
+
+url = "https://api.perplexity.ai/chat/completions"
+headers = {"Authorization": "Bearer YOUR_API_KEY"}
+payload = {
+    "model": "sonar-reasoning-pro",
+    "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "Tell me about the James Webb Space Telescope discoveries."}
+    ],
+    "search_domain_filter": [
+        "nasa.gov",
+        "wikipedia.org",
+        "space.com"
+    ]
+}
+
+response = requests.post(url, headers=headers, json=payload).json()
+print(response["choices"][0]["message"]["content"])
+```
+
+**Best Practice**: Use simple domain names (e.g., `wikipedia.org`) without additional elements like `https://` or `www.` prefixes.
+
+### 2. Denylist Specific Domains
+
+This example shows how to exclude specific domains from search results by prefixing the domain name with a minus sign (`-`).
+
+**Request**
+
+```python
+import requests
+
+url = "https://api.perplexity.ai/chat/completions"
+headers = {"Authorization": "Bearer YOUR_API_KEY"}
+payload = {
+    "model": "sonar-deep-research",
+    "messages": [
+        {"role": "system", "content": "You are a helpful assistant."},
+        {"role": "user", "content": "What are the latest advancements in renewable energy?"}
+    ],
+    "search_domain_filter": [
+        "-pinterest.com",
+        "-reddit.com",
+        "-quora.com"
+    ]
+}
+
+response = requests.post(url, headers=headers, json=payload).json()
+print(response["choices"][0]["message"]["content"])
+```
+
+**Best Practice**: Use simple domain names with a minus prefix (e.g., `-pinterest.com`) to exclude domains from search results.
+
+## Best Practices
+
+### Domain Specification
+
+* **Use simple domain names**: Specify domains in their simplest form (e.g., `example.com`) without protocol prefixes (`http://`, `https://`) or subdomain specifiers (`www.`).
+* **Main domains only**: Using the main domain (e.g., `nytimes.com`) will filter all subdomains as well.
+
+### Filter Optimization
+
+* **Be specific**: Use domains that are most relevant to your query to get the best results.
+* **Combine approaches**: You can mix inclusion and exclusion in the same request (e.g., `["wikipedia.org", "-pinterest.com"]`).
+* **Limit filter size**: Although you can add up to 10 domains, using fewer, more targeted domains often yields better results.
+
+### Performance Considerations
+
+* Adding domain filters may slightly increase response time as the search engine needs to apply additional filtering.
+* Overly restrictive domain filters might result in fewer search results, potentially affecting the quality of the response.
+
+
+# Structured Outputs Guide
+Source: https://docs.perplexity.ai/guides/structured-outputs
+
+
+
+<Info>
+  The first request with a new JSON Schema or Regex expects to incur delay on the first token. Typically, it takes 10 to 30 seconds to prepare the new schema, and may result in timeout errors. Once the schema has been prepared, the subsequent requests will not see such delay.
+</Info>
+
+## Overview
+
+We currently support two types of structured outputs: **JSON Schema** and **Regex**. LLM responses will work to match the specified format, except for the following cases:
+
+* The output exceeds `max_tokens`
+
+Enabling the structured outputs can be done by adding a `response_format` field in the request:
+
+**JSON Schema**
+
+* `response_format: { type: "json_schema", json_schema: {"schema": object} }` .
+
+* The schema should be a valid JSON schema object.
+
+**Regex** (only available for `sonar` right now)
+
+* `response_format: { type: "regex", regex: {"regex": str} }` .
+
+* The regex is a regular expression string.
+
+We recommend to give the LLM some hints about the output format in the prompts.
+
+## Examples
+
+### 1. Get a response in JSON format
+
+**Request**
+
+```python
+import requests
+from pydantic import BaseModel
+
+class AnswerFormat(BaseModel):
+    first_name: str
+    last_name: str
+    year_of_birth: int
+    num_seasons_in_nba: int
+
+url = "https://api.perplexity.ai/chat/completions"
+headers = {"Authorization": "Bearer YOUR_API_KEY"}
+payload = {
+    "model": "sonar",
+    "messages": [
+        {"role": "system", "content": "Be precise and concise."},
+        {"role": "user", "content": (
+            "Tell me about Michael Jordan. "
+            "Please output a JSON object containing the following fields: "
+            "first_name, last_name, year_of_birth, num_seasons_in_nba. "
+        )},
+    ],
+    "response_format": {
+		    "type": "json_schema",
+        "json_schema": {"schema": AnswerFormat.model_json_schema()},
+    },
+}
+response = requests.post(url, headers=headers, json=payload).json()
+print(response["choices"][0]["message"]["content"])
+```
+
+**Response**
+
+```
+{"first_name":"Michael","last_name":"Jordan","year_of_birth":1963,"num_seasons_in_nba":15}
+```
+
+### 2. Use a regex to output the format
+
+**Request**
+
+```python python
+import requests
+
+url = "https://api.perplexity.ai/chat/completions"
+headers = {"Authorization": "Bearer YOUR_API_KEY"}
+payload = {
+    "model": "sonar",
+    "messages": [
+        {"role": "system", "content": "Be precise and concise."},
+        {"role": "user", "content": "What is the IPv4 address of OpenDNS DNS server?"},
+    ],
+    "response_format": {
+		    "type": "regex",
+        "regex": {"regex": r"(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"},
+    },
+}
+response = requests.post(url, headers=headers, json=payload).json()
+print(response["choices"][0]["message"]["content"])
+```
+
+**Response**
+
+```
+208.67.222.222
+```
+
+## Best Practices
+
+### Generating responses in a JSON Format
+
+For Python users, we recommend using the Pydantic library to [generate JSON schema](https://docs.pydantic.dev/latest/api/base_model/#pydantic.BaseModel.model_json_schema).
+
+**Unsupported JSON Schemas**
+
+Recursive JSON schema is not supported. As a result of that, unconstrained objects are not supported either. Here's a few example of unsupported schemas:
+
+```
+# UNSUPPORTED!
+
+from typing import Any
+
+class UnconstrainedDict(BaseModel):
+   unconstrained: dict[str, Any]
+
+class RecursiveJson(BaseModel):
+   value: str
+   child: list["RecursiveJson"]
+```
+
+### Generating responses using a regex
+
+**Supported Regex**
+
+* Characters: `\d`, `\w`, `\s` , `.`
+* Character classes: `[0-9A-Fa-f]` , `[^x]`
+* Quantifiers: `*`, `?` , `+`, `{3}`, `{2,4}` , `{3,}`
+* Alternation: `|`
+* Group: `( ... )`
+* Non-capturing group: `(?: ... )`
+* Positive lookahead: `(?= ... )`
+* Negative lookahead: `(?! ... )`
+
+**Unsupported Regex**
+
+* Contents of group: `\1`
+* Anchors: `^`, `$`, `\b`
+* Positive look-behind: `(?<= ... )`
+* Negative look-behind: `(?<! ... )`
+* Recursion: `(?R)`
+
+## Structured Outputs for Reasoning Models
+
+When using structured outputs with reasoning models like `sonar-reasoning-pro`, the response will include a `<think>` section containing reasoning tokens, immediately followed by the structured output. The `response_format` parameter does not remove these reasoning tokens from the output, so the final response will need to be parsed manually.
+
+**Sample Response:**
+
+```
+<think>
+I need to provide information about France in a structured JSON format with specific fields: country, capital, population, official_language.
+
+For France:
+- Country: France
+- Capital: Paris
+- Population: About 67 million (as of 2023)
+- Official Language: French
+
+Let me format this information as required.
+</think>
+{"country":"France","capital":"Paris","population":67750000,"official_language":"French"}
+```
+
+For a reusable implementation to extract JSON from reasoning model outputs, see our [example utility on GitHub](https://github.com/ppl-ai/api-discussion/blob/main/utils/extract_json_reasoning_models.py).
+
+
+# Rate Limits and Usage Tiers
+Source: https://docs.perplexity.ai/guides/usage-tiers
+
+
+
+We follow the usage tier system below to set rate limits and give access to beta features for our APIs. You can check your usage tier by going to your [API settings page](https://www.perplexity.ai/settings/api).
+
+## Usage Tiers
+
+| Tier     | Credit Purchase (all time) |
+| -------- | -------------------------- |
+| `Tier 0` | -                          |
+| `Tier 1` | \$50                       |
+| `Tier 2` | \$250                      |
+| `Tier 3` | \$500                      |
+| `Tier 4` | \$1000                     |
+| `Tier 5` | \$5000                     |
+
+<Info>
+  The tiers are based on cumulative purchases on a given account
+</Info>
+
+## Rate Limits and Beta Features
+
+<Tabs>
+  <Tab title="Tier 0">
+    | Model                 | Requests per minute (RPM) | Beta Features                                                       |
+    | --------------------- | ------------------------- | ------------------------------------------------------------------- |
+    | `sonar-deep-research` | 5                         | related questions, structured outputs                               |
+    | `sonar-reasoning-pro` | 50                        | images, related questions, search domain filter, structured outputs |
+    | `sonar-reasoning`     | 50                        | images, related questions, search domain filter, structured outputs |
+    | `sonar-pro`           | 50                        | images, related questions, search domain filter, structured outputs |
+    | `sonar`               | 50                        | images, related questions, search domain filter, structured outputs |
+    | `r1-1776`             | 50                        | structured outputs                                                  |
+  </Tab>
+
+  <Tab title="Tier 1">
+    | Model                 | Requests per minute (RPM) | Beta Features                                                       |
+    | --------------------- | ------------------------- | ------------------------------------------------------------------- |
+    | `sonar-deep-research` | 10                        | related questions, structured outputs                               |
+    | `sonar-reasoning-pro` | 50                        | images, related questions, search domain filter, structured outputs |
+    | `sonar-reasoning`     | 50                        | images, related questions, search domain filter, structured outputs |
+    | `sonar-pro`           | 50                        | images, related questions, search domain filter, structured outputs |
+    | `sonar`               | 50                        | images, related questions, search domain filter, structured outputs |
+    | `r1-1776`             | 50                        | structured outputs                                                  |
+  </Tab>
+
+  <Tab title="Tier 2">
+    | Model                 | Requests per minute (RPM) | Beta Features                                                       |
+    | --------------------- | ------------------------- | ------------------------------------------------------------------- |
+    | `sonar-deep-research` | 20                        | related questions, structured outputs                               |
+    | `sonar-reasoning-pro` | 500                       | images, related questions, search domain filter, structured outputs |
+    | `sonar-reasoning`     | 500                       | images, related questions, search domain filter, structured outputs |
+    | `sonar-pro`           | 500                       | images, related questions, search domain filter, structured outputs |
+    | `sonar`               | 500                       | images, related questions, search domain filter, structured outputs |
+    | `r1-1776`             | 500                       | structured outputs                                                  |
+  </Tab>
+
+  <Tab title="Tier 3">
+    | Model                 | Requests per minute (RPM) | Beta Features                                                       |
+    | --------------------- | ------------------------- | ------------------------------------------------------------------- |
+    | `sonar-deep-research` | 40                        | related questions, structured outputs                               |
+    | `sonar-reasoning-pro` | 1000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar-reasoning`     | 1000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar-pro`           | 1000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar`               | 1000                      | images, related questions, search domain filter, structured outputs |
+    | `r1-1776`             | 1000                      | structured outputs                                                  |
+  </Tab>
+
+  <Tab title="Tier 4">
+    | Model                 | Requests per minute (RPM) | Beta Features                                                       |
+    | --------------------- | ------------------------- | ------------------------------------------------------------------- |
+    | `sonar-deep-research` | 60                        | related questions, structured outputs                               |
+    | `sonar-reasoning-pro` | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar-reasoning`     | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar-pro`           | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar`               | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `r1-1776`             | 2000                      | structured outputs                                                  |
+  </Tab>
+
+  <Tab title="Tier 5">
+    | Model                 | Requests per minute (RPM) | Beta Features                                                       |
+    | --------------------- | ------------------------- | ------------------------------------------------------------------- |
+    | `sonar-deep-research` | 100                       | related questions, structured outputs                               |
+    | `sonar-reasoning-pro` | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar-reasoning`     | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar-pro`           | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `sonar`               | 2000                      | images, related questions, search domain filter, structured outputs |
+    | `r1-1776`             | 2000                      | structured outputs                                                  |
+  </Tab>
+</Tabs>
+
+<Note>
+  1. `r1-1776` is an offline chat model that does not use our search subsystem so image search, related questions and search domain filter aren't available for it
+  2. Rate Limit for`sonar-deep-research` increases as you move up usage tiers
+</Note>
+
+
+# User Location Filter Guide
+Source: https://docs.perplexity.ai/guides/user-location-filter-guide
+
+
+
+<Note>
+  The `user_location` parameter within `web_search_options` allows you to refine search results based on the user's approximate geographic location. This helps provide more contextually relevant information.
+</Note>
+
+<Info>
+  You can specify the location using latitude/longitude coordinates, a two-letter ISO country code, or a combination of both coordinates and country code.
+</Info>
+
+## Overview
+
+The `user_location` filter helps tailor search results by incorporating geographic context. This is particularly useful for queries where location significantly impacts relevance, such as:
+
+* Finding local businesses or services.
+* Getting information about regional events or news.
+* Understanding location-specific regulations or customs.
+
+To refine search results by location, include the `user_location` object within the `web_search_options` in your request payload. You can provide coordinates, a country code, or combine them:
+
+**Using Latitude/Longitude:**
+
+```json
+"web_search_options": {
+  "user_location": {
+    "latitude": 37.7749,
+    "longitude": -122.4194
+  }
+}
+```
+
+**Using Country Code:**
+
+```json
+"web_search_options": {
+  "user_location": {
+    "country": "US"
+  }
+}
+```
+
+**Combining Latitude/Longitude and Country Code:**
+
+```json
+"web_search_options": {
+  "user_location": {
+    "latitude": 48.8566, 
+    "longitude": 2.3522,
+    "country": "FR" // Example: Paris, France
+  }
+}
+```
+
+These filters work alongside other search parameters like date range or domain filters.
+
+## Examples
+
+**1. Refining Results with Latitude and Longitude**
+
+This example provides specific coordinates (approximating San Francisco) to get geographically relevant search results.
+
+**Request Example**
+
+<CodeGroup>
+  ```bash cURL
+  curl --location 'https://api.perplexity.ai/chat/completions' \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar-pro",
+      "messages": [
+        {"role": "system", "content": "You are a helpful local guide."},
+        {"role": "user", "content": "What are some good coffee shops nearby?"}
+      ],
+      "web_search_options": {
+        "user_location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        }
+      }
+  }'
+  ```
+
+  ```python Python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+      "model": "sonar-pro",
+      "messages": [
+          {"role": "system", "content": "You are a helpful local guide."},
+          {"role": "user", "content": "What are some good coffee shops nearby?"}
+      ],
+      "web_search_options": {
+        "user_location": {
+          "latitude": 37.7749,
+          "longitude": -122.4194
+        }
+      }
+  }
+
+  response = requests.post(url, headers=headers, json=payload)
+  print(response.json())
+  ```
+</CodeGroup>
+
+**2. Refining Results with Country Code**
+
+This example uses a two-letter ISO country code (United States) to provide broader geographic context.
+
+**Request Example**
+
+<CodeGroup>
+  ```bash cURL
+  curl --location 'https://api.perplexity.ai/chat/completions' \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar-pro",
+      "messages": [
+        {"role": "system", "content": "You are an expert on international news."},
+        {"role": "user", "content": "Summarize today's political news."}
+      ],
+      "web_search_options": {
+        "user_location": {
+          "country": "US"
+        }
+      }
+  }'
+  ```
+
+  ```python Python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+      "model": "sonar-pro",
+      "messages": [
+          {"role": "system", "content": "You are an expert on international news."},
+          {"role": "user", "content": "Summarize today's political news."}
+      ],
+      "web_search_options": {
+        "user_location": {
+          "country": "US"
+        }
+      }
+  }
+
+  response = requests.post(url, headers=headers, json=payload)
+  print(response.json())
+  ```
+</CodeGroup>
+
+**3. Combining Coordinates and Country Code**
+
+This example provides both specific coordinates (approximating Paris) and the country code ("FR") for maximum geographic context.
+
+**Request Example**
+
+<CodeGroup>
+  ```bash cURL
+  curl --location 'https://api.perplexity.ai/chat/completions' \
+    --header 'Authorization: Bearer YOUR_API_KEY' \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "model": "sonar-pro",
+      "messages": [
+        {"role": "system", "content": "You are an expert on French news and events."},
+        {"role": "user", "content": "What major events are happening in the capital this week?"}
+      ],
+      "web_search_options": {
+        "user_location": {
+          "latitude": 48.8566, 
+          "longitude": 2.3522,
+          "country": "FR"
+        }
+      }
+  }'
+  ```
+
+  ```python Python
+  import requests
+
+  url = "https://api.perplexity.ai/chat/completions"
+  headers = {"Authorization": "Bearer YOUR_API_KEY"}
+  payload = {
+      "model": "sonar-pro",
+      "messages": [
+          {"role": "system", "content": "You are an expert on French news and events."},
+          {"role": "user", "content": "What major events are happening in the capital this week?"}
+      ],
+      "web_search_options": {
+        "user_location": {
+          "latitude": 48.8566, 
+          "longitude": 2.3522,
+          "country": "FR"
+        }
+      }
+  }
+
+  response = requests.post(url, headers=headers, json=payload)
+  print(response.json())
+  ```
+</CodeGroup>
+
+## Best Practices
+
+**Choosing the Right Specificity**
+•	**Latitude/Longitude:** Use for high precision when the exact location is known and relevant (e.g., finding nearby points of interest).
+•	**Country Code:** Use for broader context when country-level relevance is sufficient (e.g., national news, country-specific regulations).
+•	**Combining Fields:** Providing both coordinates and country code can offer the most context. The coordinates give precision, while the country code adds broader regional signals (like language or national context) that might influence results.
+
+**Data Accuracy**
+•	Ensure the provided location data is as accurate as possible. Incorrect data may lead to irrelevant results.
+•	Latitude values must be between -90 and 90. Longitude values must be between -180 and 180.
+•	Country codes should be valid two-letter ISO 3166-1 alpha-2 codes (e.g., "US", "GB", "DE").
+
+**Privacy Considerations**
+•	Be mindful of user privacy when collecting and transmitting location data. Only use location when necessary and with user consent where applicable.
+
+**Client-Side Validation**
+•	Consider validating location inputs before sending the request:
+
+* Check latitude/longitude ranges.
+* Validate country code format (two uppercase letters).
+
+⸻
+
+
+# null
+Source: https://docs.perplexity.ai/home
+
+
+
+export function openSearch() {
+  document.getElementById("search-bar-entry").click();
+}
+
+<div className="w-full text-center bg-dark-olive py-16 mb-[128px]">
+  <img src="https://mintlify.s3.us-west-1.amazonaws.com/perplexity/images/mark-ecru.svg" alt="Sonar Ecru" width="55" height="55" className="block mx-auto mb-6" />
+
+  <h1 className="text-paperwhite text-5xl font-light">
+    Welcome to Sonar by Perplexity
+  </h1>
+
+  <p className="text-lg text-ecru mt-3">
+    Power your products with unparalleled real-time, web-wide research and Q\&A
+    capabilities.
+  </p>
+
+  <p className="mt-7">
+    <a href="https://docs.perplexity.ai/guides/getting-started" className="inline-block rounded-md px-6 py-2 font-mono text-sm font-bold text-[#FBFAF4] dark:text-[#091717] bg-[#091717] dark:bg-[#FBFAF4]">
+      Get Started
+    </a>
+  </p>
+</div>
+
+<section className="mt-6 mb-6 max-w-6xl mx-auto px-2">
+  <h3 className="text-primary text-center text-xl mb-6">Explore the docs</h3>
+
+  <CardGroup cols={3}>
+    <Card title="Quickstart" icon="play" href="https://docs.perplexity.ai/guides/getting-started" vertical>
+      Start using the API in minutes
+    </Card>
+
+    <Card title="API Reference" icon="webhook" iconType="solid" href="/api-reference" vertical>
+      Integrate the API into your workflows
+    </Card>
+
+    <Card title="Pricing" icon="square-dollar" href="/guides/pricing" vertical>
+      Explore pricing of the API
+    </Card>
+
+    <Card title="Rate Limits and Usage Tiers" icon="chart-pyramid" href="/guides/usage-tiers" vertical>
+      Understand API rate limits, features, and restrictions
+    </Card>
+
+    <Card title="Help" icon="circle-question" href="/faq/faq" vertical>
+      Frequently asked questions about the API
+    </Card>
+
+    <Card title="System Status" icon="monitor-waveform" href="https://status.perplexity.com/" vertical>
+      Track the status of our services including the API
+    </Card>
+  </CardGroup>
+</section>
+
+
+# Models
+Source: https://docs.perplexity.ai/models/model-cards
+
+
+
+Explore all available models and compare their capabilities.
+
+## Search Models
+
+*Models designed to retrieve and synthesize information efficiently.*
+
+<CardGroup cols={2}>
+  <Card title="sonar-pro">
+    <Icon icon="magnifying-glass" iconType="solid" />
+
+    Advanced search offering with grounding, supporting complex queries and follow-ups.\
+    [Learn more →](./models/sonar-pro)
+  </Card>
+
+  <Card title="sonar">
+    <Icon icon="bolt" iconType="solid" />
+
+    Lightweight, cost-effective search model with grounding.\
+    [Learn more →](./models/sonar)
+  </Card>
+</CardGroup>
+
+<Tip>Best suited for quick factual queries, topic summaries, product comparisons, and current events where simple information retrieval and synthesis is needed without complex reasoning.</Tip>
+<Warning>Not ideal for multi-step analyses, exhaustive research on broad topics, or projects requiring detailed instructions or comprehensive reports across multiple sources.</Warning>
+
+## Research Models
+
+*Models that conduct in-depth analysis and generate detailed reports.*
+
+<CardGroup cols={1}>
+  <Card title="sonar-deep-research">
+    <Icon icon="file" iconType="solid" />
+
+    Expert-level research model conducting exhaustive searches and generating comprehensive reports.\
+    [Learn more →](./models/sonar-deep-research)
+  </Card>
+</CardGroup>
+
+<Tip>Ideal for comprehensive topic reports, in-depth analysis with exhaustive web research, and projects requiring synthesis of multiple information sources into cohesive reports like market analyses or literature reviews.</Tip>
+<Warning>Avoid using for quick queries, simple lookups, or time-sensitive tasks, as these models may take 30+ minutes to process and are excessive when depth isn't required.</Warning>
+
+## Reasoning Models
+
+*Models that excel at complex, multi-step tasks.*
+
+<CardGroup cols={2}>
+  <Card title="sonar-reasoning-pro">
+    <Icon icon="lightbulb" iconType="solid" />
+
+    Premier reasoning offering powered by DeepSeek R1 with Chain of Thought (CoT).\
+    [Learn more →](./models/sonar-reasoning-pro)
+  </Card>
+
+  <Card title="sonar-reasoning">
+    <Icon icon="puzzle-piece" iconType="solid" />
+
+    Fast, real-time reasoning model designed for quick problem-solving with search.\
+    [Learn more →](./models/sonar-reasoning)
+  </Card>
+</CardGroup>
+
+<Tip>Excellent for complex analyses requiring step-by-step thinking, tasks needing strict adherence to instructions, information synthesis across sources, and logical problem-solving that demands informed recommendations.</Tip>
+<Warning>Not recommended for simple factual queries, basic information retrieval, exhaustive research projects (use Research models instead), or when speed takes priority over reasoning quality.</Warning>
+
+## Offline Models
+
+*Chat models that do not use our search subsystem.*
+
+<CardGroup cols={1}>
+  <Card title="r1-1776">
+    <Icon icon="scale-balanced" iconType="solid" />
+
+    A version of DeepSeek R1 post-trained for uncensored, unbiased, and factual information.\
+    [Learn more →](./models/r1-1776)
+  </Card>
+</CardGroup>
+
+<Tip>Perfect for creative content generation, tasks not requiring up-to-date web information, scenarios favoring traditional LLM techniques, and maintaining conversation context without search interference.</Tip>
+<Warning>Unsuitable for queries needing current web information, tasks benefiting from search-augmented generation, or research projects requiring integration of multiple external sources.</Warning>
+
+***
+
+## Context Length per Model
+
+| Model                 | Context Length | Model Type      |
+| --------------------- | -------------- | --------------- |
+| `sonar-deep-research` | 128k           | Chat Completion |
+| `sonar-reasoning-pro` | 128k           | Chat Completion |
+| `sonar-reasoning`     | 128k           | Chat Completion |
+| `sonar-pro`           | 200k           | Chat Completion |
+| `sonar`               | 128k           | Chat Completion |
+| `r1-1776`             | 128k           | Chat Completion |
+
+<Note>
+  * `sonar-pro` has a max output token limit of 8k.
+  * The reasoning models output Chain of Thought (CoT) responses.
+  * `r1-1776` is an offline chat model that does not use our search subsystem.
+</Note>
+
+
+# Application Status
+Source: https://docs.perplexity.ai/system-status/system-status
+
+
+
+You can check the status of our services [here](https://status.perplexity.com/).
+
+If you experience any issues or have any questions, please contact us at [api@perplexity.ai](mailto:api@perplexity.ai) or flag a bug report in our [Discord](https://discord.com/invite/perplexity-ai) channel.
+
+

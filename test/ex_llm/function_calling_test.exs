@@ -24,7 +24,7 @@ defmodule ExLLM.FunctionCallingTest do
           required: ["location"]
         }
       }
-      
+
       {:ok, function: base_function}
     end
 
@@ -43,7 +43,7 @@ defmodule ExLLM.FunctionCallingTest do
         description: "Get the current weather for a location",
         input_schema: function.parameters
       }
-      
+
       normalized = FunctionCalling.normalize_function(anthropic_func, :anthropic)
       assert %Function{} = normalized
       assert normalized.name == "get_weather"
@@ -66,7 +66,7 @@ defmodule ExLLM.FunctionCallingTest do
           properties: %{}
         }
       }
-      
+
       normalized = FunctionCalling.normalize_function(minimal_function, :anthropic)
       assert %Function{} = normalized
       assert normalized.name == "simple_function"
@@ -75,13 +75,13 @@ defmodule ExLLM.FunctionCallingTest do
 
     test "preserves handler function" do
       handler = fn _args -> {:ok, "handled"} end
-      
+
       function_with_handler = %{
         name: "test",
         parameters: %{type: "object"},
         handler: handler
       }
-      
+
       normalized = FunctionCalling.normalize_function(function_with_handler, :openai)
       assert normalized.handler == handler
     end
@@ -93,7 +93,7 @@ defmodule ExLLM.FunctionCallingTest do
         %{name: "func1", parameters: %{type: "object"}},
         %{name: "func2", parameters: %{type: "object"}}
       ]
-      
+
       normalized = FunctionCalling.normalize_functions(functions, :openai)
       assert length(normalized) == 2
       assert Enum.all?(normalized, &match?(%Function{}, &1))
@@ -111,13 +111,13 @@ defmodule ExLLM.FunctionCallingTest do
           required: ["location"]
         }
       }
-      
+
       {:ok, function: function}
     end
 
     test "formats for OpenAI", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :openai)
-      
+
       assert [openai_func] = formatted
       assert openai_func["name"] == "get_weather"
       assert openai_func["description"] == "Get weather info"
@@ -126,7 +126,7 @@ defmodule ExLLM.FunctionCallingTest do
 
     test "formats for Anthropic", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :anthropic)
-      
+
       assert [anthropic_tool] = formatted
       assert anthropic_tool["name"] == "get_weather"
       assert anthropic_tool["description"] == "Get weather info"
@@ -136,7 +136,7 @@ defmodule ExLLM.FunctionCallingTest do
 
     test "formats for Gemini", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :gemini)
-      
+
       assert [gemini_func] = formatted
       assert gemini_func["name"] == "get_weather"
       assert gemini_func["description"] == "Get weather info"
@@ -145,7 +145,7 @@ defmodule ExLLM.FunctionCallingTest do
 
     test "formats for Bedrock", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :bedrock)
-      
+
       assert [bedrock_tool] = formatted
       assert bedrock_tool["toolSpec"]["name"] == "get_weather"
       assert bedrock_tool["toolSpec"]["description"] == "Get weather info"
@@ -153,8 +153,8 @@ defmodule ExLLM.FunctionCallingTest do
     end
 
     test "returns error for unsupported provider" do
-      assert {:error, {:unsupported_provider, :unknown}} = 
-        FunctionCalling.format_for_provider([], :unknown)
+      assert {:error, {:unsupported_provider, :unknown}} =
+               FunctionCalling.format_for_provider([], :unknown)
     end
   end
 
@@ -172,7 +172,7 @@ defmodule ExLLM.FunctionCallingTest do
           }
         ]
       }
-      
+
       assert {:ok, [call]} = FunctionCalling.parse_function_calls(response, :openai)
       assert %FunctionCall{} = call
       assert call.name == "get_weather"
@@ -197,7 +197,7 @@ defmodule ExLLM.FunctionCallingTest do
           }
         ]
       }
-      
+
       assert {:ok, [call]} = FunctionCalling.parse_function_calls(response, :openai)
       assert call.id == "call_123"
       assert call.name == "get_weather"
@@ -216,7 +216,7 @@ defmodule ExLLM.FunctionCallingTest do
           }
         ]
       }
-      
+
       assert {:ok, [call]} = FunctionCalling.parse_function_calls(response, :anthropic)
       assert call.id == "toolu_123"
       assert call.name == "get_weather"
@@ -240,7 +240,7 @@ defmodule ExLLM.FunctionCallingTest do
           }
         ]
       }
-      
+
       assert {:ok, [call]} = FunctionCalling.parse_function_calls(response, :gemini)
       assert call.name == "get_weather"
       assert call.arguments == %{"location" => "Tokyo"}
@@ -252,8 +252,8 @@ defmodule ExLLM.FunctionCallingTest do
     end
 
     test "returns error for unsupported provider" do
-      assert {:error, {:unsupported_provider, :unknown}} = 
-        FunctionCalling.parse_function_calls(%{}, :unknown)
+      assert {:error, {:unsupported_provider, :unknown}} =
+               FunctionCalling.parse_function_calls(%{}, :unknown)
     end
   end
 
@@ -270,7 +270,7 @@ defmodule ExLLM.FunctionCallingTest do
           "required" => ["location"]
         }
       }
-      
+
       {:ok, schema: function_schema}
     end
 
@@ -279,7 +279,7 @@ defmodule ExLLM.FunctionCallingTest do
         name: "get_weather",
         arguments: %{"location" => "San Francisco", "unit" => "celsius"}
       }
-      
+
       assert {:ok, validated} = FunctionCalling.validate_arguments(call, schema)
       assert validated.arguments == %{"location" => "San Francisco", "unit" => "celsius"}
     end
@@ -289,7 +289,7 @@ defmodule ExLLM.FunctionCallingTest do
         name: "get_weather",
         arguments: ~s({"location": "San Francisco"})
       }
-      
+
       assert {:ok, validated} = FunctionCalling.validate_arguments(call, schema)
       assert validated.arguments == %{"location" => "San Francisco"}
     end
@@ -299,9 +299,9 @@ defmodule ExLLM.FunctionCallingTest do
         name: "get_weather",
         arguments: %{"unit" => "celsius"}
       }
-      
-      assert {:error, {:missing_required_fields, ["location"]}} = 
-        FunctionCalling.validate_arguments(call, schema)
+
+      assert {:error, {:missing_required_fields, ["location"]}} =
+               FunctionCalling.validate_arguments(call, schema)
     end
 
     test "rejects invalid JSON", %{schema: schema} do
@@ -309,7 +309,7 @@ defmodule ExLLM.FunctionCallingTest do
         name: "get_weather",
         arguments: "invalid json {"
       }
-      
+
       assert {:error, :invalid_json} = FunctionCalling.validate_arguments(call, schema)
     end
 
@@ -318,7 +318,7 @@ defmodule ExLLM.FunctionCallingTest do
         name: "get_weather",
         arguments: %{"location" => "SF", "extra" => "data"}
       }
-      
+
       assert {:ok, validated} = FunctionCalling.validate_arguments(call, schema)
       assert validated.arguments["extra"] == "data"
     end
@@ -333,12 +333,12 @@ defmodule ExLLM.FunctionCallingTest do
           args["a"] + args["b"]
         end
       }
-      
+
       call = %FunctionCall{
         name: "calculate",
         arguments: %{"a" => 5, "b" => 3}
       }
-      
+
       assert {:ok, result} = FunctionCalling.execute_function(call, [function])
       assert %FunctionResult{} = result
       assert result.name == "calculate"
@@ -348,7 +348,7 @@ defmodule ExLLM.FunctionCallingTest do
 
     test "returns error for unknown function" do
       call = %FunctionCall{name: "unknown", arguments: %{}}
-      
+
       assert {:error, result} = FunctionCalling.execute_function(call, [])
       assert %FunctionResult{} = result
       assert result.name == "unknown"
@@ -361,9 +361,9 @@ defmodule ExLLM.FunctionCallingTest do
         parameters: %{}
         # No handler
       }
-      
+
       call = %FunctionCall{name: "test", arguments: %{}}
-      
+
       assert {:error, result} = FunctionCalling.execute_function(call, [function])
       assert result.error == :no_handler
     end
@@ -376,9 +376,9 @@ defmodule ExLLM.FunctionCallingTest do
           raise "Execution failed"
         end
       }
-      
+
       call = %FunctionCall{name: "failing", arguments: %{}}
-      
+
       assert {:error, result} = FunctionCalling.execute_function(call, [function])
       assert {:execution_error, "Execution failed"} = result.error
     end
@@ -393,9 +393,9 @@ defmodule ExLLM.FunctionCallingTest do
         },
         handler: fn args -> args end
       }
-      
+
       call = %FunctionCall{name: "strict", arguments: %{}}
-      
+
       assert {:error, result} = FunctionCalling.execute_function(call, [function])
       assert {:missing_required_fields, ["required_field"]} = result.error
     end
@@ -407,9 +407,9 @@ defmodule ExLLM.FunctionCallingTest do
         name: "get_weather",
         result: %{temp: 72, conditions: "sunny"}
       }
-      
+
       formatted = FunctionCalling.format_function_result(result, :openai)
-      
+
       assert formatted.role == "function"
       assert formatted.name == "get_weather"
       # JSON key order may vary
@@ -422,9 +422,9 @@ defmodule ExLLM.FunctionCallingTest do
         name: "get_weather",
         error: "Location not found"
       }
-      
+
       formatted = FunctionCalling.format_function_result(result, :openai)
-      
+
       assert formatted.role == "function"
       assert formatted.name == "get_weather"
       assert formatted.content =~ "error"
@@ -436,9 +436,9 @@ defmodule ExLLM.FunctionCallingTest do
         name: "toolu_123",
         result: "Success"
       }
-      
+
       formatted = FunctionCalling.format_function_result(result, :anthropic)
-      
+
       assert formatted.type == "tool_result"
       assert formatted.tool_use_id == "toolu_123"
       assert formatted.content == ~s("Success")
@@ -449,9 +449,9 @@ defmodule ExLLM.FunctionCallingTest do
         name: "toolu_123",
         error: "Failed"
       }
-      
+
       formatted = FunctionCalling.format_function_result(result, :anthropic)
-      
+
       assert formatted.type == "tool_result"
       assert formatted.tool_use_id == "toolu_123"
       assert formatted.is_error == true
@@ -463,18 +463,18 @@ defmodule ExLLM.FunctionCallingTest do
         name: "calculate",
         result: 42
       }
-      
+
       formatted = FunctionCalling.format_function_result(result, :gemini)
-      
+
       assert formatted.functionResponse.name == "calculate"
       assert formatted.functionResponse.response == 42
     end
 
     test "returns error for unsupported provider" do
       result = %FunctionResult{name: "test", result: "data"}
-      
-      assert {:error, {:unsupported_provider, :unknown}} = 
-        FunctionCalling.format_function_result(result, :unknown)
+
+      assert {:error, {:unsupported_provider, :unknown}} =
+               FunctionCalling.format_function_result(result, :unknown)
     end
   end
 
@@ -487,7 +487,7 @@ defmodule ExLLM.FunctionCallingTest do
           "multiply" -> args["a"] * args["b"]
         end
       end
-      
+
       function = %{
         name: "calculate",
         description: "Perform calculations",
@@ -502,16 +502,16 @@ defmodule ExLLM.FunctionCallingTest do
         },
         handler: handler
       }
-      
+
       # 2. Normalize function
       normalized = FunctionCalling.normalize_function(function, :anthropic)
       assert %Function{} = normalized
-      
+
       # 3. Format for provider
       formatted = FunctionCalling.format_for_provider([normalized], :anthropic)
       assert [tool] = formatted
       assert tool["input_schema"] == function.parameters
-      
+
       # 4. Parse function call from response
       response = %{
         "content" => [
@@ -523,13 +523,13 @@ defmodule ExLLM.FunctionCallingTest do
           }
         ]
       }
-      
+
       assert {:ok, [call]} = FunctionCalling.parse_function_calls(response, :anthropic)
-      
+
       # 5. Execute function
       assert {:ok, result} = FunctionCalling.execute_function(call, [normalized])
       assert result.result == 8
-      
+
       # 6. Format result for response
       formatted_result = FunctionCalling.format_function_result(result, :anthropic)
       assert formatted_result.type == "tool_result"

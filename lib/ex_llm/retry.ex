@@ -344,10 +344,10 @@ defmodule ExLLM.Retry do
 
   defp log_failure(attempt, reason, provider) do
     # Log final failure after all retries
-    Logger.error("Request failed after #{attempt} attempts", [
+    Logger.error("Request failed after #{attempt} attempts",
       provider: provider,
       attempts: attempt,
       reason: inspect(reason)
-    ])
+    )
   end
 end

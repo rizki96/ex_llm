@@ -45,7 +45,7 @@ defmodule ExLLM.MixProject do
 
       # JSON encoding/decoding
       {:jason, "~> 1.4"},
-      
+
       # Configuration file parsing
       {:yaml_elixir, "~> 2.9"},
 

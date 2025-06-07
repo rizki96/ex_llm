@@ -11,16 +11,16 @@ defmodule ExLLM.Adapters.OpenRouterTest do
     test "configured?/1 returns true with API key" do
       config = %{openrouter: %{api_key: "sk-or-test"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       assert OpenRouter.configured?(config_provider: provider)
     end
 
     test "configured?/1 works with environment variables" do
       original = System.get_env("OPENROUTER_API_KEY")
       System.put_env("OPENROUTER_API_KEY", "sk-or-test")
-      
+
       assert OpenRouter.configured?(config_provider: ExLLM.ConfigProvider.Env)
-      
+
       if original do
         System.put_env("OPENROUTER_API_KEY", original)
       else
@@ -56,7 +56,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       _mock_response = %{
         "id" => "chatcmpl-123",
         "object" => "chat.completion",
-        "created" => 1677652288,
+        "created" => 1_677_652_288,
         "model" => "openai/gpt-4o",
         "choices" => [
           %{
@@ -107,7 +107,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       {:ok, models} = OpenRouter.list_models()
       assert is_list(models)
       assert length(models) > 0
-      
+
       # Check first model has expected structure
       [first_model | _] = models
       assert %ExLLM.Types.Model{} = first_model
@@ -176,10 +176,10 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       # This would normally make an API call, but we're just testing the format handling
       # The actual API call would fail without proper mocking
       result = OpenRouter.chat(messages, config_provider: provider)
-      
+
       # We expect either a valid response or a network error (since we're not mocking HTTP)
-      assert match?({:ok, %Types.LLMResponse{}}, result) or 
-             match?({:error, _}, result)
+      assert match?({:ok, %Types.LLMResponse{}}, result) or
+               match?({:error, _}, result)
     end
   end
 
@@ -191,6 +191,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
           base_url: "https://custom.openrouter.ai/api/v1"
         }
       }
+
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
       # Verify the adapter uses custom configuration
@@ -205,6 +206,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
           app_url: "https://testapp.com"
         }
       }
+
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
       # Headers would be tested with HTTP mocking
@@ -217,14 +219,15 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
       # Test temperature parameter
-      result = OpenRouter.chat(messages, 
-        config_provider: provider,
-        temperature: 0.7
-      )
-      
+      result =
+        OpenRouter.chat(messages,
+          config_provider: provider,
+          temperature: 0.7
+        )
+
       # We expect either a valid response or a network error
-      assert match?({:ok, %Types.LLMResponse{}}, result) or 
-             match?({:error, _}, result)
+      assert match?({:ok, %Types.LLMResponse{}}, result) or
+               match?({:error, _}, result)
     end
 
     test "handles max_tokens parameter" do
@@ -233,14 +236,15 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
       # Test max_tokens parameter
-      result = OpenRouter.chat(messages,
-        config_provider: provider,
-        max_tokens: 100
-      )
-      
+      result =
+        OpenRouter.chat(messages,
+          config_provider: provider,
+          max_tokens: 100
+        )
+
       # We expect either a valid response or a network error
-      assert match?({:ok, %Types.LLMResponse{}}, result) or 
-             match?({:error, _}, result)
+      assert match?({:ok, %Types.LLMResponse{}}, result) or
+               match?({:error, _}, result)
     end
   end
 
@@ -251,7 +255,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
       result = OpenRouter.chat(messages, config_provider: provider)
-      
+
       # Should return an error (either API error or network error)
       assert match?({:error, _}, result)
     end
@@ -273,8 +277,9 @@ defmodule ExLLM.Adapters.OpenRouterTest do
     test "default model is accessible" do
       # Test integration with default_model
       case ExLLM.default_model(:openrouter) do
-        model when is_binary(model) -> 
+        model when is_binary(model) ->
           assert model == "anthropic/claude-3-5-sonnet"
+
         {:error, _reason} ->
           # This is acceptable if the adapter isn't loaded
           :ok

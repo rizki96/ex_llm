@@ -284,7 +284,7 @@ defmodule ExLLM.StreamRecovery do
           # Invalid chunk content, ignore
           {:noreply, state}
         end
-        
+
       _partial ->
         # Invalid chunk, ignore it
         {:noreply, state}

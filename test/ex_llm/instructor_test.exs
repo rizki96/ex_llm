@@ -9,7 +9,7 @@ defmodule ExLLM.InstructorTest do
     System.put_env("GOOGLE_API_KEY", "test-google-key")
     System.put_env("GROQ_API_KEY", "test-groq-key")
     System.put_env("XAI_API_KEY", "test-xai-key")
-    
+
     on_exit(fn ->
       System.delete_env("OPENAI_API_KEY")
       System.delete_env("ANTHROPIC_API_KEY")
@@ -62,7 +62,7 @@ defmodule ExLLM.InstructorTest do
       response = %ExLLM.Types.LLMResponse{
         content: """
         Here's the data:
-        
+
         ```json
         {"name": "Jane", "age": 25}
         ```
@@ -97,7 +97,9 @@ defmodule ExLLM.InstructorTest do
       }
 
       type_spec = %{name: :string, age: :integer}
-      assert {:error, {:name, {:invalid_type, :string}}} = Instructor.parse_response(response, type_spec)
+
+      assert {:error, {:name, {:invalid_type, :string}}} =
+               Instructor.parse_response(response, type_spec)
     end
 
     test "handles array types" do
@@ -109,8 +111,9 @@ defmodule ExLLM.InstructorTest do
       }
 
       type_spec = %{tags: {:array, :string}}
-      assert {:ok, %{tags: ["elixir", "programming", "functional"]}} = 
-             Instructor.parse_response(response, type_spec)
+
+      assert {:ok, %{tags: ["elixir", "programming", "functional"]}} =
+               Instructor.parse_response(response, type_spec)
     end
   end
 

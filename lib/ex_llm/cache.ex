@@ -76,16 +76,16 @@ defmodule ExLLM.Cache do
   @spec get(String.t()) :: {:ok, any()} | :miss
   def get(key) do
     result = GenServer.call(__MODULE__, {:get, key})
-    
+
     # Log cache access
     case result do
       {:ok, _} -> Logger.log_cache_event(:hit, key)
       :miss -> Logger.log_cache_event(:miss, key)
     end
-    
+
     result
   catch
-    :exit, _ -> 
+    :exit, _ ->
       Logger.log_cache_event(:error, key, %{reason: :genserver_not_running})
       :miss
   end
@@ -99,10 +99,10 @@ defmodule ExLLM.Cache do
     Logger.log_cache_event(:put, key, %{
       ttl: Keyword.get(opts, :ttl, @default_ttl)
     })
-    
+
     GenServer.cast(__MODULE__, {:put, key, value, opts})
   catch
-    :exit, _ -> 
+    :exit, _ ->
       Logger.log_cache_event(:error, key, %{reason: :genserver_not_running})
       :ok
   end

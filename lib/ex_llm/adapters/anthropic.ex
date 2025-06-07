@@ -48,8 +48,18 @@ defmodule ExLLM.Adapters.Anthropic do
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
   alias ExLLM.Types
-  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, ErrorHandler, MessageFormatter, StreamingBehavior, Validation}
-  import ExLLM.Adapters.OpenAICompatible, only: [format_model_name: 1, default_model_transformer: 2]
+
+  alias ExLLM.Adapters.Shared.{
+    ConfigHelper,
+    HTTPClient,
+    ErrorHandler,
+    MessageFormatter,
+    StreamingBehavior,
+    Validation
+  }
+
+  import ExLLM.Adapters.OpenAICompatible,
+    only: [format_model_name: 1, default_model_transformer: 2]
 
   @default_base_url "https://api.anthropic.com/v1"
 
@@ -60,20 +70,24 @@ defmodule ExLLM.Adapters.Anthropic do
          config <- ConfigHelper.get_config(:anthropic, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY"),
          {:ok, _} <- Validation.validate_api_key(api_key) do
-      
-      model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:anthropic))
-      
+      model =
+        Keyword.get(
+          options,
+          :model,
+          Map.get(config, :model) || ConfigHelper.ensure_default_model(:anthropic)
+        )
+
       body = build_request_body(messages, model, config, options)
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages"
-      
+
       case HTTPClient.post_json(url, body, headers, timeout: 60_000) do
         {:ok, response} ->
           {:ok, parse_response(response)}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:anthropic, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -87,50 +101,65 @@ defmodule ExLLM.Adapters.Anthropic do
          config <- ConfigHelper.get_config(:anthropic, config_provider),
          api_key <- ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY"),
          {:ok, _} <- Validation.validate_api_key(api_key) do
-      
-      model = Keyword.get(options, :model, Map.get(config, :model) || ConfigHelper.ensure_default_model(:anthropic))
-      
-      body = 
+      model =
+        Keyword.get(
+          options,
+          :model,
+          Map.get(config, :model) || ConfigHelper.ensure_default_model(:anthropic)
+        )
+
+      body =
         messages
         |> build_request_body(model, config, options)
         |> Map.put(:stream, true)
-        
+
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages"
       parent = self()
       ref = make_ref()
-      
+
       # Start streaming task
       Task.start(fn ->
-        HTTPClient.stream_request(url, body, headers, 
+        HTTPClient.stream_request(
+          url,
+          body,
+          headers,
           fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
-          on_error: fn status, body -> 
-            send(parent, {ref, {:error, ErrorHandler.handle_provider_error(:anthropic, status, body)}})
+          on_error: fn status, body ->
+            send(
+              parent,
+              {ref, {:error, ErrorHandler.handle_provider_error(:anthropic, status, body)}}
+            )
           end
         )
       end)
-      
+
       # Create stream that processes chunks
-      stream = Stream.resource(
-        fn -> ref end,
-        fn ref ->
-          receive do
-            {^ref, {:chunk, data}} ->
-              case parse_stream_chunk(data) do
-                {:ok, :done} -> {:halt, ref}
-                {:ok, chunk} -> {[chunk], ref}
-                {:error, _} -> {[], ref}  # Skip bad chunks
-              end
-              
-            {^ref, :done} -> {:halt, ref}
-            {^ref, {:error, error}} -> throw(error)
-          after
-            100 -> {[], ref}
-          end
-        end,
-        fn _ -> :ok end
-      )
-      
+      stream =
+        Stream.resource(
+          fn -> ref end,
+          fn ref ->
+            receive do
+              {^ref, {:chunk, data}} ->
+                case parse_stream_chunk(data) do
+                  {:ok, :done} -> {:halt, ref}
+                  {:ok, chunk} -> {[chunk], ref}
+                  # Skip bad chunks
+                  {:error, _} -> {[], ref}
+                end
+
+              {^ref, :done} ->
+                {:halt, ref}
+
+              {^ref, {:error, error}} ->
+                throw(error)
+            after
+              100 -> {[], ref}
+            end
+          end,
+          fn _ -> :ok end
+        )
+
       {:ok, stream}
     end
   end
@@ -152,41 +181,45 @@ defmodule ExLLM.Adapters.Anthropic do
   def list_models(options \\ []) do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:anthropic, config_provider)
-    
+
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(:anthropic,
-      Keyword.merge(options, [
-        api_fetcher: fn(_opts) -> fetch_anthropic_models(config) end,
+    ExLLM.ModelLoader.load_models(
+      :anthropic,
+      Keyword.merge(options,
+        api_fetcher: fn _opts -> fetch_anthropic_models(config) end,
         config_transformer: &anthropic_model_transformer/2
-      ])
+      )
     )
   end
-  
+
   defp fetch_anthropic_models(config) do
     api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
-    
+
     case Validation.validate_api_key(api_key) do
-      {:error, _} = error -> error
+      {:error, _} = error ->
+        error
+
       {:ok, _} ->
         headers = build_headers(api_key)
-        
+
         case Req.get("https://api.anthropic.com/v1/models", headers: headers) do
           {:ok, %{status: 200, body: %{"data" => models}}} ->
-            parsed_models = models
-            |> Enum.map(&parse_anthropic_model/1)
-            |> Enum.sort_by(& &1.id)
-            
+            parsed_models =
+              models
+              |> Enum.map(&parse_anthropic_model/1)
+              |> Enum.sort_by(& &1.id)
+
             {:ok, parsed_models}
-            
+
           {:ok, %{status: status, body: body}} ->
             ErrorHandler.handle_provider_error(:anthropic, status, body)
-            
+
           {:error, reason} ->
             {:error, "Network error: #{inspect(reason)}"}
         end
     end
   end
-  
+
   defp parse_anthropic_model(model) do
     %Types.Model{
       id: model["id"],
@@ -201,27 +234,36 @@ defmodule ExLLM.Adapters.Anthropic do
       }
     }
   end
-  
+
   defp build_anthropic_capabilities(model) do
     capabilities = ["streaming"]
-    
-    capabilities = if model["supports_tools"], do: ["function_calling" | capabilities], else: capabilities
+
+    capabilities =
+      if model["supports_tools"], do: ["function_calling" | capabilities], else: capabilities
+
     capabilities = if model["supports_vision"], do: ["vision" | capabilities], else: capabilities
-    capabilities = if Map.get(model, "supports_system_messages", true), do: ["system_messages" | capabilities], else: capabilities
-    
+
+    capabilities =
+      if Map.get(model, "supports_system_messages", true),
+        do: ["system_messages" | capabilities],
+        else: capabilities
+
     capabilities
   end
-  
+
   # Transform config data to Anthropic model format
   defp anthropic_model_transformer(model_id, config) do
     # Use base transformer but override description
     base_model = default_model_transformer(model_id, config)
-    %{base_model |
-      description: Map.get(config, :description, generate_anthropic_description(to_string(model_id))),
-      context_window: Map.get(config, :context_window, 200_000)
+
+    %{
+      base_model
+      | description:
+          Map.get(config, :description, generate_anthropic_description(to_string(model_id))),
+        context_window: Map.get(config, :context_window, 200_000)
     }
   end
-  
+
   defp generate_anthropic_description(model_id) do
     cond do
       String.contains?(model_id, "opus-4") -> "Claude Opus 4: Most intelligent model"
@@ -239,66 +281,66 @@ defmodule ExLLM.Adapters.Anthropic do
     case Jason.decode(data) do
       {:ok, %{"type" => "message_stop"}} ->
         {:ok, :done}
-        
+
       {:ok, %{"type" => "content_block_delta", "delta" => %{"text" => text}}} ->
         chunk = StreamingBehavior.create_text_chunk(text)
         {:ok, chunk}
-        
+
       {:ok, %{"type" => "message_delta", "delta" => %{"stop_reason" => reason}}} ->
         chunk = StreamingBehavior.create_text_chunk("", finish_reason: reason)
         {:ok, chunk}
-        
+
       {:ok, _} ->
         # Other event types we don't need to handle
         {:ok, StreamingBehavior.create_text_chunk("")}
-        
+
       {:error, _} ->
         {:error, :invalid_json}
     end
   end
 
   # Private functions
-  
+
   # API key validation moved to shared Validation module
-  
+
   defp build_request_body(messages, model, config, options) do
     # Extract system message if present
     {system_content, other_messages} = MessageFormatter.extract_system_message(messages)
-    
+
     # Format messages for Anthropic
     formatted_messages = format_messages_for_anthropic(other_messages)
-    
+
     body = %{
       model: model,
       messages: formatted_messages,
       max_tokens: Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, 4096))
     }
-    
+
     # Add system message if present
-    body = if system_content do
-      Map.put(body, :system, system_content)
-    else
-      body
-    end
-    
+    body =
+      if system_content do
+        Map.put(body, :system, system_content)
+      else
+        body
+      end
+
     # Add temperature if specified
     case Keyword.get(options, :temperature) do
       nil -> body
       temp -> Map.put(body, :temperature, temp)
     end
   end
-  
+
   defp build_headers(api_key) do
     [
       {"x-api-key", api_key},
       {"anthropic-version", "2023-06-01"}
     ]
   end
-  
+
   defp get_base_url(config) do
     Map.get(config, :base_url) || @default_base_url
   end
-
 
   defp format_messages_for_anthropic(messages) do
     # Anthropic expects alternating user/assistant messages
@@ -376,7 +418,6 @@ defmodule ExLLM.Adapters.Anthropic do
     }
   end
 
-
   defp parse_response(response) do
     content =
       response["content"]
@@ -412,5 +453,4 @@ defmodule ExLLM.Adapters.Anthropic do
       cost: cost
     }
   end
-
 end

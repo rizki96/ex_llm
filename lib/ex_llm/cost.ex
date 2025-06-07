@@ -73,7 +73,7 @@ defmodule ExLLM.Cost do
   end
 
   def estimate_tokens(%{content: nil}), do: 0
-  
+
   def estimate_tokens(%{content: content}) do
     estimate_tokens(content)
   end
@@ -114,7 +114,7 @@ defmodule ExLLM.Cost do
         ]
   def list_pricing do
     providers = [:anthropic, :openai, :openrouter, :gemini, :ollama, :bedrock]
-    
+
     for provider <- providers,
         {model, pricing} <- ModelConfig.get_all_pricing(provider),
         pricing != nil do

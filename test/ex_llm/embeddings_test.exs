@@ -23,13 +23,13 @@ defmodule ExLLM.EmbeddingsTest do
     test "calculates similarity between arbitrary vectors" do
       vec1 = [1.0, 2.0, 3.0]
       vec2 = [4.0, 5.0, 6.0]
-      
+
       # Manual calculation:
       # dot_product = 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
       # mag1 = sqrt(1 + 4 + 9) = sqrt(14)
       # mag2 = sqrt(16 + 25 + 36) = sqrt(77)
       # similarity = 32 / (sqrt(14) * sqrt(77)) ≈ 0.9746
-      
+
       similarity = ExLLM.cosine_similarity(vec1, vec2)
       assert_in_delta similarity, 0.9746, 0.0001
     end
@@ -43,7 +43,7 @@ defmodule ExLLM.EmbeddingsTest do
     test "raises error for vectors of different lengths" do
       vec1 = [1.0, 2.0]
       vec2 = [1.0, 2.0, 3.0]
-      
+
       assert_raise ArgumentError, "Embeddings must have the same dimension", fn ->
         ExLLM.cosine_similarity(vec1, vec2)
       end
@@ -53,7 +53,7 @@ defmodule ExLLM.EmbeddingsTest do
       # Test with large values
       vec1 = [1000.0, 2000.0, 3000.0]
       vec2 = [4000.0, 5000.0, 6000.0]
-      
+
       similarity = ExLLM.cosine_similarity(vec1, vec2)
       assert similarity >= -1.0
       assert similarity <= 1.0
@@ -70,14 +70,14 @@ defmodule ExLLM.EmbeddingsTest do
         %{id: 4, text: "puppies", embedding: [0.0, 0.9, 0.1]},
         %{id: 5, text: "opposite", embedding: [-1.0, 0.0, 0.0]}
       ]
-      
+
       {:ok, items: items_with_embeddings}
     end
 
     test "finds most similar embedding", %{items: items} do
       query = [1.0, 0.0, 0.0]
       results = ExLLM.find_similar(query, items, top_k: 1)
-      
+
       assert length(results) == 1
       [%{item: item, similarity: similarity}] = results
       assert item.id == 1
@@ -88,51 +88,54 @@ defmodule ExLLM.EmbeddingsTest do
     test "returns top k similar embeddings", %{items: items} do
       query = [1.0, 0.0, 0.0]
       results = ExLLM.find_similar(query, items, top_k: 3)
-      
+
       assert length(results) == 3
-      
+
       # Check ordering (most similar first)
       similarities = Enum.map(results, fn %{similarity: sim} -> sim end)
       assert similarities == Enum.sort(similarities, :desc)
-      
+
       # Check expected order - cat (1.0), kittens (~0.89), dogs (0.0)
       ids = Enum.map(results, fn %{item: item} -> item.id end)
-      assert ids == [1, 2, 3] or ids == [1, 2, 4]  # dogs and puppies both have 0.0 similarity
+      # dogs and puppies both have 0.0 similarity
+      assert ids == [1, 2, 3] or ids == [1, 2, 4]
     end
 
     test "filters by threshold", %{items: items} do
       query = [1.0, 0.0, 0.0]
       results = ExLLM.find_similar(query, items, top_k: 10, threshold: 0.5)
-      
+
       # Should only return embeddings with similarity >= 0.5
       assert length(results) == 2
-      
+
       Enum.each(results, fn %{similarity: similarity} ->
         assert similarity >= 0.5
       end)
     end
 
     test "returns empty list when no embeddings meet threshold", %{items: items} do
-      query = [0.0, 0.0, 1.0]  # Orthogonal to all embeddings in the dataset
+      # Orthogonal to all embeddings in the dataset
+      query = [0.0, 0.0, 1.0]
       results = ExLLM.find_similar(query, items, threshold: 0.5)
-      
+
       assert results == []
     end
 
     test "handles empty items list" do
       query = [1.0, 0.0, 0.0]
       results = ExLLM.find_similar(query, [], top_k: 5)
-      
+
       assert results == []
     end
 
     test "handles top_k larger than items list", %{items: items} do
       query = [1.0, 0.0, 0.0]
       results = ExLLM.find_similar(query, items, top_k: 100)
-      
+
       # One item has negative similarity (opposite vector), which might be filtered
       # by default threshold of 0.0
-      assert length(results) == 4  # Excludes the "opposite" item with -1.0 similarity
+      # Excludes the "opposite" item with -1.0 similarity
+      assert length(results) == 4
     end
   end
 
@@ -141,7 +144,7 @@ defmodule ExLLM.EmbeddingsTest do
     setup do
       # Configure mock adapter for embeddings
       original_config = Application.get_env(:ex_llm, :mock_responses, %{})
-      
+
       mock_config = %{
         embeddings: %ExLLM.Types.EmbeddingResponse{
           embeddings: [[0.1, 0.2, 0.3]],
@@ -149,19 +152,19 @@ defmodule ExLLM.EmbeddingsTest do
           usage: %{input_tokens: 10, output_tokens: 0}
         }
       }
-      
+
       Application.put_env(:ex_llm, :mock_responses, mock_config)
-      
+
       on_exit(fn ->
         Application.put_env(:ex_llm, :mock_responses, original_config)
       end)
-      
+
       :ok
     end
 
     test "generates embeddings for text input" do
       {:ok, response} = ExLLM.embeddings(:mock, ["Hello world"])
-      
+
       assert response.embeddings == [[0.1, 0.2, 0.3]]
       assert response.model == "text-embedding-ada-002"
       assert response.usage.input_tokens == 10
@@ -176,9 +179,9 @@ defmodule ExLLM.EmbeddingsTest do
           usage: %{input_tokens: 10, output_tokens: 0}
         }
       })
-      
+
       {:ok, response} = ExLLM.embeddings(:mock, ["Hello", "World"])
-      
+
       assert length(response.embeddings) == 2
       assert Enum.at(response.embeddings, 0) == [0.1, 0.2, 0.3]
       assert Enum.at(response.embeddings, 1) == [0.4, 0.5, 0.6]
@@ -188,7 +191,7 @@ defmodule ExLLM.EmbeddingsTest do
       Application.put_env(:ex_llm, :mock_responses, %{
         embeddings: {:error, "API error"}
       })
-      
+
       assert {:error, "API error"} = ExLLM.embeddings(:mock, ["test"])
     end
   end
@@ -214,32 +217,32 @@ defmodule ExLLM.EmbeddingsTest do
           }
         ]
       })
-      
+
       {:ok, models} = ExLLM.list_embedding_models(:mock)
-      
+
       assert is_list(models)
       assert length(models) == 2
-      
+
       # Check model structure
       model = hd(models)
       assert model.name == "mock-embedding-small"
       assert model.dimensions == 384
       assert model.max_inputs == 100
-      
+
       Application.delete_env(:ex_llm, :mock_responses)
     end
 
     test "returns empty list for provider without embeddings support" do
       {:ok, models} = ExLLM.list_embedding_models(:anthropic)
       assert models == []
-      
+
       {:ok, models} = ExLLM.list_embedding_models(:gemini)
       assert models == []
     end
 
     test "returns error for unknown provider" do
-      assert {:error, {:unsupported_provider, :unknown}} = 
-        ExLLM.list_embedding_models(:unknown)
+      assert {:error, {:unsupported_provider, :unknown}} =
+               ExLLM.list_embedding_models(:unknown)
     end
   end
 
@@ -253,22 +256,25 @@ defmodule ExLLM.EmbeddingsTest do
         "Machine learning is fascinating",
         "Natural language processing enables computers to understand text"
       ]
-      
+
       # Get embeddings for documents (would use real provider)
       {:ok, doc_response} = ExLLM.embeddings(:openai, documents, model: "text-embedding-3-small")
-      
-      doc_items = Enum.zip(documents, doc_response.embeddings)
-        |> Enum.map(fn {text, embedding} -> 
+
+      doc_items =
+        Enum.zip(documents, doc_response.embeddings)
+        |> Enum.map(fn {text, embedding} ->
           %{text: text, embedding: embedding}
         end)
-      
+
       # Search query
-      {:ok, query_response} = ExLLM.embeddings(:openai, ["feline pet"], model: "text-embedding-3-small")
+      {:ok, query_response} =
+        ExLLM.embeddings(:openai, ["feline pet"], model: "text-embedding-3-small")
+
       query_embedding = hd(query_response.embeddings)
-      
+
       # Find similar documents
       results = ExLLM.find_similar(query_embedding, doc_items, top_k: 2)
-      
+
       # Should find cat-related document first
       assert hd(results).item.text =~ "cat"
     end

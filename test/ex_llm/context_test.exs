@@ -10,17 +10,31 @@ defmodule ExLLM.ContextTest do
         %{role: "assistant", content: "Hi there!"}
       ]
 
-      result = Context.truncate_messages(messages, :anthropic, "claude-3-5-sonnet-20241022", max_tokens: 1000)
+      result =
+        Context.truncate_messages(messages, :anthropic, "claude-3-5-sonnet-20241022",
+          max_tokens: 1000
+        )
+
       assert result == messages
     end
 
     test "truncates messages with sliding window strategy" do
       messages =
         for i <- 1..100 do
-          %{role: "user", content: "Message #{i} " <> String.duplicate("with some longer content to use up tokens ", 20)}
+          %{
+            role: "user",
+            content:
+              "Message #{i} " <>
+                String.duplicate("with some longer content to use up tokens ", 20)
+          }
         end
 
-      result = Context.truncate_messages(messages, :openai, "gpt-3.5-turbo", max_tokens: 200, strategy: :sliding_window)
+      result =
+        Context.truncate_messages(messages, :openai, "gpt-3.5-turbo",
+          max_tokens: 200,
+          strategy: :sliding_window
+        )
+
       assert length(result) < length(messages)
       # Sliding window keeps messages from the beginning
       assert List.first(result).content =~ "Message 1"
@@ -29,14 +43,17 @@ defmodule ExLLM.ContextTest do
     test "preserves system messages with smart strategy" do
       # Create many messages to force truncation
       system_msg = %{role: "system", content: "Important system prompt"}
-      old_messages = for i <- 1..50 do
-        %{role: "user", content: "Old message #{i} " <> String.duplicate("padding ", 20)}
-      end
+
+      old_messages =
+        for i <- 1..50 do
+          %{role: "user", content: "Old message #{i} " <> String.duplicate("padding ", 20)}
+        end
+
       recent_messages = [
         %{role: "user", content: "Recent message"},
         %{role: "assistant", content: "Recent response"}
       ]
-      
+
       messages = [system_msg] ++ old_messages ++ recent_messages
 
       result =
@@ -57,9 +74,7 @@ defmodule ExLLM.ContextTest do
         end
 
       result =
-        Context.truncate_messages(messages, :openai, "gpt-3.5-turbo",
-          max_tokens: 50
-        )
+        Context.truncate_messages(messages, :openai, "gpt-3.5-turbo", max_tokens: 50)
 
       # Should preserve recent messages
       assert length(result) >= 1
@@ -113,7 +128,7 @@ defmodule ExLLM.ContextTest do
       assert_raise RuntimeError, ~r/Unknown model/, fn ->
         Context.get_context_window("unknown", "model")
       end
-      
+
       assert_raise RuntimeError, ~r/Unknown model/, fn ->
         Context.get_context_window("anthropic", "unknown-model")
       end
@@ -144,7 +159,12 @@ defmodule ExLLM.ContextTest do
         for i <- 1..50 do
           %{
             role: "user",
-            content: "Message #{i} " <> String.duplicate("with lots of additional content to ensure we exceed token limits ", 50)
+            content:
+              "Message #{i} " <>
+                String.duplicate(
+                  "with lots of additional content to ensure we exceed token limits ",
+                  50
+                )
           }
         end
 
@@ -160,7 +180,10 @@ defmodule ExLLM.ContextTest do
         %{role: "user", content: "short message"}
       ]
 
-      result = Context.truncate_messages(messages, :anthropic, "claude-3-5-sonnet-20241022", max_tokens: 1000)
+      result =
+        Context.truncate_messages(messages, :anthropic, "claude-3-5-sonnet-20241022",
+          max_tokens: 1000
+        )
 
       assert length(result) == 1
       assert result == messages

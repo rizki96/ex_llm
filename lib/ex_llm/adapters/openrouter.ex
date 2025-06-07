@@ -88,7 +88,7 @@ defmodule ExLLM.Adapters.OpenRouter do
       {:error, "OpenRouter API key not configured"}
     else
       model = Keyword.get(options, :model, get_model(config))
-      
+
       request_body = build_request_body(messages, model, options)
       headers = build_headers(api_key, config)
 
@@ -123,8 +123,8 @@ defmodule ExLLM.Adapters.OpenRouter do
       {:error, "OpenRouter API key not configured"}
     else
       model = Keyword.get(options, :model, get_model(config))
-      
-      request_body = 
+
+      request_body =
         messages
         |> build_request_body(model, options)
         |> Map.put("stream", true)
@@ -154,7 +154,7 @@ defmodule ExLLM.Adapters.OpenRouter do
 
     config = get_config(config_provider)
     api_key = get_api_key(config)
-    
+
     !is_nil(api_key) && api_key != ""
   end
 
@@ -175,16 +175,17 @@ defmodule ExLLM.Adapters.OpenRouter do
       )
 
     config = get_config(config_provider)
-    
+
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(:openrouter,
-      Keyword.merge(options, [
-        api_fetcher: fn(_opts) -> fetch_openrouter_models(config) end,
+    ExLLM.ModelLoader.load_models(
+      :openrouter,
+      Keyword.merge(options,
+        api_fetcher: fn _opts -> fetch_openrouter_models(config) end,
         config_transformer: &openrouter_model_transformer/2
-      ])
+      )
     )
   end
-  
+
   defp fetch_openrouter_models(config) do
     api_key = get_api_key(config)
 
@@ -212,7 +213,7 @@ defmodule ExLLM.Adapters.OpenRouter do
       end
     end
   end
-  
+
   defp parse_openrouter_api_model(model) do
     %Types.Model{
       id: model["id"],
@@ -223,7 +224,7 @@ defmodule ExLLM.Adapters.OpenRouter do
       capabilities: parse_capabilities(model)
     }
   end
-  
+
   # Transform config data to OpenRouter model format
   defp openrouter_model_transformer(model_id, config) do
     %Types.Model{
@@ -261,7 +262,8 @@ defmodule ExLLM.Adapters.OpenRouter do
   end
 
   defp get_model(config) do
-    Map.get(config, :model) || System.get_env("OPENROUTER_MODEL") || ConfigHelper.ensure_default_model(:openrouter)
+    Map.get(config, :model) || System.get_env("OPENROUTER_MODEL") ||
+      ConfigHelper.ensure_default_model(:openrouter)
   end
 
   defp get_base_url(config) do
@@ -273,7 +275,8 @@ defmodule ExLLM.Adapters.OpenRouter do
   end
 
   defp get_app_url(config) do
-    Map.get(config, :app_url) || System.get_env("OPENROUTER_APP_URL") || "https://github.com/3rdparty-integrations/ex_llm"
+    Map.get(config, :app_url) || System.get_env("OPENROUTER_APP_URL") ||
+      "https://github.com/3rdparty-integrations/ex_llm"
   end
 
   defp build_headers(api_key, config) do
@@ -284,6 +287,7 @@ defmodule ExLLM.Adapters.OpenRouter do
     ]
 
     app_url = get_app_url(config)
+
     if app_url do
       [{"http-referer", app_url} | base_headers]
     else
@@ -311,10 +315,10 @@ defmodule ExLLM.Adapters.OpenRouter do
       case msg do
         %{role: role, content: content} ->
           %{"role" => to_string(role), "content" => content}
-        
+
         %{"role" => role, "content" => content} ->
           %{"role" => to_string(role), "content" => content}
-        
+
         msg when is_map(msg) ->
           # Handle other message formats
           msg
@@ -362,12 +366,12 @@ defmodule ExLLM.Adapters.OpenRouter do
   defp parse_response(body, model) do
     choice = List.first(body["choices"])
     message = choice["message"]
-    
+
     content = message["content"] || ""
     finish_reason = choice["finish_reason"]
-    
+
     usage = body["usage"] || %{}
-    
+
     {:ok,
      %Types.LLMResponse{
        content: content,
@@ -387,11 +391,13 @@ defmodule ExLLM.Adapters.OpenRouter do
     cond do
       # OpenAI-style function call
       message["function_call"] ->
-        [%{
-          id: "generated_#{:crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)}",
-          name: message["function_call"]["name"],
-          arguments: message["function_call"]["arguments"] |> Jason.decode!()
-        }]
+        [
+          %{
+            id: "generated_#{:crypto.strong_rand_bytes(8) |> Base.encode16(case: :lower)}",
+            name: message["function_call"]["name"],
+            arguments: message["function_call"]["arguments"] |> Jason.decode!()
+          }
+        ]
 
       # OpenAI-style tool calls
       message["tool_calls"] ->
@@ -421,12 +427,12 @@ defmodule ExLLM.Adapters.OpenRouter do
 
   defp parse_stream_chunk(chunk, model) do
     choice = List.first(chunk["choices"])
-    
+
     if choice do
       delta = choice["delta"]
       content = delta["content"] || ""
       finish_reason = choice["finish_reason"]
-      
+
       %Types.StreamChunk{
         content: content,
         model: model,
@@ -439,6 +445,7 @@ defmodule ExLLM.Adapters.OpenRouter do
   end
 
   defp parse_pricing(nil), do: nil
+
   defp parse_pricing(pricing) do
     %{
       currency: "USD",
@@ -446,9 +453,10 @@ defmodule ExLLM.Adapters.OpenRouter do
       output_cost_per_token: parse_price_value(pricing["completion"]) / 1_000_000
     }
   end
-  
+
   defp parse_price_value(nil), do: 0
   defp parse_price_value(value) when is_number(value), do: value
+
   defp parse_price_value(value) when is_binary(value) do
     case Float.parse(value) do
       {parsed, _} -> parsed
@@ -458,11 +466,11 @@ defmodule ExLLM.Adapters.OpenRouter do
 
   defp parse_capabilities(model) do
     features = []
-    
+
     features = if model["supports_streaming"], do: [:streaming | features], else: features
     features = if model["supports_functions"], do: [:function_calling | features], else: features
     features = if model["supports_vision"], do: [:vision | features], else: features
-    
+
     %{
       supports_streaming: model["supports_streaming"] || false,
       supports_functions: model["supports_functions"] || false,
