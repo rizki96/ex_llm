@@ -78,13 +78,13 @@ defmodule ExLLM.Adapters.OpenRouterTest do
       }
 
       # Test would need HTTP mocking - for now we verify the adapter exists
-      assert function_exported?(OpenRouter, :chat, 2)
+      assert function_exported?(OpenRouter, :chat, 1)
     end
 
     test "handles function calls in responses" do
       # Test parsing of function calls from OpenRouter responses
       # This would need mocking to test properly
-      assert function_exported?(OpenRouter, :chat, 2)
+      assert function_exported?(OpenRouter, :chat, 1)
     end
   end
 
@@ -97,7 +97,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
     test "handles streaming responses" do
       # Test streaming functionality
       # This would need mocking to test properly
-      assert function_exported?(OpenRouter, :stream_chat, 2)
+      assert function_exported?(OpenRouter, :stream_chat, 1)
     end
   end
 
@@ -158,7 +158,7 @@ defmodule ExLLM.Adapters.OpenRouterTest do
     test "formats messages correctly" do
       # Test internal message formatting
       # This tests the private function indirectly by ensuring the module compiles
-      assert function_exported?(OpenRouter, :chat, 2)
+      assert function_exported?(OpenRouter, :chat, 1)
     end
 
     test "handles different message formats" do
@@ -263,7 +263,9 @@ defmodule ExLLM.Adapters.OpenRouterTest do
     test "handles API errors gracefully" do
       # Test API error handling
       # This would need HTTP mocking to test specific error scenarios
-      assert function_exported?(OpenRouter, :chat, 2)
+      # Verify chat function exists by calling it without API key
+      result = OpenRouter.chat([%{role: "user", content: "test"}])
+      assert {:error, "OpenRouter API key not configured"} = result
     end
   end
 
@@ -297,13 +299,15 @@ defmodule ExLLM.Adapters.OpenRouterTest do
     test "parses pricing information correctly" do
       # Test pricing parsing from API responses
       # This would be tested with mocked API responses
-      assert function_exported?(OpenRouter, :list_models, 1)
+      # Verify list_models function exists by calling it
+      {:ok, models} = OpenRouter.list_models()
+      assert is_list(models)
     end
 
     test "parses model capabilities correctly" do
       # Test capability parsing (streaming, functions, vision)
       # This would be tested with mocked API responses
-      assert function_exported?(OpenRouter, :list_models, 1)
+      assert function_exported?(OpenRouter, :list_models, 0)
     end
   end
 end

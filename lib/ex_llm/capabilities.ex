@@ -183,7 +183,7 @@ defmodule ExLLM.Capabilities do
     case ModelCapabilities.get_capabilities(provider, model_id) do
       {:ok, model_info} ->
         capabilities = Map.get(model_info.capabilities, normalized_feature)
-        capabilities && capabilities.supported
+        !!(capabilities && capabilities.supported)
 
       _ ->
         false

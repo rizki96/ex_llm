@@ -73,8 +73,9 @@ defmodule ExLLM.Adapters.LocalTest do
   describe "model metadata" do
     test "model names are humanized correctly" do
       # Test would verify humanize_model_name if it were public
-      # For now, we just ensure the module loads
-      assert function_exported?(Local, :list_models, 1)
+      # For now, we just ensure the module loads and list_models is callable
+      {:ok, models} = Local.list_models()
+      assert is_list(models)
     end
 
     test "default model is available" do

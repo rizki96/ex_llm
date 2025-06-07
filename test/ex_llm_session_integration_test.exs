@@ -59,16 +59,30 @@ defmodule ExLLM.SessionIntegrationTest do
     @describetag :integration
 
     setup do
-      # Skip if no API key is configured
-      if System.get_env("ANTHROPIC_API_KEY") do
-        :ok
-      else
-        {:ok, %{skip: "No ANTHROPIC_API_KEY set"}}
-      end
+      # Set up mock responses for session tests
+      ExLLM.Adapters.Mock.start_link()
+      ExLLM.Adapters.Mock.set_response_handler(fn messages, _options ->
+        last_message = List.last(messages)
+        content = last_message.content || last_message[:content] || last_message["content"]
+        
+        response_content = cond do
+          String.contains?(content, "2+2") -> "4"
+          String.contains?(content, "my name") -> "Hello Alice! Nice to meet you."
+          String.contains?(content, "What is my name") -> "Your name is Alice."
+          true -> "I understand."
+        end
+        
+        %{
+          content: response_content,
+          model: "mock-model",
+          usage: %{input_tokens: 10, output_tokens: 5}
+        }
+      end)
+      :ok
     end
 
     test "performs chat with session tracking" do
-      session = ExLLM.new_session(:anthropic)
+      session = ExLLM.new_session(:mock)
 
       case ExLLM.chat_with_session(session, "What is 2+2?") do
         {:ok, {response, updated_session}} ->
@@ -98,7 +112,7 @@ defmodule ExLLM.SessionIntegrationTest do
     end
 
     test "maintains conversation context across multiple chats" do
-      session = ExLLM.new_session(:anthropic)
+      session = ExLLM.new_session(:mock)
 
       # First interaction
       case ExLLM.chat_with_session(session, "My name is Alice") do

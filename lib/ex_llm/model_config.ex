@@ -255,7 +255,7 @@ defmodule ExLLM.ModelConfig do
     end
   end
 
-  defp ensure_cache_table do
+  def ensure_cache_table do
     try do
       :ets.new(@config_cache, [:set, :public, :named_table])
     catch

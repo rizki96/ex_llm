@@ -11,6 +11,7 @@ defmodule ExLLM.TestHelpers do
   """
 
   import ExUnit.Assertions
+  import ExUnit.Callbacks
 
   @doc """
   Set up a mock adapter with a predefined response.
@@ -144,7 +145,7 @@ defmodule ExLLM.TestHelpers do
   Wait for async messages with timeout.
   """
   def assert_receive_within(pattern, timeout \\ 1000) do
-    assert_receive pattern, timeout
+    assert_receive ^pattern, timeout
   end
 
   @doc """

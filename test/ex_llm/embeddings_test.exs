@@ -246,37 +246,4 @@ defmodule ExLLM.EmbeddingsTest do
     end
   end
 
-  describe "embeddings API real-world usage" do
-    @tag :skip
-    test "semantic search example" do
-      # This is a conceptual test showing how the API should be used
-      documents = [
-        "The cat sat on the mat",
-        "Dogs are loyal companions",
-        "Machine learning is fascinating",
-        "Natural language processing enables computers to understand text"
-      ]
-
-      # Get embeddings for documents (would use real provider)
-      {:ok, doc_response} = ExLLM.embeddings(:openai, documents, model: "text-embedding-3-small")
-
-      doc_items =
-        Enum.zip(documents, doc_response.embeddings)
-        |> Enum.map(fn {text, embedding} ->
-          %{text: text, embedding: embedding}
-        end)
-
-      # Search query
-      {:ok, query_response} =
-        ExLLM.embeddings(:openai, ["feline pet"], model: "text-embedding-3-small")
-
-      query_embedding = hd(query_response.embeddings)
-
-      # Find similar documents
-      results = ExLLM.find_similar(query_embedding, doc_items, top_k: 2)
-
-      # Should find cat-related document first
-      assert hd(results).item.text =~ "cat"
-    end
-  end
 end

@@ -4,6 +4,12 @@ defmodule ExLLM.ModelCapabilitiesTest do
   alias ExLLM.ModelCapabilities
   alias ExLLM.ModelCapabilities.{Capability, ModelInfo}
 
+  setup do
+    # Ensure the model config cache exists before running tests
+    ExLLM.ModelConfig.ensure_cache_table()
+    :ok
+  end
+
   describe "get_capabilities/2" do
     test "returns model info for known models" do
       assert {:ok, %ModelInfo{} = info} =
@@ -32,6 +38,11 @@ defmodule ExLLM.ModelCapabilitiesTest do
   end
 
   describe "supports?/3" do
+    setup do
+      ExLLM.ModelConfig.ensure_cache_table()
+      :ok
+    end
+    
     test "returns true for supported features" do
       assert ModelCapabilities.supports?(:openai, "gpt-4-turbo", :vision)
       assert ModelCapabilities.supports?(:anthropic, "claude-3-opus-20240229", :function_calling)
@@ -75,6 +86,11 @@ defmodule ExLLM.ModelCapabilitiesTest do
   end
 
   describe "find_models_with_features/1" do
+    setup do
+      ExLLM.ModelConfig.ensure_cache_table()
+      :ok
+    end
+    
     test "finds models with single feature" do
       models = ModelCapabilities.find_models_with_features([:vision])
 

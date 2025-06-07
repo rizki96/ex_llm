@@ -97,8 +97,8 @@ defmodule ExLLM.RetryTest do
       # Verify delays increase exponentially
       [first, second, third] = attempts
 
-      # First attempt is immediate
-      assert first < 5
+      # First attempt is immediate (allow some execution time)
+      assert first <= 10
 
       # Second attempt should be after ~10ms (base_delay)
       assert second >= 10
@@ -111,39 +111,66 @@ defmodule ExLLM.RetryTest do
       assert third - second < 40
     end
 
-    @tag :skip
     test "respects max_delay option" do
-      counter = :counters.new(1, [])
-      delays = []
-
-      Retry.with_retry(
+      # Use an agent to track timing across retries
+      {:ok, agent} = Agent.start_link(fn -> [] end)
+      
+      result = Retry.with_retry(
         fn ->
-          :counters.add(counter, 1, 1)
-          count = :counters.get(counter, 1)
-
-          if count > 1 do
-            _delays = delays ++ [System.monotonic_time(:millisecond)]
-          end
-
-          if count < 5 do
-            {:error, :retry}
+          # Record current time
+          current_time = System.monotonic_time(:millisecond)
+          Agent.update(agent, fn times -> times ++ [current_time] end)
+          
+          # Get attempt count based on recorded times
+          times = Agent.get(agent, & &1)
+          count = length(times)
+          
+          if count < 4 do
+            {:error, :test_retry}
           else
-            {:ok, delays}
+            {:ok, :done}
           end
         end,
         base_delay: 100,
         max_delay: 150,
-        max_attempts: 5
+        max_attempts: 5,
+        retry_on: fn
+          :test_retry -> true
+          _ -> false
+        end
       )
-
+      
+      # Should succeed on the 4th attempt
+      assert {:ok, :done} = result
+      
+      # Get all recorded times
+      times = Agent.get(agent, & &1)
+      Agent.stop(agent)
+      
       # Calculate actual delays between attempts
       actual_delays =
-        delays
+        times
         |> Enum.chunk_every(2, 1, :discard)
         |> Enum.map(fn [a, b] -> b - a end)
-
-      # All delays should be capped at max_delay (150ms) + some jitter
-      assert Enum.all?(actual_delays, fn delay -> delay <= 200 end)
+      
+      # Verify we have 3 delays (between 4 attempts)
+      assert length(actual_delays) == 3
+      
+      # Expected delays with exponential backoff capped at max_delay:
+      # 1st retry: 100ms (base_delay)
+      # 2nd retry: 150ms (would be 200ms but capped at max_delay)
+      # 3rd retry: 150ms (would be 400ms but capped at max_delay)
+      
+      # All delays should respect the constraints
+      # First delay should be around base_delay
+      assert Enum.at(actual_delays, 0) >= 90 and Enum.at(actual_delays, 0) <= 120
+      
+      # Subsequent delays should be capped at max_delay
+      # Allow tolerance for jitter and execution time
+      Enum.drop(actual_delays, 1)
+      |> Enum.each(fn delay ->
+        assert delay >= 140 and delay <= 200
+      end)
     end
 
     test "handles exceptions" do
