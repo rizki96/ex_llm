@@ -79,6 +79,20 @@ defmodule ExLLM.Adapters.Ollama do
       messages: format_messages(messages),
       stream: false
     }
+    
+    # Add tools/functions if provided
+    body = 
+      cond do
+        tools = Keyword.get(options, :tools) ->
+          Map.put(body, :tools, tools)
+        functions = Keyword.get(options, :functions) ->
+          Map.put(body, :tools, format_functions_as_tools(functions))
+        true ->
+          body
+      end
+    
+    # Add other optional parameters
+    body = add_optional_params(body, options)
 
     headers = [{"content-type", "application/json"}]
     url = "#{get_base_url(config)}/api/chat"
@@ -120,6 +134,20 @@ defmodule ExLLM.Adapters.Ollama do
       messages: formatted_messages,
       stream: true
     }
+    
+    # Add tools/functions if provided
+    body = 
+      cond do
+        tools = Keyword.get(options, :tools) ->
+          Map.put(body, :tools, tools)
+        functions = Keyword.get(options, :functions) ->
+          Map.put(body, :tools, format_functions_as_tools(functions))
+        true ->
+          body
+      end
+    
+    # Add other optional parameters
+    body = add_optional_params(body, options)
     
     # Debug log the request
     Logger.debug("Ollama request - Model: #{model}, Messages: #{inspect(formatted_messages, limit: :infinity)}")
@@ -213,16 +241,23 @@ defmodule ExLLM.Adapters.Ollama do
   end
   
   defp parse_ollama_api_model(model) do
+    model_name = model["name"]
+    supports_functions = supports_function_calling?(model_name)
+    
+    features = [:streaming]
+    features = if supports_functions, do: [:function_calling | features], else: features
+    features = if is_vision_model?(model_name), do: [:vision | features], else: features
+    
     %Types.Model{
-      id: model["name"],
-      name: model["name"],
+      id: model_name,
+      name: model_name,
       description: format_ollama_description(model),
       context_window: get_ollama_context_window(model),
       capabilities: %{
         supports_streaming: true,
-        supports_functions: false,
-        supports_vision: is_vision_model?(model["name"]),
-        features: [:streaming]
+        supports_functions: supports_functions,
+        supports_vision: is_vision_model?(model_name),
+        features: features
       }
     }
   end
@@ -266,6 +301,23 @@ defmodule ExLLM.Adapters.Ollama do
     String.contains?(model_name, "vision") || 
     String.contains?(model_name, "llava") ||
     String.contains?(model_name, "bakllava")
+  end
+  
+  defp supports_function_calling?(model_name) do
+    # Models that support function calling in Ollama
+    # Based on Ollama documentation and model capabilities
+    function_capable_models = [
+      "llama3.1", "llama3.2", "llama3.3",  # Llama 3.1+ supports tools
+      "qwen2.5", "qwen2",                   # Qwen 2.5 supports tools
+      "mistral", "mixtral",                 # Mistral models support tools
+      "gemma2",                             # Gemma 2 supports tools
+      "command-r",                          # Command R supports tools
+      "firefunction"                        # Firefunction is specifically for functions
+    ]
+    
+    Enum.any?(function_capable_models, fn model ->
+      String.contains?(String.downcase(model_name), model)
+    end)
   end
   
   # Transform config data to Ollama model format
@@ -348,15 +400,71 @@ defmodule ExLLM.Adapters.Ollama do
       output_tokens: response["eval_count"] || 0,
       total_tokens: (response["prompt_eval_count"] || 0) + (response["eval_count"] || 0)
     }
+    
+    message = response["message"] || %{}
+    
+    # Check if this is a tool call response
+    tool_calls = message["tool_calls"]
 
     %Types.LLMResponse{
-      content: get_in(response, ["message", "content"]) || "",
+      content: message["content"] || "",
       usage: usage,
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
-      cost:
-        ExLLM.Cost.calculate("ollama", model, usage)
+      tool_calls: parse_tool_calls(tool_calls),
+      cost: ExLLM.Cost.calculate("ollama", model, usage)
     }
+  end
+  
+  defp parse_tool_calls(nil), do: nil
+  defp parse_tool_calls([]), do: nil
+  defp parse_tool_calls(tool_calls) when is_list(tool_calls) do
+    Enum.map(tool_calls, fn call ->
+      %{
+        id: call["id"] || generate_tool_call_id(),
+        type: "function",
+        function: %{
+          name: get_in(call, ["function", "name"]),
+          arguments: get_in(call, ["function", "arguments"])
+        }
+      }
+    end)
+  end
+  
+  defp generate_tool_call_id do
+    "call_" <> Base.encode64(:crypto.strong_rand_bytes(12), padding: false)
+  end
+
+  defp format_functions_as_tools(functions) do
+    Enum.map(functions, fn func ->
+      %{
+        type: "function",
+        function: %{
+          name: func.name || func["name"],
+          description: func.description || func["description"],
+          parameters: func.parameters || func["parameters"] || %{}
+        }
+      }
+    end)
+  end
+  
+  defp add_optional_params(body, options) do
+    optional_params = [
+      {:temperature, "temperature"},
+      {:max_tokens, "max_tokens"},
+      {:top_p, "top_p"},
+      {:top_k, "top_k"},
+      {:seed, "seed"},
+      {:stop, "stop"},
+      {:format, "format"}
+    ]
+    
+    Enum.reduce(optional_params, body, fn {opt_key, api_key}, acc ->
+      case Keyword.get(options, opt_key) do
+        nil -> acc
+        value -> Map.put(acc, api_key, value)
+      end
+    end)
   end
 
   defp flush_mailbox do

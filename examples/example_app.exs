@@ -265,8 +265,12 @@ defmodule ExLLM.ExampleApp do
         providers_with_feature
         |> Enum.take(5)
         |> Enum.each(fn p ->
-          {:ok, caps} = ExLLM.get_provider_capabilities(p)
-          IO.puts("  • #{p} - #{caps.name}")
+          case ExLLM.get_provider_capabilities(p) do
+            {:ok, caps} ->
+              IO.puts("  • #{p} - #{caps.name}")
+            {:error, _} ->
+              IO.puts("  • #{p}")
+          end
         end)
         
         if length(providers_with_feature) > 5 do

@@ -171,7 +171,8 @@ defmodule ExLLM.ProviderCapabilities do
         :streaming, :usage_tracking, :dynamic_model_listing,
         :system_messages, :keep_alive, :raw_mode, :custom_templates,
         :model_management, :context_window_override, :temperature_control,
-        :seed_control, :stop_sequences, :mirostat, :numa_control
+        :seed_control, :stop_sequences, :mirostat, :numa_control,
+        :function_calling, :tool_use, :json_mode
       ],
       limitations: %{
         no_cost_tracking: true,
