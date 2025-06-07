@@ -226,9 +226,12 @@ defmodule ExLLM.Instructor do
             _ -> nil
           end
 
+          # Ensure we have a model
+          model = merged_opts[:model] || Keyword.get(options, :model) || ExLLM.default_model(provider)
+          
           # Prepare params for Instructor.chat_completion (first argument)
           params = [
-            model: merged_opts[:model],
+            model: model,
             response_model: merged_opts[:response_model],
             messages: merged_opts[:messages],
             max_retries: merged_opts[:max_retries] || 0
@@ -244,7 +247,14 @@ defmodule ExLLM.Instructor do
           end
 
           # Prepare config (second argument) with adapter
-          config = [adapter: adapter]
+          config = case provider do
+            :ollama ->
+              # Ollama needs base_url in config
+              base_url = merged_opts[:base_url] || "http://localhost:11434"
+              [adapter: adapter, base_url: base_url]
+            _ ->
+              [adapter: adapter]
+          end
 
           # Call instructor with params and config as separate arguments
           case apply(Instructor, :chat_completion, [params, config]) do
@@ -317,9 +327,15 @@ defmodule ExLLM.Instructor do
           ]
 
         :ollama ->
+          model = config_provider.get(:ollama, :model) || ExLLM.ModelConfig.get_default_model(:ollama)
+          # Strip ollama/ prefix if present
+          model = case String.split(model || "", "/", parts: 2) do
+            ["ollama", actual_model] -> actual_model
+            _ -> model
+          end
           [
             base_url: config_provider.get(:ollama, :base_url) || "http://localhost:11434",
-            model: config_provider.get(:ollama, :model) || ExLLM.ModelConfig.get_default_model(:ollama)
+            model: model
           ]
 
         :gemini ->
