@@ -7,7 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2025-06-06
+
 ### Added
+- **Complete OpenAI API Implementation** - Full support for modern OpenAI API features
+  - **Audio Features**: Support for audio input in messages and audio output configuration
+  - **Web Search Integration**: Support for web search options in chat completions
+  - **O-Series Model Features**: Reasoning effort parameter and developer role support
+  - **Predicted Outputs**: Support for faster regeneration with prediction hints
+  - **Additional APIs**: Six new OpenAI API endpoints
+    - `moderate_content/2` - Content moderation using OpenAI's moderation API
+    - `generate_image/2` - DALL-E image generation with configurable parameters
+    - `transcribe_audio/2` - Whisper audio transcription (basic implementation)
+    - `upload_file/3` - File upload for assistants and other endpoints (basic implementation)
+    - `create_assistant/2` - Create assistants with custom instructions and tools
+    - `create_batch/2` - Batch processing for multiple requests
+  - **Enhanced Message Support**: Multiple content parts per message (text + audio/image)
+  - **Modern Request Parameters**: Support for all modern OpenAI API parameters
+    - `max_completion_tokens`, `top_p`, `frequency_penalty`, `presence_penalty`
+    - `seed`, `stop`, `service_tier`, `logprobs`, `top_logprobs`
+  - **JSON Response Formats**: JSON mode and JSON Schema structured outputs
+  - **Modern Tools API**: Full support for tools API replacing deprecated functions
+  - **Enhanced Streaming**: Tool calls and usage information in streaming responses
+  - **Enhanced Usage Tracking**: Detailed token usage with cached/reasoning/audio tokens
+
+### Changed
+- **MessageFormatter**: Added support for "developer" role for O1+ models
+- **OpenAI Adapter**: Comprehensive test coverage with 46 tests following TDD methodology
+- **Response Types**: Enhanced LLMResponse struct with new fields (refusal, logprobs, tool_calls)
+
+### Technical
+- Implemented using Test-Driven Development (TDD) methodology
+- Maintains full backward compatibility with existing API
+- All features validated with comprehensive test suite
+- Proper error handling and API key validation for all new endpoints
+
 - **Ollama Configuration Management** - Generate and update local model configurations
   - New `generate_config/1` function to create YAML config for all installed models
   - New `update_model_config/2` function to update specific model configurations

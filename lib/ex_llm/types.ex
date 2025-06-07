@@ -71,7 +71,10 @@ defmodule ExLLM.Types do
     @moduledoc """
     Standard response format from LLM adapters with integrated cost calculation.
     """
-    defstruct [:content, :model, :usage, :finish_reason, :id, :cost, :function_call, :tool_calls]
+    defstruct [
+      :content, :model, :usage, :finish_reason, :id, :cost,
+      :function_call, :tool_calls, :refusal, :logprobs
+    ]
 
     @type t :: %__MODULE__{
             content: String.t() | nil,
@@ -81,7 +84,9 @@ defmodule ExLLM.Types do
             id: String.t() | nil,
             cost: ExLLM.Types.cost_result() | nil,
             function_call: map() | nil,
-            tool_calls: list(map()) | nil
+            tool_calls: list(map()) | nil,
+            refusal: String.t() | nil,
+            logprobs: map() | nil
           }
   end
 

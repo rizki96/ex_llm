@@ -214,13 +214,13 @@ defmodule ExLLM.Adapters.Shared.MessageFormatter do
   # Private functions
 
   defp validate_message(%{role: role, content: content})
-       when role in ["system", "user", "assistant", "function"] and
+       when role in ["system", "user", "assistant", "function", "developer"] and
               (is_binary(content) or is_list(content)) do
     :ok
   end
 
   defp validate_message(%{"role" => role, "content" => content})
-       when role in ["system", "user", "assistant", "function"] and
+       when role in ["system", "user", "assistant", "function", "developer"] and
               (is_binary(content) or is_list(content)) do
     :ok
   end

@@ -935,12 +935,18 @@ defmodule ExLLM do
         model = Keyword.get(options, :model) || default_model(provider)
         cost_info = calculate_cost(provider, model, usage)
 
-        # Log cost info if logger is available
-        if function_exported?(Logger, :info, 1) do
-          Logger.info("LLM cost: #{format_cost(cost_info.total_cost)} for #{provider}/#{model}")
-        end
+        # Log cost info if logger is available and cost calculation succeeded
+        case cost_info do
+          %{total_cost: total_cost} ->
+            if function_exported?(Logger, :info, 1) do
+              Logger.info("LLM cost: #{format_cost(total_cost)} for #{provider}/#{model}")
+            end
+            cost_info
 
-        cost_info
+          %{error: _} ->
+            # No pricing data available, just return nil
+            nil
+        end
 
       _ ->
         nil

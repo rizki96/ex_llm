@@ -422,6 +422,71 @@
 - [ ] Request/response logging with redaction
 
 
+### OpenAI API Enhancements (Priority 1)
+
+#### Core Chat Completions Missing Features
+- [ ] **Modern Request Parameters**
+  - [ ] `max_completion_tokens` (replaces deprecated `max_tokens`)
+  - [ ] `n` parameter for multiple completions (1-128)
+  - [ ] `top_p` nucleus sampling parameter
+  - [ ] `frequency_penalty` and `presence_penalty` (-2 to 2)
+  - [ ] `seed` parameter for deterministic sampling
+  - [ ] `stop` sequences (string or array)
+  - [ ] `service_tier` for rate limiting control
+
+- [ ] **Response Format & Structured Outputs**
+  - [ ] JSON mode: `response_format: {"type": "json_object"}`
+  - [ ] JSON Schema structured outputs with validation
+  - [ ] Refusal handling in responses
+  - [ ] `logprobs` token probabilities in responses
+
+- [ ] **Modern Tool/Function Calling**
+  - [ ] Migrate from deprecated `functions` to modern `tools` API
+  - [ ] `tool_choice` parameter for controlling tool usage
+  - [ ] Parallel tool calls support
+  - [ ] Tool calling in streaming responses
+
+- [ ] **Advanced Message Content**
+  - [ ] Multiple content parts per message (text + images + audio)
+  - [ ] File content references
+  - [ ] Audio content in messages
+
+- [ ] **New Model Features**
+  - [ ] Audio output with voice selection
+  - [ ] Web search integration with `web_search_options`
+  - [ ] Reasoning effort control for o1/o3 models
+  - [ ] Developer role for o1+ models (replaces system for these models)
+  - [ ] Predicted outputs for faster regeneration
+
+- [ ] **Enhanced Usage Tracking**
+  - [ ] Cached tokens, reasoning tokens, audio tokens in usage
+  - [ ] More detailed cost breakdown
+
+#### Additional OpenAI APIs (Priority 3)
+- [ ] **Assistants API** (Beta)
+  - [ ] Create/list/modify assistants
+  - [ ] Thread management
+  - [ ] Run management with tool integration
+- [ ] **Files API**
+  - [ ] File upload for assistants and fine-tuning
+  - [ ] File management and retrieval
+- [ ] **Image Generation** (DALL-E)
+  - [ ] Text-to-image generation
+  - [ ] Image variations and edits
+- [ ] **Audio API**
+  - [ ] Speech-to-text transcription
+  - [ ] Text-to-speech generation
+  - [ ] Audio translation
+- [ ] **Moderation API**
+  - [ ] Content safety classification
+  - [ ] Multi-category moderation scores
+- [ ] **Batch API**
+  - [ ] Async batch processing
+  - [ ] Cost-effective bulk operations
+- [ ] **Fine-tuning API**
+  - [ ] Custom model training
+  - [ ] Job management and monitoring
+
 ### Additional APIs (Priority 6)
 - [ ] Files API for uploads
 - [ ] Fine-tuning management API
