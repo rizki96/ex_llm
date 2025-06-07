@@ -867,7 +867,7 @@ defmodule ExLLM.ExampleApp do
       },
       %{
         name: "calculate",
-        description: "Perform complex mathematical calculations that require computation",
+        description: "Perform mathematical calculations including basic arithmetic, powers (^), and functions like sqrt. Supports π/pi constant.",
         parameters: %{
           "type" => "object",
           "properties" => %{
@@ -891,8 +891,37 @@ defmodule ExLLM.ExampleApp do
       end,
       "calculate" => fn args ->
         expr = args["expression"]
-        # In real app, use proper expression parser
-        "The result of #{expr} is 42"
+        # Simple calculator for demo
+        result = try do
+          # Replace common math symbols with Elixir equivalents
+          elixir_expr = expr
+          |> String.replace("π", "3.14159265359")
+          |> String.replace("pi", "3.14159265359")
+          |> String.replace("×", "*")
+          |> String.replace("÷", "/")
+          |> String.replace("^", "**")
+          
+          # Use Code.eval_string with limited context for safety
+          {result, _} = Code.eval_string(elixir_expr, [
+            sqrt: &:math.sqrt/1,
+            pow: &:math.pow/2,
+            sin: &:math.sin/1,
+            cos: &:math.cos/1,
+            tan: &:math.tan/1
+          ])
+          
+          # Format the result nicely
+          formatted = case result do
+            float when is_float(float) -> :erlang.float_to_binary(float, decimals: 2)
+            other -> to_string(other)
+          end
+          
+          "The result of #{expr} = #{formatted}"
+        rescue
+          _ -> "Error: Unable to calculate #{expr}. Please use basic arithmetic operations."
+        end
+        
+        result
       end
     }
     
@@ -980,7 +1009,7 @@ defmodule ExLLM.ExampleApp do
               arguments = get_in(tool_call, [:function, :arguments]) || get_in(tool_call, ["function", "arguments"])
               
               IO.puts("\n📞 Calling function: #{name}")
-              IO.puts("Arguments: #{arguments}")
+              IO.puts("Arguments: #{inspect(arguments)}")
               
               # Parse and validate arguments
               case FunctionCalling.parse_arguments(arguments) do
