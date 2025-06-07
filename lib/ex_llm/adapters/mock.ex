@@ -398,68 +398,79 @@ defmodule ExLLM.Adapters.Mock do
     # Check for mock response in Application env first
     case Application.get_env(:ex_llm, :mock_responses, %{})[:embeddings] do
       nil ->
-        # Check for mock configuration in options
-        cond do
-          # Static mock response
-          mock_response = Keyword.get(options, :mock_response) ->
-            result = handle_embeddings_response(mock_response, inputs, options)
-            capture_if_enabled(:embeddings, inputs, options, result)
-            result
-
-          # Error simulation
-          mock_error = Keyword.get(options, :mock_error) ->
-            {:error, mock_error}
-
-          # Default mock embeddings
-          true ->
-            # Generate pseudo-semantic embeddings based on content
-            embeddings =
-              Enum.map(inputs, fn input ->
-                generate_mock_embedding(input)
-              end)
-
-            response = %Types.EmbeddingResponse{
-              embeddings: embeddings,
-              model: Keyword.get(options, :model, "mock-embedding-model"),
-              usage: %{
-                input_tokens: estimate_tokens(inputs),
-                output_tokens: 0
-              }
-            }
-
-            # Add cost if tracking
-            response =
-              if Keyword.get(options, :track_cost, true) do
-                %{
-                  response
-                  | cost: %{
-                      total_cost: 0.0,
-                      input_cost: 0.0,
-                      output_cost: 0.0,
-                      currency: "USD"
-                    }
-                }
-              else
-                response
-              end
-
-            result = {:ok, response}
-            capture_if_enabled(:embeddings, inputs, options, result)
-            result
-        end
+        handle_embeddings_from_options(inputs, options)
 
       {:error, _} = error ->
         error
 
       response when is_function(response, 2) ->
-        case response.(inputs, options) do
-          {:ok, _} = result -> result
-          {:error, _} = error -> error
-          response -> {:ok, response}
-        end
+        handle_embeddings_function(response, inputs, options)
 
       response ->
         {:ok, response}
+    end
+  end
+
+  defp handle_embeddings_from_options(inputs, options) do
+    cond do
+      # Static mock response
+      mock_response = Keyword.get(options, :mock_response) ->
+        result = handle_embeddings_response(mock_response, inputs, options)
+        capture_if_enabled(:embeddings, inputs, options, result)
+        result
+
+      # Error simulation
+      mock_error = Keyword.get(options, :mock_error) ->
+        {:error, mock_error}
+
+      # Default mock embeddings
+      true ->
+        generate_default_embeddings(inputs, options)
+    end
+  end
+
+  defp handle_embeddings_function(response_fn, inputs, options) do
+    case response_fn.(inputs, options) do
+      {:ok, _} = result -> result
+      {:error, _} = error -> error
+      response -> {:ok, response}
+    end
+  end
+
+  defp generate_default_embeddings(inputs, options) do
+    # Generate pseudo-semantic embeddings based on content
+    embeddings = Enum.map(inputs, &generate_mock_embedding/1)
+
+    response = build_embedding_response(embeddings, inputs, options)
+    result = {:ok, response}
+
+    capture_if_enabled(:embeddings, inputs, options, result)
+    result
+  end
+
+  defp build_embedding_response(embeddings, inputs, options) do
+    base_response = %Types.EmbeddingResponse{
+      embeddings: embeddings,
+      model: Keyword.get(options, :model, "mock-embedding-model"),
+      usage: %{
+        input_tokens: estimate_tokens(inputs),
+        output_tokens: 0
+      }
+    }
+
+    # Add cost if tracking
+    if Keyword.get(options, :track_cost, true) do
+      %{
+        base_response
+        | cost: %{
+            total_cost: 0.0,
+            input_cost: 0.0,
+            output_cost: 0.0,
+            currency: "USD"
+          }
+      }
+    else
+      base_response
     end
   end
 
@@ -536,25 +547,15 @@ defmodule ExLLM.Adapters.Mock do
   defp normalize_response(%Types.LLMResponse{} = response), do: response
 
   defp normalize_response(response) when is_map(response) do
-    # Get content, but don't provide a default if it's explicitly nil or missing
-    content =
-      case {Map.has_key?(response, :content), Map.has_key?(response, "content")} do
-        {true, _} -> Map.get(response, :content)
-        {_, true} -> Map.get(response, "content")
-        # Only use default if no content key exists
-        _ -> "Mock response"
-      end
-
     %Types.LLMResponse{
-      content: content,
-      model: Map.get(response, :model) || Map.get(response, "model") || "mock-model",
-      usage: normalize_usage(Map.get(response, :usage) || Map.get(response, "usage")),
-      finish_reason:
-        Map.get(response, :finish_reason) || Map.get(response, "finish_reason") || "stop",
-      id: Map.get(response, :id) || Map.get(response, "id") || generate_id(),
-      function_call: Map.get(response, :function_call) || Map.get(response, "function_call"),
-      tool_calls: Map.get(response, :tool_calls) || Map.get(response, "tool_calls"),
-      cost: Map.get(response, :cost) || Map.get(response, "cost")
+      content: extract_content(response),
+      model: get_field(response, :model, "mock-model"),
+      usage: normalize_usage(get_field(response, :usage)),
+      finish_reason: get_field(response, :finish_reason, "stop"),
+      id: get_field(response, :id, generate_id()),
+      function_call: get_field(response, :function_call),
+      tool_calls: get_field(response, :tool_calls),
+      cost: get_field(response, :cost)
     }
   end
 
@@ -566,6 +567,18 @@ defmodule ExLLM.Adapters.Mock do
       finish_reason: "stop",
       id: generate_id()
     }
+  end
+
+  defp extract_content(response) do
+    case {Map.has_key?(response, :content), Map.has_key?(response, "content")} do
+      {true, _} -> Map.get(response, :content)
+      {_, true} -> Map.get(response, "content")
+      _ -> "Mock response"
+    end
+  end
+
+  defp get_field(map, field, default \\ nil) do
+    Map.get(map, field) || Map.get(map, to_string(field)) || default
   end
 
   defp normalize_usage(nil), do: %{input_tokens: 10, output_tokens: 20, total_tokens: 30}

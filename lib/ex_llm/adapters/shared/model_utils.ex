@@ -50,24 +50,31 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
   """
   @spec generate_description(String.t(), atom()) :: String.t()
   def generate_description(model_id, provider) do
-    base =
-      case provider do
-        :openai -> "OpenAI's"
-        :anthropic -> "Anthropic's"
-        :groq -> "Groq-optimized"
-        :gemini -> "Google's"
-        :meta -> "Meta's"
-        _ -> "Provider's"
-      end
+    base = get_provider_prefix(provider)
+    descriptor = get_model_descriptor(model_id)
+    "#{base} #{descriptor}"
+  end
 
-    cond do
-      String.contains?(model_id, "turbo") -> "#{base} optimized model with improved performance"
-      String.contains?(model_id, "mini") -> "#{base} lightweight model for fast responses"
-      String.contains?(model_id, "vision") -> "#{base} multimodal model with vision capabilities"
-      String.contains?(model_id, "instruct") -> "#{base} instruction-following model"
-      String.contains?(model_id, "chat") -> "#{base} conversational model"
-      true -> "#{base} language model"
-    end
+  defp get_provider_prefix(:openai), do: "OpenAI's"
+  defp get_provider_prefix(:anthropic), do: "Anthropic's"
+  defp get_provider_prefix(:groq), do: "Groq-optimized"
+  defp get_provider_prefix(:gemini), do: "Google's"
+  defp get_provider_prefix(:meta), do: "Meta's"
+  defp get_provider_prefix(_), do: "Provider's"
+
+  defp get_model_descriptor(model_id) do
+    # Check model type in order of specificity
+    model_types = [
+      {"turbo", "optimized model with improved performance"},
+      {"mini", "lightweight model for fast responses"},
+      {"vision", "multimodal model with vision capabilities"},
+      {"instruct", "instruction-following model"},
+      {"chat", "conversational model"}
+    ]
+
+    Enum.find_value(model_types, "language model", fn {pattern, description} ->
+      if String.contains?(model_id, pattern), do: description
+    end)
   end
 
   @doc """

@@ -81,7 +81,8 @@ defmodule ExLLM.Types do
       :function_call,
       :tool_calls,
       :refusal,
-      :logprobs
+      :logprobs,
+      :metadata
     ]
 
     @type t :: %__MODULE__{
@@ -94,7 +95,8 @@ defmodule ExLLM.Types do
             function_call: map() | nil,
             tool_calls: list(map()) | nil,
             refusal: String.t() | nil,
-            logprobs: map() | nil
+            logprobs: map() | nil,
+            metadata: map() | nil
           }
   end
 
@@ -102,13 +104,14 @@ defmodule ExLLM.Types do
     @moduledoc """
     Represents a chunk from a streaming LLM response.
     """
-    defstruct [:content, :finish_reason, :model, :id]
+    defstruct [:content, :finish_reason, :model, :id, :metadata]
 
     @type t :: %__MODULE__{
             content: String.t() | nil,
             finish_reason: String.t() | nil,
             model: String.t() | nil,
-            id: String.t() | nil
+            id: String.t() | nil,
+            metadata: map() | nil
           }
   end
 

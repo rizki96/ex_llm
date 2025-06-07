@@ -21,7 +21,7 @@
       },
       plugins: [],
       requires: [],
-      strict: false, # Start with false, gradually enable
+      strict: true, # Enabled after fixing all complexity and nesting issues
       parse_timeout: 15000,
       color: true,
       checks: [
@@ -46,8 +46,8 @@
         {Credo.Check.Refactor.CyclomaticComplexity, [max_complexity: 12]}, # Relaxed from 9
         {Credo.Check.Refactor.Nesting, [max_nesting: 3]}, # Relaxed from 2
         
-        # Allow TODO comments for now (we have legitimate ones)
-        {Credo.Check.Design.TagTODO, [priority: :low]},
+        # Disallow TODO comments in strict mode (all have been fixed)
+        {Credo.Check.Design.TagTODO, []},
         
         # Disable apply/3 warnings for local model loading (necessary for optional deps)
         {Credo.Check.Warning.ApplicationConfigInModuleAttribute, false},

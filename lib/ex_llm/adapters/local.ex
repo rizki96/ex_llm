@@ -264,10 +264,11 @@ defmodule ExLLM.Adapters.Local do
       try do
         result = apply(Nx.Serving, :run, [serving, %{text: prompt}])
 
+        usage = extract_token_usage(result, prompt)
+
         response = %Types.LLMResponse{
           content: result.text,
-          # TODO: Extract token usage if available
-          usage: nil,
+          usage: usage,
           model: opts[:model] || default_model(),
           finish_reason: "stop"
         }
@@ -315,4 +316,39 @@ defmodule ExLLM.Adapters.Local do
       _pid -> true
     end
   end
+
+  defp extract_token_usage(result, prompt) do
+    # Try to extract token counts from the result
+    # Some local models may provide this information
+    input_tokens = estimate_token_count(prompt)
+    output_tokens = estimate_token_count(result.text || "")
+
+    cond do
+      # If the result contains token usage information, use it
+      Map.has_key?(result, :usage) and Map.has_key?(result.usage, :input_tokens) ->
+        result.usage
+
+      Map.has_key?(result, :input_tokens) ->
+        %{
+          input_tokens: result.input_tokens,
+          output_tokens: result.output_tokens || output_tokens,
+          total_tokens: (result.input_tokens || 0) + (result.output_tokens || output_tokens)
+        }
+
+      # Otherwise, provide estimates
+      true ->
+        %{
+          input_tokens: input_tokens,
+          output_tokens: output_tokens,
+          total_tokens: input_tokens + output_tokens
+        }
+    end
+  end
+
+  defp estimate_token_count(text) when is_binary(text) do
+    # Rough estimation: 4 characters per token
+    div(String.length(text), 4)
+  end
+
+  defp estimate_token_count(_), do: 0
 end

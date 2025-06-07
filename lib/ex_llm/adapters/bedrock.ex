@@ -388,51 +388,50 @@ defmodule ExLLM.Adapters.Bedrock do
     # Parse the response body
     case Jason.decode(response["body"]) do
       {:ok, body} ->
-        content =
-          case provider do
-            "anthropic" ->
-              # Anthropic format
-              body["content"] |> List.first() |> Map.get("text", "")
-
-            "amazon" ->
-              # Titan format
-              body["results"] |> List.first() |> Map.get("outputText", "")
-
-            "meta" ->
-              # Llama format
-              body["generation"]
-
-            "cohere" ->
-              # Cohere format
-              body["generations"] |> List.first() |> Map.get("text", "")
-
-            "ai21" ->
-              # AI21 format
-              body["completions"] |> List.first() |> Map.get("data", %{}) |> Map.get("text", "")
-
-            "mistral" ->
-              # Mistral format
-              body["outputs"] |> List.first() |> Map.get("text", "")
-
-            "writer" ->
-              # Writer format (similar to Anthropic)
-              body["content"] |> List.first() |> Map.get("text", "")
-
-            "deepseek" ->
-              # DeepSeek format (similar to Anthropic)
-              body["content"] |> List.first() |> Map.get("text", "")
-
-            _ ->
-              # Try to find common fields
-              body["text"] || body["content"] || body["output"] || ""
-          end
-
+        content = extract_content_for_provider(provider, body)
         {:ok, content}
 
       {:error, reason} ->
         Logger.error("Failed to parse Bedrock response: #{inspect(reason)}")
         {:error, "Failed to parse response"}
     end
+  end
+
+  defp extract_content_for_provider("anthropic", body) do
+    body["content"] |> List.first() |> Map.get("text", "")
+  end
+
+  defp extract_content_for_provider("amazon", body) do
+    body["results"] |> List.first() |> Map.get("outputText", "")
+  end
+
+  defp extract_content_for_provider("meta", body) do
+    body["generation"]
+  end
+
+  defp extract_content_for_provider("cohere", body) do
+    body["generations"] |> List.first() |> Map.get("text", "")
+  end
+
+  defp extract_content_for_provider("ai21", body) do
+    body["completions"] |> List.first() |> Map.get("data", %{}) |> Map.get("text", "")
+  end
+
+  defp extract_content_for_provider("mistral", body) do
+    body["outputs"] |> List.first() |> Map.get("text", "")
+  end
+
+  defp extract_content_for_provider("writer", body) do
+    body["content"] |> List.first() |> Map.get("text", "")
+  end
+
+  defp extract_content_for_provider("deepseek", body) do
+    body["content"] |> List.first() |> Map.get("text", "")
+  end
+
+  defp extract_content_for_provider(_provider, body) do
+    # Try to find common fields
+    body["text"] || body["content"] || body["output"] || ""
   end
 
   # Commented out - unused function

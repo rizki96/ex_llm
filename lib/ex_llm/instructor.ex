@@ -179,109 +179,111 @@ defmodule ExLLM.Instructor do
   defp do_structured_chat(provider, messages, options) do
     response_model = Keyword.fetch!(options, :response_model)
 
-    # Convert ExLLM provider to instructor adapter
-    adapter =
-      case provider do
-        :anthropic -> Instructor.Adapters.Anthropic
-        :openai -> Instructor.Adapters.OpenAI
-        :ollama -> Instructor.Adapters.Ollama
-        :gemini -> Instructor.Adapters.Gemini
-        :groq -> Instructor.Adapters.Groq
-        :xai -> Instructor.Adapters.XAI
-        # Handle mock directly without Instructor
-        :mock -> :mock_direct
-        :local -> {:error, :unsupported_provider_for_instructor}
-        _ -> {:error, :unsupported_provider_for_instructor}
-      end
-
-    case adapter do
+    case get_instructor_adapter(provider) do
       {:error, reason} ->
         {:error, reason}
 
       :mock_direct ->
-        # Handle mock provider directly
         handle_mock_structured_output(provider, messages, options, response_model)
 
-      _adapter_module ->
-        # Prepare instructor options
-        instructor_opts =
-          options
-          |> Keyword.take([:model, :temperature, :max_tokens, :max_retries])
-          |> Keyword.put(:response_model, response_model)
-          |> Keyword.put(:messages, prepare_messages_for_instructor(messages))
+      adapter ->
+        execute_instructor_chat(provider, messages, options, response_model, adapter)
+    end
+  end
 
-        # Get configuration from ExLLM's config provider
-        config_opts = get_provider_config(provider, options)
+  defp get_instructor_adapter(provider) do
+    case provider do
+      :anthropic -> Instructor.Adapters.Anthropic
+      :openai -> Instructor.Adapters.OpenAI
+      :ollama -> Instructor.Adapters.Ollama
+      :gemini -> Instructor.Adapters.Gemini
+      :groq -> Instructor.Adapters.Groq
+      :xai -> Instructor.Adapters.XAI
+      :mock -> :mock_direct
+      :local -> {:error, :unsupported_provider_for_instructor}
+      _ -> {:error, :unsupported_provider_for_instructor}
+    end
+  end
 
-        # Merge configurations (config_opts first, then instructor_opts to allow overrides)
-        merged_opts = Keyword.merge(config_opts, instructor_opts)
+  defp execute_instructor_chat(provider, messages, options, response_model, adapter) do
+    # Prepare all options
+    instructor_opts = prepare_instructor_options(options, response_model, messages)
+    config_opts = get_provider_config(provider, options)
+    merged_opts = Keyword.merge(config_opts, instructor_opts)
 
-        # Set up the adapter in config
-        adapter =
-          case provider do
-            :anthropic -> Instructor.Adapters.Anthropic
-            :openai -> Instructor.Adapters.OpenAI
-            :ollama -> Instructor.Adapters.Ollama
-            :gemini -> Instructor.Adapters.Gemini
-            :groq -> Instructor.Adapters.Groq
-            :xai -> Instructor.Adapters.XAI
-            _ -> nil
-          end
+    # Build params and config
+    params = build_instructor_params(provider, merged_opts, options)
+    config = build_instructor_config(provider, merged_opts, adapter)
 
-        # Ensure we have a model
-        model =
-          merged_opts[:model] || Keyword.get(options, :model) || ExLLM.default_model(provider)
+    # Execute the request
+    call_instructor(params, config)
+  end
 
-        # Prepare params for Instructor.chat_completion (first argument)
-        params = [
-          model: model,
-          response_model: merged_opts[:response_model],
-          messages: merged_opts[:messages],
-          max_retries: merged_opts[:max_retries] || 0
-        ]
+  defp prepare_instructor_options(options, response_model, messages) do
+    options
+    |> Keyword.take([:model, :temperature, :max_tokens, :max_retries])
+    |> Keyword.put(:response_model, response_model)
+    |> Keyword.put(:messages, prepare_messages_for_instructor(messages))
+  end
 
-        # Add optional parameters only if present
-        params =
-          if merged_opts[:temperature],
-            do: Keyword.put(params, :temperature, merged_opts[:temperature]),
-            else: params
+  defp build_instructor_params(provider, merged_opts, options) do
+    model = get_model_for_instructor(provider, merged_opts, options)
 
-        # For Anthropic, max_tokens is required
-        params =
-          case provider do
-            :anthropic ->
-              Keyword.put(params, :max_tokens, merged_opts[:max_tokens] || 4096)
+    base_params = [
+      model: model,
+      response_model: merged_opts[:response_model],
+      messages: merged_opts[:messages],
+      max_retries: merged_opts[:max_retries] || 0
+    ]
 
-            _ ->
-              if merged_opts[:max_tokens],
-                do: Keyword.put(params, :max_tokens, merged_opts[:max_tokens]),
-                else: params
-          end
+    base_params
+    |> add_temperature_if_present(merged_opts)
+    |> add_max_tokens_for_provider(provider, merged_opts)
+  end
 
-        # Prepare config (second argument) with adapter
-        config =
-          case provider do
-            :ollama ->
-              # Ollama needs base_url in config
-              base_url = merged_opts[:base_url] || "http://localhost:11434"
-              [adapter: adapter, base_url: base_url]
+  defp get_model_for_instructor(provider, merged_opts, options) do
+    merged_opts[:model] || Keyword.get(options, :model) || ExLLM.default_model(provider)
+  end
 
-            _ ->
-              [adapter: adapter]
-          end
+  defp add_temperature_if_present(params, opts) do
+    if opts[:temperature] do
+      Keyword.put(params, :temperature, opts[:temperature])
+    else
+      params
+    end
+  end
 
-        # Call instructor with params and config as separate arguments
-        case apply(Instructor, :chat_completion, [params, config]) do
-          {:ok, result} ->
-            {:ok, result}
+  defp add_max_tokens_for_provider(params, :anthropic, opts) do
+    Keyword.put(params, :max_tokens, opts[:max_tokens] || 4096)
+  end
 
-          {:error, errors} when is_list(errors) ->
-            # Convert instructor validation errors to ExLLM format
-            {:error, format_validation_errors(errors)}
+  defp add_max_tokens_for_provider(params, _provider, opts) do
+    if opts[:max_tokens] do
+      Keyword.put(params, :max_tokens, opts[:max_tokens])
+    else
+      params
+    end
+  end
 
-          {:error, reason} ->
-            {:error, reason}
-        end
+  defp build_instructor_config(:ollama, merged_opts, adapter) do
+    base_url = merged_opts[:base_url] || "http://localhost:11434"
+    [adapter: adapter, base_url: base_url]
+  end
+
+  defp build_instructor_config(_provider, _merged_opts, adapter) do
+    [adapter: adapter]
+  end
+
+  defp call_instructor(params, config) do
+    case apply(Instructor, :chat_completion, [params, config]) do
+      {:ok, result} ->
+        {:ok, result}
+
+      {:error, errors} when is_list(errors) ->
+        {:error, format_validation_errors(errors)}
+
+      {:error, reason} ->
+        {:error, reason}
     end
   end
 
@@ -329,109 +331,53 @@ defmodule ExLLM.Instructor do
   defp get_provider_config(provider, options) do
     config_provider = Keyword.get(options, :config_provider, ExLLM.ConfigProvider.Env)
 
-    case provider do
-      :anthropic ->
-        [
-          model:
-            config_provider.get(:anthropic, :model) ||
-              ExLLM.ModelConfig.get_default_model(:anthropic)
-        ]
-
-      :openai ->
-        [
-          model:
-            config_provider.get(:openai, :model) || ExLLM.ModelConfig.get_default_model(:openai)
-        ]
-
-      :ollama ->
-        model =
-          config_provider.get(:ollama, :model) || ExLLM.ModelConfig.get_default_model(:ollama)
-
-        # Strip ollama/ prefix if present
-        model =
-          case String.split(model || "", "/", parts: 2) do
-            ["ollama", actual_model] -> actual_model
-            _ -> model
-          end
-
-        [
-          base_url: config_provider.get(:ollama, :base_url) || "http://localhost:11434",
-          model: model
-        ]
-
-      :gemini ->
-        [
-          model:
-            config_provider.get(:gemini, :model) || ExLLM.ModelConfig.get_default_model(:gemini)
-        ]
-
-      :groq ->
-        [
-          model: config_provider.get(:groq, :model) || ExLLM.ModelConfig.get_default_model(:groq)
-        ]
-
-      :xai ->
-        [
-          model: config_provider.get(:xai, :model) || ExLLM.ModelConfig.get_default_model(:xai)
-        ]
-
-      :mock ->
-        [
-          model: "mock-model"
-        ]
-
-      _ ->
-        []
-    end
+    provider
+    |> build_provider_config(config_provider)
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
   end
 
+  defp build_provider_config(:mock, _config_provider) do
+    [model: "mock-model"]
+  end
+
+  defp build_provider_config(:ollama, config_provider) do
+    model = get_model_config(:ollama, config_provider)
+    cleaned_model = strip_ollama_prefix(model)
+    base_url = config_provider.get(:ollama, :base_url) || "http://localhost:11434"
+
+    [base_url: base_url, model: cleaned_model]
+  end
+
+  defp build_provider_config(provider, config_provider)
+       when provider in [:anthropic, :openai, :gemini, :groq, :xai] do
+    [model: get_model_config(provider, config_provider)]
+  end
+
+  defp build_provider_config(_provider, _config_provider) do
+    []
+  end
+
+  defp get_model_config(provider, config_provider) do
+    config_provider.get(provider, :model) || ExLLM.ModelConfig.get_default_model(provider)
+  end
+
+  defp strip_ollama_prefix(model) do
+    case String.split(model || "", "/", parts: 2) do
+      ["ollama", actual_model] -> actual_model
+      _ -> model
+    end
+  end
+
   defp validate_against_model(data, response_model) when is_atom(response_model) do
-    # Ecto schema validation
     cond do
-      # Check if it has the standard changeset/2 function
       function_exported?(response_model, :changeset, 2) ->
-        changeset = apply(response_model, :changeset, [struct(response_model), data])
+        validate_with_changeset(response_model, data)
 
-        if changeset.valid? do
-          {:ok, Ecto.Changeset.apply_changes(changeset)}
-        else
-          {:error, format_changeset_errors(changeset)}
-        end
-
-      # Check if it's using Instructor.Validator (has validate_changeset/1)
       function_exported?(response_model, :validate_changeset, 1) ->
-        # Create a basic changeset and apply the validator
-        base_struct = struct(response_model)
+        validate_with_instructor_validator(response_model, data)
 
-        changeset =
-          Ecto.Changeset.cast(
-            base_struct,
-            data,
-            Map.keys(base_struct) -- [:__struct__, :__meta__]
-          )
-
-        validated_changeset = apply(response_model, :validate_changeset, [changeset])
-
-        if validated_changeset.valid? do
-          {:ok, Ecto.Changeset.apply_changes(validated_changeset)}
-        else
-          {:error, format_changeset_errors(validated_changeset)}
-        end
-
-      # Check if it's an embedded schema with __schema__
       function_exported?(response_model, :__schema__, 1) ->
-        # It's an Ecto schema but without changeset function
-        # Create a basic changeset
-        base_struct = struct(response_model)
-        fields = response_model.__schema__(:fields)
-        changeset = Ecto.Changeset.cast(base_struct, data, fields)
-
-        if changeset.valid? do
-          {:ok, Ecto.Changeset.apply_changes(changeset)}
-        else
-          {:error, format_changeset_errors(changeset)}
-        end
+        validate_with_schema(response_model, data)
 
       true ->
         {:error, :invalid_response_model}
@@ -441,6 +387,37 @@ defmodule ExLLM.Instructor do
   defp validate_against_model(data, type_spec) when is_map(type_spec) do
     # Simple type validation
     validate_simple_types(data, type_spec)
+  end
+
+  defp validate_with_changeset(response_model, data) do
+    changeset = apply(response_model, :changeset, [struct(response_model), data])
+    apply_changeset_result(changeset)
+  end
+
+  defp validate_with_instructor_validator(response_model, data) do
+    base_struct = struct(response_model)
+    fields = Map.keys(base_struct) -- [:__struct__, :__meta__]
+
+    changeset = Ecto.Changeset.cast(base_struct, data, fields)
+    validated_changeset = apply(response_model, :validate_changeset, [changeset])
+
+    apply_changeset_result(validated_changeset)
+  end
+
+  defp validate_with_schema(response_model, data) do
+    base_struct = struct(response_model)
+    fields = response_model.__schema__(:fields)
+    changeset = Ecto.Changeset.cast(base_struct, data, fields)
+
+    apply_changeset_result(changeset)
+  end
+
+  defp apply_changeset_result(changeset) do
+    if changeset.valid? do
+      {:ok, Ecto.Changeset.apply_changes(changeset)}
+    else
+      {:error, format_changeset_errors(changeset)}
+    end
   end
 
   defp validate_simple_types(data, type_spec) do

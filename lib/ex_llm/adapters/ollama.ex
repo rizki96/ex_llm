@@ -1094,15 +1094,16 @@ defmodule ExLLM.Adapters.Ollama do
     # We'll add context to the content as a special marker for now
     content = response["response"] || ""
 
-    # If there's a context, we could return it as part of the response
-    # For now, we'll just return the basic response
+    # Include context and timing metadata if available
+    metadata = build_generate_metadata(response)
+
     %Types.LLMResponse{
       content: content,
       usage: usage,
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
-      cost: ExLLM.Cost.calculate("ollama", model, usage)
-      # TODO: Add metadata field to LLMResponse type to store context and timing info
+      cost: ExLLM.Cost.calculate("ollama", model, usage),
+      metadata: metadata
     }
   end
 
@@ -1125,8 +1126,8 @@ defmodule ExLLM.Adapters.Ollama do
 
                 stream_chunk = %Types.StreamChunk{
                   content: content,
-                  finish_reason: nil
-                  # TODO: Add metadata field to StreamChunk type to store context
+                  finish_reason: nil,
+                  metadata: build_stream_chunk_metadata(chunk)
                 }
 
                 send(parent, {:chunk, stream_chunk})
@@ -1993,4 +1994,24 @@ defmodule ExLLM.Adapters.Ollama do
         {:error, "Failed to save configuration: #{inspect(reason)}"}
     end
   end
+
+  # Helper functions for metadata extraction
+
+  defp build_generate_metadata(response) do
+    %{}
+    |> maybe_add_metadata(:context, response["context"])
+    |> maybe_add_metadata(:total_duration, response["total_duration"])
+    |> maybe_add_metadata(:load_duration, response["load_duration"])
+    |> maybe_add_metadata(:prompt_eval_duration, response["prompt_eval_duration"])
+    |> maybe_add_metadata(:eval_duration, response["eval_duration"])
+  end
+
+  defp build_stream_chunk_metadata(chunk) do
+    %{}
+    |> maybe_add_metadata(:model, chunk["model"])
+    |> maybe_add_metadata(:created_at, chunk["created_at"])
+  end
+
+  defp maybe_add_metadata(metadata, _key, nil), do: metadata
+  defp maybe_add_metadata(metadata, key, value), do: Map.put(metadata, key, value)
 end

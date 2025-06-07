@@ -624,13 +624,24 @@ defmodule ExLLM do
   """
   @spec context_stats(messages()) :: map()
   def context_stats(messages) do
-    # TODO: Implement context stats
+    total_tokens = Cost.estimate_tokens(messages)
+    message_count = length(messages)
+
     %{
-      message_count: length(messages),
-      total_tokens: Cost.estimate_tokens(messages),
+      message_count: message_count,
+      total_tokens: total_tokens,
       by_role: Enum.frequencies_by(messages, & &1.role),
-      avg_tokens_per_message: div(Cost.estimate_tokens(messages), max(length(messages), 1))
+      avg_tokens_per_message: div(total_tokens, max(message_count, 1)),
+      character_count: calculate_total_characters(messages),
+      avg_characters_per_message: div(calculate_total_characters(messages), max(message_count, 1))
     }
+  end
+
+  defp calculate_total_characters(messages) do
+    Enum.reduce(messages, 0, fn msg, acc ->
+      content = msg.content || ""
+      acc + String.length(content)
+    end)
   end
 
   # Session Management

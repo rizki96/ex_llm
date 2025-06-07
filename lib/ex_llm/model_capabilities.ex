@@ -691,8 +691,7 @@ defmodule ExLLM.ModelCapabilities do
   def recommend_models(requirements) do
     required_features = Keyword.get(requirements, :features, [])
     min_context = Keyword.get(requirements, :min_context_window, 0)
-    # TODO: Implement cost filtering when pricing data is available
-    # max_cost = Keyword.get(requirements, :max_cost_per_1k_tokens, :infinity)
+    max_cost = Keyword.get(requirements, :max_cost_per_1k_tokens, :infinity)
 
     model_capabilities()
     |> Enum.filter(fn {_key, info} ->
@@ -708,8 +707,11 @@ defmodule ExLLM.ModelCapabilities do
       # Check context window
       has_context = info.context_window >= min_context
 
+      # Check cost constraint
+      within_cost_limit = check_cost_limit(info, max_cost)
+
       # Apply filters
-      has_features and has_context
+      has_features and has_context and within_cost_limit
     end)
     |> Enum.map(fn {_key, info} ->
       # Calculate score based on preferences
@@ -745,6 +747,22 @@ defmodule ExLLM.ModelCapabilities do
       {feature, support}
     end)
     |> Enum.into(%{})
+  end
+
+  defp check_cost_limit(_info, :infinity), do: true
+
+  defp check_cost_limit(info, max_cost) do
+    case info.pricing do
+      %{input_cost_per_token: input_cost, output_cost_per_token: output_cost}
+      when is_number(input_cost) and is_number(output_cost) ->
+        # Calculate cost per 1k tokens (assuming equal input/output ratio for simplicity)
+        avg_cost_per_1k = (input_cost + output_cost) * 500
+        avg_cost_per_1k <= max_cost
+
+      # If no pricing data available, allow it (don't filter out)
+      _ ->
+        true
+    end
   end
 
   defp calculate_recommendation_score(model_info, requirements) do
