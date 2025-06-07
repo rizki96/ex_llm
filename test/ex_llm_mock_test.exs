@@ -70,7 +70,7 @@ defmodule ExLLM.MockTest do
       messages = [%{role: "user", content: "Hello"}]
 
       assert {:error, {:api_error, %{status: 500, body: "Internal server error"}}} =
-               ExLLM.chat(:mock, messages)
+               ExLLM.chat(:mock, messages, retry: false)
     end
   end
 
