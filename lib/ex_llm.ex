@@ -268,37 +268,49 @@ defmodule ExLLM do
   def chat(provider_or_model, messages, options \\ []) do
     # Detect provider from model string if needed
     {provider, options} = detect_provider(provider_or_model, options)
+
     # Check if structured output is requested
     if Keyword.has_key?(options, :response_model) do
-      # Delegate to Instructor module if available
-      if Code.ensure_loaded?(ExLLM.Instructor) and ExLLM.Instructor.available?() do
-        ExLLM.Instructor.chat(provider, messages, options)
-      else
-        {:error, :instructor_not_available}
-      end
+      handle_structured_output(provider, messages, options)
     else
-      # Regular chat flow with retry support
-      case get_adapter(provider) do
-        {:ok, adapter} ->
-          # Apply context management if enabled
-          prepared_messages = prepare_messages_for_provider(provider, messages, options)
+      handle_regular_chat(provider, messages, options)
+    end
+  end
 
-          # Check if retry is enabled
-          if Keyword.get(options, :retry, true) do
-            ExLLM.Retry.with_provider_retry(
-              provider,
-              fn ->
-                execute_chat(adapter, provider, prepared_messages, options)
-              end,
-              Keyword.get(options, :retry_options, [])
-            )
-          else
-            execute_chat(adapter, provider, prepared_messages, options)
-          end
+  defp handle_structured_output(provider, messages, options) do
+    # Delegate to Instructor module if available
+    if Code.ensure_loaded?(ExLLM.Instructor) and ExLLM.Instructor.available?() do
+      ExLLM.Instructor.chat(provider, messages, options)
+    else
+      {:error, :instructor_not_available}
+    end
+  end
 
-        {:error, reason} ->
-          {:error, reason}
-      end
+  defp handle_regular_chat(provider, messages, options) do
+    case get_adapter(provider) do
+      {:ok, adapter} ->
+        # Apply context management if enabled
+        prepared_messages = prepare_messages_for_provider(provider, messages, options)
+
+        execute_with_retry(adapter, provider, prepared_messages, options)
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp execute_with_retry(adapter, provider, prepared_messages, options) do
+    # Check if retry is enabled
+    if Keyword.get(options, :retry, true) do
+      ExLLM.Retry.with_provider_retry(
+        provider,
+        fn ->
+          execute_chat(adapter, provider, prepared_messages, options)
+        end,
+        Keyword.get(options, :retry_options, [])
+      )
+    else
+      execute_chat(adapter, provider, prepared_messages, options)
     end
   end
 

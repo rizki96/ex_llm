@@ -512,79 +512,76 @@ defmodule ExLLM.Adapters.Ollama do
   defp get_base_url(_), do: get_base_url(%{})
 
   defp format_messages(messages) do
-    Enum.map(messages, fn msg ->
-      role = to_string(msg.role || msg["role"])
+    Enum.map(messages, &format_single_message/1)
+  end
 
-      # Handle different content formats
-      content =
-        case msg.content || msg["content"] do
-          # Simple string content
-          content when is_binary(content) ->
-            content
+  defp format_single_message(msg) do
+    role = to_string(msg.role || msg["role"])
+    content = format_message_content(msg.content || msg["content"])
 
-          # List content (for multimodal messages)
-          content when is_list(content) ->
-            # Extract text and images
-            {text_parts, images} =
-              Enum.reduce(content, {[], []}, fn item, {texts, imgs} ->
-                case item do
-                  %{"type" => "text", "text" => text} ->
-                    {[text | texts], imgs}
+    build_formatted_message(role, content)
+  end
 
-                  %{type: "text", text: text} ->
-                    {[text | texts], imgs}
+  defp format_message_content(content) when is_binary(content), do: content
 
-                  %{"type" => "image_url", "image_url" => %{"url" => url}} ->
-                    # Extract base64 data from data URL if present
-                    case extract_base64_from_url(url) do
-                      nil -> {texts, imgs}
-                      base64 -> {texts, [base64 | imgs]}
-                    end
+  defp format_message_content(content) when is_list(content),
+    do: process_multimodal_content(content)
 
-                  %{type: "image_url", image_url: %{url: url}} ->
-                    case extract_base64_from_url(url) do
-                      nil -> {texts, imgs}
-                      base64 -> {texts, [base64 | imgs]}
-                    end
+  defp format_message_content(content), do: to_string(content)
 
-                  _ ->
-                    {texts, imgs}
-                end
-              end)
+  defp process_multimodal_content(content_list) do
+    {text_parts, images} = extract_content_parts(content_list)
 
-            # Combine text parts
-            text = text_parts |> Enum.reverse() |> Enum.join("\n")
+    # Combine text parts
+    text = text_parts |> Enum.reverse() |> Enum.join("\n")
 
-            # If we have images, we'll need to return a map with text and images
-            if images != [] do
-              {text, Enum.reverse(images)}
-            else
-              text
-            end
+    # Return tuple if we have images, otherwise just text
+    if images != [], do: {text, Enum.reverse(images)}, else: text
+  end
 
-          # Already formatted content
-          content ->
-            to_string(content)
-        end
+  defp extract_content_parts(content_list) do
+    Enum.reduce(content_list, {[], []}, &process_content_item/2)
+  end
 
-      # Build the message
-      case content do
-        {text, images} when is_list(images) ->
-          # Multimodal message
-          %{
-            role: role,
-            content: text,
-            images: images
-          }
+  defp process_content_item(item, {texts, imgs}) do
+    case extract_item_type(item) do
+      {:text, text} -> {[text | texts], imgs}
+      {:image, url} -> process_image_url(url, texts, imgs)
+      :unknown -> {texts, imgs}
+    end
+  end
 
-        text ->
-          # Regular text message
-          %{
-            role: role,
-            content: text
-          }
-      end
-    end)
+  defp extract_item_type(%{"type" => "text", "text" => text}), do: {:text, text}
+  defp extract_item_type(%{type: "text", text: text}), do: {:text, text}
+
+  defp extract_item_type(%{"type" => "image_url", "image_url" => %{"url" => url}}),
+    do: {:image, url}
+
+  defp extract_item_type(%{type: "image_url", image_url: %{url: url}}), do: {:image, url}
+  defp extract_item_type(_), do: :unknown
+
+  defp process_image_url(url, texts, imgs) do
+    case extract_base64_from_url(url) do
+      nil -> {texts, imgs}
+      base64 -> {texts, [base64 | imgs]}
+    end
+  end
+
+  defp build_formatted_message(role, {text, images}) when is_list(images) do
+    # Multimodal message
+    %{
+      role: role,
+      content: text,
+      images: images
+    }
+  end
+
+  defp build_formatted_message(role, text) do
+    # Regular text message
+    %{
+      role: role,
+      content: text
+    }
   end
 
   defp extract_base64_from_url(url) do

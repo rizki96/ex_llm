@@ -227,48 +227,62 @@ defmodule ExLLM.Adapters.Mock do
     # Check for mock response in Application env first
     case Application.get_env(:ex_llm, :mock_responses, %{})[:chat] do
       nil ->
-        # Get response based on mode
-        Agent.get(__MODULE__, fn state ->
-          case state.response_mode do
-            :static ->
-              response = build_response(state.static_response, messages, options)
-              {:ok, response}
-
-            :handler ->
-              case state.response_handler.(messages, options) do
-                {:ok, _} = result -> result
-                {:error, _} = error -> error
-                response -> {:ok, normalize_response(response)}
-              end
-
-            :error ->
-              {:error, state.error_response}
-          end
-        end)
+        handle_agent_response(messages, options)
 
       {:error, _} = error ->
         error
 
       response when is_function(response, 2) ->
-        case response.(messages, options) do
-          {:ok, _} = result -> result
-          {:error, _} = error -> error
-          response -> {:ok, normalize_response(response)}
-        end
+        handle_function_response(response, messages, options)
 
       responses when is_list(responses) ->
-        # Cycle through list of responses
-        Agent.get_and_update(__MODULE__, fn state ->
-          index = Map.get(state, :response_index, 0)
-          response = Enum.at(responses, rem(index, length(responses)))
-          new_state = Map.put(state, :response_index, index + 1)
-          {response, new_state}
-        end)
-        |> then(fn response -> {:ok, normalize_response(response)} end)
+        handle_list_response(responses)
 
       response ->
         {:ok, normalize_response(response)}
     end
+  end
+
+  defp handle_agent_response(messages, options) do
+    Agent.get(__MODULE__, fn state ->
+      case state.response_mode do
+        :static ->
+          response = build_response(state.static_response, messages, options)
+          {:ok, response}
+
+        :handler ->
+          handle_response_handler(state.response_handler, messages, options)
+
+        :error ->
+          {:error, state.error_response}
+      end
+    end)
+  end
+
+  defp handle_response_handler(handler, messages, options) do
+    case handler.(messages, options) do
+      {:ok, _} = result -> result
+      {:error, _} = error -> error
+      response -> {:ok, normalize_response(response)}
+    end
+  end
+
+  defp handle_function_response(response_fn, messages, options) do
+    case response_fn.(messages, options) do
+      {:ok, _} = result -> result
+      {:error, _} = error -> error
+      response -> {:ok, normalize_response(response)}
+    end
+  end
+
+  defp handle_list_response(responses) do
+    Agent.get_and_update(__MODULE__, fn state ->
+      index = Map.get(state, :response_index, 0)
+      response = Enum.at(responses, rem(index, length(responses)))
+      new_state = Map.put(state, :response_index, index + 1)
+      {response, new_state}
+    end)
+    |> then(fn response -> {:ok, normalize_response(response)} end)
   end
 
   @impl true
@@ -281,57 +295,72 @@ defmodule ExLLM.Adapters.Mock do
     # Check for mock response in Application env first
     case Application.get_env(:ex_llm, :mock_responses, %{})[:stream] do
       nil ->
-        # Return stream based on mode
-        Agent.get(__MODULE__, fn state ->
-          case state.response_mode do
-            :error ->
-              {:error, state.error_response}
-
-            _ ->
-              chunks =
-                if state.function_call_response do
-                  # Include function call in stream
-                  state.stream_chunks ++
-                    [
-                      %Types.StreamChunk{
-                        content: nil,
-                        finish_reason: "function_call"
-                      }
-                    ]
-                else
-                  state.stream_chunks
-                end
-
-              stream =
-                Stream.map(chunks, fn chunk ->
-                  # Add small delay to simulate real streaming
-                  Process.sleep(10)
-                  chunk
-                end)
-
-              {:ok, stream}
-          end
-        end)
+        handle_agent_stream_response()
 
       {:error, _} = error ->
         error
 
       chunks when is_list(chunks) ->
-        {:ok,
-         Stream.map(chunks, fn
-           {:error, reason} -> raise "Stream error: #{inspect(reason)}"
-           chunk -> chunk
-         end)}
+        handle_chunk_list(chunks)
 
       response when is_function(response, 2) ->
-        case response.(messages, options) do
-          {:ok, stream} -> {:ok, stream}
-          {:error, _} = error -> error
-          stream -> {:ok, stream}
-        end
+        handle_stream_function(response, messages, options)
 
       _ ->
         {:error, :invalid_stream_response}
+    end
+  end
+
+  defp handle_agent_stream_response do
+    Agent.get(__MODULE__, fn state ->
+      case state.response_mode do
+        :error ->
+          {:error, state.error_response}
+
+        _ ->
+          chunks = prepare_stream_chunks(state)
+          stream = create_delayed_stream(chunks)
+          {:ok, stream}
+      end
+    end)
+  end
+
+  defp prepare_stream_chunks(state) do
+    if state.function_call_response do
+      # Include function call in stream
+      state.stream_chunks ++
+        [
+          %Types.StreamChunk{
+            content: nil,
+            finish_reason: "function_call"
+          }
+        ]
+    else
+      state.stream_chunks
+    end
+  end
+
+  defp create_delayed_stream(chunks) do
+    Stream.map(chunks, fn chunk ->
+      # Add small delay to simulate real streaming
+      Process.sleep(10)
+      chunk
+    end)
+  end
+
+  defp handle_chunk_list(chunks) do
+    {:ok,
+     Stream.map(chunks, fn
+       {:error, reason} -> raise "Stream error: #{inspect(reason)}"
+       chunk -> chunk
+     end)}
+  end
+
+  defp handle_stream_function(response_fn, messages, options) do
+    case response_fn.(messages, options) do
+      {:ok, stream} -> {:ok, stream}
+      {:error, _} = error -> error
+      stream -> {:ok, stream}
     end
   end
 

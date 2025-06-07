@@ -336,6 +336,21 @@
   - [ ] Capability versioning for API versions (future enhancement)
 
 
+### Core Features - Low Priority Items
+- [ ] Context statistics implementation
+  - [ ] Implement `context_stats/1` function in ExLLM module
+  - [ ] Calculate token distribution across messages
+  - [ ] Provide truncation impact analysis
+  - [ ] Return statistics about context usage
+- [ ] Token usage extraction for local models
+  - [ ] Extract token usage from Bumblebee/Local adapter responses
+  - [ ] Add token counting support to Local adapter
+  - [ ] Integrate with existing usage tracking
+- [ ] Cost filtering for model recommendations
+  - [ ] Implement cost-based filtering in ModelCapabilities.recommend_models/1
+  - [ ] Add max_cost option to recommendation queries
+  - [ ] Filter models based on pricing data when available
+
 ### Ollama Adapter - Remaining Low Priority Items
 - [ ] `/api/blobs/:digest` endpoints for blob management
   - [ ] GET /api/blobs/:digest - Check if a blob exists

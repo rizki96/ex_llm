@@ -279,29 +279,25 @@ defmodule ExLLM.Vision do
 
   defp format_for_anthropic(messages) do
     # Anthropic expects base64 images with media type
-    Enum.map(messages, fn message ->
-      case message do
-        %{content: content} when is_list(content) ->
-          formatted_content =
-            Enum.map(content, fn part ->
-              case part do
-                %{"type" => "image_url", "image_url" => %{"url" => _url}} = part ->
-                  # Convert URL to base64 if needed for Anthropic
-                  # For now, keep as-is
-                  part
-
-                _ ->
-                  part
-              end
-            end)
-
-          %{message | content: formatted_content}
-
-        _ ->
-          message
-      end
-    end)
+    Enum.map(messages, &format_anthropic_message/1)
   end
+
+  defp format_anthropic_message(%{content: content} = message) when is_list(content) do
+    formatted_content = Enum.map(content, &format_anthropic_content_part/1)
+    %{message | content: formatted_content}
+  end
+
+  defp format_anthropic_message(message), do: message
+
+  defp format_anthropic_content_part(
+         %{"type" => "image_url", "image_url" => %{"url" => _url}} = part
+       ) do
+    # Convert URL to base64 if needed for Anthropic
+    # For now, keep as-is
+    part
+  end
+
+  defp format_anthropic_content_part(part), do: part
 
   defp format_for_openai(messages) do
     # OpenAI prefers image URLs but supports base64

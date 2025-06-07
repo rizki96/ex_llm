@@ -371,54 +371,69 @@ defmodule ExLLM.Adapters.XAI do
         {:ok, :done}
 
       [_, json_data] ->
-        case Jason.decode(json_data) do
-          {:ok, %{"choices" => [%{"delta" => delta} | _]}} ->
-            content = Map.get(delta, "content", "")
-
-            # Handle function calls in streaming
-            function_call =
-              if tool_calls = Map.get(delta, "tool_calls") do
-                Enum.map(tool_calls, fn call ->
-                  %{
-                    index: Map.get(call, "index"),
-                    id: Map.get(call, "id"),
-                    type: Map.get(call, "type"),
-                    function: Map.get(call, "function")
-                  }
-                end)
-              end
-
-            chunk_data =
-              if function_call do
-                %{content: content, tool_calls: function_call}
-              else
-                content
-              end
-
-            {:ok,
-             %Types.StreamChunk{
-               content: chunk_data,
-               model: model,
-               finish_reason: nil
-             }}
-
-          {:ok, %{"choices" => [%{"finish_reason" => reason} | _]} = _data}
-          when not is_nil(reason) ->
-            # Final chunk with finish reason
-            {:ok,
-             %Types.StreamChunk{
-               content: "",
-               model: model,
-               finish_reason: reason
-             }}
-
-          _ ->
-            {:error, :invalid_chunk}
-        end
+        parse_json_event(json_data, model)
 
       _ ->
         {:error, :invalid_event}
     end
+  end
+
+  defp parse_json_event(json_data, model) do
+    case Jason.decode(json_data) do
+      {:ok, decoded} ->
+        parse_decoded_event(decoded, model)
+
+      {:error, _} ->
+        {:error, :invalid_json}
+    end
+  end
+
+  defp parse_decoded_event(%{"choices" => [%{"delta" => delta} | _]}, model) do
+    chunk_data = build_chunk_data(delta)
+
+    {:ok,
+     %Types.StreamChunk{
+       content: chunk_data,
+       model: model,
+       finish_reason: nil
+     }}
+  end
+
+  defp parse_decoded_event(%{"choices" => [%{"finish_reason" => reason} | _]}, model)
+       when not is_nil(reason) do
+    # Final chunk with finish reason
+    {:ok,
+     %Types.StreamChunk{
+       content: "",
+       model: model,
+       finish_reason: reason
+     }}
+  end
+
+  defp parse_decoded_event(_, _model) do
+    {:error, :invalid_chunk}
+  end
+
+  defp build_chunk_data(delta) do
+    content = Map.get(delta, "content", "")
+
+    case Map.get(delta, "tool_calls") do
+      nil ->
+        content
+
+      tool_calls ->
+        function_calls = Enum.map(tool_calls, &format_tool_call/1)
+        %{content: content, tool_calls: function_calls}
+    end
+  end
+
+  defp format_tool_call(call) do
+    %{
+      index: Map.get(call, "index"),
+      id: Map.get(call, "id"),
+      type: Map.get(call, "type"),
+      function: Map.get(call, "function")
+    }
   end
 
   defp calculate_cost(usage, model) do

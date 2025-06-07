@@ -382,33 +382,48 @@ defmodule ExLLM.FunctionCalling do
     properties = Map.get(schema, "properties", %{})
 
     # Check required fields
+    case check_required_fields(args, required) do
+      :ok ->
+        # Basic type validation
+        validate_properties(args, properties)
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  defp check_required_fields(args, required) do
     missing =
       Enum.filter(required, fn field ->
         not Map.has_key?(args, field)
       end)
 
     if missing == [] do
-      # Basic type validation
-      validated =
-        Enum.reduce(args, {:ok, %{}}, fn
-          {key, value}, {:ok, acc} ->
-            if property = properties[key] do
-              case validate_type(value, property["type"]) do
-                :ok -> {:ok, Map.put(acc, key, value)}
-                {:error, _} = err -> err
-              end
-            else
-              # Allow additional properties by default
-              {:ok, Map.put(acc, key, value)}
-            end
-
-          _, error ->
-            error
-        end)
-
-      validated
+      :ok
     else
       {:error, {:missing_required_fields, missing}}
+    end
+  end
+
+  defp validate_properties(args, properties) do
+    Enum.reduce(args, {:ok, %{}}, fn
+      {key, value}, {:ok, acc} ->
+        validate_property(key, value, properties, acc)
+
+      _, error ->
+        error
+    end)
+  end
+
+  defp validate_property(key, value, properties, acc) do
+    if property = properties[key] do
+      case validate_type(value, property["type"]) do
+        :ok -> {:ok, Map.put(acc, key, value)}
+        {:error, _} = err -> err
+      end
+    else
+      # Allow additional properties by default
+      {:ok, Map.put(acc, key, value)}
     end
   end
 

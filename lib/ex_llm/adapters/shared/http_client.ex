@@ -166,25 +166,37 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
     # Start async task for streaming
     Task.start(fn ->
-      case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
-        {:ok, response} ->
-          if response.status in 200..299 do
-            handle_req_stream_response(response, parent, callback, "", opts)
-          else
-            if error_handler = Keyword.get(opts, :on_error) do
-              error_handler.(response.status, Jason.encode!(response.body))
-            else
-              send(parent, {:stream_error, Error.api_error(response.status, response.body)})
-            end
-          end
-
-        {:error, reason} ->
-          send(parent, {:stream_error, Error.connection_error(reason)})
-      end
+      start_streaming_request(url, body, headers, timeout, parent, callback, opts)
     end)
 
     # Return immediately
     {:ok, :streaming}
+  end
+
+  defp start_streaming_request(url, body, headers, timeout, parent, callback, opts) do
+    case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
+      {:ok, response} ->
+        handle_streaming_response(response, parent, callback, opts)
+
+      {:error, reason} ->
+        send(parent, {:stream_error, Error.connection_error(reason)})
+    end
+  end
+
+  defp handle_streaming_response(response, parent, callback, opts) do
+    if response.status in 200..299 do
+      handle_req_stream_response(response, parent, callback, "", opts)
+    else
+      handle_streaming_error(response, parent, opts)
+    end
+  end
+
+  defp handle_streaming_error(response, parent, opts) do
+    if error_handler = Keyword.get(opts, :on_error) do
+      error_handler.(response.status, Jason.encode!(response.body))
+    else
+      send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+    end
   end
 
   @doc """

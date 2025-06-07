@@ -575,25 +575,30 @@ defmodule ExLLM.ResponseCache do
   defp find_similar_cached_response(provider, request_data) do
     provider_dir = Path.join(cache_dir(), provider)
 
-    if File.exists?(provider_dir) do
+    if not File.exists?(provider_dir) do
+      nil
+    else
       # Try different endpoint variations
       endpoints_to_try = ["chat", "chat_completions", "streaming", "messages"]
+      find_in_endpoints(endpoints_to_try, request_data, provider)
+    end
+  end
 
-      Enum.reduce_while(endpoints_to_try, nil, fn endpoint, _acc ->
-        cache_file = get_cache_file(provider, endpoint)
+  defp find_in_endpoints(endpoints, request_data, provider) do
+    Enum.reduce_while(endpoints, nil, fn endpoint, _acc ->
+      cache_file = get_cache_file(provider, endpoint)
 
-        case load_cache_file(cache_file) do
-          [] ->
-            {:cont, nil}
+      case check_endpoint_cache(cache_file, request_data) do
+        nil -> {:cont, nil}
+        entry -> {:halt, entry}
+      end
+    end)
+  end
 
-          entries ->
-            # Try to find a similar request based on messages content
-            similar_entry = find_by_message_similarity(entries, request_data)
-            if similar_entry, do: {:halt, similar_entry}, else: {:cont, nil}
-        end
-      end)
-    else
-      nil
+  defp check_endpoint_cache(cache_file, request_data) do
+    case load_cache_file(cache_file) do
+      [] -> nil
+      entries -> find_by_message_similarity(entries, request_data)
     end
   end
 
