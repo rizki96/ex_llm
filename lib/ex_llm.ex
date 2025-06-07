@@ -23,6 +23,8 @@ defmodule ExLLM do
   - `:anthropic` - Anthropic Claude models
   - `:openai` - OpenAI GPT models
   - `:groq` - Groq (fast inference)
+  - `:mistral` - Mistral AI models (European AI)
+  - `:perplexity` - Perplexity AI models (search-augmented)
   - `:openrouter` - OpenRouter (300+ models from multiple providers)
   - `:ollama` - Local models via Ollama
   - `:bedrock` - AWS Bedrock (multiple providers)
@@ -139,9 +141,11 @@ defmodule ExLLM do
     anthropic: ExLLM.Adapters.Anthropic,
     groq: ExLLM.Adapters.Groq,
     local: ExLLM.Adapters.Local,
+    mistral: ExLLM.Adapters.Mistral,
     openai: ExLLM.Adapters.OpenAI,
     openrouter: ExLLM.Adapters.OpenRouter,
     ollama: ExLLM.Adapters.Ollama,
+    perplexity: ExLLM.Adapters.Perplexity,
     bedrock: ExLLM.Adapters.Bedrock,
     gemini: ExLLM.Adapters.Gemini,
     xai: ExLLM.Adapters.XAI,
@@ -152,6 +156,8 @@ defmodule ExLLM do
           :anthropic
           | :openai
           | :groq
+          | :mistral
+          | :perplexity
           | :openrouter
           | :ollama
           | :local

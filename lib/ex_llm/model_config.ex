@@ -14,7 +14,7 @@ defmodule ExLLM.ModelConfig do
   alias ExLLM.Logger
 
   @config_dir Path.join([File.cwd!(), "config", "models"])
-  @providers [:anthropic, :openai, :openrouter, :gemini, :ollama, :bedrock]
+  @providers [:anthropic, :openai, :openrouter, :gemini, :ollama, :bedrock, :mistral, :perplexity]
 
   # Cache configuration to avoid repeated file reads
   @config_cache :model_config_cache
@@ -251,6 +251,7 @@ defmodule ExLLM.ModelConfig do
         [] ->
           # Load from file and cache result
           config = load_provider_config(provider)
+
           try do
             :ets.insert(@config_cache, {provider, config})
           catch
@@ -259,6 +260,7 @@ defmodule ExLLM.ModelConfig do
               ensure_cache_table()
               :ets.insert(@config_cache, {provider, config})
           end
+
           config
       end
     catch
@@ -280,6 +282,7 @@ defmodule ExLLM.ModelConfig do
               :undefined ->
                 # Still doesn't exist, re-raise the error
                 :ets.new(@config_cache, [:set, :public, :named_table])
+
               _ ->
                 :ok
             end

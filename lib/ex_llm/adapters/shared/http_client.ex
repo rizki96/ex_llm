@@ -233,6 +233,34 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   end
 
   @doc """
+  Build provider-specific headers for API requests.
+
+  ## Options
+  - `:provider` - Provider name for specific headers
+  - `:api_key` - API key for authorization
+  - `:version` - API version header
+  - `:organization` - Organization ID (OpenAI)
+  - `:project` - Project ID (OpenAI)
+
+  ## Examples
+
+      HTTPClient.build_provider_headers(:openai, 
+        api_key: "sk-...", 
+        organization: "org-123"
+      )
+  """
+  @spec build_provider_headers(atom(), keyword()) :: list({String.t(), String.t()})
+  def build_provider_headers(provider, opts \\ []) do
+    base_headers = [
+      {"Content-Type", "application/json"},
+      user_agent()
+    ]
+
+    provider_headers = build_provider_specific_headers(provider, opts)
+    base_headers ++ provider_headers
+  end
+
+  @doc """
   Prepare headers with common defaults.
 
   Adds Content-Type and User-Agent if not present.
@@ -379,4 +407,123 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   defp categorize_error(429, message), do: Error.rate_limit_error(message)
   defp categorize_error(503, message), do: Error.service_unavailable(message)
   defp categorize_error(status, message), do: Error.api_error(status, message)
+
+  # Provider-specific header builders
+
+  defp build_provider_specific_headers(:openai, opts) do
+    headers = []
+
+    headers =
+      if api_key = Keyword.get(opts, :api_key) do
+        [{"Authorization", "Bearer #{api_key}"} | headers]
+      else
+        headers
+      end
+
+    headers =
+      if org_id = Keyword.get(opts, :organization) do
+        [{"OpenAI-Organization", org_id} | headers]
+      else
+        headers
+      end
+
+    headers =
+      if project_id = Keyword.get(opts, :project) do
+        [{"OpenAI-Project", project_id} | headers]
+      else
+        headers
+      end
+
+    headers
+  end
+
+  defp build_provider_specific_headers(:anthropic, opts) do
+    headers = [{"anthropic-version", "2023-06-01"}]
+
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"x-api-key", api_key} | headers]
+    else
+      headers
+    end
+  end
+
+  defp build_provider_specific_headers(:gemini, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:groq, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:xai, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:openrouter, opts) do
+    headers = []
+
+    headers =
+      if api_key = Keyword.get(opts, :api_key) do
+        [{"Authorization", "Bearer #{api_key}"} | headers]
+      else
+        headers
+      end
+
+    headers =
+      if site_url = Keyword.get(opts, :site_url) do
+        [{"HTTP-Referer", site_url} | headers]
+      else
+        headers
+      end
+
+    headers =
+      if app_name = Keyword.get(opts, :app_name) do
+        [{"X-Title", app_name} | headers]
+      else
+        headers
+      end
+
+    headers
+  end
+
+  defp build_provider_specific_headers(:mistral, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:perplexity, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:bedrock, opts) do
+    # AWS Bedrock uses AWS SigV4 authentication, handled elsewhere
+    headers = [{"Content-Type", "application/json"}]
+
+    if _version = Keyword.get(opts, :version) do
+      [{"Accept", "application/json, application/vnd.amazon.eventstream"} | headers]
+    else
+      headers
+    end
+  end
+
+  defp build_provider_specific_headers(_provider, _opts), do: []
 end
