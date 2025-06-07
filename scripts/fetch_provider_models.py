@@ -397,24 +397,106 @@ class ModelFetcher:
     
     def fetch_ollama(self) -> bool:
         """Fetch Ollama models from local server"""
+        base_url = os.environ.get('OLLAMA_API_BASE', 'http://localhost:11434')
         try:
-            response = requests.get("http://localhost:11434/api/tags")
+            response = requests.get(f"{base_url}/api/tags", timeout=5)
             if response.status_code == 200:
                 data = response.json()
                 models = {}
                 
                 for model in data.get('models', []):
                     model_name = model['name']
-                    # Basic model info from Ollama
-                    models[f"ollama/{model_name}"] = {
-                        "context_window": 4096,  # Default, varies by model
+                    model_info = {
+                        "context_window": 4096,  # Default, will be updated if we get details
                         "capabilities": ["streaming"]
                     }
+                    
+                    # Try to get detailed info for each model using /api/show
+                    try:
+                        detail_response = requests.post(
+                            f"{base_url}/api/show",
+                            json={"name": model_name},
+                            timeout=5
+                        )
+                        if detail_response.status_code == 200:
+                            details = detail_response.json()
+                            
+                            # Update capabilities based on actual capabilities field
+                            if "capabilities" in details:
+                                caps = details["capabilities"]
+                                if "tools" in caps or ("completion" in caps and "tools" in caps):
+                                    model_info["capabilities"].append("function_calling")
+                                if "embedding" in caps:
+                                    model_info["capabilities"].append("embeddings")
+                                    
+                            # Get actual context window from model info
+                            if "model_info" in details:
+                                info = details["model_info"]
+                                # Try different architecture fields
+                                context = (
+                                    info.get("qwen3.context_length") or
+                                    info.get("llama.context_length") or
+                                    info.get("bert.context_length") or
+                                    info.get("mistral.context_length") or
+                                    info.get("gemma.context_length") or
+                                    info.get("gemma2.context_length") or
+                                    info.get("general.context_length")
+                                )
+                                if context:
+                                    model_info["context_window"] = context
+                                    
+                                # Get parameter size if available
+                                param_count = info.get("general.parameter_count")
+                                if param_count:
+                                    # Convert to human readable
+                                    if param_count >= 1e9:
+                                        param_size = f"{param_count/1e9:.1f}B"
+                                    else:
+                                        param_size = f"{param_count/1e6:.0f}M"
+                                    model_info["parameter_size"] = param_size
+                            
+                            # Also check details section
+                            if "details" in details:
+                                det = details["details"]
+                                if "parameter_size" in det:
+                                    model_info["parameter_size"] = det["parameter_size"]
+                                    
+                    except Exception as e:
+                        # If show fails, fall back to name-based detection
+                        print(f"    Could not get details for {model_name}: {e}")
+                    
+                    # Fallback: Add capabilities based on model name patterns
+                    if "function_calling" not in model_info["capabilities"]:
+                        if any(x in model_name.lower() for x in [
+                            "llama3.1", "llama3.2", "llama3.3", 
+                            "mistral", "mixtral", 
+                            "qwen2", "qwen2.5", 
+                            "command-r", "gemma2", "firefunction"
+                        ]):
+                            model_info["capabilities"].append("function_calling")
+                    
+                    if any(x in model_name.lower() for x in ["vision", "llava", "bakllava"]):
+                        if "vision" not in model_info["capabilities"]:
+                            model_info["capabilities"].append("vision")
+                    
+                    if any(x in model_name.lower() for x in ["embed", "embedding"]):
+                        if "embeddings" not in model_info["capabilities"]:
+                            model_info["capabilities"].append("embeddings")
+                    
+                    # Add to models dict with ollama/ prefix
+                    models[f"ollama/{model_name}"] = model_info
                 
                 if models:
+                    # Preserve existing config structure
+                    existing_config = {}
+                    config_path = os.path.join(self.config_dir, "ollama.yml")
+                    if os.path.exists(config_path):
+                        with open(config_path, 'r') as f:
+                            existing_config = yaml.safe_load(f) or {}
+                    
                     config = {
                         "provider": "ollama",
-                        "default_model": list(models.keys())[0] if models else "ollama/llama2",
+                        "default_model": existing_config.get("default_model", list(models.keys())[0] if models else "ollama/llama2"),
                         "models": models,
                         "metadata": {
                             "updated_at": datetime.now().isoformat(),

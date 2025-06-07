@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Ollama Configuration Management** - Generate and update local model configurations
+  - New `generate_config/1` function to create YAML config for all installed models
+  - New `update_model_config/2` function to update specific model configurations
+  - Automatic capability detection using `/api/show` endpoint
+  - Real context window sizes from model metadata
+  - Preserves existing configuration when merging
+  - Example: `ExLLM.Adapters.Ollama.generate_config(save: true)`
+
 ## [0.3.2] - 2025-06-06
 
 ### Added

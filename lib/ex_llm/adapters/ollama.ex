@@ -47,6 +47,22 @@ defmodule ExLLM.Adapters.Ollama do
   To see available models, ensure Ollama is running and use:
 
       {:ok, models} = ExLLM.Adapters.Ollama.list_models()
+
+  ## Configuration Management
+
+  The adapter provides functions to generate and update model configurations:
+
+      # Generate configuration for all installed models
+      {:ok, yaml} = ExLLM.Adapters.Ollama.generate_config()
+      
+      # Save the configuration
+      {:ok, path} = ExLLM.Adapters.Ollama.generate_config(save: true)
+      
+      # Update a specific model's configuration
+      {:ok, yaml} = ExLLM.Adapters.Ollama.update_model_config("llama3.1")
+
+  This is useful for keeping your `config/models/ollama.yml` in sync with your
+  locally installed models and their actual capabilities.
   """
 
   @behaviour ExLLM.Adapter
@@ -70,7 +86,7 @@ defmodule ExLLM.Adapters.Ollama do
     raw_model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
     # Strip provider prefix if present
     model = strip_provider_prefix(raw_model)
-    
+
     # Ensure we have a model
     model = model || get_default_model()
 
@@ -79,20 +95,29 @@ defmodule ExLLM.Adapters.Ollama do
       messages: format_messages(messages),
       stream: false
     }
-    
+
     # Add tools/functions if provided
-    body = 
+    body =
       cond do
         tools = Keyword.get(options, :tools) ->
           Map.put(body, :tools, tools)
+
         functions = Keyword.get(options, :functions) ->
           Map.put(body, :tools, format_functions_as_tools(functions))
+
         true ->
           body
       end
-    
+
     # Add other optional parameters
     body = add_optional_params(body, options)
+
+    # Add context if provided (for maintaining conversation state)
+    body =
+      case Keyword.get(options, :context) do
+        nil -> body
+        context -> Map.put(body, "context", context)
+      end
 
     headers = [{"content-type", "application/json"}]
     url = "#{get_base_url(config)}/api/chat"
@@ -100,14 +125,15 @@ defmodule ExLLM.Adapters.Ollama do
     # Ollama can be slow, especially with function calling
     # Default to 2 minutes, but allow override
     timeout = Keyword.get(options, :timeout, 120_000)
-    
+
     req_options = [
       json: body,
       headers: headers,
       receive_timeout: timeout,
-      retry: false  # Let ExLLM handle retries
+      # Let ExLLM handle retries
+      retry: false
     ]
-    
+
     case Req.post(url, req_options) do
       {:ok, %{status: 200, body: response}} ->
         {:ok, parse_response(response, model)}
@@ -134,34 +160,45 @@ defmodule ExLLM.Adapters.Ollama do
     raw_model = Keyword.get(options, :model, Map.get(config, :model, get_default_model()))
     # Strip provider prefix if present
     model = strip_provider_prefix(raw_model)
-    
+
     # Ensure we have a model
     model = model || get_default_model()
 
     formatted_messages = format_messages(messages)
-    
+
     body = %{
       model: model,
       messages: formatted_messages,
       stream: true
     }
-    
+
     # Add tools/functions if provided
-    body = 
+    body =
       cond do
         tools = Keyword.get(options, :tools) ->
           Map.put(body, :tools, tools)
+
         functions = Keyword.get(options, :functions) ->
           Map.put(body, :tools, format_functions_as_tools(functions))
+
         true ->
           body
       end
-    
+
     # Add other optional parameters
     body = add_optional_params(body, options)
-    
+
+    # Add context if provided (for maintaining conversation state)
+    body =
+      case Keyword.get(options, :context) do
+        nil -> body
+        context -> Map.put(body, "context", context)
+      end
+
     # Debug log the request
-    Logger.debug("Ollama request - Model: #{model}, Messages: #{inspect(formatted_messages, limit: :infinity)}")
+    Logger.debug(
+      "Ollama request - Model: #{model}, Messages: #{inspect(formatted_messages, limit: :infinity)}"
+    )
 
     headers = [{"content-type", "application/json"}]
     url = "#{get_base_url(config)}/api/chat"
@@ -169,10 +206,10 @@ defmodule ExLLM.Adapters.Ollama do
 
     # Clear any stale messages from mailbox
     flush_mailbox()
-    
+
     # Get timeout from options with default
     timeout = Keyword.get(options, :timeout, 120_000)
-    
+
     # Start async request task
     Task.start(fn ->
       case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
@@ -180,7 +217,10 @@ defmodule ExLLM.Adapters.Ollama do
           if response.status == 200 do
             handle_stream_response(response, parent, model)
           else
-            Logger.error("Ollama API error - Status: #{response.status}, Body: #{inspect(response.body)}")
+            Logger.error(
+              "Ollama API error - Status: #{response.status}, Body: #{inspect(response.body)}"
+            )
+
             send(parent, {:stream_error, Error.api_error(response.status, response.body)})
           end
 
@@ -196,11 +236,13 @@ defmodule ExLLM.Adapters.Ollama do
         fn -> :ok end,
         fn state ->
           receive do
-            {:chunk, chunk} -> 
+            {:chunk, chunk} ->
               {[chunk], state}
-            :stream_done -> 
+
+            :stream_done ->
               {:halt, state}
-            {:stream_error, error} -> 
+
+            {:stream_error, error} ->
               Logger.error("Stream error: #{inspect(error)}")
               throw(error)
           after
@@ -223,16 +265,17 @@ defmodule ExLLM.Adapters.Ollama do
       )
 
     config = get_config(config_provider)
-    
+
     # Use ModelLoader with API fetching from Ollama server
-    ExLLM.ModelLoader.load_models(:ollama,
-      Keyword.merge(options, [
-        api_fetcher: fn(_opts) -> fetch_ollama_models(config) end,
+    ExLLM.ModelLoader.load_models(
+      :ollama,
+      Keyword.merge(options,
+        api_fetcher: fn _opts -> fetch_ollama_models(config) end,
         config_transformer: &ollama_model_transformer/2
-      ])
+      )
     )
   end
-  
+
   defp fetch_ollama_models(config) do
     url = "#{get_base_url(config)}/api/tags"
 
@@ -253,46 +296,94 @@ defmodule ExLLM.Adapters.Ollama do
         {:error, reason}
     end
   end
-  
+
   defp parse_ollama_api_model(model) do
     model_name = model["name"]
-    supports_functions = supports_function_calling?(model_name)
+    
+    # Try to get detailed info if available
+    {capabilities, context_window} = 
+      case get_model_details(model_name) do
+        {:ok, details} ->
+          caps = details["capabilities"] || []
+          ctx = get_context_from_model_info(details["model_info"]) || 
+                get_ollama_context_window(model)
+          {caps, ctx}
+        _ ->
+          {[], get_ollama_context_window(model)}
+      end
+    
+    # Determine features based on capabilities or fallback to name detection
+    supports_functions = "tools" in capabilities || 
+                        "completion" in capabilities && "tools" in capabilities ||
+                        supports_function_calling?(model_name)
+    
+    supports_embeddings = "embedding" in capabilities ||
+                         String.contains?(model_name, "embed")
     
     features = [:streaming]
     features = if supports_functions, do: [:function_calling | features], else: features
     features = if is_vision_model?(model_name), do: [:vision | features], else: features
-    
+    features = if supports_embeddings, do: [:embeddings | features], else: features
+
     %Types.Model{
       id: model_name,
       name: model_name,
       description: format_ollama_description(model),
-      context_window: get_ollama_context_window(model),
+      context_window: context_window,
       capabilities: %{
         supports_streaming: true,
         supports_functions: supports_functions,
         supports_vision: is_vision_model?(model_name),
+        supports_embeddings: supports_embeddings,
         features: features
       }
     }
   end
   
+  defp get_model_details(model_name) do
+    # Try to get detailed info via show endpoint
+    # This is optional - if it fails, we fall back to basic info
+    try do
+      case show_model(model_name) do
+        {:ok, details} -> {:ok, details}
+        _ -> :error
+      end
+    rescue
+      _ -> :error
+    end
+  end
+  
+  defp get_context_from_model_info(nil), do: nil
+  defp get_context_from_model_info(model_info) do
+    # Try different architecture fields
+    model_info["qwen3.context_length"] ||
+    model_info["llama.context_length"] ||
+    model_info["bert.context_length"] ||
+    model_info["mistral.context_length"] ||
+    model_info["gemma.context_length"] ||
+    nil
+  end
+
   defp format_ollama_description(model) do
     details = model["details"] || %{}
     family = details["family"]
     param_size = details["parameter_size"]
     quantization = details["quantization_level"]
-    
-    parts = [family, param_size, quantization]
-    |> Enum.filter(&(&1))
-    |> Enum.join(", ")
-    
+
+    parts =
+      [family, param_size, quantization]
+      |> Enum.filter(& &1)
+      |> Enum.join(", ")
+
     if parts != "", do: parts, else: nil
   end
-  
+
   defp get_ollama_context_window(model) do
     # Try to extract from model details or use default
     case get_in(model, ["details", "parameter_size"]) do
-      nil -> 4_096
+      nil ->
+        4_096
+
       size_str when is_binary(size_str) ->
         # Convert parameter size to approximate context window
         if String.contains?(size_str, "B") do
@@ -307,33 +398,45 @@ defmodule ExLLM.Adapters.Ollama do
         else
           4_096
         end
-      _ -> 4_096
+
+      _ ->
+        4_096
     end
   end
-  
+
   defp is_vision_model?(model_name) do
-    String.contains?(model_name, "vision") || 
-    String.contains?(model_name, "llava") ||
-    String.contains?(model_name, "bakllava")
+    String.contains?(model_name, "vision") ||
+      String.contains?(model_name, "llava") ||
+      String.contains?(model_name, "bakllava")
   end
-  
+
   defp supports_function_calling?(model_name) do
     # Models that support function calling in Ollama
     # Based on Ollama documentation and model capabilities
     function_capable_models = [
-      "llama3.1", "llama3.2", "llama3.3",  # Llama 3.1+ supports tools
-      "qwen2.5", "qwen2",                   # Qwen 2.5 supports tools
-      "mistral", "mixtral",                 # Mistral models support tools
-      "gemma2",                             # Gemma 2 supports tools
-      "command-r",                          # Command R supports tools
-      "firefunction"                        # Firefunction is specifically for functions
+      # Llama 3.1+ supports tools
+      "llama3.1",
+      "llama3.2",
+      "llama3.3",
+      # Qwen 2.5 supports tools
+      "qwen2.5",
+      "qwen2",
+      # Mistral models support tools
+      "mistral",
+      "mixtral",
+      # Gemma 2 supports tools
+      "gemma2",
+      # Command R supports tools
+      "command-r",
+      # Firefunction is specifically for functions
+      "firefunction"
     ]
-    
+
     Enum.any?(function_capable_models, fn model ->
       String.contains?(String.downcase(model_name), model)
     end)
   end
-  
+
   # Transform config data to Ollama model format
   defp ollama_model_transformer(model_id, config) do
     %Types.Model{
@@ -376,14 +479,14 @@ defmodule ExLLM.Adapters.Ollama do
     # Strip the "ollama/" prefix if present
     strip_provider_prefix(model)
   end
-  
+
   defp strip_provider_prefix(model) when is_binary(model) do
     case String.split(model, "/", parts: 2) do
       ["ollama", actual_model] -> actual_model
       _ -> model
     end
   end
-  
+
   defp strip_provider_prefix(nil), do: nil
 
   # Private functions
@@ -392,20 +495,103 @@ defmodule ExLLM.Adapters.Ollama do
     config_provider.get_all(:ollama)
   end
 
-  defp get_base_url(config) do
+  defp get_base_url(config) when is_map(config) do
     # Check environment variable first, then config, then default
     System.get_env("OLLAMA_API_BASE") ||
       Map.get(config, :base_url) ||
       @default_base_url
   end
+  
+  defp get_base_url(_), do: get_base_url(%{})
 
   defp format_messages(messages) do
     Enum.map(messages, fn msg ->
-      %{
-        role: to_string(msg.role || msg["role"]),
-        content: to_string(msg.content || msg["content"])
-      }
+      role = to_string(msg.role || msg["role"])
+
+      # Handle different content formats
+      content =
+        case msg.content || msg["content"] do
+          # Simple string content
+          content when is_binary(content) ->
+            content
+
+          # List content (for multimodal messages)
+          content when is_list(content) ->
+            # Extract text and images
+            {text_parts, images} =
+              Enum.reduce(content, {[], []}, fn item, {texts, imgs} ->
+                case item do
+                  %{"type" => "text", "text" => text} ->
+                    {[text | texts], imgs}
+
+                  %{type: "text", text: text} ->
+                    {[text | texts], imgs}
+
+                  %{"type" => "image_url", "image_url" => %{"url" => url}} ->
+                    # Extract base64 data from data URL if present
+                    case extract_base64_from_url(url) do
+                      nil -> {texts, imgs}
+                      base64 -> {texts, [base64 | imgs]}
+                    end
+
+                  %{type: "image_url", image_url: %{url: url}} ->
+                    case extract_base64_from_url(url) do
+                      nil -> {texts, imgs}
+                      base64 -> {texts, [base64 | imgs]}
+                    end
+
+                  _ ->
+                    {texts, imgs}
+                end
+              end)
+
+            # Combine text parts
+            text = text_parts |> Enum.reverse() |> Enum.join("\n")
+
+            # If we have images, we'll need to return a map with text and images
+            if images != [] do
+              {text, Enum.reverse(images)}
+            else
+              text
+            end
+
+          # Already formatted content
+          content ->
+            to_string(content)
+        end
+
+      # Build the message
+      case content do
+        {text, images} when is_list(images) ->
+          # Multimodal message
+          %{
+            role: role,
+            content: text,
+            images: images
+          }
+
+        text ->
+          # Regular text message
+          %{
+            role: role,
+            content: text
+          }
+      end
     end)
+  end
+
+  defp extract_base64_from_url(url) do
+    case url do
+      "data:image/" <> rest ->
+        # Extract base64 data from data URL
+        case String.split(rest, ";base64,", parts: 2) do
+          [_mime, base64] -> base64
+          _ -> nil
+        end
+
+      _ ->
+        nil
+    end
   end
 
   defp parse_response(response, model) do
@@ -414,9 +600,9 @@ defmodule ExLLM.Adapters.Ollama do
       output_tokens: response["eval_count"] || 0,
       total_tokens: (response["prompt_eval_count"] || 0) + (response["eval_count"] || 0)
     }
-    
+
     message = response["message"] || %{}
-    
+
     # Check if this is a tool call response
     tool_calls = message["tool_calls"]
 
@@ -429,9 +615,10 @@ defmodule ExLLM.Adapters.Ollama do
       cost: ExLLM.Cost.calculate("ollama", model, usage)
     }
   end
-  
+
   defp parse_tool_calls(nil), do: nil
   defp parse_tool_calls([]), do: nil
+
   defp parse_tool_calls(tool_calls) when is_list(tool_calls) do
     Enum.map(tool_calls, fn call ->
       %{
@@ -444,7 +631,7 @@ defmodule ExLLM.Adapters.Ollama do
       }
     end)
   end
-  
+
   defp generate_tool_call_id do
     "call_" <> Base.encode64(:crypto.strong_rand_bytes(12), padding: false)
   end
@@ -461,35 +648,116 @@ defmodule ExLLM.Adapters.Ollama do
       }
     end)
   end
-  
+
   defp add_optional_params(body, options) do
+    # Standard parameters
     optional_params = [
       {:temperature, "temperature"},
-      {:max_tokens, "max_tokens"},
+      # Ollama uses num_predict instead of max_tokens
+      {:max_tokens, "num_predict"},
       {:top_p, "top_p"},
       {:top_k, "top_k"},
       {:seed, "seed"},
       {:stop, "stop"},
-      {:format, "format"}
+      {:keep_alive, "keep_alive"},
+      {:suffix, "suffix"}
     ]
-    
-    Enum.reduce(optional_params, body, fn {opt_key, api_key}, acc ->
-      case Keyword.get(options, opt_key) do
-        nil -> acc
-        value -> Map.put(acc, api_key, value)
+
+    body =
+      Enum.reduce(optional_params, body, fn {opt_key, api_key}, acc ->
+        case Keyword.get(options, opt_key) do
+          nil -> acc
+          value -> Map.put(acc, api_key, value)
+        end
+      end)
+
+    # Handle format parameter specially
+    body =
+      case Keyword.get(options, :format) do
+        nil -> body
+        "json" -> Map.put(body, "format", "json")
+        :json -> Map.put(body, "format", "json")
+        format -> Map.put(body, "format", format)
       end
-    end)
+
+    # Handle the options parameter which contains model-specific settings
+    case Keyword.get(options, :options) do
+      nil ->
+        # Check for individual option parameters
+        add_model_specific_options(body, options)
+
+      opts when is_map(opts) ->
+        Map.put(body, "options", opts)
+
+      opts when is_list(opts) ->
+        Map.put(body, "options", Map.new(opts))
+    end
+  end
+
+  defp add_model_specific_options(body, options) do
+    # Model-specific options that can be passed individually
+    model_options = [
+      # Context and prediction settings
+      {:num_ctx, "num_ctx"},
+      {:num_batch, "num_batch"},
+      # Alternative to max_tokens
+      {:num_predict, "num_predict"},
+
+      # GPU settings
+      {:num_gpu, "num_gpu"},
+      {:main_gpu, "main_gpu"},
+      {:low_vram, "low_vram"},
+
+      # Memory settings
+      {:f16_kv, "f16_kv"},
+      {:use_mmap, "use_mmap"},
+      {:use_mlock, "use_mlock"},
+
+      # Sampling parameters
+      {:mirostat, "mirostat"},
+      {:mirostat_tau, "mirostat_tau"},
+      {:mirostat_eta, "mirostat_eta"},
+      {:repeat_penalty, "repeat_penalty"},
+      {:repeat_last_n, "repeat_last_n"},
+      {:frequency_penalty, "frequency_penalty"},
+      {:presence_penalty, "presence_penalty"},
+      {:tfs_z, "tfs_z"},
+      {:typical_p, "typical_p"},
+
+      # Other settings
+      {:num_thread, "num_thread"},
+      {:numa, "numa"},
+      {:vocab_only, "vocab_only"},
+      {:penalize_newline, "penalize_newline"}
+    ]
+
+    # Collect model-specific options if provided individually
+    collected_options =
+      Enum.reduce(model_options, %{}, fn {opt_key, api_key}, acc ->
+        case Keyword.get(options, opt_key) do
+          nil -> acc
+          value -> Map.put(acc, api_key, value)
+        end
+      end)
+
+    if map_size(collected_options) > 0 do
+      Map.put(body, "options", collected_options)
+    else
+      body
+    end
   end
 
   defp flush_mailbox do
     receive do
-      :stream_done -> 
+      :stream_done ->
         Logger.debug("Flushing stale :stream_done message")
         flush_mailbox()
-      {:chunk, _} -> 
+
+      {:chunk, _} ->
         Logger.debug("Flushing stale chunk message")
         flush_mailbox()
-      {:stream_error, _} -> 
+
+      {:stream_error, _} ->
         Logger.debug("Flushing stale error message")
         flush_mailbox()
     after
@@ -504,12 +772,12 @@ defmodule ExLLM.Adapters.Ollama do
       {^ref, {:data, data}} ->
         # Parse each line of the NDJSON response
         lines = String.split(data, "\n", trim: true)
-        
+
         # Debug log raw response
         if length(lines) == 1 and String.contains?(data, "done") do
           Logger.debug("Ollama single-line response: #{inspect(data)}")
         end
-        
+
         lines
         |> Enum.each(fn line ->
           case Jason.decode(line) do
@@ -517,22 +785,26 @@ defmodule ExLLM.Adapters.Ollama do
               if chunk["done"] do
                 # Check if we got a finish reason or error
                 finish_reason = chunk["finish_reason"]
+
                 if finish_reason == "error" do
                   error_msg = chunk["error"] || "Unknown error"
                   Logger.warn("Ollama streaming error: #{error_msg}")
                 end
-                
+
                 # Log if we finished without generating any content
                 total_duration = chunk["total_duration"]
                 eval_count = chunk["eval_count"] || 0
+
                 if eval_count == 0 do
-                  Logger.warn("Ollama finished without generating tokens. Total duration: #{total_duration / 1_000_000}ms")
+                  Logger.warn(
+                    "Ollama finished without generating tokens. Total duration: #{total_duration / 1_000_000}ms"
+                  )
                 end
-                
+
                 send(parent, :stream_done)
               else
                 content = get_in(chunk, ["message", "content"]) || ""
-                
+
                 # Log if we're getting chunks but no content
                 if content == "" do
                   Logger.debug("Ollama: Received chunk with empty content: #{inspect(chunk)}")
@@ -562,11 +834,12 @@ defmodule ExLLM.Adapters.Ollama do
       {^ref, {:error, reason}} ->
         send(parent, {:stream_error, {:error, reason}})
     after
-      120_000 ->  # Increase to 2 minutes for slower models
+      # Increase to 2 minutes for slower models
+      120_000 ->
         send(parent, {:stream_error, {:error, :timeout}})
     end
   end
-  
+
   @impl true
   def embeddings(inputs, options \\ []) do
     config_provider =
@@ -577,94 +850,1134 @@ defmodule ExLLM.Adapters.Ollama do
       )
 
     config = get_config(config_provider)
-    
-    raw_model = Keyword.get(options, :model, Map.get(config, :embedding_model, "nomic-embed-text"))
+
+    raw_model =
+      Keyword.get(options, :model, Map.get(config, :embedding_model, "nomic-embed-text"))
+
     # Strip provider prefix if present
     model = strip_provider_prefix(raw_model)
-    
-    # Process each input
-    embeddings_results = Enum.map(inputs, fn input ->
-      body = %{
-        model: model,
-        prompt: input
-      }
-      
-      headers = [{"content-type", "application/json"}]
-      url = "#{get_base_url(config)}/api/embeddings"
-      
-      case Req.post(url, json: body, headers: headers, receive_timeout: 30_000) do
-        {:ok, %{status: 200, body: body}} ->
-          {:ok, body["embedding"]}
-          
-        {:ok, %{status: status, body: body}} ->
-          {:error, "API returned status #{status}: #{inspect(body)}"}
-          
-        {:error, reason} ->
-          {:error, reason}
-      end
-    end)
-    
-    # Check if all embeddings were successful
-    case Enum.all?(embeddings_results, fn {status, _} -> status == :ok end) do
-      true ->
-        embeddings = Enum.map(embeddings_results, fn {:ok, embedding} -> embedding end)
-        
-        {:ok, %Types.EmbeddingResponse{
-          embeddings: embeddings,
-          model: model,
-          usage: %{
-            input_tokens: estimate_embedding_tokens(inputs),
-            output_tokens: 0,  # Embeddings don't have output tokens
-            total_tokens: estimate_embedding_tokens(inputs)
-          }
-        }}
-        
-      false ->
-        # Find first error
-        {:error, _} = Enum.find(embeddings_results, fn {status, _} -> status == :error end)
+
+    # Ensure inputs is a list
+    inputs = if is_binary(inputs), do: [inputs], else: inputs
+
+    # Ollama's /api/embed endpoint expects a single request with the input
+    body = %{
+      model: model,
+      # Changed from prompt to input, and now supports batch
+      input: inputs
+    }
+
+    headers = [{"content-type", "application/json"}]
+    # Changed from /api/embeddings to /api/embed
+    url = "#{get_base_url(config)}/api/embed"
+
+    # Get timeout with default
+    timeout = Keyword.get(options, :timeout, 30_000)
+
+    case Req.post(url, json: body, headers: headers, receive_timeout: timeout) do
+      {:ok, %{status: 200, body: response_body}} ->
+        # Ollama returns embeddings in the "embeddings" field
+        embeddings = response_body["embeddings"] || []
+
+        {:ok,
+         %Types.EmbeddingResponse{
+           embeddings: embeddings,
+           model: model,
+           usage: %{
+             input_tokens: estimate_embedding_tokens(inputs),
+             # Embeddings don't have output tokens
+             output_tokens: 0,
+             total_tokens: estimate_embedding_tokens(inputs)
+           }
+         }}
+
+      {:ok, %{status: status, body: body}} ->
+        Error.api_error(status, body)
+
+      {:error, reason} ->
+        Error.connection_error(reason)
     end
   end
+
+  @doc """
+  Generate a completion for the given prompt using Ollama's /api/generate endpoint.
+
+  This is for non-chat completions, useful for base models or specific use cases.
+
+  ## Options
+  - `:model` - The model to use (required)
+  - `:prompt` - The prompt text (required)
+  - `:suffix` - Text to append after the generation
+  - `:images` - List of base64-encoded images for multimodal models
+  - `:format` - Response format (e.g., "json")
+  - `:options` - Model-specific options (temperature, seed, etc.)
+  - `:context` - Context from previous request for maintaining conversation state
+  - `:raw` - If true, no formatting will be applied to the prompt
+  - `:keep_alive` - How long to keep the model loaded (e.g., "5m")
+  - `:timeout` - Request timeout in milliseconds
+
+  ## Examples
+
+      # Simple completion
+      {:ok, response} = ExLLM.Adapters.Ollama.generate("Complete this: The sky is", 
+        model: "llama3.1")
+      
+      # With options
+      {:ok, response} = ExLLM.Adapters.Ollama.generate("Write a haiku about coding",
+        model: "llama3.1",
+        options: %{temperature: 0.7, seed: 42})
+      
+      # Maintain conversation context
+      {:ok, response1} = ExLLM.Adapters.Ollama.generate("Hi, I'm learning Elixir",
+        model: "llama3.1")
+      {:ok, response2} = ExLLM.Adapters.Ollama.generate("What should I learn first?",
+        model: "llama3.1",
+        context: response1.context)
+  """
+  def generate(prompt, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+
+    raw_model = Keyword.get(options, :model) || get_default_model()
+    model = strip_provider_prefix(raw_model)
+
+    # Build request body
+    body = %{
+      model: model,
+      prompt: prompt,
+      stream: false
+    }
+
+    # Add optional parameters
+    body =
+      body
+      |> maybe_add_param(:suffix, options)
+      |> maybe_add_param(:images, options)
+      |> maybe_add_param(:format, options)
+      |> maybe_add_param(:options, options)
+      |> maybe_add_param(:context, options)
+      |> maybe_add_param(:raw, options)
+      |> maybe_add_param(:keep_alive, options)
+
+    headers = [{"content-type", "application/json"}]
+    url = "#{get_base_url(config)}/api/generate"
+
+    timeout = Keyword.get(options, :timeout, 120_000)
+
+    req_options = [
+      json: body,
+      headers: headers,
+      receive_timeout: timeout,
+      retry: false
+    ]
+
+    case Req.post(url, req_options) do
+      {:ok, %{status: 200, body: response}} ->
+        {:ok, parse_generate_response(response, model)}
+
+      {:ok, %{status: status, body: body}} ->
+        Error.api_error(status, body)
+
+      {:error, reason} ->
+        Error.connection_error(reason)
+    end
+  end
+
+  @doc """
+  Stream a completion using the /api/generate endpoint.
+
+  Similar to `generate/2` but returns a stream of response chunks.
+  """
+  def stream_generate(prompt, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+
+    raw_model = Keyword.get(options, :model) || get_default_model()
+    model = strip_provider_prefix(raw_model)
+
+    # Build request body
+    body = %{
+      model: model,
+      prompt: prompt,
+      stream: true
+    }
+
+    # Add optional parameters
+    body =
+      body
+      |> maybe_add_param(:suffix, options)
+      |> maybe_add_param(:images, options)
+      |> maybe_add_param(:format, options)
+      |> maybe_add_param(:options, options)
+      |> maybe_add_param(:context, options)
+      |> maybe_add_param(:raw, options)
+      |> maybe_add_param(:keep_alive, options)
+
+    headers = [{"content-type", "application/json"}]
+    url = "#{get_base_url(config)}/api/generate"
+    parent = self()
+
+    # Clear any stale messages from mailbox
+    flush_mailbox()
+
+    timeout = Keyword.get(options, :timeout, 120_000)
+
+    # Start async request task
+    Task.start(fn ->
+      case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
+        {:ok, response} ->
+          if response.status == 200 do
+            handle_generate_stream_response(response, parent, model)
+          else
+            Logger.error(
+              "Ollama API error - Status: #{response.status}, Body: #{inspect(response.body)}"
+            )
+
+            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+          end
+
+        {:error, reason} ->
+          Logger.error("Ollama connection error: #{inspect(reason)}")
+          send(parent, {:stream_error, Error.connection_error(reason)})
+      end
+    end)
+
+    # Create stream that receives messages
+    stream =
+      Stream.resource(
+        fn -> :ok end,
+        fn state ->
+          receive do
+            {:chunk, chunk} ->
+              {[chunk], state}
+
+            :stream_done ->
+              {:halt, state}
+
+            {:stream_error, error} ->
+              Logger.error("Stream error: #{inspect(error)}")
+              throw(error)
+          after
+            100 -> {[], state}
+          end
+        end,
+        fn _ -> :ok end
+      )
+
+    {:ok, stream}
+  end
+
+  defp parse_generate_response(response, model) do
+    usage = %{
+      input_tokens: response["prompt_eval_count"] || 0,
+      output_tokens: response["eval_count"] || 0,
+      total_tokens: (response["prompt_eval_count"] || 0) + (response["eval_count"] || 0)
+    }
+
+    # Store context and timing info in the response
+    # We'll add context to the content as a special marker for now
+    content = response["response"] || ""
+
+    # If there's a context, we could return it as part of the response
+    # For now, we'll just return the basic response
+    %Types.LLMResponse{
+      content: content,
+      usage: usage,
+      model: model,
+      finish_reason: if(response["done"], do: "stop", else: nil),
+      cost: ExLLM.Cost.calculate("ollama", model, usage)
+      # TODO: Add metadata field to LLMResponse type to store context and timing info
+    }
+  end
+
+  defp handle_generate_stream_response(response, parent, model) do
+    %Req.Response.Async{ref: ref} = response.body
+
+    receive do
+      {^ref, {:data, data}} ->
+        # Parse each line of the NDJSON response
+        lines = String.split(data, "\n", trim: true)
+
+        lines
+        |> Enum.each(fn line ->
+          case Jason.decode(line) do
+            {:ok, chunk} ->
+              if chunk["done"] do
+                send(parent, :stream_done)
+              else
+                content = chunk["response"] || ""
+
+                stream_chunk = %Types.StreamChunk{
+                  content: content,
+                  finish_reason: nil
+                  # TODO: Add metadata field to StreamChunk type to store context
+                }
+
+                send(parent, {:chunk, stream_chunk})
+              end
+
+            {:error, _} ->
+              # Skip invalid JSON lines
+              :ok
+          end
+        end)
+
+        # Continue receiving more data
+        handle_generate_stream_response(response, parent, model)
+
+      {^ref, :done} ->
+        Logger.debug("Ollama: Generate stream done")
+        send(parent, :stream_done)
+
+      {^ref, {:error, reason}} ->
+        send(parent, {:stream_error, {:error, reason}})
+    after
+      120_000 ->
+        send(parent, {:stream_error, {:error, :timeout}})
+    end
+  end
+
+  defp maybe_add_param(body, key, options) do
+    case Keyword.get(options, key) do
+      nil -> body
+      value -> Map.put(body, key, value)
+    end
+  end
+
+  @doc """
+  Get detailed information about a specific model.
+
+  Uses Ollama's /api/show endpoint to retrieve model details including
+  modelfile, parameters, template, and more.
+
+  ## Examples
+
+      {:ok, info} = ExLLM.Adapters.Ollama.show_model("llama3.1")
+  """
+  def show_model(model_name, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    model = strip_provider_prefix(model_name)
+
+    body = %{name: model}
+    headers = [{"content-type", "application/json"}]
+    url = "#{get_base_url(config)}/api/show"
+
+    case Req.post(url, json: body, headers: headers, receive_timeout: 5_000) do
+      {:ok, %{status: 200, body: response}} ->
+        {:ok, response}
+
+      {:ok, %{status: status, body: body}} ->
+        Error.api_error(status, body)
+
+      {:error, reason} ->
+        Error.connection_error(reason)
+    end
+  end
+
+  @doc """
+  Copy a model to a new name.
+
+  Uses Ollama's /api/copy endpoint to create a copy of an existing model
+  with a new name.
+
+  ## Examples
+
+      {:ok, _} = ExLLM.Adapters.Ollama.copy_model("llama3.1", "my-llama")
+  """
+  def copy_model(source, destination, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+
+    body = %{
+      source: strip_provider_prefix(source),
+      destination: strip_provider_prefix(destination)
+    }
+
+    headers = [{"content-type", "application/json"}]
+    url = "#{get_base_url(config)}/api/copy"
+
+    case Req.post(url, json: body, headers: headers, receive_timeout: 5_000) do
+      {:ok, %{status: 200}} ->
+        {:ok, %{message: "Model copied successfully"}}
+
+      {:ok, %{status: status, body: body}} ->
+        Error.api_error(status, body)
+
+      {:error, reason} ->
+        Error.connection_error(reason)
+    end
+  end
+
+  @doc """
+  Delete a model from Ollama.
+
+  Uses Ollama's /api/delete endpoint to remove a model from the local
+  model store.
+
+  ## Examples
+
+      {:ok, _} = ExLLM.Adapters.Ollama.delete_model("old-model")
+  """
+  def delete_model(model_name, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    model = strip_provider_prefix(model_name)
+
+    body = %{name: model}
+    headers = [{"content-type", "application/json"}]
+    url = "#{get_base_url(config)}/api/delete"
+
+    case Req.delete(url, json: body, headers: headers, receive_timeout: 5_000) do
+      {:ok, %{status: 200}} ->
+        {:ok, %{message: "Model deleted successfully"}}
+
+      {:ok, %{status: status, body: body}} ->
+        Error.api_error(status, body)
+
+      {:error, reason} ->
+        Error.connection_error(reason)
+    end
+  end
+
+  @doc """
+  Pull a model from the Ollama library.
+
+  Uses Ollama's /api/pull endpoint to download a model. This returns
+  a stream of progress updates.
+
+  ## Examples
+
+      {:ok, stream} = ExLLM.Adapters.Ollama.pull_model("llama3.1:latest")
+      for update <- stream do
+        IO.puts("Status: \#{update["status"]}")
+      end
+  """
+  def pull_model(model_name, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    model = strip_provider_prefix(model_name)
+
+    body = %{
+      name: model,
+      stream: true
+    }
+
+    # Add insecure flag if requested
+    body =
+      if Keyword.get(options, :insecure, false) do
+        Map.put(body, "insecure", true)
+      else
+        body
+      end
+
+    headers = [{"content-type", "application/json"}]
+    url = "#{get_base_url(config)}/api/pull"
+    parent = self()
+
+    flush_mailbox()
+
+    # Start async request task
+    Task.start(fn ->
+      case Req.post(url, json: body, headers: headers, receive_timeout: 300_000, into: :self) do
+        {:ok, response} ->
+          if response.status == 200 do
+            handle_pull_stream_response(response, parent)
+          else
+            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+          end
+
+        {:error, reason} ->
+          send(parent, {:stream_error, Error.connection_error(reason)})
+      end
+    end)
+
+    # Create stream that receives messages
+    stream =
+      Stream.resource(
+        fn -> :ok end,
+        fn state ->
+          receive do
+            {:pull_update, update} ->
+              {[update], state}
+
+            :stream_done ->
+              {:halt, state}
+
+            {:stream_error, error} ->
+              throw(error)
+          after
+            100 -> {[], state}
+          end
+        end,
+        fn _ -> :ok end
+      )
+
+    {:ok, stream}
+  end
+
+  @doc """
+  Push a model to the Ollama library.
+
+  Uses Ollama's /api/push endpoint to upload a model.
+
+  ## Examples
+
+      {:ok, stream} = ExLLM.Adapters.Ollama.push_model("my-model:latest")
+  """
+  def push_model(model_name, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    model = strip_provider_prefix(model_name)
+
+    body = %{
+      name: model,
+      stream: true
+    }
+
+    # Add insecure flag if requested
+    body =
+      if Keyword.get(options, :insecure, false) do
+        Map.put(body, "insecure", true)
+      else
+        body
+      end
+
+    headers = [{"content-type", "application/json"}]
+    url = "#{get_base_url(config)}/api/push"
+    parent = self()
+
+    flush_mailbox()
+
+    # Start async request task
+    Task.start(fn ->
+      case Req.post(url, json: body, headers: headers, receive_timeout: 300_000, into: :self) do
+        {:ok, response} ->
+          if response.status == 200 do
+            handle_push_stream_response(response, parent)
+          else
+            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+          end
+
+        {:error, reason} ->
+          send(parent, {:stream_error, Error.connection_error(reason)})
+      end
+    end)
+
+    # Create stream that receives messages
+    stream =
+      Stream.resource(
+        fn -> :ok end,
+        fn state ->
+          receive do
+            {:push_update, update} ->
+              {[update], state}
+
+            :stream_done ->
+              {:halt, state}
+
+            {:stream_error, error} ->
+              throw(error)
+          after
+            100 -> {[], state}
+          end
+        end,
+        fn _ -> :ok end
+      )
+
+    {:ok, stream}
+  end
+
+  @doc """
+  List currently loaded models.
+
+  Uses Ollama's /api/ps endpoint to show which models are currently
+  loaded in memory.
+
+  ## Examples
+
+      {:ok, loaded} = ExLLM.Adapters.Ollama.list_running_models()
+  """
+  def list_running_models(options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    url = "#{get_base_url(config)}/api/ps"
+
+    case Req.get(url, receive_timeout: 5_000) do
+      {:ok, %{status: 200, body: response}} ->
+        {:ok, response["models"] || []}
+
+      {:ok, %{status: status, body: body}} ->
+        Error.api_error(status, body)
+
+      {:error, reason} ->
+        Error.connection_error(reason)
+    end
+  end
+
+  @doc """
+  Get Ollama version information.
+
+  ## Examples
+
+      {:ok, version} = ExLLM.Adapters.Ollama.version()
+  """
+  def version(options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    url = "#{get_base_url(config)}/api/version"
+
+    case Req.get(url, receive_timeout: 5_000) do
+      {:ok, %{status: 200, body: response}} ->
+        {:ok, response}
+
+      {:ok, %{status: status, body: body}} ->
+        Error.api_error(status, body)
+
+      {:error, reason} ->
+        Error.connection_error(reason)
+    end
+  end
+
+  @doc """
+  Generate YAML configuration for all locally installed Ollama models.
   
+  This function fetches information about all installed models and generates
+  a YAML configuration that can be saved to `config/models/ollama.yml`.
+  
+  ## Options
+  
+  - `:save` - When true, saves the configuration to the file (default: false)
+  - `:path` - Custom path for the YAML file (default: "config/models/ollama.yml")
+  - `:merge` - When true, merges with existing configuration (default: true)
+  
+  ## Examples
+  
+      # Generate configuration and return as string
+      {:ok, yaml} = ExLLM.Adapters.Ollama.generate_config()
+      
+      # Save directly to config/models/ollama.yml
+      {:ok, path} = ExLLM.Adapters.Ollama.generate_config(save: true)
+      
+      # Save to custom location
+      {:ok, path} = ExLLM.Adapters.Ollama.generate_config(
+        save: true, 
+        path: "my_ollama_config.yml"
+      )
+      
+      # Replace existing configuration instead of merging
+      {:ok, yaml} = ExLLM.Adapters.Ollama.generate_config(merge: false)
+  """
+  def generate_config(options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    
+    # Fetch all models
+    case fetch_ollama_models(config) do
+      {:ok, models} ->
+        # Build model configuration
+        model_configs = build_model_configs(models, config)
+        
+        # Determine default model
+        default_model = determine_default_model(model_configs, options)
+        
+        # Build full configuration
+        yaml_config = %{
+          "provider" => "ollama",
+          "default_model" => default_model,
+          "models" => model_configs,
+          "metadata" => %{
+            "updated_at" => DateTime.utc_now() |> DateTime.to_iso8601(),
+            "source" => "ollama_generate_config"
+          }
+        }
+        
+        # Handle merging if requested
+        yaml_config = 
+          if Keyword.get(options, :merge, true) do
+            merge_with_existing_config(yaml_config, options)
+          else
+            yaml_config
+          end
+        
+        # Convert to YAML
+        yaml_string = to_yaml(yaml_config)
+        
+        # Save if requested
+        if Keyword.get(options, :save, false) do
+          save_config_to_file(yaml_string, options)
+        else
+          {:ok, yaml_string}
+        end
+        
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc """
+  Update configuration for a specific model in ollama.yml.
+  
+  This function fetches the latest information for a specific model and
+  updates its entry in the configuration file.
+  
+  ## Options
+  
+  - `:save` - When true, saves the configuration to the file (default: true)
+  - `:path` - Custom path for the YAML file (default: "config/models/ollama.yml")
+  
+  ## Examples
+  
+      # Update a specific model's configuration
+      {:ok, yaml} = ExLLM.Adapters.Ollama.update_model_config("llama3.1")
+      
+      # Update without saving (preview changes)
+      {:ok, yaml} = ExLLM.Adapters.Ollama.update_model_config("llama3.1", save: false)
+  """
+  def update_model_config(model_name, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    model = strip_provider_prefix(model_name)
+    
+    # Get detailed info for this specific model
+    case show_model(model, config_provider: config_provider) do
+      {:ok, details} ->
+        # Build configuration for this model
+        model_config = build_single_model_config(model, details)
+        
+        # Load existing configuration
+        path = Keyword.get(options, :path, "config/models/ollama.yml")
+        existing_config = load_yaml_config(path)
+        
+        # Update the specific model
+        updated_config = 
+          existing_config
+          |> put_in(["models", "ollama/#{model}"], model_config)
+          |> put_in(["metadata", "updated_at"], DateTime.utc_now() |> DateTime.to_iso8601())
+          |> put_in(["metadata", "source"], "ollama_update_model")
+        
+        # Convert to YAML
+        yaml_string = to_yaml(updated_config)
+        
+        # Save if requested (default: true for this function)
+        if Keyword.get(options, :save, true) do
+          save_config_to_file(yaml_string, options)
+        else
+          {:ok, yaml_string}
+        end
+        
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp handle_pull_stream_response(response, parent) do
+    %Req.Response.Async{ref: ref} = response.body
+
+    receive do
+      {^ref, {:data, data}} ->
+        lines = String.split(data, "\n", trim: true)
+
+        lines
+        |> Enum.each(fn line ->
+          case Jason.decode(line) do
+            {:ok, update} ->
+              if update["status"] == "success" do
+                send(parent, :stream_done)
+              else
+                send(parent, {:pull_update, update})
+              end
+
+            {:error, _} ->
+              :ok
+          end
+        end)
+
+        handle_pull_stream_response(response, parent)
+
+      {^ref, :done} ->
+        send(parent, :stream_done)
+
+      {^ref, {:error, reason}} ->
+        send(parent, {:stream_error, {:error, reason}})
+    after
+      300_000 ->
+        send(parent, {:stream_error, {:error, :timeout}})
+    end
+  end
+
+  defp handle_push_stream_response(response, parent) do
+    %Req.Response.Async{ref: ref} = response.body
+
+    receive do
+      {^ref, {:data, data}} ->
+        lines = String.split(data, "\n", trim: true)
+
+        lines
+        |> Enum.each(fn line ->
+          case Jason.decode(line) do
+            {:ok, update} ->
+              if update["status"] == "success" do
+                send(parent, :stream_done)
+              else
+                send(parent, {:push_update, update})
+              end
+
+            {:error, _} ->
+              :ok
+          end
+        end)
+
+        handle_push_stream_response(response, parent)
+
+      {^ref, :done} ->
+        send(parent, :stream_done)
+
+      {^ref, {:error, reason}} ->
+        send(parent, {:stream_error, {:error, reason}})
+    after
+      300_000 ->
+        send(parent, {:stream_error, {:error, :timeout}})
+    end
+  end
+
   @impl true
   def list_embedding_models(options \\ []) do
     case list_models(options) do
       {:ok, models} ->
         # Filter to only embedding models
-        embedding_models = 
+        embedding_models =
           models
           |> Enum.filter(fn model ->
-            String.contains?(model.name, "embed") || 
-            String.contains?(model.name, "embedding")
+            String.contains?(model.name, "embed") ||
+              String.contains?(model.name, "embedding")
           end)
           |> Enum.map(fn model ->
             %Types.EmbeddingModel{
               name: model.name,
               dimensions: estimate_embedding_dimensions(model.name),
-              max_inputs: 1,  # Ollama processes one at a time
+              # Ollama processes one at a time
+              max_inputs: 1,
               provider: :ollama,
               description: model.description
             }
           end)
-          
+
         {:ok, embedding_models}
-        
-      error -> error
+
+      error ->
+        error
     end
   end
-  
+
   defp estimate_embedding_tokens(inputs) when is_list(inputs) do
     inputs
     |> Enum.map(&String.length/1)
     |> Enum.sum()
-    |> div(4)  # Rough estimate: 4 chars per token
+    # Rough estimate: 4 chars per token
+    |> div(4)
   end
-  
+
   defp estimate_embedding_dimensions(model_name) do
     cond do
       String.contains?(model_name, "nomic") -> 768
       String.contains?(model_name, "mxbai") -> 512
       String.contains?(model_name, "all-minilm") -> 384
-      true -> 1024  # Default dimension
+      # Default dimension
+      true -> 1024
+    end
+  end
+
+  # Helper functions for generate_config
+
+  defp build_model_configs(models, config) do
+    base_url = get_base_url(config)
+    
+    models
+    |> Enum.reduce(%{}, fn model, acc ->
+      model_name = model.name
+      
+      # Try to get detailed info for better configuration
+      detailed_config = 
+        case get_model_details_direct(model_name, base_url) do
+          {:ok, details} ->
+            build_single_model_config(model_name, details)
+          _ ->
+            # Fallback to basic info from list_models
+            build_basic_model_config(model)
+        end
+      
+      Map.put(acc, "ollama/#{model_name}", detailed_config)
+    end)
+  end
+  
+  defp get_model_details_direct(model_name, base_url) do
+    body = %{name: model_name}
+    headers = [{"content-type", "application/json"}]
+    url = "#{base_url}/api/show"
+
+    case Req.post(url, json: body, headers: headers, receive_timeout: 5_000) do
+      {:ok, %{status: 200, body: response}} ->
+        {:ok, response}
+      _ ->
+        :error
+    end
+  end
+
+  defp build_single_model_config(model_name, details) do
+    # Extract capabilities from API response
+    capabilities = details["capabilities"] || []
+    
+    # Get context window from model_info
+    context_window = 
+      case details["model_info"] do
+        nil -> 4096
+        info -> get_context_from_model_info(info) || 4096
+      end
+    
+    # Build capability list
+    cap_list = ["streaming"]
+    
+    cap_list = 
+      if "tools" in capabilities || ("completion" in capabilities && "tools" in capabilities) do
+        ["function_calling" | cap_list]
+      else
+        cap_list
+      end
+    
+    cap_list = 
+      if "embedding" in capabilities do
+        ["embeddings" | cap_list]
+      else
+        cap_list
+      end
+    
+    # Add vision if in model name (API doesn't report this yet)
+    cap_list = 
+      if is_vision_model?(model_name) do
+        ["vision" | cap_list]
+      else
+        cap_list
+      end
+    
+    # Build config map
+    config = %{
+      "context_window" => context_window,
+      "capabilities" => Enum.sort(cap_list)
+    }
+    
+    # Add parameter size if available
+    case details["details"] do
+      %{"parameter_size" => size} when is_binary(size) ->
+        Map.put(config, "parameter_size", size)
+      _ ->
+        config
+    end
+  end
+
+  defp build_basic_model_config(model) do
+    # Fallback for when we can't get detailed info
+    %{
+      "context_window" => model.context_window || 4096,
+      "capabilities" => 
+        model.capabilities.features
+        |> Enum.map(&to_string/1)
+        |> Enum.sort()
+    }
+  end
+
+  defp determine_default_model(model_configs, options) do
+    cond do
+      # If explicitly provided
+      default = Keyword.get(options, :default_model) ->
+        default
+      
+      # If existing config has a default, preserve it
+      existing = load_existing_default(options) ->
+        existing
+      
+      # If we have the common default model
+      Map.has_key?(model_configs, "ollama/llama3.1") ->
+        "ollama/llama3.1"
+      
+      # Otherwise use the first model
+      true ->
+        case Map.keys(model_configs) do
+          [] -> "ollama/llama2"
+          [first | _] -> first
+        end
+    end
+  end
+
+  defp merge_with_existing_config(new_config, options) do
+    path = Keyword.get(options, :path, "config/models/ollama.yml")
+    existing_config = load_yaml_config(path)
+    
+    # Deep merge, preserving existing data where not updated
+    %{
+      "provider" => "ollama",
+      "default_model" => new_config["default_model"] || existing_config["default_model"],
+      "models" => deep_merge_models(existing_config["models"] || %{}, new_config["models"]),
+      "metadata" => new_config["metadata"]
+    }
+  end
+
+  defp deep_merge_models(existing_models, new_models) do
+    # Start with all new models
+    merged = new_models
+    
+    # Add any existing models not in the new set
+    Enum.reduce(existing_models, merged, fn {model_name, model_config}, acc ->
+      if Map.has_key?(acc, model_name) do
+        # Model exists in new config, merge preserving any custom fields
+        updated_config = Map.merge(model_config, acc[model_name])
+        Map.put(acc, model_name, updated_config)
+      else
+        # Model not in new config, preserve it
+        Map.put(acc, model_name, model_config)
+      end
+    end)
+  end
+
+  defp load_yaml_config(path) do
+    case File.read(path) do
+      {:ok, content} ->
+        case YamlElixir.read_from_string(content) do
+          {:ok, config} -> config
+          _ -> %{}
+        end
+      _ ->
+        %{}
+    end
+  end
+
+  defp load_existing_default(options) do
+    path = Keyword.get(options, :path, "config/models/ollama.yml")
+    config = load_yaml_config(path)
+    config["default_model"]
+  end
+
+  defp to_yaml(data) do
+    # Convert to YAML format manually since YamlElixir doesn't provide write functions
+    # This is a simple implementation that handles our specific use case
+    build_yaml_string(data, 0)
+  end
+
+  defp build_yaml_string(data, indent_level) when is_map(data) do
+    data
+    |> Enum.map(fn {key, value} ->
+      indent = String.duplicate("  ", indent_level)
+      case value do
+        v when is_map(v) and map_size(v) > 0 ->
+          "#{indent}#{key}:\n#{build_yaml_string(v, indent_level + 1)}"
+        
+        v when is_list(v) and length(v) > 0 ->
+          items = Enum.map(v, fn item ->
+            "#{indent}- #{item}"
+          end) |> Enum.join("\n")
+          "#{indent}#{key}:\n#{items}"
+        
+        v when is_binary(v) or is_atom(v) ->
+          "#{indent}#{key}: #{format_yaml_value(v)}"
+        
+        v when is_integer(v) or is_float(v) ->
+          "#{indent}#{key}: #{v}"
+        
+        _ ->
+          "#{indent}#{key}: #{inspect(value)}"
+      end
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp format_yaml_value(value) when is_binary(value) do
+    # Quote if contains special characters
+    if String.contains?(value, ["\n", ":", "#", "@", "*", "&", "!", "|", ">", "'", "\"", "%", "?"]) do
+      "'#{String.replace(value, "'", "''")}'"
+    else
+      value
+    end
+  end
+  
+  defp format_yaml_value(value) when is_atom(value), do: to_string(value)
+
+  defp save_config_to_file(yaml_string, options) do
+    path = Keyword.get(options, :path, "config/models/ollama.yml")
+    
+    # Ensure directory exists
+    File.mkdir_p!(Path.dirname(path))
+    
+    case File.write(path, yaml_string) do
+      :ok ->
+        Logger.info("Saved Ollama configuration to #{path}")
+        {:ok, path}
+      {:error, reason} ->
+        {:error, "Failed to save configuration: #{inspect(reason)}"}
     end
   end
 end
