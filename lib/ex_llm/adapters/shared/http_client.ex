@@ -325,7 +325,18 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     Enum.reduce(lines, %{}, fn line, acc ->
       case String.split(line, ":", parts: 2) do
         [key, value] ->
-          Map.put(acc, String.to_atom(key), String.trim_leading(value))
+          # SSE event keys are limited to: event, data, id, retry
+          atom_key =
+            case key do
+              "event" -> :event
+              "data" -> :data
+              "id" -> :id
+              "retry" -> :retry
+              # Fallback for unknown keys
+              _ -> String.to_atom(key)
+            end
+
+          Map.put(acc, atom_key, String.trim_leading(value))
 
         _ ->
           acc

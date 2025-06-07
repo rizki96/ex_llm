@@ -224,7 +224,7 @@ defmodule ExLLM.ResponseCache do
   Configures the Mock adapter to use cached responses from a specific provider.
   """
   def configure_mock_provider(provider) when is_binary(provider) do
-    configure_mock_provider(String.to_atom(provider))
+    configure_mock_provider(String.to_existing_atom(provider))
   end
 
   def configure_mock_provider(provider) when is_atom(provider) do

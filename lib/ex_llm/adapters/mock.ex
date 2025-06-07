@@ -143,7 +143,7 @@ defmodule ExLLM.Adapters.Mock do
       {:ok, response} = ExLLM.chat(messages, provider: :mock)
   """
   def use_cached_responses(provider) when is_binary(provider) do
-    use_cached_responses(String.to_atom(provider))
+    use_cached_responses(String.to_existing_atom(provider))
   end
 
   def use_cached_responses(provider) when is_atom(provider) do
