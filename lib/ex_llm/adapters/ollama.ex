@@ -98,10 +98,13 @@ defmodule ExLLM.Adapters.Ollama do
     url = "#{get_base_url(config)}/api/chat"
 
     # Ollama can be slow, especially with function calling
+    # Default to 2 minutes, but allow override
+    timeout = Keyword.get(options, :timeout, 120_000)
+    
     req_options = [
       json: body,
       headers: headers,
-      receive_timeout: 300_000,  # 5 minutes
+      receive_timeout: timeout,
       retry: false  # Let ExLLM handle retries
     ]
     
@@ -167,9 +170,12 @@ defmodule ExLLM.Adapters.Ollama do
     # Clear any stale messages from mailbox
     flush_mailbox()
     
+    # Get timeout from options with default
+    timeout = Keyword.get(options, :timeout, 120_000)
+    
     # Start async request task
     Task.start(fn ->
-      case Req.post(url, json: body, headers: headers, receive_timeout: 300_000, into: :self) do
+      case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
         {:ok, response} ->
           if response.status == 200 do
             handle_stream_response(response, parent, model)

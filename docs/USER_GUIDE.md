@@ -232,9 +232,31 @@ end
   frequency_penalty: 0.5,    # Reduce repetition
   presence_penalty: 0.5,     # Encourage new topics
   stop: ["\n\n", "END"],     # Stop sequences
-  seed: 12345                # Reproducible outputs
+  seed: 12345,               # Reproducible outputs
+  timeout: 60_000            # Request timeout in ms (default: provider-specific)
 )
 ```
+
+### Timeout Configuration
+
+Different providers have different timeout requirements. ExLLM allows you to configure timeouts per request:
+
+```elixir
+# Ollama with function calling (can be slow)
+{:ok, response} = ExLLM.chat(:ollama, messages,
+  functions: functions,
+  timeout: 300_000  # 5 minutes
+)
+
+# Quick requests with shorter timeout
+{:ok, response} = ExLLM.chat(:openai, messages,
+  timeout: 30_000   # 30 seconds
+)
+```
+
+Default timeouts:
+- **Ollama**: 120,000ms (2 minutes) - Local models can be slower
+- **Other providers**: Use their HTTP client defaults (typically 30-60 seconds)
 
 ### System Messages
 

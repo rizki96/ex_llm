@@ -37,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed KeyError when using providers without pricing data (e.g., Ollama)
 - Cost tracking now properly adds cost information to chat responses
 - Ollama now properly supports function calling for compatible models
-- Increased Ollama timeout to 5 minutes to handle slower function calling requests
+- Made request timeouts configurable via `:timeout` option (defaults: Ollama 2min, others use client defaults)
 - Fixed MatchError in example app when displaying providers without capabilities info
 - Provider and model capability queries now accept any provider's terminology
 - Moved `LOGGER.md`, `PROVIDER_CAPABILITIES.md`, and `DROPPED.md` to `docs/` directory

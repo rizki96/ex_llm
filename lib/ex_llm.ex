@@ -184,6 +184,9 @@ defmodule ExLLM do
   - `:recovery_strategy` - Recovery strategy: :exact, :paragraph, or :summarize
   - `:cache` - Enable caching for this request (default: false unless globally enabled)
   - `:cache_ttl` - Cache TTL in milliseconds (default: 15 minutes)
+  - `:timeout` - Request timeout in milliseconds (provider-specific defaults)
+    - Ollama default: 120000 (2 minutes)
+    - Other providers use their client library defaults
   - Mock adapter options:
     - `:mock_response` - Static response or response map
     - `:mock_handler` - Function to generate dynamic responses
