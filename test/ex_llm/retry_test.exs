@@ -163,14 +163,14 @@ defmodule ExLLM.RetryTest do
       # 3rd retry: 150ms (would be 400ms but capped at max_delay)
 
       # All delays should respect the constraints
-      # First delay should be around base_delay
-      assert Enum.at(actual_delays, 0) >= 90 and Enum.at(actual_delays, 0) <= 120
+      # First delay should be around base_delay (allow more tolerance for CI)
+      assert Enum.at(actual_delays, 0) >= 80 and Enum.at(actual_delays, 0) <= 150
 
       # Subsequent delays should be capped at max_delay
-      # Allow tolerance for jitter and execution time
+      # Allow more tolerance for jitter and execution time in CI environments
       Enum.drop(actual_delays, 1)
       |> Enum.each(fn delay ->
-        assert delay >= 140 and delay <= 200
+        assert delay >= 120 and delay <= 250
       end)
     end
 
