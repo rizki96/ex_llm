@@ -4,10 +4,8 @@ defmodule ExLLM.UnifiedCacheTest do
   alias ExLLM.ResponseCache
 
   setup do
-    # Start the cache
-    {:ok, _pid} = Cache.start_link([])
-
-    # Clear any existing cache
+    # Cache is already started by the application
+    # Just clear any existing cache
     Cache.clear()
     ResponseCache.clear_all_cache()
 
