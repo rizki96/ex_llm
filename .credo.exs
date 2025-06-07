@@ -89,7 +89,14 @@
         {Credo.Check.Refactor.MapJoin, false}, # Performance micro-optimization
         {Credo.Check.Refactor.UnlessWithElse, false}, # Style preference
         
-        # Re-enable to analyze String.to_atom warnings
+        # Phase 2: String.to_atom warnings (10 remaining)
+        # Fixed 5 provider name conversions to use String.to_existing_atom/1
+        # Remaining 10 cases need careful analysis:
+        # - Configuration key atomization (model_config.ex, response_cache.ex)
+        # - Dynamic capability name creation (capabilities.ex, model_capabilities.ex)
+        # - Session field conversion (session.ex)
+        # - HTTP event parsing (http_client.ex)
+        # - Mock adapter provider conversion (mock.ex)
         {Credo.Check.Warning.UnsafeToAtom, []}
       ]
     }
