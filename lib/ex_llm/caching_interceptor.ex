@@ -222,7 +222,7 @@ defmodule ExLLM.CachingInterceptor do
       :ollama -> ExLLM.Adapters.Ollama
       :groq -> ExLLM.Adapters.Groq
       :mock -> ExLLM.Adapters.Mock
-      provider when is_binary(provider) -> get_adapter_module(String.to_atom(provider))
+      provider when is_binary(provider) -> get_adapter_module(String.to_existing_atom(provider))
       _ -> raise ArgumentError, "Unknown provider: #{provider}"
     end
   end

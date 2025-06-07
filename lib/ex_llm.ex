@@ -667,7 +667,7 @@ defmodule ExLLM do
     session = Session.add_message(session, "user", content)
 
     # Get provider from session
-    provider = String.to_atom(session.llm_backend || "anthropic")
+    provider = String.to_existing_atom(session.llm_backend || "anthropic")
 
     # Get messages for chat
     messages = Session.get_messages(session)
@@ -1728,7 +1728,7 @@ defmodule ExLLM do
     case String.split(provider_or_model, "/", parts: 2) do
       [provider_str, model] ->
         # Found provider/model pattern
-        provider = String.to_atom(provider_str)
+        provider = String.to_existing_atom(provider_str)
 
         if Map.has_key?(@providers, provider) do
           {provider, Keyword.put(options, :model, model)}

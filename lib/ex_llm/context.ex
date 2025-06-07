@@ -24,7 +24,7 @@ defmodule ExLLM.Context do
   """
   @spec get_context_window(String.t() | atom(), String.t()) :: pos_integer()
   def get_context_window(provider, model) do
-    provider_atom = if is_binary(provider), do: String.to_atom(provider), else: provider
+    provider_atom = if is_binary(provider), do: String.to_existing_atom(provider), else: provider
 
     # Try with the model as-is first
     context_window = ModelConfig.get_context_window(provider_atom, model)

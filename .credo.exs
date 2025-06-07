@@ -28,7 +28,8 @@
         # Enable warnings (these should always be fixed)
         {Credo.Check.Warning.LazyLogging, []},
         {Credo.Check.Warning.MapGetUnsafePass, []},
-        {Credo.Check.Warning.UnsafeToAtom, []},
+        # Temporarily disabled - see bottom of file
+        # {Credo.Check.Warning.UnsafeToAtom, []},
         {Credo.Check.Warning.UnusedKeywordOperation, []},
         {Credo.Check.Warning.UnusedListOperation, []},
         {Credo.Check.Warning.UnusedPathOperation, []},
@@ -86,7 +87,10 @@
         {Credo.Check.Design.SkipTestWithoutComment, false}, # Test-specific
         {Credo.Check.Readability.PredicateFunctionNames, false}, # Many is_* functions
         {Credo.Check.Refactor.MapJoin, false}, # Performance micro-optimization
-        {Credo.Check.Refactor.UnlessWithElse, false} # Style preference
+        {Credo.Check.Refactor.UnlessWithElse, false}, # Style preference
+        
+        # Re-enable to analyze String.to_atom warnings
+        {Credo.Check.Warning.UnsafeToAtom, []}
       ]
     }
   ]

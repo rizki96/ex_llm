@@ -50,7 +50,7 @@ defmodule ExLLM.Cost do
   """
   @spec get_pricing(String.t(), String.t()) :: %{input: float(), output: float()} | nil
   def get_pricing(provider, model) do
-    provider_atom = if is_binary(provider), do: String.to_atom(provider), else: provider
+    provider_atom = if is_binary(provider), do: String.to_existing_atom(provider), else: provider
     ModelConfig.get_pricing(provider_atom, model)
   end
 
