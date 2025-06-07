@@ -146,9 +146,7 @@ defmodule ExLLM.Local.ModelLoader do
   # Private functions
 
   defp do_load_model(model_identifier) do
-    if not Code.ensure_loaded?(Bumblebee) do
-      {:error, "Bumblebee is not available"}
-    else
+    if Code.ensure_loaded?(Bumblebee) do
       Logger.info("Loading model: #{model_identifier}")
 
       try do
@@ -191,6 +189,8 @@ defmodule ExLLM.Local.ModelLoader do
           Logger.error("Exception loading model #{model_identifier}: #{inspect(e)}")
           {:error, {:exception, e}}
       end
+    else
+      {:error, "Bumblebee is not available"}
     end
   end
 

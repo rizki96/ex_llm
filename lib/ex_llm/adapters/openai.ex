@@ -458,21 +458,19 @@ defmodule ExLLM.Adapters.OpenAI do
               _ -> :unknown
             end)
 
-          cond do
-            "file" in content_types ->
-              raise RuntimeError, "File content references are not yet supported in this adapter"
-
-            # Audio content in messages is now supported!
-            # "input_audio" in content_types ->
-            #   raise RuntimeError, "Audio content in messages is not yet supported in this adapter"
-
-            # Multiple content parts are now supported (for audio and other content)!
-            # length(content) > 1 and "text" in content_types ->
-            #   raise RuntimeError, "Multiple content parts per message are not yet supported in this adapter"
-
-            true ->
-              :ok
+          if "file" in content_types do
+            raise RuntimeError, "File content references are not yet supported in this adapter"
           end
+
+          # Audio content in messages is now supported!
+          # "input_audio" in content_types ->
+          #   raise RuntimeError, "Audio content in messages is not yet supported in this adapter"
+
+          # Multiple content parts are now supported (for audio and other content)!
+          # length(content) > 1 and "text" in content_types ->
+          #   raise RuntimeError, "Multiple content parts per message are not yet supported in this adapter"
+
+          :ok
 
         _ ->
           :ok
