@@ -6,7 +6,7 @@ defmodule ExLLM.Cost do
   for all supported LLM providers.
   """
 
-  alias ExLLM.{Types, ModelConfig}
+  alias ExLLM.{ModelConfig, Types}
 
   # Pricing is now loaded from external YAML configuration files
   # See config/models/ for model pricing, context windows, and capabilities

@@ -59,8 +59,8 @@ defmodule ExLLM.Adapters.Gemini do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Error, Types, Logger}
-  alias ExLLM.Adapters.Shared.{ModelUtils, ConfigHelper}
+  alias ExLLM.{Error, Logger, Types}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, ModelUtils}
 
   @base_url "https://generativelanguage.googleapis.com"
   @api_version "v1beta"

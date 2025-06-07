@@ -66,9 +66,8 @@ defmodule ExLLM.Adapters.OpenRouter do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{ConfigProvider, Error, Types}
-  alias ExLLM.{Logger}
   alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.{ConfigProvider, Error, Logger, Types}
 
   @default_base_url "https://openrouter.ai/api/v1"
 

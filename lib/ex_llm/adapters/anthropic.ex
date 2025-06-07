@@ -51,8 +51,8 @@ defmodule ExLLM.Adapters.Anthropic do
 
   alias ExLLM.Adapters.Shared.{
     ConfigHelper,
-    HTTPClient,
     ErrorHandler,
+    HTTPClient,
     MessageFormatter,
     StreamingBehavior,
     Validation

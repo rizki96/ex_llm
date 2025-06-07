@@ -10,7 +10,7 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
   - Embeddings
   """
 
-  alias ExLLM.{Types, Cost}
+  alias ExLLM.{Cost, Types}
 
   @doc """
   Build a standard chat response from provider-specific data.

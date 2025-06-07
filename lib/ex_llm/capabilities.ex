@@ -24,7 +24,7 @@ defmodule ExLLM.Capabilities do
       # => [:openai]
   """
 
-  alias ExLLM.{ProviderCapabilities, ModelCapabilities}
+  alias ExLLM.{ModelCapabilities, ProviderCapabilities}
 
   # Capability normalization mappings
   # Maps various provider-specific names to our normalized capability names

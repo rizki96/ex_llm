@@ -15,8 +15,8 @@ defmodule ExLLM.Local.ModelLoader do
   """
 
   use GenServer
-  alias ExLLM.{Logger}
   alias ExLLM.Local.EXLAConfig
+  alias ExLLM.Logger
 
   @model_cache_dir Path.expand("~/.ex_llm/models")
 

@@ -49,8 +49,8 @@ defmodule ExLLM.Adapters.Bedrock do
   """
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Types, ModelConfig, Logger}
   alias ExLLM.Adapters.Shared.ModelUtils
+  alias ExLLM.{Logger, ModelConfig, Types}
 
   @default_region "us-east-1"
 

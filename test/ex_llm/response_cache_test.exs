@@ -1,8 +1,8 @@
 defmodule ExLLM.ResponseCacheTest do
   use ExUnit.Case, async: false
-  alias ExLLM.ResponseCache
-  alias ExLLM.CachingInterceptor
   alias ExLLM.Adapters.Mock
+  alias ExLLM.CachingInterceptor
+  alias ExLLM.ResponseCache
 
   @moduletag :cache_test
 

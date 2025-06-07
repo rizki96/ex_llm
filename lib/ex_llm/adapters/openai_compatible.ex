@@ -1,13 +1,13 @@
 defmodule ExLLM.Adapters.OpenAICompatible do
-  alias ExLLM.{Types, ModelConfig}
+  alias ExLLM.{ModelConfig, Types}
 
   alias ExLLM.Adapters.Shared.{
     ConfigHelper,
-    HTTPClient,
     ErrorHandler,
+    HTTPClient,
     MessageFormatter,
-    StreamingBehavior,
-    ModelUtils
+    ModelUtils,
+    StreamingBehavior
   }
 
   @moduledoc """
@@ -86,12 +86,12 @@ defmodule ExLLM.Adapters.OpenAICompatible do
       @behaviour ExLLM.Adapters.OpenAICompatible
       @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
-      alias ExLLM.{Error, Types, Logger}
+      alias ExLLM.{Error, Logger, Types}
 
       alias ExLLM.Adapters.Shared.{
         ConfigHelper,
-        HTTPClient,
         ErrorHandler,
+        HTTPClient,
         MessageFormatter,
         StreamingBehavior,
         Validation

@@ -48,16 +48,16 @@ defmodule ExLLM.Adapters.OpenAI do
   @behaviour ExLLM.Adapter
   @behaviour ExLLM.Adapters.Shared.StreamingBehavior
 
-  alias ExLLM.{Error, Types, Logger}
+  alias ExLLM.{Error, Logger, Types}
 
   alias ExLLM.Adapters.Shared.{
     ConfigHelper,
-    HTTPClient,
     ErrorHandler,
+    HTTPClient,
     MessageFormatter,
+    ModelUtils,
     StreamingBehavior,
-    Validation,
-    ModelUtils
+    Validation
   }
 
   @default_base_url "https://api.openai.com/v1"

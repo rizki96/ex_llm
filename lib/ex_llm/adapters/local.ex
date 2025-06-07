@@ -34,7 +34,7 @@ defmodule ExLLM.Adapters.Local do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Local.ModelLoader, Types, Logger}
+  alias ExLLM.{Local.ModelLoader, Logger, Types}
 
   @available_models [
     "microsoft/phi-2",
