@@ -867,12 +867,18 @@ defmodule ExLLM do
       result = adapter.chat(messages, options)
 
       # Track costs if enabled
-      if Keyword.get(options, :track_cost, true) and match?({:ok, _}, result) do
-        {:ok, response} = result
-        track_response_cost(provider, response, options)
+      case result do
+        {:ok, response} when is_map(response) ->
+          if Keyword.get(options, :track_cost, true) do
+            cost_info = track_response_cost(provider, response, options)
+            response_with_cost = Map.put(response, :cost, cost_info)
+            {:ok, response_with_cost}
+          else
+            result
+          end
+        _ ->
+          result
       end
-
-      result
     end)
   end
 

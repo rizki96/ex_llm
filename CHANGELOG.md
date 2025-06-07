@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cost formatting now consistently uses dollars with appropriate decimal places (e.g., "$0.000324" instead of "$0.032¢")
 - Anthropic provider now includes required `max_tokens` parameter when using Instructor
 - Mock provider now generates semantically meaningful embeddings for realistic similarity search
+- Fixed KeyError when using providers without pricing data (e.g., Ollama)
+- Cost tracking now properly adds cost information to chat responses
 - Provider and model capability queries now accept any provider's terminology
 - Moved `LOGGER.md`, `PROVIDER_CAPABILITIES.md`, and `DROPPED.md` to `docs/` directory
 - Enhanced provider capabilities with data from API discovery scripts

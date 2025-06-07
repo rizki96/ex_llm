@@ -308,8 +308,13 @@ defmodule ExLLM.ExampleApp do
         end
         
         if response.cost do
-          IO.puts("\nCost:")
-          IO.puts("  Total: $#{:erlang.float_to_binary(response.cost.total_cost, decimals: 6)}")
+          # Check if cost calculation succeeded or returned an error
+          if Map.has_key?(response.cost, :error) do
+            IO.puts("\nCost: Not available (#{response.cost.error})")
+          else
+            IO.puts("\nCost:")
+            IO.puts("  Total: $#{:erlang.float_to_binary(response.cost.total_cost, decimals: 6)}")
+          end
         end
         
       {:error, error} ->
