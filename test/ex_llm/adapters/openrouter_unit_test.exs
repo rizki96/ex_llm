@@ -14,14 +14,14 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
     test "returns false with empty API key" do
       config = %{openrouter: %{api_key: ""}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       refute OpenRouter.configured?(config_provider: provider)
     end
 
     test "returns true with valid API key" do
       config = %{openrouter: %{api_key: "sk-or-test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       assert OpenRouter.configured?(config_provider: provider)
     end
 
@@ -54,7 +54,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi there!"}
       ]
-      
+
       # Test that messages are properly formatted
       assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
     end
@@ -64,7 +64,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         %{role: "system", content: "You are a helpful assistant"},
         %{role: "user", content: "Hello"}
       ]
-      
+
       assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
     end
 
@@ -83,7 +83,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           ]
         }
       ]
-      
+
       # Should handle multimodal content
       assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
     end
@@ -99,7 +99,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           }
         }
       ]
-      
+
       assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
     end
   end
@@ -109,7 +109,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       # Can't directly test build_request_body since it's private
       # But we can test that parameters are passed correctly
       messages = [%{role: "user", content: "Test"}]
-      
+
       opts = [
         temperature: 0.7,
         max_tokens: 100,
@@ -117,21 +117,21 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         seed: 42,
         model: "openai/gpt-4o"
       ]
-      
+
       # These would be added to the request body
       assert {:error, _} = OpenRouter.chat(messages, opts ++ [timeout: 1])
     end
 
     test "supports OpenRouter-specific parameters" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       opts = [
         models: ["openai/gpt-4o", "anthropic/claude-3-5-sonnet"],
         transforms: ["middle-out"],
         provider: %{order: ["openai", "anthropic"]},
         timeout: 1
       ]
-      
+
       # OpenRouter-specific options should be handled
       assert {:error, _} = OpenRouter.chat(messages, opts)
     end
@@ -144,8 +144,9 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           app_url: "https://example.com"
         }
       }
+
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
     end
@@ -154,15 +155,17 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
   describe "streaming setup" do
     test "stream_chat returns a Stream" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       # Even without API key, should return error not crash
       case OpenRouter.stream_chat(messages) do
         {:ok, stream} ->
           # Should be a stream if API key is available
           assert is_function(stream) or is_struct(stream, Stream)
+
         {:error, "OpenRouter API key not configured"} ->
           # Expected without API key
           :ok
+
         {:error, _} ->
           # Other errors also valid
           :ok
@@ -171,11 +174,12 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
     test "streaming adds stream: true to request" do
       messages = [%{role: "user", content: "Test streaming"}]
-      
+
       # The stream parameter should be added
       case OpenRouter.stream_chat(messages) do
         {:ok, _stream} ->
           :ok
+
         {:error, _} ->
           :ok
       end
@@ -188,12 +192,14 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       case OpenRouter.list_models() do
         {:ok, models} ->
           assert is_list(models)
+
           if length(models) > 0 do
             model = hd(models)
             assert %Types.Model{} = model
             # OpenRouter models use provider/model format
             assert String.contains?(model.id, "/")
           end
+
         {:error, _} ->
           # Error is also acceptable without API key
           :ok
@@ -207,13 +213,14 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
             model = hd(models)
             assert %Types.Model{} = model
             assert is_map(model.capabilities)
-            
+
             # Check for OpenRouter-specific capabilities
             if is_list(model.capabilities.features) do
               # Should have at least some capabilities
               assert length(model.capabilities.features) >= 0
             end
           end
+
         {:error, _} ->
           :ok
       end
@@ -234,8 +241,9 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           base_url: "https://custom.openrouter.ai/api/v1"
         }
       }
+
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
     end
@@ -248,8 +256,9 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           app_url: "https://test.com"
         }
       }
+
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
       # Should include HTTP-Referer and X-Title headers
       assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
@@ -278,7 +287,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           "total_tokens" => 15
         }
       }
-      
+
       # This would be parsed in parse_response/2
       assert is_map(mock_response)
       assert mock_response["choices"] |> hd() |> get_in(["message", "content"]) == "Hello!"
@@ -298,7 +307,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           }
         ]
       }
-      
+
       # Should parse function calls correctly
       assert is_map(mock_response)
       message = mock_response["choices"] |> hd() |> Map.get("message")
@@ -324,7 +333,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
           }
         ]
       }
-      
+
       # Should parse tool calls correctly
       assert is_map(mock_response)
       tool_calls = mock_response["choices"] |> hd() |> get_in(["message", "tool_calls"])
@@ -335,11 +344,11 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
   describe "streaming chunk parsing" do
     test "parses content chunks" do
       chunk_data = ~s(data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n)
-      
+
       # This would be parsed in the streaming handler
       lines = String.split(chunk_data, "\n", trim: true)
       data_line = Enum.find(lines, &String.starts_with?(&1, "data: "))
-      
+
       if data_line do
         json = String.trim_leading(data_line, "data: ")
         {:ok, decoded} = Jason.decode(json)
@@ -349,20 +358,20 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
     test "handles [DONE] message" do
       chunk_data = "data: [DONE]\n\n"
-      
+
       lines = String.split(chunk_data, "\n", trim: true)
       data_line = Enum.find(lines, &String.starts_with?(&1, "data: "))
-      
+
       assert String.trim_leading(data_line, "data: ") == "[DONE]"
     end
 
     test "handles OpenRouter processing comments" do
       chunk_data = ": OPENROUTER PROCESSING\n\n"
-      
+
       # Should be filtered out in streaming
       lines = String.split(chunk_data, "\n", trim: true)
       data_lines = Enum.filter(lines, &String.starts_with?(&1, "data: "))
-      
+
       assert length(data_lines) == 0
     end
   end
@@ -374,7 +383,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         %{openrouter: %{api_key: ""}},
         %{openrouter: %{}}
       ]
-      
+
       for config <- invalid_configs do
         {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
         refute OpenRouter.configured?(config_provider: provider)
@@ -383,19 +392,19 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
     test "handles missing API key error" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       config = %{openrouter: %{}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
-      assert {:error, "OpenRouter API key not configured"} = 
-        OpenRouter.chat(messages, config_provider: provider)
+
+      assert {:error, "OpenRouter API key not configured"} =
+               OpenRouter.chat(messages, config_provider: provider)
     end
   end
 
   describe "model routing features" do
     test "supports fallback model list" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # OpenRouter supports fallback models
       models = ["openai/gpt-4o", "anthropic/claude-3-5-sonnet", "openai/gpt-3.5-turbo"]
       assert {:error, _} = OpenRouter.chat(messages, models: models, timeout: 1)
@@ -403,19 +412,19 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
     test "supports auto-router model" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # OpenRouter has an auto model
       assert {:error, _} = OpenRouter.chat(messages, model: "openrouter/auto", timeout: 1)
     end
 
     test "supports provider preferences" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       provider_prefs = %{
         order: ["openai", "anthropic"],
         allow_fallbacks: true
       }
-      
+
       assert {:error, _} = OpenRouter.chat(messages, provider: provider_prefs, timeout: 1)
     end
   end
@@ -427,7 +436,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         "prompt" => "0.005",
         "completion" => "0.015"
       }
-      
+
       # This would be processed in parse_pricing/1
       assert is_map(mock_pricing)
       assert is_binary(mock_pricing["prompt"])
@@ -440,7 +449,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         "prompt" => "0",
         "completion" => "0"
       }
-      
+
       assert is_map(mock_pricing)
       assert mock_pricing["prompt"] == "0"
       assert mock_pricing["completion"] == "0"
@@ -454,7 +463,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         "supports_functions" => true,
         "supports_vision" => false
       }
-      
+
       # This would be processed in parse_capabilities/1
       assert mock_model["supports_streaming"] == true
       assert mock_model["supports_functions"] == true
@@ -465,7 +474,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       mock_model = %{
         "id" => "test/model"
       }
-      
+
       # Should handle missing capability fields gracefully
       assert is_map(mock_model)
       assert Map.get(mock_model, "supports_streaming", false) == false
@@ -475,7 +484,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
   describe "transform handling" do
     test "supports OpenRouter transforms" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # OpenRouter supports prompt transforms
       transforms = ["middle-out", "no-op"]
       assert {:error, _} = OpenRouter.chat(messages, transforms: transforms, timeout: 1)
@@ -485,7 +494,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
   describe "data collection policies" do
     test "supports data collection restrictions" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # OpenRouter supports data collection policies
       data_collection = "deny"
       assert {:error, _} = OpenRouter.chat(messages, data_collection: data_collection, timeout: 1)

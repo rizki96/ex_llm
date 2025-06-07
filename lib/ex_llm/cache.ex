@@ -276,11 +276,13 @@ defmodule ExLLM.Cache do
     config = Application.get_env(:ex_llm, :cache, [])
 
     # Get disk persistence config from environment or config
-    persist_disk = System.get_env("EX_LLM_CACHE_PERSIST") == "true" or
-                   Application.get_env(:ex_llm, :cache_persist_disk, false)
-    
-    disk_path = System.get_env("EX_LLM_CACHE_DIR") ||
-                Application.get_env(:ex_llm, :cache_disk_path, "/tmp/ex_llm_cache")
+    persist_disk =
+      System.get_env("EX_LLM_CACHE_PERSIST") == "true" or
+        Application.get_env(:ex_llm, :cache_persist_disk, false)
+
+    disk_path =
+      System.get_env("EX_LLM_CACHE_DIR") ||
+        Application.get_env(:ex_llm, :cache_disk_path, "/tmp/ex_llm_cache")
 
     # Merge options
     opts =
@@ -361,7 +363,7 @@ defmodule ExLLM.Cache do
         if state.persist_disk do
           persist_to_disk_async(key, value, opts, state)
         end
-        
+
         {:noreply, %{state | storage_state: new_storage_state}}
 
       _ ->
@@ -411,7 +413,7 @@ defmodule ExLLM.Cache do
     provider = Keyword.get(opts, :provider)
     endpoint = determine_endpoint_from_opts(opts)
     request_metadata = extract_request_metadata(opts)
-    
+
     # Use Task.start to avoid blocking ETS operations
     Task.start(fn ->
       try do

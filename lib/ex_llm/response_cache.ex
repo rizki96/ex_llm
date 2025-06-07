@@ -1,21 +1,21 @@
 defmodule ExLLM.ResponseCache do
   @moduledoc """
   Response caching system for collecting and storing real provider responses.
-  
+
   This module allows ExLLM to cache actual responses from providers like OpenAI,
   Anthropic, OpenRouter, etc., and later replay them in tests using the Mock adapter.
-  
+
   ## Usage
-  
+
   ### Automatic Response Caching
   Enable caching in your environment:
-  
+
       # Cache all responses during testing
       export EX_LLM_CACHE_RESPONSES=true
       export EX_LLM_CACHE_DIR="/path/to/cache/responses"
-  
+
   ### Manual Response Caching
-  
+
       # Store a response
       ExLLM.ResponseCache.store_response("openai", request_key, response_data)
       
@@ -24,19 +24,19 @@ defmodule ExLLM.ResponseCache do
       
       # Load all responses for a provider
       responses = ExLLM.ResponseCache.load_provider_responses("anthropic")
-  
+
   ### Integration with Mock Adapter
-  
+
       # Configure mock to use cached responses from OpenAI
       ExLLM.ResponseCache.configure_mock_provider("openai")
       
       # Use cached responses in tests
       {:ok, response} = ExLLM.chat(messages, provider: :mock)
-  
+
   ## Cache Structure
-  
+
   Responses are stored in JSON files organized by provider:
-  
+
       cache/
       ├── openai/
       │   ├── chat_completions.json
@@ -48,7 +48,7 @@ defmodule ExLLM.ResponseCache do
       └── openrouter/
           ├── chat_completions.json
           └── models.json
-  
+
   Each file contains an array of cached request/response pairs with metadata.
   """
 
@@ -91,16 +91,23 @@ defmodule ExLLM.ResponseCache do
 
   @doc """
   Stores a response from the unified cache system.
-  
+
   This is called by ExLLM.Cache when disk persistence is enabled.
   """
-  def store_from_cache(cache_key, cached_response, provider, endpoint, request_metadata, disk_path \\ nil) do
+  def store_from_cache(
+        cache_key,
+        cached_response,
+        provider,
+        endpoint,
+        request_metadata,
+        disk_path \\ nil
+      ) do
     # When called from unified cache, we don't need to check environment variable
     # since the cache system has already determined persistence should be enabled
     try do
       # Use provided disk path or default
       cache_dir_to_use = disk_path || cache_dir()
-      
+
       entry = %CacheEntry{
         request_hash: cache_key,
         provider: to_string(provider || "unknown"),
@@ -114,12 +121,12 @@ defmodule ExLLM.ResponseCache do
 
       cache_file = Path.join([cache_dir_to_use, to_string(provider), "#{endpoint}.json"])
       ensure_cache_dir(cache_file)
-      
+
       existing_entries = load_cache_file(cache_file)
       updated_entries = [entry | existing_entries] |> Enum.uniq_by(& &1.request_hash)
-      
+
       save_cache_file(cache_file, updated_entries)
-      
+
       Logger.debug("Persisted cache entry for #{provider}/#{endpoint}: #{cache_key}")
       :ok
     rescue
@@ -148,12 +155,12 @@ defmodule ExLLM.ResponseCache do
 
         cache_file = get_cache_file(provider, endpoint)
         ensure_cache_dir(cache_file)
-        
+
         existing_entries = load_cache_file(cache_file)
         updated_entries = [entry | existing_entries] |> Enum.uniq_by(& &1.request_hash)
-        
+
         save_cache_file(cache_file, updated_entries)
-        
+
         Logger.debug("Cached response for #{provider}/#{endpoint}: #{entry.request_hash}")
         :ok
       rescue
@@ -173,17 +180,19 @@ defmodule ExLLM.ResponseCache do
     try do
       request_hash = generate_request_hash(sanitize_request(request_data))
       cache_file = get_cache_file(provider, endpoint)
-      
+
       case load_cache_file(cache_file) do
-        [] -> 
+        [] ->
           # Try fuzzy matching with normalized endpoint
           find_similar_cached_response(provider, request_data)
+
         entries ->
           case Enum.find(entries, fn entry -> entry.request_hash == request_hash end) do
-            nil -> 
+            nil ->
               # Try fuzzy matching if exact match fails
               find_similar_cached_response(provider, request_data)
-            entry -> 
+
+            entry ->
               entry
           end
       end
@@ -197,7 +206,7 @@ defmodule ExLLM.ResponseCache do
   """
   def load_provider_responses(provider) do
     provider_dir = Path.join(cache_dir(), provider)
-    
+
     if File.exists?(provider_dir) do
       provider_dir
       |> File.ls!()
@@ -220,23 +229,24 @@ defmodule ExLLM.ResponseCache do
 
   def configure_mock_provider(provider) when is_atom(provider) do
     responses = load_provider_responses(to_string(provider))
-    
+
     if length(responses) > 0 do
       # Create a response handler that looks up cached responses
       handler = fn messages, options ->
         endpoint = determine_endpoint(options)
+
         request_data = %{
           messages: messages,
           model: Keyword.get(options, :model),
           temperature: Keyword.get(options, :temperature),
           max_tokens: Keyword.get(options, :max_tokens)
         }
-        
+
         case get_response(to_string(provider), endpoint, request_data) do
           %CacheEntry{response_data: cached_response} ->
             # Convert cached response to ExLLM format
             convert_cached_response(cached_response, provider)
-            
+
           nil ->
             # Fallback to default mock response
             %{
@@ -246,9 +256,13 @@ defmodule ExLLM.ResponseCache do
             }
         end
       end
-      
+
       ExLLM.Adapters.Mock.set_response_handler(handler)
-      Logger.info("Configured Mock adapter with #{length(responses)} cached responses from #{provider}")
+
+      Logger.info(
+        "Configured Mock adapter with #{length(responses)} cached responses from #{provider}"
+      )
+
       :ok
     else
       Logger.warning("No cached responses found for provider: #{provider}")
@@ -263,16 +277,17 @@ defmodule ExLLM.ResponseCache do
     cache_dir()
     |> File.ls()
     |> case do
-      {:ok, dirs} -> 
+      {:ok, dirs} ->
         dirs
-        |> Enum.filter(fn dir -> 
+        |> Enum.filter(fn dir ->
           File.dir?(Path.join(cache_dir(), dir))
         end)
         |> Enum.map(fn dir ->
           response_count = dir |> load_provider_responses() |> length()
           {dir, response_count}
         end)
-      {:error, _} -> 
+
+      {:error, _} ->
         []
     end
   end
@@ -282,7 +297,7 @@ defmodule ExLLM.ResponseCache do
   """
   def clear_provider_cache(provider) do
     provider_dir = Path.join(cache_dir(), provider)
-    
+
     if File.exists?(provider_dir) do
       File.rm_rf!(provider_dir)
       Logger.info("Cleared cache for provider: #{provider}")
@@ -311,15 +326,17 @@ defmodule ExLLM.ResponseCache do
     try do
       normalized = normalize_request_for_hashing(request_data)
       converted = convert_structs_to_maps(normalized)
-      
+
       # Sort keys for consistent ordering
-      sorted_data = case converted do
-        map when is_map(map) -> 
-          map |> Map.to_list() |> Enum.sort() |> Enum.into(%{})
-        other -> 
-          other
-      end
-      
+      sorted_data =
+        case converted do
+          map when is_map(map) ->
+            map |> Map.to_list() |> Enum.sort() |> Enum.into(%{})
+
+          other ->
+            other
+        end
+
       json_string = Jason.encode!(sorted_data)
       hash = :crypto.hash(:sha256, json_string)
       Base.encode16(hash, case: :lower)
@@ -339,9 +356,12 @@ defmodule ExLLM.ResponseCache do
     |> Enum.reject(fn {_k, v} -> is_nil(v) end)
     |> Enum.into(%{})
     # Remove keys that shouldn't affect cache lookup
-    |> Map.drop([:stream, "stream"])  # Stream flag doesn't affect response content
-    |> Map.drop([:config_provider, "config_provider"])  # Internal options
-    |> Map.drop([:track_cost, "track_cost"])  # Internal options
+    # Stream flag doesn't affect response content
+    |> Map.drop([:stream, "stream"])
+    # Internal options
+    |> Map.drop([:config_provider, "config_provider"])
+    # Internal options
+    |> Map.drop([:track_cost, "track_cost"])
   end
 
   defp normalize_request_for_hashing(request_data), do: request_data
@@ -363,10 +383,13 @@ defmodule ExLLM.ResponseCache do
     cond do
       is_map(response_data) and Map.has_key?(response_data, "model") ->
         response_data["model"]
+
       is_map(request_data) and Map.has_key?(request_data, "model") ->
         request_data["model"]
+
       is_map(request_data) and Map.has_key?(request_data, :model) ->
         request_data[:model]
+
       true ->
         "unknown"
     end
@@ -376,10 +399,13 @@ defmodule ExLLM.ResponseCache do
     cond do
       is_map(response_data) and Map.has_key?(response_data, "model") ->
         response_data["model"]
+
       is_map(response_data) and Map.has_key?(response_data, :model) ->
         response_data[:model]
+
       is_struct(response_data) and Map.has_key?(response_data, :model) ->
         response_data.model
+
       true ->
         "unknown"
     end
@@ -409,12 +435,12 @@ defmodule ExLLM.ResponseCache do
   end
 
   defp save_cache_file(cache_file, entries) do
-    json_data = 
+    json_data =
       entries
       |> Enum.map(&Map.from_struct/1)
       |> convert_structs_to_maps()
       |> Jason.encode!(pretty: true)
-    
+
     File.write!(cache_file, json_data)
   end
 
@@ -438,7 +464,8 @@ defmodule ExLLM.ResponseCache do
     cond do
       Keyword.get(options, :stream) == true -> "streaming"
       Keyword.has_key?(options, :functions) or Keyword.has_key?(options, :tools) -> "chat"
-      true -> "chat"  # Normalize all chat endpoints to "chat"
+      # Normalize all chat endpoints to "chat"
+      true -> "chat"
     end
   end
 
@@ -455,31 +482,38 @@ defmodule ExLLM.ResponseCache do
 
   defp convert_openai_response(response) do
     %{
-      content: get_in(response, ["choices", Access.at(0), "message", "content"]) || 
-               get_in(response, [:choices, Access.at(0), :message, :content]) || "",
+      content:
+        get_in(response, ["choices", Access.at(0), "message", "content"]) ||
+          get_in(response, [:choices, Access.at(0), :message, :content]) || "",
       model: response["model"] || response[:model] || "gpt-3.5-turbo",
       usage: %{
-        input_tokens: get_in(response, ["usage", "prompt_tokens"]) || 
-                      get_in(response, [:usage, :prompt_tokens]) || 0,
-        output_tokens: get_in(response, ["usage", "completion_tokens"]) || 
-                       get_in(response, [:usage, :completion_tokens]) || 0
+        input_tokens:
+          get_in(response, ["usage", "prompt_tokens"]) ||
+            get_in(response, [:usage, :prompt_tokens]) || 0,
+        output_tokens:
+          get_in(response, ["usage", "completion_tokens"]) ||
+            get_in(response, [:usage, :completion_tokens]) || 0
       },
-      finish_reason: get_in(response, ["choices", Access.at(0), "finish_reason"]) ||
-                     get_in(response, [:choices, Access.at(0), :finish_reason]),
+      finish_reason:
+        get_in(response, ["choices", Access.at(0), "finish_reason"]) ||
+          get_in(response, [:choices, Access.at(0), :finish_reason]),
       id: response["id"] || response[:id]
     }
   end
 
   defp convert_anthropic_response(response) do
     %{
-      content: get_in(response, ["content", Access.at(0), "text"]) ||
-               get_in(response, [:content, Access.at(0), :text]) || "",
+      content:
+        get_in(response, ["content", Access.at(0), "text"]) ||
+          get_in(response, [:content, Access.at(0), :text]) || "",
       model: response["model"] || response[:model] || "claude-3-5-sonnet",
       usage: %{
-        input_tokens: get_in(response, ["usage", "input_tokens"]) ||
-                      get_in(response, [:usage, :input_tokens]) || 0,
-        output_tokens: get_in(response, ["usage", "output_tokens"]) ||
-                       get_in(response, [:usage, :output_tokens]) || 0
+        input_tokens:
+          get_in(response, ["usage", "input_tokens"]) ||
+            get_in(response, [:usage, :input_tokens]) || 0,
+        output_tokens:
+          get_in(response, ["usage", "output_tokens"]) ||
+            get_in(response, [:usage, :output_tokens]) || 0
       },
       finish_reason: response["stop_reason"] || response[:stop_reason],
       id: response["id"] || response[:id]
@@ -540,17 +574,18 @@ defmodule ExLLM.ResponseCache do
 
   defp find_similar_cached_response(provider, request_data) do
     provider_dir = Path.join(cache_dir(), provider)
-    
+
     if File.exists?(provider_dir) do
       # Try different endpoint variations
       endpoints_to_try = ["chat", "chat_completions", "streaming", "messages"]
-      
+
       Enum.reduce_while(endpoints_to_try, nil, fn endpoint, _acc ->
         cache_file = get_cache_file(provider, endpoint)
-        
+
         case load_cache_file(cache_file) do
-          [] -> 
+          [] ->
             {:cont, nil}
+
           entries ->
             # Try to find a similar request based on messages content
             similar_entry = find_by_message_similarity(entries, request_data)
@@ -564,7 +599,7 @@ defmodule ExLLM.ResponseCache do
 
   defp find_by_message_similarity(entries, request_data) do
     target_messages = extract_messages(request_data)
-    
+
     if target_messages do
       Enum.find(entries, fn entry ->
         cached_messages = extract_messages(entry.request_data)
@@ -579,6 +614,7 @@ defmodule ExLLM.ResponseCache do
   defp extract_messages(request_data) when is_map(request_data) do
     request_data[:messages] || request_data["messages"]
   end
+
   defp extract_messages(_), do: nil
 
   defp messages_similar?(messages1, messages2) when is_list(messages1) and is_list(messages2) do
@@ -586,15 +622,18 @@ defmodule ExLLM.ResponseCache do
     length(messages1) == length(messages2) and
       last_message_content(messages1) == last_message_content(messages2)
   end
+
   defp messages_similar?(_, _), do: false
 
   defp last_message_content(messages) when is_list(messages) and length(messages) > 0 do
     last_msg = List.last(messages)
+
     case last_msg do
       %{content: content} when is_binary(content) -> content
       %{"content" => content} when is_binary(content) -> content
       _ -> nil
     end
   end
+
   defp last_message_content(_), do: nil
 end

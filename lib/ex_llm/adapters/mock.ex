@@ -127,12 +127,12 @@ defmodule ExLLM.Adapters.Mock do
 
   @doc """
   Configures the mock adapter to use cached responses from a specific provider.
-  
+
   This allows the mock adapter to mimic the behavior of real providers using
   previously cached responses.
-  
+
   ## Examples
-  
+
       # Use cached OpenAI responses
       ExLLM.Adapters.Mock.use_cached_responses(:openai)
       
@@ -154,6 +154,7 @@ defmodule ExLLM.Adapters.Mock do
         Agent.update(__MODULE__, fn state ->
           %{state | response_mode: :cached, cached_provider: provider}
         end)
+
         :ok
 
       :no_cache ->

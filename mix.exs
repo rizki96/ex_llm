@@ -14,7 +14,15 @@ defmodule ExLLM.MixProject do
       package: package(),
       deps: deps(),
       docs: docs(),
-      source_url: "https://github.com/azmaveth/ex_llm"
+      source_url: "https://github.com/azmaveth/ex_llm",
+      test_coverage: [tool: ExCoveralls],
+      preferred_cli_env: [
+        coveralls: :test,
+        "coveralls.detail": :test,
+        "coveralls.post": :test,
+        "coveralls.html": :test,
+        "coveralls.github": :test
+      ]
     ]
   end
 
@@ -61,7 +69,10 @@ defmodule ExLLM.MixProject do
       # Development and documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:dialyxir, "~> 1.4", only: [:dev], runtime: false}
+      {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
+      {:git_hooks, "~> 0.7", only: [:dev], runtime: false},
+      {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
+      {:excoveralls, "~> 0.18", only: :test}
     ]
   end
 
