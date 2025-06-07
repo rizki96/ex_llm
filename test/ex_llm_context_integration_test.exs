@@ -112,7 +112,7 @@ defmodule ExLLM.ContextIntegrationTest do
           provider: :openai,
           model: "gpt-3.5-turbo",
           # Force truncation
-          max_tokens: 14000,
+          max_tokens: 14_000,
           strategy: :smart
         )
 

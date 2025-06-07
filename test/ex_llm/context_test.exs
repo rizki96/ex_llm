@@ -112,7 +112,7 @@ defmodule ExLLM.ContextTest do
       ]
 
       assert {:error, _reason} =
-               Context.validate_context(messages, "openai", "gpt-3.5-turbo", max_tokens: 16000)
+               Context.validate_context(messages, "openai", "gpt-3.5-turbo", max_tokens: 16_000)
     end
   end
 
