@@ -872,8 +872,11 @@ defmodule ExLLM do
     # Generate cache key if caching might be used
     cache_key = Cache.generate_cache_key(provider, messages, options)
 
+    # Add provider metadata for disk persistence
+    cache_options = Keyword.put(options, :provider, provider)
+
     # Use cache wrapper
-    Cache.with_cache(cache_key, options, fn ->
+    Cache.with_cache(cache_key, cache_options, fn ->
       # Check if function calling is requested
       options = prepare_function_calling(provider, options)
 
@@ -1476,7 +1479,10 @@ defmodule ExLLM do
           # For embeddings, generate a different type of cache key
           cache_key = generate_embeddings_cache_key(provider, inputs, options)
 
-          Cache.with_cache(cache_key, options, fn ->
+          # Add provider metadata for disk persistence
+          cache_options = Keyword.put(options, :provider, provider)
+
+          Cache.with_cache(cache_key, cache_options, fn ->
             adapter.embeddings(inputs, options)
           end)
         else

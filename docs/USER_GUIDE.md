@@ -19,11 +19,12 @@ This comprehensive guide covers all features and capabilities of the ExLLM libra
 13. [Cost Tracking](#cost-tracking)
 14. [Error Handling and Retries](#error-handling-and-retries)
 15. [Caching](#caching)
-16. [Model Discovery](#model-discovery)
-17. [Provider Capabilities](#provider-capabilities)
-18. [Logging](#logging)
-19. [Testing with Mock Adapter](#testing-with-mock-adapter)
-20. [Advanced Topics](#advanced-topics)
+16. [Response Caching](#response-caching)
+17. [Model Discovery](#model-discovery)
+18. [Provider Capabilities](#provider-capabilities)
+19. [Logging](#logging)
+20. [Testing with Mock Adapter](#testing-with-mock-adapter)
+21. [Advanced Topics](#advanced-topics)
 
 ## Installation and Setup
 
@@ -1001,6 +1002,288 @@ stats = ExLLM.Cache.stats()
 
 # You can also use manual cache management
 cache_key = ExLLM.Cache.generate_cache_key(:openai, messages, options)
+```
+
+## Response Caching
+
+Cache real provider responses for offline testing and development cost reduction.
+
+ExLLM provides two approaches for response caching:
+
+1. **Unified Cache System** (Recommended) - Extends the runtime cache with optional disk persistence
+2. **Legacy Response Cache** - Standalone response collection system
+
+### Unified Cache System (Recommended)
+
+The unified cache system extends ExLLM's runtime performance cache with optional disk persistence. This provides both speed benefits and testing capabilities from a single system.
+
+#### Enabling Unified Cache Persistence
+
+```elixir
+# Method 1: Environment variables (temporary)
+export EX_LLM_CACHE_PERSIST=true
+export EX_LLM_CACHE_DIR="/path/to/cache"  # Optional
+
+# Method 2: Runtime configuration (recommended for tests)
+ExLLM.Cache.configure_disk_persistence(true, "/path/to/cache")
+
+# Method 3: Application configuration
+config :ex_llm,
+  cache_persist_disk: true,
+  cache_disk_path: "/tmp/ex_llm_cache"
+```
+
+#### Automatic Response Collection with Unified Cache
+
+When persistence is enabled, all cached responses are automatically stored to disk:
+
+```elixir
+# Normal caching usage - responses automatically persist to disk when enabled
+{:ok, response} = ExLLM.chat(messages, provider: :openai, cache: true)
+{:ok, response} = ExLLM.chat(messages, provider: :anthropic, cache: true)
+```
+
+#### Benefits of Unified Cache System
+
+- **Zero performance impact** when persistence is disabled (default)
+- **Single configuration** controls both runtime cache and disk persistence  
+- **Natural development workflow** - enable during development, disable in production
+- **Automatic mock integration** - cached responses work seamlessly with Mock adapter
+
+### Legacy Response Cache System
+
+For compatibility, the original response cache system is still available:
+
+#### Enabling Legacy Response Caching
+
+```elixir
+# Enable response caching via environment variables
+export EX_LLM_CACHE_RESPONSES=true
+export EX_LLM_CACHE_DIR="/path/to/cache"  # Optional: defaults to /tmp/ex_llm_cache
+```
+
+### Automatic Response Collection
+
+When caching is enabled, all provider responses are automatically stored:
+
+```elixir
+# Normal usage - responses are automatically cached
+{:ok, response} = ExLLM.chat(messages, provider: :openai)
+{:ok, stream} = ExLLM.stream_chat(messages, provider: :anthropic)
+```
+
+### Cache Structure
+
+Responses are organized by provider and endpoint:
+
+```
+/tmp/ex_llm_cache/
+├── openai/
+│   ├── chat.json           # Chat completions
+│   └── streaming.json      # Streaming responses
+├── anthropic/
+│   ├── chat.json           # Claude messages
+│   └── streaming.json      # Streaming responses
+└── openrouter/
+    └── chat.json           # OpenRouter responses
+```
+
+### Manual Response Storage
+
+```elixir
+# Store a specific response
+ExLLM.ResponseCache.store_response(
+  "openai",                    # Provider
+  "chat",                      # Endpoint
+  %{messages: messages},       # Request data
+  %{"choices" => [...]}        # Response data
+)
+```
+
+### Mock Adapter Integration
+
+Configure the Mock adapter to replay cached responses from any provider:
+
+#### Using Unified Cache System
+
+With the unified cache system, responses are automatically available for mock testing when disk persistence is enabled:
+
+```elixir
+# 1. Enable disk persistence during development/testing
+ExLLM.Cache.configure_disk_persistence(true, "/tmp/ex_llm_cache")
+
+# 2. Use normal caching to collect responses
+{:ok, response} = ExLLM.chat(:openai, messages, cache: true)
+{:ok, response} = ExLLM.chat(:anthropic, messages, cache: true)
+
+# 3. Configure mock adapter to use cached responses
+ExLLM.ResponseCache.configure_mock_provider(:openai)
+
+# 4. Mock calls now return authentic cached responses
+{:ok, response} = ExLLM.chat(messages, provider: :mock)
+# Returns real OpenAI response structure and content
+
+# 5. Switch to different provider responses
+ExLLM.ResponseCache.configure_mock_provider(:anthropic)
+{:ok, response} = ExLLM.chat(messages, provider: :mock)
+# Now returns real Anthropic response structure
+```
+
+#### Using Legacy Response Cache
+
+For compatibility with the original caching approach:
+
+```elixir
+# Enable legacy response caching
+export EX_LLM_CACHE_RESPONSES=true
+
+# Use cached OpenAI responses for realistic testing
+ExLLM.ResponseCache.configure_mock_provider(:openai)
+
+# Now mock calls return authentic OpenAI responses
+{:ok, response} = ExLLM.chat(messages, provider: :mock)
+# Returns real OpenAI response structure and content
+```
+
+### Response Collection for Testing
+
+Collect comprehensive test scenarios:
+
+```elixir
+# Collect responses for common test cases
+ExLLM.CachingInterceptor.create_test_collection(:openai)
+
+# Collect specific scenarios
+test_cases = [
+  {[%{role: "user", content: "Hello"}], []},
+  {[%{role: "user", content: "What is 2+2?"}], [max_tokens: 10]},
+  {[%{role: "user", content: "Tell me a joke"}], [temperature: 0.8]}
+]
+
+ExLLM.CachingInterceptor.collect_test_responses(:anthropic, test_cases)
+```
+
+### Cache Management
+
+```elixir
+# List available cached providers
+providers = ExLLM.ResponseCache.list_cached_providers()
+# => [{"openai", 15}, {"anthropic", 8}]  # {provider, response_count}
+
+# Clear cache for specific provider
+ExLLM.ResponseCache.clear_provider_cache("openai")
+
+# Clear all cached responses
+ExLLM.ResponseCache.clear_all_cache()
+
+# Get specific cached response
+cached = ExLLM.ResponseCache.get_response("openai", "chat", request_data)
+```
+
+### Configuration Options
+
+```elixir
+# Environment variables
+EX_LLM_CACHE_RESPONSES=true      # Enable/disable caching
+EX_LLM_CACHE_DIR="/custom/path"  # Custom cache directory
+
+# Check if caching is enabled
+ExLLM.ResponseCache.caching_enabled?()
+# => true
+
+# Get current cache directory
+ExLLM.ResponseCache.cache_dir()
+# => "/tmp/ex_llm_cache"
+```
+
+### Use Cases
+
+**Development Testing with Unified Cache:**
+```elixir
+# 1. Enable disk persistence during development
+ExLLM.Cache.configure_disk_persistence(true)
+
+# 2. Use normal caching - responses get collected automatically
+{:ok, response} = ExLLM.chat(:openai, messages, cache: true)
+{:ok, response} = ExLLM.chat(:anthropic, messages, cache: true)
+
+# 3. Use cached responses in tests
+ExLLM.ResponseCache.configure_mock_provider(:openai)
+# Tests now use real OpenAI response structures
+```
+
+**Development Testing with Legacy Cache:**
+```elixir
+# 1. Collect responses during development
+export EX_LLM_CACHE_RESPONSES=true
+# Run your app normally - responses get cached
+
+# 2. Use cached responses in tests
+ExLLM.ResponseCache.configure_mock_provider(:openai)
+# Tests now use real OpenAI response structures
+```
+
+**Cost Reduction:**
+```elixir
+# Unified cache approach - enable persistence temporarily
+ExLLM.Cache.configure_disk_persistence(true)
+
+# Cache expensive model responses during development
+{:ok, response} = ExLLM.chat(:openai, messages,
+  cache: true,
+  model: "gpt-4o"  # Expensive model
+)
+# Response is cached automatically both in memory and disk
+
+# Later testing uses cached response - no API cost
+ExLLM.ResponseCache.configure_mock_provider(:openai)
+{:ok, same_response} = ExLLM.chat(messages, provider: :mock)
+
+# Disable persistence for production
+ExLLM.Cache.configure_disk_persistence(false)
+```
+
+**Cross-Provider Testing:**
+```elixir
+# Test how your app handles different provider response formats
+ExLLM.ResponseCache.configure_mock_provider(:openai)
+test_openai_format()
+
+ExLLM.ResponseCache.configure_mock_provider(:anthropic)
+test_anthropic_format()
+
+ExLLM.ResponseCache.configure_mock_provider(:openrouter)
+test_openrouter_format()
+```
+
+### Advanced Usage
+
+**Streaming Response Caching:**
+```elixir
+# Streaming responses are automatically cached
+{:ok, stream} = ExLLM.stream_chat(messages, provider: :openai)
+chunks = Enum.to_list(stream)
+
+# Later, mock can replay the exact same stream
+ExLLM.ResponseCache.configure_mock_provider(:openai)
+{:ok, cached_stream} = ExLLM.stream_chat(messages, provider: :mock)
+# Returns identical streaming chunks
+```
+
+**Interceptor Wrapping:**
+```elixir
+# Manually wrap API calls for caching
+{:ok, response} = ExLLM.CachingInterceptor.with_caching(:openai, fn ->
+  ExLLM.Adapters.OpenAI.chat(messages)
+end)
+
+# Wrap streaming calls
+{:ok, stream} = ExLLM.CachingInterceptor.with_streaming_cache(
+  :anthropic, 
+  messages, 
+  options, 
+  fn -> ExLLM.Adapters.Anthropic.stream_chat(messages, options) end
+)
 ```
 
 ## Model Discovery

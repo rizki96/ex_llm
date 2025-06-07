@@ -1,24 +1,22 @@
 defmodule ExLLM.Cache do
   @moduledoc """
-  Response caching for ExLLM to reduce API calls and costs.
-
-  Provides TTL-based caching with configurable storage backends and
-  cache key generation strategies.
+  Unified caching system for ExLLM providing both runtime performance caching
+  and optional disk persistence for development/testing.
 
   ## Features
 
-  - Configurable TTL per cache entry
-  - Multiple storage backends (ETS, Redis via adapter pattern)
-  - Automatic cache expiration
+  - Fast ETS-based runtime caching with TTL
+  - Optional one-way disk persistence for test scenario collection
+  - Automatic cache expiration and cleanup
   - Cache statistics and monitoring
-  - Selective caching based on request characteristics
+  - Mock adapter integration via persisted responses
 
   ## Usage
 
-      # Enable caching for a request
+      # Runtime caching only (default)
       {:ok, response} = ExLLM.chat(:anthropic, messages, cache: true)
       
-      # Custom TTL (in milliseconds)
+      # With custom TTL
       {:ok, response} = ExLLM.chat(:anthropic, messages, 
         cache: true,
         cache_ttl: :timer.minutes(30)
@@ -26,6 +24,22 @@ defmodule ExLLM.Cache do
       
       # Skip cache for this request
       {:ok, response} = ExLLM.chat(:anthropic, messages, cache: false)
+
+  ## Disk Persistence
+
+  Enable disk persistence to automatically save cached responses for testing:
+
+      # Environment variable
+      export EX_LLM_CACHE_PERSIST=true
+      export EX_LLM_CACHE_DIR="/path/to/cache"  # Optional
+      
+      # Or application config
+      config :ex_llm,
+        cache_persist_disk: true,
+        cache_disk_path: "/tmp/ex_llm_cache"
+
+  When enabled, all cached responses are also written to disk and can be used
+  by the Mock adapter for realistic testing without API calls.
       
   ## Configuration
 
@@ -33,7 +47,9 @@ defmodule ExLLM.Cache do
         enabled: true,
         storage: {ExLLM.Cache.Storage.ETS, []},
         default_ttl: :timer.minutes(15),
-        cleanup_interval: :timer.minutes(5)
+        cleanup_interval: :timer.minutes(5),
+        persist_disk: false,
+        disk_path: "/tmp/ex_llm_cache"
   """
 
   use GenServer
@@ -61,7 +77,15 @@ defmodule ExLLM.Cache do
 
   defmodule State do
     @moduledoc false
-    defstruct [:storage_mod, :storage_state, :stats, :cleanup_interval, :default_ttl]
+    defstruct [
+      :storage_mod,
+      :storage_state,
+      :stats,
+      :cleanup_interval,
+      :default_ttl,
+      :persist_disk,
+      :disk_path
+    ]
   end
 
   ## Client API
@@ -136,6 +160,16 @@ defmodule ExLLM.Cache do
     GenServer.call(__MODULE__, :stats)
   catch
     :exit, _ -> %Stats{}
+  end
+
+  @doc """
+  Update disk persistence configuration at runtime.
+  """
+  @spec configure_disk_persistence(boolean(), String.t() | nil) :: :ok
+  def configure_disk_persistence(enabled, disk_path \\ nil) do
+    GenServer.call(__MODULE__, {:configure_disk_persistence, enabled, disk_path})
+  catch
+    :exit, _ -> :ok
   end
 
   @doc """
@@ -241,13 +275,22 @@ defmodule ExLLM.Cache do
     # Get configuration
     config = Application.get_env(:ex_llm, :cache, [])
 
+    # Get disk persistence config from environment or config
+    persist_disk = System.get_env("EX_LLM_CACHE_PERSIST") == "true" or
+                   Application.get_env(:ex_llm, :cache_persist_disk, false)
+    
+    disk_path = System.get_env("EX_LLM_CACHE_DIR") ||
+                Application.get_env(:ex_llm, :cache_disk_path, "/tmp/ex_llm_cache")
+
     # Merge options
     opts =
       Keyword.merge(
         [
           storage: @default_storage,
           default_ttl: @default_ttl,
-          cleanup_interval: @cleanup_interval
+          cleanup_interval: @cleanup_interval,
+          persist_disk: persist_disk,
+          disk_path: disk_path
         ],
         Keyword.merge(config, opts)
       )
@@ -265,7 +308,9 @@ defmodule ExLLM.Cache do
           storage_state: storage_state,
           stats: %Stats{},
           cleanup_interval: Keyword.get(opts, :cleanup_interval),
-          default_ttl: Keyword.get(opts, :default_ttl)
+          default_ttl: Keyword.get(opts, :default_ttl),
+          persist_disk: Keyword.get(opts, :persist_disk),
+          disk_path: Keyword.get(opts, :disk_path)
         }
 
         {:ok, state}
@@ -299,12 +344,24 @@ defmodule ExLLM.Cache do
   end
 
   @impl true
+  def handle_call({:configure_disk_persistence, enabled, disk_path}, _from, state) do
+    new_disk_path = disk_path || state.disk_path
+    new_state = %{state | persist_disk: enabled, disk_path: new_disk_path}
+    {:reply, :ok, new_state}
+  end
+
+  @impl true
   def handle_cast({:put, key, value, opts}, state) do
     ttl = Keyword.get(opts, :ttl, state.default_ttl)
     expires_at = System.system_time(:millisecond) + ttl
 
     case state.storage_mod.put(key, value, expires_at, state.storage_state) do
       {:ok, new_storage_state} ->
+        # Optionally persist to disk for testing/development
+        if state.persist_disk do
+          persist_to_disk_async(key, value, opts, state)
+        end
+        
         {:noreply, %{state | storage_state: new_storage_state}}
 
       _ ->
@@ -348,6 +405,48 @@ defmodule ExLLM.Cache do
   end
 
   ## Private Functions
+
+  defp persist_to_disk_async(cache_key, cached_response, opts, state) do
+    # Extract metadata for disk storage
+    provider = Keyword.get(opts, :provider)
+    endpoint = determine_endpoint_from_opts(opts)
+    request_metadata = extract_request_metadata(opts)
+    
+    # Use Task.start to avoid blocking ETS operations
+    Task.start(fn ->
+      try do
+        ExLLM.ResponseCache.store_from_cache(
+          cache_key,
+          cached_response,
+          provider,
+          endpoint,
+          request_metadata,
+          state.disk_path
+        )
+      rescue
+        error ->
+          Logger.error("Failed to persist cache to disk: #{inspect(error)}")
+      end
+    end)
+  end
+
+  defp determine_endpoint_from_opts(opts) do
+    cond do
+      Keyword.get(opts, :stream) == true -> "streaming"
+      Keyword.has_key?(opts, :functions) or Keyword.has_key?(opts, :tools) -> "chat"
+      true -> "chat"
+    end
+  end
+
+  defp extract_request_metadata(opts) do
+    %{
+      model: Keyword.get(opts, :model),
+      temperature: Keyword.get(opts, :temperature),
+      max_tokens: Keyword.get(opts, :max_tokens),
+      top_p: Keyword.get(opts, :top_p),
+      cached_at: DateTime.utc_now() |> DateTime.to_iso8601()
+    }
+  end
 
   defp do_get(key, state) do
     case state.storage_mod.get(key, state.storage_state) do

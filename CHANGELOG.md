@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Response Caching System** - Cache real provider responses for offline testing and development
+  - **Automatic Response Collection**: All provider responses automatically cached when enabled
+  - **Mock Integration**: Configure Mock adapter to replay cached responses from any provider
+  - **Cache Management**: Full CRUD operations for cached responses with provider organization
+  - **Fuzzy Matching**: Robust request matching handles real-world usage variations
+  - **Environment Configuration**: Simple enable/disable via `EX_LLM_CACHE_RESPONSES` environment variable
+  - **Cost Reduction**: Reduce API costs during development by replaying cached responses
+  - **Realistic Testing**: Use authentic provider responses in tests without API calls
+  - **Streaming Support**: Cache and replay streaming responses with exact chunk reproduction
+  - **Cross-Provider Testing**: Test application compatibility across different provider response formats
+
 ## [0.4.0] - 2025-06-06
 
 ### Added

@@ -41,14 +41,15 @@ defmodule ExLLM.Adapters.Mock do
   defmodule State do
     @moduledoc false
     defstruct [
-      # :static | :handler | :error
+      # :static | :handler | :error | :cached
       :response_mode,
       :static_response,
       :response_handler,
       :error_response,
       :requests,
       :stream_chunks,
-      :function_call_response
+      :function_call_response,
+      :cached_provider
     ]
   end
 
@@ -122,6 +123,60 @@ defmodule ExLLM.Adapters.Mock do
     Agent.update(__MODULE__, fn state ->
       %{state | function_call_response: function_call}
     end)
+  end
+
+  @doc """
+  Configures the mock adapter to use cached responses from a specific provider.
+  
+  This allows the mock adapter to mimic the behavior of real providers using
+  previously cached responses.
+  
+  ## Examples
+  
+      # Use cached OpenAI responses
+      ExLLM.Adapters.Mock.use_cached_responses(:openai)
+      
+      # Use cached Anthropic responses  
+      ExLLM.Adapters.Mock.use_cached_responses("anthropic")
+      
+      # Now mock calls will return realistic responses
+      {:ok, response} = ExLLM.chat(messages, provider: :mock)
+  """
+  def use_cached_responses(provider) when is_binary(provider) do
+    use_cached_responses(String.to_atom(provider))
+  end
+
+  def use_cached_responses(provider) when is_atom(provider) do
+    ensure_started()
+
+    case ExLLM.ResponseCache.configure_mock_provider(provider) do
+      :ok ->
+        Agent.update(__MODULE__, fn state ->
+          %{state | response_mode: :cached, cached_provider: provider}
+        end)
+        :ok
+
+      :no_cache ->
+        {:error, "No cached responses found for provider: #{provider}"}
+
+      error ->
+        error
+    end
+  end
+
+  @doc """
+  Lists available cached providers.
+  """
+  def list_cached_providers do
+    ExLLM.ResponseCache.list_cached_providers()
+  end
+
+  @doc """
+  Returns the currently configured cached provider, if any.
+  """
+  def get_cached_provider do
+    ensure_started()
+    Agent.get(__MODULE__, & &1.cached_provider)
   end
 
   @doc """

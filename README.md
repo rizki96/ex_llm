@@ -18,6 +18,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 - **Capability Normalization**: Automatic normalization of provider-specific feature names
 - **Error Recovery**: Automatic retry with exponential backoff and stream resumption
 - **Mock Testing**: Built-in mock adapter for testing without API calls
+- **Response Caching**: Cache real provider responses for offline testing and cost reduction
 - **Type Safety**: Comprehensive typespecs and structured data
 - **Configurable**: Flexible configuration system with multiple providers
 - **Extensible**: Easy to add new LLM providers via adapter pattern
