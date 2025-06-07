@@ -316,16 +316,29 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     end
 
     test "validates API key format" do
-      # Test with invalid API key formats
-      invalid_configs = [
-        %{anthropic: %{api_key: nil}},
-        %{anthropic: %{api_key: ""}},
-        %{anthropic: %{}}
-      ]
+      # Store original env var
+      original_key = System.get_env("ANTHROPIC_API_KEY")
+      
+      # Temporarily unset env var to ensure test isolation
+      System.delete_env("ANTHROPIC_API_KEY")
+      
+      try do
+        # Test with invalid API key formats
+        invalid_configs = [
+          %{anthropic: %{api_key: nil}},
+          %{anthropic: %{api_key: ""}},
+          %{anthropic: %{}}
+        ]
 
-      for config <- invalid_configs do
-        {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-        refute Anthropic.configured?(config_provider: provider)
+        for config <- invalid_configs do
+          {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+          refute Anthropic.configured?(config_provider: provider)
+        end
+      after
+        # Restore original env var if it existed
+        if original_key do
+          System.put_env("ANTHROPIC_API_KEY", original_key)
+        end
       end
     end
   end

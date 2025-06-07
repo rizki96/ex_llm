@@ -163,7 +163,7 @@ defmodule ExLLM.EmbeddingsTest do
     end
 
     test "generates embeddings for text input" do
-      {:ok, response} = ExLLM.embeddings(:mock, ["Hello world"])
+      {:ok, response} = ExLLM.embeddings(:mock, ["Hello world"], cache: false)
 
       assert response.embeddings == [[0.1, 0.2, 0.3]]
       assert response.model == "text-embedding-ada-002"
@@ -180,7 +180,7 @@ defmodule ExLLM.EmbeddingsTest do
         }
       })
 
-      {:ok, response} = ExLLM.embeddings(:mock, ["Hello", "World"])
+      {:ok, response} = ExLLM.embeddings(:mock, ["Hello", "World"], cache: false)
 
       assert length(response.embeddings) == 2
       assert Enum.at(response.embeddings, 0) == [0.1, 0.2, 0.3]
@@ -192,7 +192,7 @@ defmodule ExLLM.EmbeddingsTest do
         embeddings: {:error, "API error"}
       })
 
-      assert {:error, "API error"} = ExLLM.embeddings(:mock, ["test"])
+      assert {:error, "API error"} = ExLLM.embeddings(:mock, ["test"], cache: false)
     end
   end
 

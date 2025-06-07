@@ -205,14 +205,31 @@ defmodule ExLLM.Adapters.Mock do
   def reset do
     ensure_started()
 
-    Agent.update(__MODULE__, fn _state ->
-      %State{
-        response_mode: :static,
-        static_response: default_response(),
-        requests: [],
-        stream_chunks: default_stream_chunks()
-      }
-    end)
+    # Clear Application environment mock responses
+    Application.delete_env(:ex_llm, :mock_responses)
+
+    try do
+      Agent.update(__MODULE__, fn _state ->
+        %State{
+          response_mode: :static,
+          static_response: default_response(),
+          requests: [],
+          stream_chunks: default_stream_chunks()
+        }
+      end)
+    catch
+      :exit, {:noproc, _} ->
+        # GenServer is not running, start it and try again
+        start_link()
+        Agent.update(__MODULE__, fn _state ->
+          %State{
+            response_mode: :static,
+            static_response: default_response(),
+            requests: [],
+            stream_chunks: default_stream_chunks()
+          }
+        end)
+    end
   end
 
   # Adapter implementation
@@ -526,7 +543,11 @@ defmodule ExLLM.Adapters.Mock do
 
   defp ensure_started do
     case Process.whereis(__MODULE__) do
-      nil -> start_link()
+      nil -> 
+        case start_link() do
+          {:ok, _pid} -> :ok
+          {:error, {:already_started, _pid}} -> :ok
+        end
       _pid -> :ok
     end
   end

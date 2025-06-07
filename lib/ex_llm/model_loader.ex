@@ -48,10 +48,16 @@ defmodule ExLLM.ModelLoader do
   def clear_cache(provider \\ :all) do
     ensure_cache_table()
 
-    if provider == :all do
-      :ets.delete_all_objects(@cache_table)
-    else
-      :ets.delete(@cache_table, {provider, :models})
+    try do
+      if provider == :all do
+        :ets.delete_all_objects(@cache_table)
+      else
+        :ets.delete(@cache_table, {provider, :models})
+      end
+    catch
+      :error, :badarg ->
+        # Table doesn't exist, nothing to clear
+        :ok
     end
 
     :ok
@@ -62,7 +68,19 @@ defmodule ExLLM.ModelLoader do
   defp ensure_cache_table do
     case :ets.info(@cache_table) do
       :undefined ->
-        :ets.new(@cache_table, [:set, :public, :named_table])
+        try do
+          :ets.new(@cache_table, [:set, :public, :named_table])
+        catch
+          :error, :badarg ->
+            # Table might have been created by another process in the meantime
+            case :ets.info(@cache_table) do
+              :undefined ->
+                # Still doesn't exist, re-raise the error
+                :ets.new(@cache_table, [:set, :public, :named_table])
+              _ ->
+                :ok
+            end
+        end
 
       _ ->
         :ok
@@ -70,17 +88,23 @@ defmodule ExLLM.ModelLoader do
   end
 
   defp get_from_cache(provider) do
-    case :ets.lookup(@cache_table, {provider, :models}) do
-      [{_, {models, timestamp}}] ->
-        if :os.system_time(:second) - timestamp < @cache_ttl_seconds do
-          {:ok, models}
-        else
-          # Cache expired
-          :ets.delete(@cache_table, {provider, :models})
-          :miss
-        end
+    try do
+      case :ets.lookup(@cache_table, {provider, :models}) do
+        [{_, {models, timestamp}}] ->
+          if :os.system_time(:second) - timestamp < @cache_ttl_seconds do
+            {:ok, models}
+          else
+            # Cache expired
+            :ets.delete(@cache_table, {provider, :models})
+            :miss
+          end
 
-      [] ->
+        [] ->
+          :miss
+      end
+    catch
+      :error, :badarg ->
+        # Table doesn't exist
         :miss
     end
   end
@@ -110,7 +134,14 @@ defmodule ExLLM.ModelLoader do
       end
 
     # Cache the results
-    :ets.insert(@cache_table, {{provider, :models}, {models, :os.system_time(:second)}})
+    try do
+      :ets.insert(@cache_table, {{provider, :models}, {models, :os.system_time(:second)}})
+    catch
+      :error, :badarg ->
+        # Table doesn't exist, ensure it's created and retry
+        ensure_cache_table()
+        :ets.insert(@cache_table, {{provider, :models}, {models, :os.system_time(:second)}})
+    end
 
     {:ok, models}
   end

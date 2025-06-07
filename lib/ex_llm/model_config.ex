@@ -243,23 +243,50 @@ defmodule ExLLM.ModelConfig do
     ensure_cache_table()
 
     # Try to get from cache first
-    case :ets.lookup(@config_cache, provider) do
-      [{^provider, config}] ->
-        config
+    try do
+      case :ets.lookup(@config_cache, provider) do
+        [{^provider, config}] ->
+          config
 
-      [] ->
-        # Load from file and cache result
-        config = load_provider_config(provider)
-        :ets.insert(@config_cache, {provider, config})
-        config
+        [] ->
+          # Load from file and cache result
+          config = load_provider_config(provider)
+          try do
+            :ets.insert(@config_cache, {provider, config})
+          catch
+            :error, :badarg ->
+              # Table doesn't exist, ensure it's created and retry
+              ensure_cache_table()
+              :ets.insert(@config_cache, {provider, config})
+          end
+          config
+      end
+    catch
+      :error, :badarg ->
+        # Table doesn't exist, load from file without caching
+        load_provider_config(provider)
     end
   end
 
   def ensure_cache_table do
-    try do
-      :ets.new(@config_cache, [:set, :public, :named_table])
-    catch
-      :error, :badarg -> :ok
+    case :ets.info(@config_cache) do
+      :undefined ->
+        try do
+          :ets.new(@config_cache, [:set, :public, :named_table])
+        catch
+          :error, :badarg ->
+            # Table might have been created by another process in the meantime
+            case :ets.info(@config_cache) do
+              :undefined ->
+                # Still doesn't exist, re-raise the error
+                :ets.new(@config_cache, [:set, :public, :named_table])
+              _ ->
+                :ok
+            end
+        end
+
+      _ ->
+        :ok
     end
   end
 

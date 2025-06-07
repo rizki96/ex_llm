@@ -25,7 +25,7 @@ defmodule ExLLM.MockTest do
 
       messages = [%{role: "user", content: "Hello"}]
 
-      assert {:ok, response} = ExLLM.chat(:mock, messages)
+      assert {:ok, response} = ExLLM.chat(:mock, messages, cache: false)
       assert response.content == "Hello from mock!"
       assert response.model == "test-model"
       assert response.usage.input_tokens == 5
@@ -35,8 +35,9 @@ defmodule ExLLM.MockTest do
     test "captures requests" do
       messages = [%{role: "user", content: "Test message"}]
       options = [temperature: 0.7, max_tokens: 100]
+      full_options = options ++ [cache: false]
 
-      ExLLM.chat(:mock, messages, options)
+      ExLLM.chat(:mock, messages, full_options)
 
       requests = Mock.get_requests()
       assert length(requests) == 1
@@ -44,7 +45,7 @@ defmodule ExLLM.MockTest do
       last_request = Mock.get_last_request()
       assert last_request.type == :chat
       assert last_request.messages == messages
-      assert last_request.options == options
+      assert last_request.options == full_options
     end
 
     test "handles dynamic responses" do
@@ -59,18 +60,20 @@ defmodule ExLLM.MockTest do
 
       messages = [%{role: "user", content: "Hello world"}]
 
-      assert {:ok, response} = ExLLM.chat(:mock, messages)
+      assert {:ok, response} = ExLLM.chat(:mock, messages, cache: false)
       assert response.content == "Echo: Hello world"
       assert response.model == "echo-model"
     end
 
     test "simulates errors" do
+      # Explicitly reset before setting error to ensure clean state
+      Mock.reset()
       Mock.set_error({:api_error, %{status: 500, body: "Internal server error"}})
 
       messages = [%{role: "user", content: "Hello"}]
 
       assert {:error, {:api_error, %{status: 500, body: "Internal server error"}}} =
-               ExLLM.chat(:mock, messages, retry: false)
+               ExLLM.chat(:mock, messages, retry: false, cache: false)
     end
   end
 
@@ -134,7 +137,7 @@ defmodule ExLLM.MockTest do
 
       messages = [%{role: "user", content: "What's the weather?"}]
 
-      assert {:ok, response} = ExLLM.chat(:mock, messages, functions: functions)
+      assert {:ok, response} = ExLLM.chat(:mock, messages, functions: functions, cache: false)
       assert response.function_call.name == "get_weather"
       assert response.function_call.arguments == ~s({"location": "San Francisco"})
     end
@@ -155,7 +158,7 @@ defmodule ExLLM.MockTest do
       })
 
       messages = [%{role: "user", content: "What time is it?"}]
-      {:ok, response} = ExLLM.chat(:mock, messages)
+      {:ok, response} = ExLLM.chat(:mock, messages, cache: false)
 
       # Since mock adapter doesn't implement provider-specific parsing,
       # we'll test the response structure directly
@@ -183,7 +186,10 @@ defmodule ExLLM.MockTest do
       messages = [%{role: "user", content: "Test retry"}]
 
       assert {:ok, response} =
-               ExLLM.chat(:mock, messages, retry_options: [max_attempts: 3, base_delay: 10])
+               ExLLM.chat(:mock, messages,
+                 retry_options: [max_attempts: 3, base_delay: 10],
+                 cache: false
+               )
 
       assert response.content == "Success after retry"
       assert :counters.get(call_count, 1) == 3
@@ -195,7 +201,7 @@ defmodule ExLLM.MockTest do
       messages = [%{role: "user", content: "No retry"}]
 
       assert {:error, {:network_error, "Connection failed"}} =
-               ExLLM.chat(:mock, messages, retry: false)
+               ExLLM.chat(:mock, messages, retry: false, cache: false)
 
       # Should only have one request
       assert length(Mock.get_requests()) == 1
@@ -234,7 +240,8 @@ defmodule ExLLM.MockTest do
       assert {:ok, response} =
                ExLLM.chat(:mock, messages,
                  max_tokens: 100,
-                 strategy: :sliding_window
+                 strategy: :sliding_window,
+                 cache: false
                )
 
       # The response should indicate fewer messages due to truncation
