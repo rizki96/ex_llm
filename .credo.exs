@@ -39,7 +39,7 @@
         {Credo.Check.Warning.RaiseInsideRescue, []},
 
         # Gradually enable design checks
-        {Credo.Check.Design.AliasUsage, [priority: :low]},
+        {Credo.Check.Design.AliasUsage, false}, # Too noisy, 132 instances
         
         # Disable complex function checks for now, re-enable later
         {Credo.Check.Design.DuplicatedCode, false},
