@@ -252,7 +252,7 @@ defmodule ExLLM.VisionTest do
       ExLLM.ModelConfig.ensure_cache_table()
       :ok
     end
-    
+
     test "vision_message/3 creates proper message" do
       {:ok, message} = ExLLM.vision_message("What's this?", ["https://example.com/img.jpg"])
 

@@ -346,6 +346,7 @@ defmodule ExLLM.Adapters.OpenAI do
 
   # API key validation moved to shared Validation module
 
+  @doc false
   def build_request_body(messages, model, config, options) do
     %{
       model: model,
@@ -363,7 +364,8 @@ defmodule ExLLM.Adapters.OpenAI do
     |> maybe_add_prediction(options)
     |> maybe_add_streaming_options(options)
     |> maybe_add_system_prompt(options)
-    |> maybe_add_functions(options)  # Keep for backward compatibility
+    # Keep for backward compatibility
+    |> maybe_add_functions(options)
   end
 
   defp build_headers(api_key, config) do
@@ -450,23 +452,24 @@ defmodule ExLLM.Adapters.OpenAI do
       case message do
         %{content: content} when is_list(content) ->
           # Check for unsupported content types
-          content_types = Enum.map(content, fn
-            %{type: type} -> type
-            _ -> :unknown
-          end)
+          content_types =
+            Enum.map(content, fn
+              %{type: type} -> type
+              _ -> :unknown
+            end)
 
           cond do
             "file" in content_types ->
               raise RuntimeError, "File content references are not yet supported in this adapter"
-            
+
             # Audio content in messages is now supported!
             # "input_audio" in content_types ->
             #   raise RuntimeError, "Audio content in messages is not yet supported in this adapter"
-            
+
             # Multiple content parts are now supported (for audio and other content)!
             # length(content) > 1 and "text" in content_types ->
             #   raise RuntimeError, "Multiple content parts per message are not yet supported in this adapter"
-            
+
             true ->
               :ok
           end
@@ -475,6 +478,7 @@ defmodule ExLLM.Adapters.OpenAI do
           :ok
       end
     end)
+
     :ok
   end
 
@@ -497,7 +501,7 @@ defmodule ExLLM.Adapters.OpenAI do
       # {:service_tier, "service_tier parameter is not yet supported"},
       # {:logprobs, "logprobs parameter is not yet supported"},
       # {:top_logprobs, "top_logprobs parameter is not yet supported"},
-      
+
       # {:response_format, "response_format JSON mode and JSON schema are not yet supported"},
       # {:tools, "modern tools API is not yet supported (use 'functions' for legacy support)"},
       # {:tool_choice, "tool_choice parameter is not yet supported"},
@@ -532,7 +536,7 @@ defmodule ExLLM.Adapters.OpenAI do
       # {:service_tier, "service_tier parameter is not yet supported"},
       # {:logprobs, "logprobs parameter is not yet supported"},
       # {:top_logprobs, "top_logprobs parameter is not yet supported"},
-      
+
       # {:response_format, "response_format JSON mode and JSON schema are not yet supported"},
       # {:tool_choice, "tool_choice parameter is not yet supported"},
       # {:parallel_tool_calls, "parallel tool calls are not yet supported"},
@@ -563,7 +567,7 @@ defmodule ExLLM.Adapters.OpenAI do
         raise RuntimeError, message
       end
     end)
-    
+
     :ok
   end
 
@@ -571,14 +575,14 @@ defmodule ExLLM.Adapters.OpenAI do
     cond do
       Keyword.has_key?(options, :max_completion_tokens) ->
         Map.put(body, :max_completion_tokens, Keyword.get(options, :max_completion_tokens))
-      
+
       Keyword.has_key?(options, :max_tokens) ->
         # Legacy parameter for backward compatibility
         Map.put(body, :max_tokens, Keyword.get(options, :max_tokens))
-      
+
       Map.has_key?(config, :max_tokens) ->
         Map.put(body, :max_tokens, Map.get(config, :max_tokens))
-      
+
       true ->
         body
     end
@@ -606,8 +610,10 @@ defmodule ExLLM.Adapters.OpenAI do
 
   defp maybe_add_tools(body, options) do
     case Keyword.get(options, :tools) do
-      nil -> body
-      tools -> 
+      nil ->
+        body
+
+      tools ->
         body
         |> Map.put(:tools, tools)
         |> maybe_add_optional_param(options, :tool_choice)
@@ -672,7 +678,8 @@ defmodule ExLLM.Adapters.OpenAI do
 
     enhanced_details = %{
       cached_tokens: prompt_details["cached_tokens"],
-      audio_tokens: (prompt_details["audio_tokens"] || 0) + (completion_details["audio_tokens"] || 0),
+      audio_tokens:
+        (prompt_details["audio_tokens"] || 0) + (completion_details["audio_tokens"] || 0),
       reasoning_tokens: completion_details["reasoning_tokens"]
     }
 
@@ -919,7 +926,6 @@ defmodule ExLLM.Adapters.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, _file_data} <- File.read(file_path) do
-      
       # For now, return a simple error since we don't have multipart upload support
       # Real implementation would need multipart form data support in HTTPClient
       {:error, :multipart_not_supported}
@@ -936,7 +942,6 @@ defmodule ExLLM.Adapters.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, _file_data} <- File.read(file_path) do
-      
       # For now, return a simple error since we don't have multipart upload support
       # Real implementation would need multipart form data support in HTTPClient
       {:error, :multipart_not_supported}
@@ -989,5 +994,4 @@ defmodule ExLLM.Adapters.OpenAI do
         %{flagged: false, categories: %{}, category_scores: %{}}
     end
   end
-
 end

@@ -941,6 +941,7 @@ defmodule ExLLM do
             if function_exported?(Logger, :info, 1) do
               Logger.info("LLM cost: #{format_cost(total_cost)} for #{provider}/#{model}")
             end
+
             cost_info
 
           %{error: _} ->

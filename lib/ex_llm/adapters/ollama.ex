@@ -299,27 +299,33 @@ defmodule ExLLM.Adapters.Ollama do
 
   defp parse_ollama_api_model(model) do
     model_name = model["name"]
-    
+
     # Try to get detailed info if available
-    {capabilities, context_window} = 
+    {capabilities, context_window} =
       case get_model_details(model_name) do
         {:ok, details} ->
           caps = details["capabilities"] || []
-          ctx = get_context_from_model_info(details["model_info"]) || 
-                get_ollama_context_window(model)
+
+          ctx =
+            get_context_from_model_info(details["model_info"]) ||
+              get_ollama_context_window(model)
+
           {caps, ctx}
+
         _ ->
           {[], get_ollama_context_window(model)}
       end
-    
+
     # Determine features based on capabilities or fallback to name detection
-    supports_functions = "tools" in capabilities || 
-                        "completion" in capabilities && "tools" in capabilities ||
-                        supports_function_calling?(model_name)
-    
-    supports_embeddings = "embedding" in capabilities ||
-                         String.contains?(model_name, "embed")
-    
+    supports_functions =
+      "tools" in capabilities ||
+        ("completion" in capabilities && "tools" in capabilities) ||
+        supports_function_calling?(model_name)
+
+    supports_embeddings =
+      "embedding" in capabilities ||
+        String.contains?(model_name, "embed")
+
     features = [:streaming]
     features = if supports_functions, do: [:function_calling | features], else: features
     features = if is_vision_model?(model_name), do: [:vision | features], else: features
@@ -339,7 +345,7 @@ defmodule ExLLM.Adapters.Ollama do
       }
     }
   end
-  
+
   defp get_model_details(model_name) do
     # Try to get detailed info via show endpoint
     # This is optional - if it fails, we fall back to basic info
@@ -352,16 +358,17 @@ defmodule ExLLM.Adapters.Ollama do
       _ -> :error
     end
   end
-  
+
   defp get_context_from_model_info(nil), do: nil
+
   defp get_context_from_model_info(model_info) do
     # Try different architecture fields
     model_info["qwen3.context_length"] ||
-    model_info["llama.context_length"] ||
-    model_info["bert.context_length"] ||
-    model_info["mistral.context_length"] ||
-    model_info["gemma.context_length"] ||
-    nil
+      model_info["llama.context_length"] ||
+      model_info["bert.context_length"] ||
+      model_info["mistral.context_length"] ||
+      model_info["gemma.context_length"] ||
+      nil
   end
 
   defp format_ollama_description(model) do
@@ -501,7 +508,7 @@ defmodule ExLLM.Adapters.Ollama do
       Map.get(config, :base_url) ||
       @default_base_url
   end
-  
+
   defp get_base_url(_), do: get_base_url(%{})
 
   defp format_messages(messages) do
@@ -1495,18 +1502,18 @@ defmodule ExLLM.Adapters.Ollama do
 
   @doc """
   Generate YAML configuration for all locally installed Ollama models.
-  
+
   This function fetches information about all installed models and generates
   a YAML configuration that can be saved to `config/models/ollama.yml`.
-  
+
   ## Options
-  
+
   - `:save` - When true, saves the configuration to the file (default: false)
   - `:path` - Custom path for the YAML file (default: "config/models/ollama.yml")
   - `:merge` - When true, merges with existing configuration (default: true)
-  
+
   ## Examples
-  
+
       # Generate configuration and return as string
       {:ok, yaml} = ExLLM.Adapters.Ollama.generate_config()
       
@@ -1531,16 +1538,16 @@ defmodule ExLLM.Adapters.Ollama do
       )
 
     config = get_config(config_provider)
-    
+
     # Fetch all models
     case fetch_ollama_models(config) do
       {:ok, models} ->
         # Build model configuration
         model_configs = build_model_configs(models, config)
-        
+
         # Determine default model
         default_model = determine_default_model(model_configs, options)
-        
+
         # Build full configuration
         yaml_config = %{
           "provider" => "ollama",
@@ -1551,25 +1558,25 @@ defmodule ExLLM.Adapters.Ollama do
             "source" => "ollama_generate_config"
           }
         }
-        
+
         # Handle merging if requested
-        yaml_config = 
+        yaml_config =
           if Keyword.get(options, :merge, true) do
             merge_with_existing_config(yaml_config, options)
           else
             yaml_config
           end
-        
+
         # Convert to YAML
         yaml_string = to_yaml(yaml_config)
-        
+
         # Save if requested
         if Keyword.get(options, :save, false) do
           save_config_to_file(yaml_string, options)
         else
           {:ok, yaml_string}
         end
-        
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -1577,17 +1584,17 @@ defmodule ExLLM.Adapters.Ollama do
 
   @doc """
   Update configuration for a specific model in ollama.yml.
-  
+
   This function fetches the latest information for a specific model and
   updates its entry in the configuration file.
-  
+
   ## Options
-  
+
   - `:save` - When true, saves the configuration to the file (default: true)
   - `:path` - Custom path for the YAML file (default: "config/models/ollama.yml")
-  
+
   ## Examples
-  
+
       # Update a specific model's configuration
       {:ok, yaml} = ExLLM.Adapters.Ollama.update_model_config("llama3.1")
       
@@ -1603,34 +1610,34 @@ defmodule ExLLM.Adapters.Ollama do
       )
 
     model = strip_provider_prefix(model_name)
-    
+
     # Get detailed info for this specific model
     case show_model(model, config_provider: config_provider) do
       {:ok, details} ->
         # Build configuration for this model
         model_config = build_single_model_config(model, details)
-        
+
         # Load existing configuration
         path = Keyword.get(options, :path, "config/models/ollama.yml")
         existing_config = load_yaml_config(path)
-        
+
         # Update the specific model
-        updated_config = 
+        updated_config =
           existing_config
           |> put_in(["models", "ollama/#{model}"], model_config)
           |> put_in(["metadata", "updated_at"], DateTime.utc_now() |> DateTime.to_iso8601())
           |> put_in(["metadata", "source"], "ollama_update_model")
-        
+
         # Convert to YAML
         yaml_string = to_yaml(updated_config)
-        
+
         # Save if requested (default: true for this function)
         if Keyword.get(options, :save, true) do
           save_config_to_file(yaml_string, options)
         else
           {:ok, yaml_string}
         end
-        
+
       {:error, reason} ->
         {:error, reason}
     end
@@ -1757,25 +1764,26 @@ defmodule ExLLM.Adapters.Ollama do
 
   defp build_model_configs(models, config) do
     base_url = get_base_url(config)
-    
+
     models
     |> Enum.reduce(%{}, fn model, acc ->
       model_name = model.name
-      
+
       # Try to get detailed info for better configuration
-      detailed_config = 
+      detailed_config =
         case get_model_details_direct(model_name, base_url) do
           {:ok, details} ->
             build_single_model_config(model_name, details)
+
           _ ->
             # Fallback to basic info from list_models
             build_basic_model_config(model)
         end
-      
+
       Map.put(acc, "ollama/#{model_name}", detailed_config)
     end)
   end
-  
+
   defp get_model_details_direct(model_name, base_url) do
     body = %{name: model_name}
     headers = [{"content-type", "application/json"}]
@@ -1784,6 +1792,7 @@ defmodule ExLLM.Adapters.Ollama do
     case Req.post(url, json: body, headers: headers, receive_timeout: 5_000) do
       {:ok, %{status: 200, body: response}} ->
         {:ok, response}
+
       _ ->
         :error
     end
@@ -1792,49 +1801,50 @@ defmodule ExLLM.Adapters.Ollama do
   defp build_single_model_config(model_name, details) do
     # Extract capabilities from API response
     capabilities = details["capabilities"] || []
-    
+
     # Get context window from model_info
-    context_window = 
+    context_window =
       case details["model_info"] do
         nil -> 4096
         info -> get_context_from_model_info(info) || 4096
       end
-    
+
     # Build capability list
     cap_list = ["streaming"]
-    
-    cap_list = 
+
+    cap_list =
       if "tools" in capabilities || ("completion" in capabilities && "tools" in capabilities) do
         ["function_calling" | cap_list]
       else
         cap_list
       end
-    
-    cap_list = 
+
+    cap_list =
       if "embedding" in capabilities do
         ["embeddings" | cap_list]
       else
         cap_list
       end
-    
+
     # Add vision if in model name (API doesn't report this yet)
-    cap_list = 
+    cap_list =
       if is_vision_model?(model_name) do
         ["vision" | cap_list]
       else
         cap_list
       end
-    
+
     # Build config map
     config = %{
       "context_window" => context_window,
       "capabilities" => Enum.sort(cap_list)
     }
-    
+
     # Add parameter size if available
     case details["details"] do
       %{"parameter_size" => size} when is_binary(size) ->
         Map.put(config, "parameter_size", size)
+
       _ ->
         config
     end
@@ -1844,7 +1854,7 @@ defmodule ExLLM.Adapters.Ollama do
     # Fallback for when we can't get detailed info
     %{
       "context_window" => model.context_window || 4096,
-      "capabilities" => 
+      "capabilities" =>
         model.capabilities.features
         |> Enum.map(&to_string/1)
         |> Enum.sort()
@@ -1856,15 +1866,15 @@ defmodule ExLLM.Adapters.Ollama do
       # If explicitly provided
       default = Keyword.get(options, :default_model) ->
         default
-      
+
       # If existing config has a default, preserve it
       existing = load_existing_default(options) ->
         existing
-      
+
       # If we have the common default model
       Map.has_key?(model_configs, "ollama/llama3.1") ->
         "ollama/llama3.1"
-      
+
       # Otherwise use the first model
       true ->
         case Map.keys(model_configs) do
@@ -1877,7 +1887,7 @@ defmodule ExLLM.Adapters.Ollama do
   defp merge_with_existing_config(new_config, options) do
     path = Keyword.get(options, :path, "config/models/ollama.yml")
     existing_config = load_yaml_config(path)
-    
+
     # Deep merge, preserving existing data where not updated
     %{
       "provider" => "ollama",
@@ -1890,7 +1900,7 @@ defmodule ExLLM.Adapters.Ollama do
   defp deep_merge_models(existing_models, new_models) do
     # Start with all new models
     merged = new_models
-    
+
     # Add any existing models not in the new set
     Enum.reduce(existing_models, merged, fn {model_name, model_config}, acc ->
       if Map.has_key?(acc, model_name) do
@@ -1911,6 +1921,7 @@ defmodule ExLLM.Adapters.Ollama do
           {:ok, config} -> config
           _ -> %{}
         end
+
       _ ->
         %{}
     end
@@ -1932,22 +1943,26 @@ defmodule ExLLM.Adapters.Ollama do
     data
     |> Enum.map(fn {key, value} ->
       indent = String.duplicate("  ", indent_level)
+
       case value do
         v when is_map(v) and map_size(v) > 0 ->
           "#{indent}#{key}:\n#{build_yaml_string(v, indent_level + 1)}"
-        
+
         v when is_list(v) and length(v) > 0 ->
-          items = Enum.map(v, fn item ->
-            "#{indent}- #{item}"
-          end) |> Enum.join("\n")
+          items =
+            Enum.map(v, fn item ->
+              "#{indent}- #{item}"
+            end)
+            |> Enum.join("\n")
+
           "#{indent}#{key}:\n#{items}"
-        
+
         v when is_binary(v) or is_atom(v) ->
           "#{indent}#{key}: #{format_yaml_value(v)}"
-        
+
         v when is_integer(v) or is_float(v) ->
           "#{indent}#{key}: #{v}"
-        
+
         _ ->
           "#{indent}#{key}: #{inspect(value)}"
       end
@@ -1963,19 +1978,20 @@ defmodule ExLLM.Adapters.Ollama do
       value
     end
   end
-  
+
   defp format_yaml_value(value) when is_atom(value), do: to_string(value)
 
   defp save_config_to_file(yaml_string, options) do
     path = Keyword.get(options, :path, "config/models/ollama.yml")
-    
+
     # Ensure directory exists
     File.mkdir_p!(Path.dirname(path))
-    
+
     case File.write(path, yaml_string) do
       :ok ->
         Logger.info("Saved Ollama configuration to #{path}")
         {:ok, path}
+
       {:error, reason} ->
         {:error, "Failed to save configuration: #{inspect(reason)}"}
     end

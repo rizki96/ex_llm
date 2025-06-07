@@ -72,8 +72,16 @@ defmodule ExLLM.Types do
     Standard response format from LLM adapters with integrated cost calculation.
     """
     defstruct [
-      :content, :model, :usage, :finish_reason, :id, :cost,
-      :function_call, :tool_calls, :refusal, :logprobs
+      :content,
+      :model,
+      :usage,
+      :finish_reason,
+      :id,
+      :cost,
+      :function_call,
+      :tool_calls,
+      :refusal,
+      :logprobs
     ]
 
     @type t :: %__MODULE__{

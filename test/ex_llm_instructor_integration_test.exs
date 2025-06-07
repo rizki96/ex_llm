@@ -26,48 +26,51 @@ defmodule ExLLM.InstructorIntegrationTest do
     # Since these are integration tests, we'll use the mock adapter
     # to test the Instructor functionality without requiring API keys
     case ExLLM.Adapters.Mock.start_link() do
-      {:ok, _pid} -> :ok
-      {:error, {:already_started, _pid}} -> 
+      {:ok, _pid} ->
+        :ok
+
+      {:error, {:already_started, _pid}} ->
         # Reset if already started
         ExLLM.Adapters.Mock.reset()
         :ok
     end
-    
+
     # Set up a mock response handler that returns structured JSON
     ExLLM.Adapters.Mock.set_response_handler(fn messages, _options ->
       last_message = List.last(messages)
       content = last_message.content || last_message[:content] || last_message["content"]
-      
-      response = cond do
-        String.contains?(content, "John Doe") ->
-          ~s({"name": "John Doe", "age": 30, "occupation": "software engineer"})
-        
-        String.contains?(content, "Jane Smith") ->
-          ~s({"name": "Jane Smith", "age": 25, "occupation": "doctor"})
-          
-        String.contains?(content, "Implement instructor support") ->
-          ~s({"title": "Implement instructor support", "completed": true, "priority": 3, "tags": ["elixir", "llm", "structured-output"]})
-          
-        String.contains?(content, "count to") ->
-          "[1, 2, 3, 4, 5]"
-          
-        String.contains?(content, "Extract the person") ->
-          ~s({"name": "Alice Johnson", "age": 28})
-          
-        String.contains?(content, "Return JSON") and String.contains?(content, "Alice Brown") ->
-          ~s({"name": "Alice Brown", "age": 28, "occupation": "designer"})
-          
-        true ->
-          ~s({"data": "test"})
-      end
-      
+
+      response =
+        cond do
+          String.contains?(content, "John Doe") ->
+            ~s({"name": "John Doe", "age": 30, "occupation": "software engineer"})
+
+          String.contains?(content, "Jane Smith") ->
+            ~s({"name": "Jane Smith", "age": 25, "occupation": "doctor"})
+
+          String.contains?(content, "Implement instructor support") ->
+            ~s({"title": "Implement instructor support", "completed": true, "priority": 3, "tags": ["elixir", "llm", "structured-output"]})
+
+          String.contains?(content, "count to") ->
+            "[1, 2, 3, 4, 5]"
+
+          String.contains?(content, "Extract the person") ->
+            ~s({"name": "Alice Johnson", "age": 28})
+
+          String.contains?(content, "Return JSON") and String.contains?(content, "Alice Brown") ->
+            ~s({"name": "Alice Brown", "age": 28, "occupation": "designer"})
+
+          true ->
+            ~s({"data": "test"})
+        end
+
       %{
         content: response,
         model: "mock-model",
         usage: %{input_tokens: 10, output_tokens: 20}
       }
     end)
-    
+
     :ok
   end
 

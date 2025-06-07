@@ -42,7 +42,7 @@ defmodule ExLLM.ModelCapabilitiesTest do
       ExLLM.ModelConfig.ensure_cache_table()
       :ok
     end
-    
+
     test "returns true for supported features" do
       assert ModelCapabilities.supports?(:openai, "gpt-4-turbo", :vision)
       assert ModelCapabilities.supports?(:anthropic, "claude-3-opus-20240229", :function_calling)
@@ -90,7 +90,7 @@ defmodule ExLLM.ModelCapabilitiesTest do
       ExLLM.ModelConfig.ensure_cache_table()
       :ok
     end
-    
+
     test "finds models with single feature" do
       models = ModelCapabilities.find_models_with_features([:vision])
 

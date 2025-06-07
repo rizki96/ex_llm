@@ -245,5 +245,4 @@ defmodule ExLLM.EmbeddingsTest do
                ExLLM.list_embedding_models(:unknown)
     end
   end
-
 end

@@ -14,14 +14,14 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "returns false with empty API key" do
       config = %{anthropic: %{api_key: ""}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       refute Anthropic.configured?(config_provider: provider)
     end
 
     test "returns true with valid API key" do
       config = %{anthropic: %{api_key: "sk-ant-test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       assert Anthropic.configured?(config_provider: provider)
     end
   end
@@ -42,7 +42,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi there!"}
       ]
-      
+
       # Test that system messages are properly extracted
       # This would be tested through the chat function
       assert {:error, _} = Anthropic.chat(messages, timeout: 1)
@@ -54,7 +54,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
         %{role: "assistant", content: "Hi!"},
         %{role: "user", content: "How are you?"}
       ]
-      
+
       # Anthropic requires alternating messages
       assert {:error, _} = Anthropic.chat(messages, timeout: 1)
     end
@@ -75,7 +75,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
           ]
         }
       ]
-      
+
       # Should format images correctly for Anthropic
       assert {:error, _} = Anthropic.chat(messages, timeout: 1)
     end
@@ -95,7 +95,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
           ]
         }
       ]
-      
+
       # Should convert image_url to Anthropic's format
       assert {:error, _} = Anthropic.chat(messages, timeout: 1)
     end
@@ -104,45 +104,47 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
   describe "parameter handling" do
     test "adds optional parameters to request body" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       opts = [
         temperature: 0.7,
         max_tokens: 100,
         model: "claude-3-5-sonnet-20241022"
       ]
-      
+
       # Parameters should be included in request
       assert {:error, _} = Anthropic.chat(messages, opts ++ [timeout: 1])
     end
 
     test "uses default max_tokens when not specified" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # Should use default of 4096
       assert {:error, _} = Anthropic.chat(messages, timeout: 1)
     end
 
     test "overrides model from options" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # Model in options should override config
-      assert {:error, _} = Anthropic.chat(
-        messages,
-        model: "claude-3-5-haiku-20241022",
-        timeout: 1
-      )
+      assert {:error, _} =
+               Anthropic.chat(
+                 messages,
+                 model: "claude-3-5-haiku-20241022",
+                 timeout: 1
+               )
     end
   end
 
   describe "streaming setup" do
     test "stream_chat returns a Stream" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       # Even without API key, stream structure should be created
       case Anthropic.stream_chat(messages) do
         {:ok, stream} ->
           # Stream.resource returns a function
           assert is_function(stream) or is_struct(stream, Stream)
+
         {:error, _} ->
           # Missing API key is also valid
           :ok
@@ -151,11 +153,12 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
     test "streaming adds stream: true to request" do
       messages = [%{role: "user", content: "Test streaming"}]
-      
+
       # The stream parameter should be added
       case Anthropic.stream_chat(messages) do
         {:ok, _stream} ->
           :ok
+
         {:error, _} ->
           :ok
       end
@@ -187,8 +190,9 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
           base_url: "https://custom.anthropic.com/v1"
         }
       }
+
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
@@ -200,11 +204,13 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
       case Anthropic.list_models() do
         {:ok, models} ->
           assert is_list(models)
+
           if length(models) > 0 do
             model = hd(models)
             assert %Types.Model{} = model
             assert String.contains?(model.id, "claude")
           end
+
         {:error, _} ->
           # Error is also acceptable without API key
           :ok
@@ -214,17 +220,20 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "model capabilities are properly set" do
       case Anthropic.list_models() do
         {:ok, models} ->
-          claude_model = Enum.find(models, fn m -> 
-            String.contains?(m.id, "claude")
-          end)
-          
+          claude_model =
+            Enum.find(models, fn m ->
+              String.contains?(m.id, "claude")
+            end)
+
           if claude_model do
             # Check features list for streaming
             assert is_map(claude_model.capabilities)
+
             if is_list(claude_model.capabilities.features) do
               assert "streaming" in claude_model.capabilities.features
             end
           end
+
         {:error, _} ->
           :ok
       end
@@ -248,7 +257,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
           "output_tokens" => 5
         }
       }
-      
+
       # This would be parsed in parse_response/1
       # Testing the expected structure
       assert is_map(mock_response)
@@ -259,12 +268,13 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
   describe "streaming chunk parsing" do
     test "parses content block delta" do
       chunk_data = ~s({"type":"content_block_delta","delta":{"text":"Hello"}})
-      
+
       # Using the parse_stream_chunk function indirectly
       case Jason.decode(chunk_data) do
         {:ok, decoded} ->
           assert decoded["type"] == "content_block_delta"
           assert decoded["delta"]["text"] == "Hello"
+
         _ ->
           :ok
       end
@@ -272,10 +282,11 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
     test "handles message stop event" do
       chunk_data = ~s({"type":"message_stop"})
-      
+
       case Jason.decode(chunk_data) do
         {:ok, decoded} ->
           assert decoded["type"] == "message_stop"
+
         _ ->
           :ok
       end
@@ -283,11 +294,12 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
     test "handles message delta with stop reason" do
       chunk_data = ~s({"type":"message_delta","delta":{"stop_reason":"end_turn"}})
-      
+
       case Jason.decode(chunk_data) do
         {:ok, decoded} ->
           assert decoded["type"] == "message_delta"
           assert decoded["delta"]["stop_reason"] == "end_turn"
+
         _ ->
           :ok
       end
@@ -298,7 +310,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "handles API errors properly" do
       # Various error scenarios
       messages = [%{role: "user", content: "Test"}]
-      
+
       # Connection timeout
       assert {:error, _} = Anthropic.chat(messages, timeout: 1)
     end
@@ -310,7 +322,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
         %{anthropic: %{api_key: ""}},
         %{anthropic: %{}}
       ]
-      
+
       for config <- invalid_configs do
         {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
         refute Anthropic.configured?(config_provider: provider)
@@ -326,18 +338,19 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
         {"claude-3-5-haiku-20241022", "Fast and efficient model for simple tasks"},
         {"claude-unknown", "Claude model"}
       ]
-      
+
       for {model_id, expected_pattern} <- test_cases do
         # This tests the description generation logic
-        description = cond do
-          String.contains?(model_id, "opus-4") -> "Claude Opus 4: Most intelligent model"
-          String.contains?(model_id, "sonnet-4") -> "Claude Sonnet 4: Best value model"
-          String.contains?(model_id, "opus") -> "Most capable model with advanced reasoning"
-          String.contains?(model_id, "sonnet") -> "Balanced model for general tasks"
-          String.contains?(model_id, "haiku") -> "Fast and efficient model for simple tasks"
-          true -> "Claude model"
-        end
-        
+        description =
+          cond do
+            String.contains?(model_id, "opus-4") -> "Claude Opus 4: Most intelligent model"
+            String.contains?(model_id, "sonnet-4") -> "Claude Sonnet 4: Best value model"
+            String.contains?(model_id, "opus") -> "Most capable model with advanced reasoning"
+            String.contains?(model_id, "sonnet") -> "Balanced model for general tasks"
+            String.contains?(model_id, "haiku") -> "Fast and efficient model for simple tasks"
+            true -> "Claude model"
+          end
+
         assert String.contains?(description, String.split(expected_pattern, ":") |> List.first())
       end
     end
@@ -349,10 +362,12 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
       case Anthropic.list_models() do
         {:ok, models} ->
           claude_model = Enum.find(models, &String.contains?(&1.id, "claude"))
+
           if claude_model do
             # Claude instant has 100k, others have 200k
             assert claude_model.context_window >= 100_000
           end
+
         {:error, _} ->
           :ok
       end
@@ -365,21 +380,25 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
       case Anthropic.list_models() do
         {:ok, models} ->
           # Claude 3.5+ models should support vision
-          vision_model = Enum.find(models, fn m ->
-            String.contains?(m.id, "claude-3-5") || String.contains?(m.id, "claude-3-7")
-          end)
-          
+          vision_model =
+            Enum.find(models, fn m ->
+              String.contains?(m.id, "claude-3-5") || String.contains?(m.id, "claude-3-7")
+            end)
+
           if vision_model && vision_model.capabilities do
             # Check capabilities - vision may be in features list
             # or indicated by document_understanding capability
             if is_list(vision_model.capabilities.features) do
-              has_vision_related = Enum.any?(vision_model.capabilities.features, fn f ->
-                f in ["vision", "document_understanding", "multimodal"]
-              end)
+              has_vision_related =
+                Enum.any?(vision_model.capabilities.features, fn f ->
+                  f in ["vision", "document_understanding", "multimodal"]
+                end)
+
               # Vision support may not be explicitly listed for all models
               assert is_boolean(has_vision_related)
             end
           end
+
         {:error, _} ->
           :ok
       end

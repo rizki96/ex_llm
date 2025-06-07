@@ -8,11 +8,12 @@ defmodule ExLLM.OllamaIntegrationTest do
 
   # These tests require a running Ollama server
   # Run with: mix test --only ollama
-  
+
   setup_all do
     case check_ollama_server() do
-      :ok -> 
+      :ok ->
         :ok
+
       {:error, reason} ->
         IO.puts("\nSkipping Ollama integration tests: #{reason}")
         :ok
@@ -23,7 +24,7 @@ defmodule ExLLM.OllamaIntegrationTest do
     @tag :skip
     test "generates completion without streaming" do
       result = Ollama.generate("The capital of France is", model: "llama2")
-      
+
       case result do
         {:ok, response} ->
           assert %Types.LLMResponse{} = response
@@ -31,10 +32,10 @@ defmodule ExLLM.OllamaIntegrationTest do
           assert response.content != ""
           assert response.usage.input_tokens > 0
           assert response.usage.output_tokens > 0
-          
+
         {:error, {:api_error, %{status: 404}}} ->
           IO.puts("Model not found, skipping test")
-          
+
         {:error, reason} ->
           IO.puts("Ollama error: #{inspect(reason)}")
       end
@@ -42,32 +43,36 @@ defmodule ExLLM.OllamaIntegrationTest do
 
     @tag :skip
     test "generates with temperature option" do
-      result = Ollama.generate(
-        "Write a haiku about coding",
-        model: "llama2",
-        options: %{temperature: 0.5, seed: 42}
-      )
-      
+      result =
+        Ollama.generate(
+          "Write a haiku about coding",
+          model: "llama2",
+          options: %{temperature: 0.5, seed: 42}
+        )
+
       case result do
         {:ok, response} ->
           assert response.content =~ ~r/\w+/
+
         _ ->
           :ok
       end
     end
 
-    @tag :skip  
+    @tag :skip
     test "respects max_tokens limit" do
-      result = Ollama.generate(
-        "Count from 1 to 100",
-        model: "llama2", 
-        max_tokens: 20
-      )
-      
+      result =
+        Ollama.generate(
+          "Count from 1 to 100",
+          model: "llama2",
+          max_tokens: 20
+        )
+
       case result do
         {:ok, response} ->
           # Response should be truncated
           assert response.usage.output_tokens <= 20
+
         _ ->
           :ok
       end
@@ -80,13 +85,14 @@ defmodule ExLLM.OllamaIntegrationTest do
       case Ollama.stream_generate("Tell me a short story", model: "llama2") do
         {:ok, stream} ->
           chunks = stream |> Enum.take(5) |> Enum.to_list()
-          
+
           assert length(chunks) > 0
+
           assert Enum.all?(chunks, fn chunk ->
-            %Types.StreamChunk{} = chunk
-            is_binary(chunk.content)
-          end)
-          
+                   %Types.StreamChunk{} = chunk
+                   is_binary(chunk.content)
+                 end)
+
         {:error, _} ->
           :ok
       end
@@ -98,16 +104,16 @@ defmodule ExLLM.OllamaIntegrationTest do
     test "shows model information" do
       # Try with a commonly available model
       result = Ollama.show_model("llama2")
-      
+
       case result do
         {:ok, info} ->
           assert is_map(info)
           assert Map.has_key?(info, "details")
           assert Map.has_key?(info, "parameters")
-          
+
         {:error, {:api_error, %{status: 404}}} ->
           IO.puts("Model not found")
-          
+
         {:error, _} ->
           :ok
       end
@@ -120,14 +126,14 @@ defmodule ExLLM.OllamaIntegrationTest do
       case Ollama.list_models() do
         {:ok, models} ->
           assert is_list(models)
-          
+
           if length(models) > 0 do
             model = hd(models)
             assert %Types.Model{} = model
             assert is_binary(model.name)
             assert is_integer(model.context_window)
           end
-          
+
         {:error, _} ->
           :ok
       end
@@ -140,8 +146,9 @@ defmodule ExLLM.OllamaIntegrationTest do
       case Ollama.list_running_models() do
         {:ok, models} ->
           assert is_list(models)
-          # Could be empty if no models are loaded
-          
+
+        # Could be empty if no models are loaded
+
         {:error, _} ->
           :ok
       end
@@ -156,7 +163,7 @@ defmodule ExLLM.OllamaIntegrationTest do
           assert is_map(version_info)
           assert Map.has_key?(version_info, "version")
           assert is_binary(version_info["version"])
-          
+
         {:error, _} ->
           :ok
       end
@@ -170,18 +177,18 @@ defmodule ExLLM.OllamaIntegrationTest do
       case Ollama.list_models() do
         {:ok, [%{name: source} | _]} ->
           dest = "test-copy-#{:rand.uniform(10000)}"
-          
+
           case Ollama.copy_model(source, dest) do
             {:ok, result} ->
               assert result.message =~ "success"
-              
+
               # Clean up - delete the copied model
               Ollama.delete_model(dest)
-              
+
             {:error, _} ->
               :ok
           end
-          
+
         _ ->
           IO.puts("No models available to copy")
       end
@@ -198,11 +205,11 @@ defmodule ExLLM.OllamaIntegrationTest do
           {:ok, stream} ->
             updates = Enum.to_list(stream)
             assert length(updates) > 0
-            
+
             # Check for expected status messages
             statuses = Enum.map(updates, & &1["status"])
             assert "pulling manifest" in statuses or "success" in statuses
-            
+
           {:error, reason} ->
             IO.puts("Pull failed: #{inspect(reason)}")
         end
@@ -216,21 +223,21 @@ defmodule ExLLM.OllamaIntegrationTest do
     @tag :skip
     test "generates embeddings for text" do
       result = Ollama.embeddings("Hello world", model: "nomic-embed-text")
-      
+
       case result do
         {:ok, response} ->
           assert %Types.EmbeddingResponse{} = response
           assert is_list(response.embeddings)
           assert length(response.embeddings) == 1
-          
+
           [embedding] = response.embeddings
           assert is_list(embedding)
           assert length(embedding) > 0
           assert Enum.all?(embedding, &is_float/1)
-          
+
         {:error, {:api_error, %{status: 404}}} ->
           IO.puts("Embedding model not found")
-          
+
         {:error, _} ->
           :ok
       end
@@ -240,11 +247,11 @@ defmodule ExLLM.OllamaIntegrationTest do
     test "generates embeddings for multiple inputs" do
       inputs = ["Hello", "World", "Testing"]
       result = Ollama.embeddings(inputs, model: "nomic-embed-text")
-      
+
       case result do
         {:ok, response} ->
           assert length(response.embeddings) == 3
-          
+
         _ ->
           :ok
       end
@@ -260,7 +267,7 @@ defmodule ExLLM.OllamaIntegrationTest do
           assert yaml =~ "provider: ollama"
           assert yaml =~ "models:"
           assert yaml =~ "metadata:"
-          
+
         {:error, _} ->
           :ok
       end
@@ -269,16 +276,16 @@ defmodule ExLLM.OllamaIntegrationTest do
     @tag :skip
     test "saves configuration to temporary file" do
       temp_path = Path.join(System.tmp_dir!(), "ollama_test_#{:rand.uniform(10000)}.yml")
-      
+
       try do
         case Ollama.generate_config(save: true, path: temp_path) do
           {:ok, path} ->
             assert path == temp_path
             assert File.exists?(path)
-            
+
             content = File.read!(path)
             assert content =~ "provider: ollama"
-            
+
           {:error, _} ->
             :ok
         end
@@ -293,7 +300,7 @@ defmodule ExLLM.OllamaIntegrationTest do
     test "updates model configuration" do
       # First, create a temporary config file
       temp_path = Path.join(System.tmp_dir!(), "ollama_update_test_#{:rand.uniform(10000)}.yml")
-      
+
       initial_config = """
       provider: ollama
       default_model: ollama/llama2
@@ -303,9 +310,9 @@ defmodule ExLLM.OllamaIntegrationTest do
           capabilities:
             - streaming
       """
-      
+
       File.write!(temp_path, initial_config)
-      
+
       try do
         # Get an actual model to update
         case Ollama.list_models() do
@@ -316,11 +323,11 @@ defmodule ExLLM.OllamaIntegrationTest do
                 assert updated =~ "ollama/#{model_name}:"
                 assert updated =~ "metadata:"
                 assert updated =~ "updated_at:"
-                
+
               {:error, _} ->
                 :ok
             end
-            
+
           _ ->
             IO.puts("No models available to update")
         end
