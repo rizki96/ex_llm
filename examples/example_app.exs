@@ -925,10 +925,12 @@ defmodule ExLLM.ExampleApp do
           IO.puts("[DEBUG] Full response: #{inspect(response, pretty: true)}")
         end
         
-        if function_call = Map.get(response, :function_call) do
-          # Handle both atom and string keys
-          name = function_call[:name] || function_call["name"]
-          arguments = function_call[:arguments] || function_call["arguments"]
+        # Check for both function_call (older format) and tool_calls (newer format)
+        cond do
+          function_call = Map.get(response, :function_call) ->
+            # Handle both atom and string keys
+            name = function_call[:name] || function_call["name"]
+            arguments = function_call[:arguments] || function_call["arguments"]
           
           IO.puts("\nLLM wants to call function: #{name}")
           IO.puts("Arguments: #{arguments}")
@@ -968,14 +970,41 @@ defmodule ExLLM.ExampleApp do
             {:error, error} ->
               IO.puts("Failed to parse arguments: #{inspect(error)}")
           end
-        else
-          if response.content && response.content != "" do
+          
+          tool_calls = Map.get(response, :tool_calls) ->
+            # Handle tool calls (newer format used by Ollama and others)
+            IO.puts("\nLLM wants to call #{length(tool_calls)} tool(s)")
+            
+            Enum.each(tool_calls, fn tool_call ->
+              name = get_in(tool_call, [:function, :name]) || get_in(tool_call, ["function", "name"])
+              arguments = get_in(tool_call, [:function, :arguments]) || get_in(tool_call, ["function", "arguments"])
+              
+              IO.puts("\n📞 Calling function: #{name}")
+              IO.puts("Arguments: #{arguments}")
+              
+              # Parse and validate arguments
+              case FunctionCalling.parse_arguments(arguments) do
+                {:ok, args} ->
+                  IO.puts("Executing function...")
+                  
+                  # Execute function
+                  handler = function_handlers[name]
+                  result = handler.(args)
+                  
+                  IO.puts("Function result: #{result}")
+                  
+                {:error, error} ->
+                  IO.puts("Failed to parse arguments: #{inspect(error)}")
+              end
+            end)
+          
+          response.content && response.content != "" ->
             IO.puts("\nDirect response: #{response.content}")
-          else
+            
+          true ->
             IO.puts("\n⚠️  Model returned empty response")
             IO.puts("This can happen when the model is unsure whether to use a function.")
             IO.puts("Try rephrasing your question or asking something more specific.")
-          end
         end
         
       {:error, error} ->

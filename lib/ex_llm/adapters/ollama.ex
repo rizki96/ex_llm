@@ -97,7 +97,15 @@ defmodule ExLLM.Adapters.Ollama do
     headers = [{"content-type", "application/json"}]
     url = "#{get_base_url(config)}/api/chat"
 
-    case Req.post(url, json: body, headers: headers) do
+    # Ollama can be slow, especially with function calling
+    req_options = [
+      json: body,
+      headers: headers,
+      receive_timeout: 300_000,  # 5 minutes
+      retry: false  # Let ExLLM handle retries
+    ]
+    
+    case Req.post(url, req_options) do
       {:ok, %{status: 200, body: response}} ->
         {:ok, parse_response(response, model)}
 
