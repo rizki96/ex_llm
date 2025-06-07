@@ -236,7 +236,12 @@ defmodule ExLLM.Instructor do
           
           # Add optional parameters only if present
           params = if merged_opts[:temperature], do: Keyword.put(params, :temperature, merged_opts[:temperature]), else: params
-          params = if merged_opts[:max_tokens], do: Keyword.put(params, :max_tokens, merged_opts[:max_tokens]), else: params
+          
+          # For Anthropic, max_tokens is required
+          params = case provider do
+            :anthropic -> Keyword.put(params, :max_tokens, merged_opts[:max_tokens] || 4096)
+            _ -> if merged_opts[:max_tokens], do: Keyword.put(params, :max_tokens, merged_opts[:max_tokens]), else: params
+          end
 
           # Prepare config (second argument) with adapter
           config = [adapter: adapter]
