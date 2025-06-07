@@ -14,14 +14,14 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
     test "returns false with empty API key" do
       config = %{openai: %{api_key: ""}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       refute OpenAI.configured?(config_provider: provider)
     end
 
     test "returns true with valid API key" do
       config = %{openai: %{api_key: "sk-test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       assert OpenAI.configured?(config_provider: provider)
     end
   end
@@ -41,7 +41,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi there!"}
       ]
-      
+
       # Test that messages are properly formatted
       assert {:error, _} = OpenAI.chat(messages, timeout: 1)
     end
@@ -51,7 +51,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
         %{role: "system", content: "You are a helpful assistant"},
         %{role: "user", content: "Hello"}
       ]
-      
+
       assert {:error, _} = OpenAI.chat(messages, timeout: 1)
     end
 
@@ -70,7 +70,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           ]
         }
       ]
-      
+
       # Should handle multimodal content
       assert {:error, _} = OpenAI.chat(messages, timeout: 1)
     end
@@ -91,7 +91,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           ]
         }
       ]
-      
+
       assert {:error, _} = OpenAI.chat(messages, timeout: 1)
     end
   end
@@ -99,15 +99,16 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   describe "parameter handling" do
     test "adds optional parameters to request body" do
       messages = [%{role: "user", content: "Test"}]
-      
-      body = OpenAI.build_request_body(messages, "gpt-4", %{}, 
-        temperature: 0.7,
-        max_completion_tokens: 100,
-        top_p: 0.9,
-        seed: 42,
-        n: 2
-      )
-      
+
+      body =
+        OpenAI.build_request_body(messages, "gpt-4", %{},
+          temperature: 0.7,
+          max_completion_tokens: 100,
+          top_p: 0.9,
+          seed: 42,
+          n: 2
+        )
+
       assert body.temperature == 0.7
       assert body.max_completion_tokens == 100
       assert body.top_p == 0.9
@@ -117,7 +118,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "uses max_completion_tokens for newer models" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # For newer models like gpt-4o when max_completion_tokens is specified
       body = OpenAI.build_request_body(messages, "gpt-4o", %{}, max_completion_tokens: 100)
       assert body.max_completion_tokens == 100
@@ -125,7 +126,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "uses max_tokens for legacy models" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       # For legacy models
       body = OpenAI.build_request_body(messages, "gpt-3.5-turbo-instruct", %{}, max_tokens: 100)
       assert body.max_tokens == 100
@@ -134,17 +135,16 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "handles response format" do
       messages = [%{role: "user", content: "Test"}]
-      
-      body = OpenAI.build_request_body(messages, "gpt-4", %{}, 
-        response_format: %{type: "json_object"}
-      )
-      
+
+      body =
+        OpenAI.build_request_body(messages, "gpt-4", %{}, response_format: %{type: "json_object"})
+
       assert body.response_format == %{type: "json_object"}
     end
 
     test "handles structured output schema" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       schema = %{
         type: "json_schema",
         json_schema: %{
@@ -157,7 +157,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           }
         }
       }
-      
+
       body = OpenAI.build_request_body(messages, "gpt-4", %{}, response_format: schema)
       assert body.response_format == schema
     end
@@ -166,12 +166,13 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   describe "streaming setup" do
     test "stream_chat returns a Stream" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       # Even without API key, stream structure should be created
       case OpenAI.stream_chat(messages) do
         {:ok, stream} ->
           # Stream.resource returns a function
           assert is_function(stream) or is_struct(stream, Stream)
+
         {:error, _} ->
           # Missing API key is also valid
           :ok
@@ -180,11 +181,12 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "streaming adds stream: true to request" do
       messages = [%{role: "user", content: "Test streaming"}]
-      
+
       # The stream parameter should be added
       case OpenAI.stream_chat(messages) do
         {:ok, _stream} ->
           :ok
+
         {:error, _} ->
           :ok
       end
@@ -194,7 +196,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   describe "tool/function calling" do
     test "supports modern tools API" do
       messages = [%{role: "user", content: "Get weather"}]
-      
+
       tools = [
         %{
           type: "function",
@@ -210,7 +212,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           }
         }
       ]
-      
+
       body = OpenAI.build_request_body(messages, "gpt-4", %{}, tools: tools)
       assert body.tools == tools
     end
@@ -218,24 +220,26 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
     test "supports tool_choice parameter" do
       messages = [%{role: "user", content: "Test"}]
       tools = [%{type: "function", function: %{name: "test"}}]
-      
-      body = OpenAI.build_request_body(messages, "gpt-4", %{}, 
-        tools: tools,
-        tool_choice: "auto"
-      )
-      
+
+      body =
+        OpenAI.build_request_body(messages, "gpt-4", %{},
+          tools: tools,
+          tool_choice: "auto"
+        )
+
       assert body.tool_choice == "auto"
     end
 
     test "supports parallel tool calls" do
       messages = [%{role: "user", content: "Test"}]
       tools = [%{type: "function", function: %{name: "test"}}]
-      
-      body = OpenAI.build_request_body(messages, "gpt-4", %{}, 
-        tools: tools,
-        parallel_tool_calls: true
-      )
-      
+
+      body =
+        OpenAI.build_request_body(messages, "gpt-4", %{},
+          tools: tools,
+          parallel_tool_calls: true
+        )
+
       assert body.parallel_tool_calls == true
     end
 
@@ -248,10 +252,10 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   describe "model listing" do
     test "list_models returns models from config" do
       {:ok, models} = OpenAI.list_models()
-      
+
       assert is_list(models)
       assert length(models) > 0
-      
+
       model = hd(models)
       assert %Types.Model{} = model
       # Not all models have "gpt" in the name (e.g., dall-e models)
@@ -262,10 +266,10 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "list_embedding_models returns embedding models" do
       {:ok, models} = OpenAI.list_embedding_models()
-      
+
       assert is_list(models)
       assert length(models) > 0
-      
+
       model = hd(models)
       assert %Types.EmbeddingModel{} = model
       assert model.provider == :openai
@@ -288,8 +292,9 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           base_url: "https://custom.openai.com/v1"
         }
       }
+
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 1)
     end
@@ -315,7 +320,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           "total_tokens" => 15
         }
       }
-      
+
       parsed = OpenAI.parse_response(mock_response, "gpt-4")
       assert %Types.LLMResponse{} = parsed
       assert parsed.content == "Hello!"
@@ -342,7 +347,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           "completion_tokens" => 0
         }
       }
-      
+
       parsed = OpenAI.parse_response(mock_response, "gpt-4")
       assert parsed.refusal == "I can't help with that"
     end
@@ -375,7 +380,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
           "completion_tokens" => 20
         }
       }
-      
+
       parsed = OpenAI.parse_response(mock_response, "gpt-4")
       assert length(parsed.tool_calls) == 1
       assert hd(parsed.tool_calls)["function"]["name"] == "get_weather"
@@ -385,11 +390,11 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   describe "streaming chunk parsing" do
     test "parses content chunks" do
       chunk_data = ~s(data: {"choices":[{"delta":{"content":"Hello"}}]}\n\n)
-      
+
       # This would be parsed in the streaming handler
       lines = String.split(chunk_data, "\n", trim: true)
       data_line = Enum.find(lines, &String.starts_with?(&1, "data: "))
-      
+
       if data_line do
         json = String.trim_leading(data_line, "data: ")
         {:ok, decoded} = Jason.decode(json)
@@ -399,10 +404,10 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "handles [DONE] message" do
       chunk_data = "data: [DONE]\n\n"
-      
+
       lines = String.split(chunk_data, "\n", trim: true)
       data_line = Enum.find(lines, &String.starts_with?(&1, "data: "))
-      
+
       assert String.trim_leading(data_line, "data: ") == "[DONE]"
     end
   end
@@ -414,7 +419,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
         %{openai: %{api_key: ""}},
         %{openai: %{}}
       ]
-      
+
       for config <- invalid_configs do
         {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
         refute OpenAI.configured?(config_provider: provider)
@@ -425,38 +430,38 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   describe "special model features" do
     test "supports audio output configuration" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       audio_config = %{
         voice: "alloy",
         format: "mp3"
       }
-      
+
       body = OpenAI.build_request_body(messages, "gpt-4o-audio", %{}, audio: audio_config)
       assert body.audio == audio_config
     end
 
     test "supports web search options" do
       messages = [%{role: "user", content: "Search for latest news"}]
-      
+
       web_search = %{
         enabled: true,
         max_results: 5
       }
-      
+
       body = OpenAI.build_request_body(messages, "gpt-4", %{}, web_search_options: web_search)
       assert body.web_search_options == web_search
     end
 
     test "supports reasoning effort for o-series models" do
       messages = [%{role: "user", content: "Complex problem"}]
-      
+
       body = OpenAI.build_request_body(messages, "o1-preview", %{}, reasoning_effort: "high")
       assert body.reasoning_effort == "high"
     end
 
     test "ignores reasoning effort for non-o-series models" do
       messages = [%{role: "user", content: "Test"}]
-      
+
       body = OpenAI.build_request_body(messages, "gpt-4", %{}, reasoning_effort: "high")
       refute Map.has_key?(body, :reasoning_effort)
     end
