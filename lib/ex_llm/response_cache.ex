@@ -575,12 +575,12 @@ defmodule ExLLM.ResponseCache do
   defp find_similar_cached_response(provider, request_data) do
     provider_dir = Path.join(cache_dir(), provider)
 
-    if not File.exists?(provider_dir) do
-      nil
-    else
+    if File.exists?(provider_dir) do
       # Try different endpoint variations
       endpoints_to_try = ["chat", "chat_completions", "streaming", "messages"]
       find_in_endpoints(endpoints_to_try, request_data, provider)
+    else
+      nil
     end
   end
 
