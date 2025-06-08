@@ -218,8 +218,8 @@ defmodule ExLLM.ModelConfig do
 
       config ->
         models = Map.get(config, :models, %{})
-        # Try both string and atom keys
-        Map.get(models, model) || Map.get(models, String.to_atom(model))
+        # Models should be keyed by strings
+        Map.get(models, model)
     end
   end
 
@@ -326,7 +326,7 @@ defmodule ExLLM.ModelConfig do
   defp normalize_config(config) when is_map(config) do
     config
     |> Enum.map(fn {key, value} ->
-      atom_key = if is_binary(key), do: String.to_atom(key), else: key
+      atom_key = if is_binary(key), do: safe_atomize_key(key), else: key
       {atom_key, normalize_config(value)}
     end)
     |> Map.new()
@@ -337,4 +337,42 @@ defmodule ExLLM.ModelConfig do
   end
 
   defp normalize_config(config), do: config
+
+  # Safe atomization of known configuration keys
+  defp safe_atomize_key(key) when is_binary(key) do
+    # Known top-level and nested keys in model configs
+    case key do
+      # Top-level model fields
+      "name" -> :name
+      "context_window" -> :context_window
+      "max_output_tokens" -> :max_output_tokens
+      "capabilities" -> :capabilities
+      "pricing" -> :pricing
+      "default" -> :default
+      "architecture" -> :architecture
+      "quantization" -> :quantization
+      "supports_streaming" -> :supports_streaming
+      "supports_tools" -> :supports_tools
+      "features" -> :features
+      
+      # Pricing fields
+      "input" -> :input
+      "output" -> :output
+      
+      # Capability fields  
+      "vision" -> :vision
+      "function_calling" -> :function_calling
+      "streaming" -> :streaming
+      "embeddings" -> :embeddings
+      "audio" -> :audio
+      "tools" -> :tools
+      
+      # Feature flags
+      "supported" -> :supported
+      "formats" -> :formats
+      
+      # Keep model IDs as strings since they're dynamic
+      _ -> key
+    end
+  end
 end

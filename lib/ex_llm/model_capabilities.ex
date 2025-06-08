@@ -146,10 +146,15 @@ defmodule ExLLM.ModelCapabilities do
                 {cap, %Capability{feature: cap, supported: true}}
 
               cap when is_binary(cap) ->
-                # Handle string capabilities from YAML
-                atom_cap = String.to_atom(cap)
-                {atom_cap, %Capability{feature: atom_cap, supported: true}}
+                # Handle string capabilities from YAML safely
+                atom_cap = normalize_capability_string(cap)
+                if atom_cap do
+                  {atom_cap, %Capability{feature: atom_cap, supported: true}}
+                else
+                  nil
+                end
             end)
+            |> Enum.filter(&(&1 != nil))
             |> Map.new()
 
           # Add default capabilities that most models support
@@ -832,6 +837,31 @@ defmodule ExLLM.ModelCapabilities do
 
       info ->
         {:ok, info}
+    end
+  end
+
+  # Helper to safely convert capability strings to atoms
+  defp normalize_capability_string(cap) when is_binary(cap) do
+    case cap do
+      "streaming" -> :streaming
+      "function_calling" -> :function_calling
+      "vision" -> :vision
+      "audio" -> :audio
+      "embeddings" -> :embeddings
+      "multi_turn" -> :multi_turn
+      "system_messages" -> :system_messages
+      "temperature_control" -> :temperature_control
+      "stop_sequences" -> :stop_sequences
+      "tools" -> :tools
+      "tool_choice" -> :tool_choice
+      "parallel_tool_calls" -> :parallel_tool_calls
+      "response_format" -> :response_format
+      "json_mode" -> :json_mode
+      "structured_output" -> :structured_output
+      "logprobs" -> :logprobs
+      "reasoning" -> :reasoning
+      "computer_use" -> :computer_use
+      _ -> nil
     end
   end
 end

@@ -344,9 +344,9 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
 
       case OpenRouter.chat(messages, functions: functions, function_call: "auto") do
         {:ok, response} ->
-          if response.function_call do
-            assert response.function_call.name == "calculate"
-            assert Map.has_key?(response.function_call.arguments, "expression")
+          if function_call = response.function_call do
+            assert function_call.name == "calculate"
+            assert Map.has_key?(function_call.arguments, "expression")
           else
             # Model might answer directly
             assert response.content =~ "100"
@@ -616,11 +616,11 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
 
             case OpenRouter.chat(messages, model: free_model.id, max_tokens: 5) do
               {:ok, response} ->
-                if response.cost do
+                if cost = response.cost do
                   total_cost =
-                    if is_map(response.cost),
-                      do: response.cost.total_cost,
-                      else: response.cost
+                    if is_map(cost),
+                      do: cost.total_cost,
+                      else: cost
 
                   assert total_cost == 0
                 end

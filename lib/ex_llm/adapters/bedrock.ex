@@ -465,6 +465,7 @@ defmodule ExLLM.Adapters.Bedrock do
     credentials_path = Path.expand("~/.aws/credentials")
 
     if File.exists?(credentials_path) do
+      # sobelow_skip ["Traversal"]
       case File.read(credentials_path) do
         {:ok, content} ->
           parse_aws_credentials_file(content, profile)

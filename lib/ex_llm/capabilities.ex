@@ -248,14 +248,19 @@ defmodule ExLLM.Capabilities do
       normalized
     else
       # Try with underscores converted to match our atom style
-      feature_atom =
+      feature_string =
         feature
         |> String.downcase()
         |> String.replace("-", "_")
-        |> String.to_atom()
 
-      # Check if this atom form exists in our mappings
-      Map.get(@capability_mappings, to_string(feature_atom), feature_atom)
+      # Check if this string form exists in our mappings
+      case Map.get(@capability_mappings, feature_string) do
+        nil -> 
+          # Return the original atom if it's already an atom, otherwise return nil
+          if is_atom(feature), do: feature, else: nil
+        mapped -> 
+          mapped
+      end
     end
   end
 

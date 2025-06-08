@@ -151,7 +151,7 @@ defmodule ExLLM.LMStudioIntegrationTest do
     test "chat with specific model" do
       # First get available models
       case LMStudio.list_models() do
-        {:ok, models} when length(models) > 0 ->
+        {:ok, [_ | _] = models} ->
           model_id = hd(models).id
           messages = [%{role: "user", content: "Say 'Hello from #{model_id}'"}]
 
@@ -349,7 +349,7 @@ defmodule ExLLM.LMStudioIntegrationTest do
 
     test "native API endpoints provide enhanced information" do
       case LMStudio.list_models(enhanced: true) do
-        {:ok, models} when length(models) > 0 ->
+        {:ok, [_ | _] = models} ->
           model = hd(models)
 
           # Enhanced models should have architecture info

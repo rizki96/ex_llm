@@ -169,14 +169,25 @@ defmodule ExLLM.Adapters.XAI do
 
     formatted_models =
       Enum.map(models, fn {id, model_data} ->
-        # Convert string capabilities to atoms
+        # Convert string capabilities to atoms safely
         capabilities =
           model_data
           |> Map.get(:capabilities, [])
           |> Enum.map(fn
-            cap when is_binary(cap) -> String.to_atom(cap)
+            cap when is_binary(cap) ->
+              # Only convert known capability atoms
+              case cap do
+                "chat" -> :chat
+                "streaming" -> :streaming
+                "function_calling" -> :function_calling
+                "vision" -> :vision
+                "audio" -> :audio
+                "embeddings" -> :embeddings
+                _ -> nil
+              end
             cap when is_atom(cap) -> cap
           end)
+          |> Enum.filter(&(&1 != nil))
 
         %Types.Model{
           id: to_string(id),

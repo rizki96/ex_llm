@@ -366,17 +366,14 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
       case String.split(line, ":", parts: 2) do
         [key, value] ->
           # SSE event keys are limited to: event, data, id, retry
-          atom_key =
-            case key do
-              "event" -> :event
-              "data" -> :data
-              "id" -> :id
-              "retry" -> :retry
-              # Fallback for unknown keys
-              _ -> String.to_atom(key)
-            end
-
-          Map.put(acc, atom_key, String.trim_leading(value))
+          case key do
+            "event" -> Map.put(acc, :event, String.trim_leading(value))
+            "data" -> Map.put(acc, :data, String.trim_leading(value))
+            "id" -> Map.put(acc, :id, String.trim_leading(value))
+            "retry" -> Map.put(acc, :retry, String.trim_leading(value))
+            # Ignore unknown keys for safety
+            _ -> acc
+          end
 
         _ ->
           acc
@@ -527,13 +524,14 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   defp build_provider_specific_headers(:cohere, opts) do
     headers = []
-    
-    headers = if api_key = Keyword.get(opts, :api_key) do
-      [{"Authorization", "Bearer #{api_key}"} | headers]
-    else
-      headers
-    end
-    
+
+    headers =
+      if api_key = Keyword.get(opts, :api_key) do
+        [{"Authorization", "Bearer #{api_key}"} | headers]
+      else
+        headers
+      end
+
     # Cohere requires specific version header
     [{"X-Client-Name", "ExLLM"} | headers]
   end
@@ -597,13 +595,14 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   defp build_provider_specific_headers(:azure, opts) do
     headers = []
-    
-    headers = if api_key = Keyword.get(opts, :api_key) do
-      [{"api-key", api_key} | headers]
-    else
-      headers
-    end
-    
+
+    headers =
+      if api_key = Keyword.get(opts, :api_key) do
+        [{"api-key", api_key} | headers]
+      else
+        headers
+      end
+
     # Azure OpenAI service requires API version
     if api_version = Keyword.get(opts, :api_version) do
       [{"api-version", api_version} | headers]
@@ -630,10 +629,10 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   @doc """
   Add rate limit headers to the request.
-  
+
   Some providers support rate limit hints in request headers.
   """
-  @spec add_rate_limit_headers(list({String.t(), String.t()}), atom(), keyword()) :: 
+  @spec add_rate_limit_headers(list({String.t(), String.t()}), atom(), keyword()) ::
           list({String.t(), String.t()})
   def add_rate_limit_headers(headers, provider, opts \\ []) do
     case provider do
@@ -644,7 +643,7 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
         else
           headers
         end
-      
+
       _ ->
         headers
     end
@@ -652,7 +651,7 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   @doc """
   Add idempotency headers for safe request retries.
-  
+
   Some providers support idempotency keys to prevent duplicate operations.
   """
   @spec add_idempotency_headers(list({String.t(), String.t()}), atom(), keyword()) ::
@@ -665,14 +664,14 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
         else
           headers
         end
-      
+
       :anthropic ->
         if idempotency_key = Keyword.get(opts, :idempotency_key) do
           [{"Idempotency-Key", idempotency_key} | headers]
         else
           headers
         end
-      
+
       _ ->
         headers
     end
@@ -680,7 +679,7 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   @doc """
   Add custom headers specified by the user.
-  
+
   Allows users to add arbitrary headers for specific use cases.
   """
   @spec add_custom_headers(list({String.t(), String.t()}), keyword()) ::

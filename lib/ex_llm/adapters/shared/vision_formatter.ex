@@ -87,6 +87,8 @@ defmodule ExLLM.Adapters.Shared.VisionFormatter do
   """
   @spec load_image_file(String.t(), keyword()) :: {:ok, map()} | {:error, term()}
   def load_image_file(path, options \\ []) do
+    # File path is provided by the developer for legitimate image loading
+    # sobelow_skip ["Traversal.FileModule"]
     with {:ok, data} <- File.read(path),
          :ok <- validate_image_size(data, options),
          {:ok, media_type} <- detect_media_type(path, data) do

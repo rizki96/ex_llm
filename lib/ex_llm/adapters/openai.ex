@@ -923,6 +923,8 @@ defmodule ExLLM.Adapters.OpenAI do
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
 
     with {:ok, _} <- Validation.validate_api_key(api_key),
+         # File path is provided by the user for legitimate file upload
+         # sobelow_skip ["Traversal.FileModule"]
          {:ok, _file_data} <- File.read(file_path) do
       # For now, return a simple error since we don't have multipart upload support
       # Real implementation would need multipart form data support in HTTPClient
@@ -939,6 +941,8 @@ defmodule ExLLM.Adapters.OpenAI do
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
 
     with {:ok, _} <- Validation.validate_api_key(api_key),
+         # File path is provided by the user for legitimate file upload
+         # sobelow_skip ["Traversal.FileModule"]
          {:ok, _file_data} <- File.read(file_path) do
       # For now, return a simple error since we don't have multipart upload support
       # Real implementation would need multipart form data support in HTTPClient

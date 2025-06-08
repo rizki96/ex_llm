@@ -230,13 +230,13 @@ defmodule ExLLM.Adapters.Shared.ErrorHandler do
     cond do
       String.contains?(message, "model not found") ->
         Error.validation_error(:model, message)
-      
+
       String.contains?(message, "context length") ->
         Error.validation_error(:context, message)
-      
+
       status == 503 ->
         Error.service_unavailable(message)
-      
+
       true ->
         Error.api_error(status, message)
     end
@@ -247,10 +247,10 @@ defmodule ExLLM.Adapters.Shared.ErrorHandler do
     case body do
       %{"__type" => type, "message" => message} ->
         handle_aws_error_type(type, message, status)
-      
+
       %{"message" => message} ->
         Error.api_error(status, message)
-      
+
       _ ->
         Error.api_error(status, body)
     end
@@ -277,7 +277,7 @@ defmodule ExLLM.Adapters.Shared.ErrorHandler do
           status == 400 -> Error.validation_error(:request, message)
           true -> Error.api_error(status, message)
         end
-      
+
       _ ->
         Error.api_error(status, body)
     end
@@ -292,10 +292,10 @@ defmodule ExLLM.Adapters.Shared.ErrorHandler do
           status == 429 -> Error.rate_limit_error(detail)
           true -> Error.api_error(status, detail)
         end
-      
+
       %{"error" => error} ->
         Error.api_error(status, error)
-      
+
       _ ->
         Error.api_error(status, body)
     end
@@ -307,16 +307,18 @@ defmodule ExLLM.Adapters.Shared.ErrorHandler do
         cond do
           String.contains?(error, "authorization") ->
             Error.authentication_error(error)
+
           String.contains?(error, "rate limit") ->
             Error.rate_limit_error(error)
+
           true ->
             Error.api_error(status, error)
         end
-      
+
       %{"error" => error_map} when is_map(error_map) ->
         message = error_map["message"] || inspect(error_map)
         Error.api_error(status, message)
-      
+
       _ ->
         Error.api_error(status, body)
     end
@@ -358,7 +360,7 @@ defmodule ExLLM.Adapters.Shared.ErrorHandler do
 
   @doc """
   Normalize error responses across providers for consistent handling.
-  
+
   Returns a standardized error tuple.
   """
   @spec normalize_error(atom(), integer(), term()) :: {:error, term()}
@@ -370,9 +372,12 @@ defmodule ExLLM.Adapters.Shared.ErrorHandler do
   Check if an error should trigger a retry based on provider-specific rules.
   """
   @spec should_retry?(atom(), integer(), term()) :: boolean()
-  def should_retry?(:anthropic, 529, _), do: true  # Overloaded
-  def should_retry?(:openai, 429, _), do: true     # Rate limit
-  def should_retry?(:openai, 503, _), do: true     # Service unavailable
+  # Overloaded
+  def should_retry?(:anthropic, 529, _), do: true
+  # Rate limit
+  def should_retry?(:openai, 429, _), do: true
+  # Service unavailable
+  def should_retry?(:openai, 503, _), do: true
   def should_retry?(:bedrock, _, %{"__type" => "ThrottlingException"}), do: true
   def should_retry?(:bedrock, _, %{"__type" => "ModelStreamErrorException"}), do: true
   def should_retry?(:gemini, 429, _), do: true

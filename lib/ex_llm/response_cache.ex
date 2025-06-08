@@ -224,7 +224,11 @@ defmodule ExLLM.ResponseCache do
   Configures the Mock adapter to use cached responses from a specific provider.
   """
   def configure_mock_provider(provider) when is_binary(provider) do
-    configure_mock_provider(String.to_atom(provider))
+    # Convert to atom only for known providers
+    case safe_provider_to_atom(provider) do
+      atom when is_atom(atom) -> configure_mock_provider(atom)
+      _ -> :no_cache
+    end
   end
 
   def configure_mock_provider(provider) when is_atom(provider) do
@@ -416,13 +420,18 @@ defmodule ExLLM.ResponseCache do
   end
 
   defp ensure_cache_dir(cache_file) do
+    # Cache directory is controlled by configuration, not user input
+    # sobelow_skip ["Traversal.FileModule"]
     cache_file
     |> Path.dirname()
     |> File.mkdir_p!()
   end
 
   defp load_cache_file(cache_file) do
+    # Cache file path is controlled by configuration, not user input
+    # sobelow_skip ["Traversal.FileModule"]
     if File.exists?(cache_file) do
+      # sobelow_skip ["Traversal.FileModule"]
       cache_file
       |> File.read!()
       |> Jason.decode!()
@@ -441,13 +450,16 @@ defmodule ExLLM.ResponseCache do
       |> convert_structs_to_maps()
       |> Jason.encode!(pretty: true)
 
+    # Cache file path is controlled by configuration, not user input
+    # sobelow_skip ["Traversal.FileModule"]
     File.write!(cache_file, json_data)
   end
 
   defp atomize_keys(map) when is_map(map) do
     for {key, val} <- map, into: %{} do
       cond do
-        is_binary(key) -> {String.to_atom(key), atomize_keys(val)}
+        # Only atomize known keys for cache entries
+        is_binary(key) -> {safe_atomize_cache_key(key), atomize_keys(val)}
         is_atom(key) -> {key, atomize_keys(val)}
         true -> {key, atomize_keys(val)}
       end
@@ -457,8 +469,34 @@ defmodule ExLLM.ResponseCache do
   defp atomize_keys(list) when is_list(list) do
     Enum.map(list, &atomize_keys/1)
   end
-
+  
   defp atomize_keys(value), do: value
+
+  # Safe atomization of known cache entry keys
+  defp safe_atomize_cache_key(key) when is_binary(key) do
+    case key do
+      "key" -> :key
+      "response" -> :response
+      "timestamp" -> :timestamp
+      "metadata" -> :metadata
+      "provider" -> :provider
+      "model" -> :model
+      "messages" -> :messages
+      "content" -> :content
+      "role" -> :role
+      "usage" -> :usage
+      "input_tokens" -> :input_tokens
+      "output_tokens" -> :output_tokens
+      "total_tokens" -> :total_tokens
+      "cost" -> :cost
+      "id" -> :id
+      "finish_reason" -> :finish_reason
+      "function_call" -> :function_call
+      "tool_calls" -> :tool_calls
+      # Keep as string if not a known key
+      _ -> key
+    end
+  end
 
   defp determine_endpoint(options) do
     cond do
@@ -641,4 +679,29 @@ defmodule ExLLM.ResponseCache do
   end
 
   defp last_message_content(_), do: nil
+
+  # Safe conversion of provider names to atoms
+  defp safe_provider_to_atom(provider) when is_binary(provider) do
+    case provider do
+      "openai" -> :openai
+      "anthropic" -> :anthropic
+      "gemini" -> :gemini
+      "groq" -> :groq
+      "ollama" -> :ollama
+      "openrouter" -> :openrouter
+      "bedrock" -> :bedrock
+      "mistral" -> :mistral
+      "cohere" -> :cohere
+      "perplexity" -> :perplexity
+      "deepseek" -> :deepseek
+      "together_ai" -> :together_ai
+      "anyscale" -> :anyscale
+      "replicate" -> :replicate
+      "xai" -> :xai
+      "local" -> :local
+      "mock" -> :mock
+      # Return as string if not a known provider
+      _ -> provider
+    end
+  end
 end

@@ -395,7 +395,9 @@ defmodule ExLLM.Session do
         acc
 
       {key, value}, acc when is_binary(key) ->
-        Map.put(acc, String.to_atom(key), value)
+        # Only atomize known message fields
+        atom_key = safe_atomize_message_key(key)
+        Map.put(acc, atom_key, value)
 
       {key, value}, acc when is_atom(key) ->
         Map.put(acc, key, value)
@@ -421,6 +423,8 @@ defmodule ExLLM.Session do
   def save_to_file(session, file_path) do
     case to_json(session) do
       {:ok, json} ->
+        # File path is provided by the developer for session persistence
+        # sobelow_skip ["Traversal.FileModule"]
         File.write(file_path, json)
 
       {:error, reason} ->
@@ -444,12 +448,29 @@ defmodule ExLLM.Session do
   """
   @spec load_from_file(String.t()) :: {:ok, Types.Session.t()} | {:error, term()}
   def load_from_file(file_path) do
+    # File path is provided by the developer for session persistence
+    # sobelow_skip ["Traversal.FileModule"]
     case File.read(file_path) do
       {:ok, json} ->
         from_json(json)
 
       {:error, reason} ->
         {:error, reason}
+    end
+  end
+
+  # Safe atomization of known message keys
+  defp safe_atomize_message_key(key) when is_binary(key) do
+    case key do
+      "id" -> :id
+      "name" -> :name
+      "function_call" -> :function_call
+      "tool_calls" -> :tool_calls
+      "tool_call_id" -> :tool_call_id
+      "refusal" -> :refusal
+      "metadata" -> :metadata
+      # Keep as string if not a known key
+      _ -> key
     end
   end
 end

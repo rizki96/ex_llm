@@ -158,26 +158,26 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
 
   @doc """
   Build a completion response (non-chat format) from provider data.
-  
+
   Used for providers that support traditional completion endpoints.
   """
   @spec build_completion_response(map(), String.t(), keyword()) :: Types.LLMResponse.t()
   def build_completion_response(data, model, opts \\ []) do
     provider = Keyword.get(opts, :provider)
     calculate_cost = Keyword.get(opts, :calculate_cost, true)
-    
+
     # Extract text from completion format
     content = extract_completion_content(data)
     usage = extract_usage(data)
     finish_reason = extract_finish_reason(data)
-    
+
     cost =
       if calculate_cost && usage != nil && provider != nil do
         Cost.calculate(provider, model, usage)
       else
         nil
       end
-    
+
     %Types.LLMResponse{
       content: content,
       model: model,
@@ -191,15 +191,15 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
 
   @doc """
   Build an image generation response from provider data.
-  
+
   Used for DALL-E and similar image generation endpoints.
   """
   @spec build_image_response(map(), String.t(), keyword()) :: map()
   def build_image_response(data, model, opts \\ []) do
     provider = Keyword.get(opts, :provider)
-    
+
     images = extract_images(data)
-    
+
     %{
       images: images,
       model: model,
@@ -211,35 +211,37 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
 
   @doc """
   Build an audio transcription response from provider data.
-  
+
   Used for Whisper and similar audio transcription endpoints.
   """
   @spec build_audio_response(map(), String.t(), keyword()) :: map()
   def build_audio_response(data, model, opts \\ []) do
     provider = Keyword.get(opts, :provider)
     response_format = Keyword.get(opts, :response_format, "json")
-    
-    content = case response_format do
-      "text" -> data
-      "json" -> data["text"] || data["transcript"]
-      "srt" -> data
-      "vtt" -> data
-      "verbose_json" -> data
-      _ -> data["text"] || data
-    end
-    
+
+    content =
+      case response_format do
+        "text" -> data
+        "json" -> data["text"] || data["transcript"]
+        "srt" -> data
+        "vtt" -> data
+        "verbose_json" -> data
+        _ -> data["text"] || data
+      end
+
     # For verbose_json format
-    metadata = if response_format == "verbose_json" do
-      %{
-        language: data["language"],
-        duration: data["duration"],
-        segments: data["segments"],
-        words: data["words"]
-      }
-    else
-      extract_metadata(data, opts)
-    end
-    
+    metadata =
+      if response_format == "verbose_json" do
+        %{
+          language: data["language"],
+          duration: data["duration"],
+          segments: data["segments"],
+          words: data["words"]
+        }
+      else
+        extract_metadata(data, opts)
+      end
+
     %{
       content: content,
       model: model,
@@ -250,15 +252,15 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
 
   @doc """
   Build a moderation response from provider data.
-  
+
   Used for content moderation endpoints.
   """
   @spec build_moderation_response(map(), String.t(), keyword()) :: map()
   def build_moderation_response(data, model, opts \\ []) do
     provider = Keyword.get(opts, :provider)
-    
+
     results = extract_moderation_results(data)
-    
+
     %{
       results: results,
       model: model,
@@ -270,34 +272,37 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
 
   @doc """
   Extract metadata from response data.
-  
+
   Includes timing information, model details, and provider-specific metadata.
   """
   @spec extract_metadata(map(), keyword()) :: map()
   def extract_metadata(data, opts \\ []) do
     metadata = %{}
-    
+
     # Add timing information if available
-    metadata = if data["created"] do
-      Map.put(metadata, :created_at, data["created"])
-    else
-      metadata
-    end
-    
+    metadata =
+      if data["created"] do
+        Map.put(metadata, :created_at, data["created"])
+      else
+        metadata
+      end
+
     # Add model version/details
-    metadata = if data["model"] do
-      Map.put(metadata, :model_version, data["model"])
-    else
-      metadata
-    end
-    
+    metadata =
+      if data["model"] do
+        Map.put(metadata, :model_version, data["model"])
+      else
+        metadata
+      end
+
     # Add system fingerprint (OpenAI)
-    metadata = if data["system_fingerprint"] do
-      Map.put(metadata, :system_fingerprint, data["system_fingerprint"])
-    else
-      metadata
-    end
-    
+    metadata =
+      if data["system_fingerprint"] do
+        Map.put(metadata, :system_fingerprint, data["system_fingerprint"])
+      else
+        metadata
+      end
+
     # Add provider-specific metadata
     provider = Keyword.get(opts, :provider)
     add_provider_metadata(metadata, data, provider)
@@ -513,15 +518,15 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
       # OpenAI completion format
       choices = data["choices"] ->
         get_in(choices, [Access.at(0), "text"])
-      
+
       # Direct text field
       text = data["text"] ->
         text
-      
+
       # Ollama generate format
       response = data["response"] ->
         response
-      
+
       true ->
         nil
     end
@@ -538,11 +543,11 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
             revised_prompt: img["revised_prompt"]
           }
         end)
-      
+
       # Direct images array
       images = data["images"] ->
         images
-      
+
       true ->
         []
     end
@@ -559,11 +564,11 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
             category_scores: result["category_scores"]
           }
         end)
-      
+
       # Single result
       result = data["result"] ->
         [result]
-      
+
       true ->
         []
     end
