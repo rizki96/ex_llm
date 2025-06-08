@@ -5,7 +5,7 @@ config :ex_llm,
   # Global cache configuration
   cache_enabled: false,
   cache_persist_disk: false,
-  cache_disk_path: "/tmp/ex_llm_cache",
+  cache_disk_path: "~/.cache/ex_llm_cache",
   # Debug logging configuration
   log_level: :info,
   log_components: %{
@@ -69,7 +69,8 @@ if Mix.env() == :dev do
           {:cmd, "mix format --check-formatted"},
           {:cmd, "mix credo --config-file .credo.exs --only warning"},
           # {:cmd, "mix dialyzer"}, # Temporarily disabled - PLT issues
-          {:cmd, "find test -name '*_test.exs' ! -name '*_integration_test.exs' | xargs mix test"},
+          {:cmd,
+           "find test -name '*_test.exs' ! -name '*_integration_test.exs' | xargs mix test"},
           {:cmd, "mix sobelow --skip"}
         ]
       ]
