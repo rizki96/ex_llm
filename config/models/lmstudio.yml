@@ -1,0 +1,76 @@
+default_model: 'debug-model'
+metadata:
+  source: manual_config
+  updated_at: '2025-01-25T22:37:00.000000Z'
+models:
+  debug-model:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+  deepseek-r1-0528-qwen3-8b-dwq:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+  devstral-small-2505-dwq:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+  qwq-32b-dwq:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+  qwen3-30b-a3b-dwq-053125:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+  qwen3-30b-dwq-053125:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+  qwen3-235b-a22b-mixed-3:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+  text-embedding-nomic-embed-text-v1.5:
+    capabilities:
+    - embeddings
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0

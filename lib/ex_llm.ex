@@ -23,6 +23,7 @@ defmodule ExLLM do
   - `:anthropic` - Anthropic Claude models
   - `:openai` - OpenAI GPT models
   - `:groq` - Groq (fast inference)
+  - `:lmstudio` - Local models via LM Studio (desktop app)
   - `:mistral` - Mistral AI models (European AI)
   - `:perplexity` - Perplexity AI models (search-augmented)
   - `:openrouter` - OpenRouter (300+ models from multiple providers)
@@ -30,7 +31,8 @@ defmodule ExLLM do
   - `:bedrock` - AWS Bedrock (multiple providers)
   - `:gemini` - Google Gemini models
   - `:xai` - X.AI Grok models
-  - `:local` - Local models via Bumblebee (Phi-2, Llama 2, Mistral, etc.)
+  - `:bumblebee` - Local models via Bumblebee (Phi-2, Llama 2, Mistral, etc.)
+  - `:local` - Deprecated, use `:bumblebee` instead
   - `:mock` - Mock adapter for testing
 
   ## Features
@@ -139,8 +141,10 @@ defmodule ExLLM do
 
   @providers %{
     anthropic: ExLLM.Adapters.Anthropic,
+    bumblebee: ExLLM.Adapters.Bumblebee,
     groq: ExLLM.Adapters.Groq,
-    local: ExLLM.Adapters.Local,
+    lmstudio: ExLLM.Adapters.LMStudio,
+    local: ExLLM.Adapters.Bumblebee,  # Deprecated alias
     mistral: ExLLM.Adapters.Mistral,
     openai: ExLLM.Adapters.OpenAI,
     openrouter: ExLLM.Adapters.OpenRouter,
@@ -154,13 +158,15 @@ defmodule ExLLM do
 
   @type provider ::
           :anthropic
+          | :bumblebee
           | :openai
           | :groq
+          | :lmstudio
           | :mistral
           | :perplexity
           | :openrouter
           | :ollama
-          | :local
+          | :local  # Deprecated
           | :bedrock
           | :gemini
           | :xai
