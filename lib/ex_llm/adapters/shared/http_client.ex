@@ -525,5 +525,168 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     end
   end
 
+  defp build_provider_specific_headers(:cohere, opts) do
+    headers = []
+    
+    headers = if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"} | headers]
+    else
+      headers
+    end
+    
+    # Cohere requires specific version header
+    [{"X-Client-Name", "ExLLM"} | headers]
+  end
+
+  defp build_provider_specific_headers(:together_ai, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:replicate, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Token #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:huggingface, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:deepinfra, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:fireworks, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:databricks, opts) do
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:vertex_ai, opts) do
+    # Google Cloud Vertex AI uses OAuth2 bearer tokens
+    if access_token = Keyword.get(opts, :access_token) do
+      [{"Authorization", "Bearer #{access_token}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:azure, opts) do
+    headers = []
+    
+    headers = if api_key = Keyword.get(opts, :api_key) do
+      [{"api-key", api_key} | headers]
+    else
+      headers
+    end
+    
+    # Azure OpenAI service requires API version
+    if api_version = Keyword.get(opts, :api_version) do
+      [{"api-version", api_version} | headers]
+    else
+      headers
+    end
+  end
+
+  defp build_provider_specific_headers(:lmstudio, opts) do
+    # LM Studio local server
+    if api_key = Keyword.get(opts, :api_key) do
+      [{"Authorization", "Bearer #{api_key}"}]
+    else
+      []
+    end
+  end
+
+  defp build_provider_specific_headers(:ollama, _opts) do
+    # Ollama typically doesn't require auth
+    []
+  end
+
   defp build_provider_specific_headers(_provider, _opts), do: []
+
+  @doc """
+  Add rate limit headers to the request.
+  
+  Some providers support rate limit hints in request headers.
+  """
+  @spec add_rate_limit_headers(list({String.t(), String.t()}), atom(), keyword()) :: 
+          list({String.t(), String.t()})
+  def add_rate_limit_headers(headers, provider, opts \\ []) do
+    case provider do
+      :openai ->
+        # OpenAI supports rate limit increase requests
+        if requests_per_minute = Keyword.get(opts, :requests_per_minute) do
+          [{"X-Request-RPM", to_string(requests_per_minute)} | headers]
+        else
+          headers
+        end
+      
+      _ ->
+        headers
+    end
+  end
+
+  @doc """
+  Add idempotency headers for safe request retries.
+  
+  Some providers support idempotency keys to prevent duplicate operations.
+  """
+  @spec add_idempotency_headers(list({String.t(), String.t()}), atom(), keyword()) ::
+          list({String.t(), String.t()})
+  def add_idempotency_headers(headers, provider, opts \\ []) do
+    case provider do
+      :openai ->
+        if idempotency_key = Keyword.get(opts, :idempotency_key) do
+          [{"Idempotency-Key", idempotency_key} | headers]
+        else
+          headers
+        end
+      
+      :anthropic ->
+        if idempotency_key = Keyword.get(opts, :idempotency_key) do
+          [{"Idempotency-Key", idempotency_key} | headers]
+        else
+          headers
+        end
+      
+      _ ->
+        headers
+    end
+  end
+
+  @doc """
+  Add custom headers specified by the user.
+  
+  Allows users to add arbitrary headers for specific use cases.
+  """
+  @spec add_custom_headers(list({String.t(), String.t()}), keyword()) ::
+          list({String.t(), String.t()})
+  def add_custom_headers(headers, opts) do
+    custom_headers = Keyword.get(opts, :custom_headers, [])
+    headers ++ custom_headers
+  end
 end

@@ -272,11 +272,11 @@ defmodule ExLLM.Adapters.PerplexityUnitTest do
   describe "adapter behavior compliance" do
     test "implements all required callbacks" do
       callbacks = [
-        {:chat, 2},
-        {:stream_chat, 2},
-        {:configured?, 1},
+        {:chat, 1},  # chat/2 with default args exports as chat/1
+        {:stream_chat, 1},  # stream_chat/2 with default args exports as stream_chat/1
+        {:configured?, 0},  # configured?/1 with default args exports as configured?/0
         {:default_model, 0},
-        {:list_models, 1}
+        {:list_models, 0}  # list_models/1 with default args exports as list_models/0
       ]
 
       for {func, arity} <- callbacks do

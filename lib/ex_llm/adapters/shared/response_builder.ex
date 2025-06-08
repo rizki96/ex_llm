@@ -157,6 +157,153 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
   end
 
   @doc """
+  Build a completion response (non-chat format) from provider data.
+  
+  Used for providers that support traditional completion endpoints.
+  """
+  @spec build_completion_response(map(), String.t(), keyword()) :: Types.LLMResponse.t()
+  def build_completion_response(data, model, opts \\ []) do
+    provider = Keyword.get(opts, :provider)
+    calculate_cost = Keyword.get(opts, :calculate_cost, true)
+    
+    # Extract text from completion format
+    content = extract_completion_content(data)
+    usage = extract_usage(data)
+    finish_reason = extract_finish_reason(data)
+    
+    cost =
+      if calculate_cost && usage != nil && provider != nil do
+        Cost.calculate(provider, model, usage)
+      else
+        nil
+      end
+    
+    %Types.LLMResponse{
+      content: content,
+      model: model,
+      usage: usage,
+      finish_reason: finish_reason,
+      cost: cost,
+      id: data["id"],
+      metadata: extract_metadata(data, opts)
+    }
+  end
+
+  @doc """
+  Build an image generation response from provider data.
+  
+  Used for DALL-E and similar image generation endpoints.
+  """
+  @spec build_image_response(map(), String.t(), keyword()) :: map()
+  def build_image_response(data, model, opts \\ []) do
+    provider = Keyword.get(opts, :provider)
+    
+    images = extract_images(data)
+    
+    %{
+      images: images,
+      model: model,
+      created: data["created"],
+      metadata: extract_metadata(data, opts),
+      provider: provider
+    }
+  end
+
+  @doc """
+  Build an audio transcription response from provider data.
+  
+  Used for Whisper and similar audio transcription endpoints.
+  """
+  @spec build_audio_response(map(), String.t(), keyword()) :: map()
+  def build_audio_response(data, model, opts \\ []) do
+    provider = Keyword.get(opts, :provider)
+    response_format = Keyword.get(opts, :response_format, "json")
+    
+    content = case response_format do
+      "text" -> data
+      "json" -> data["text"] || data["transcript"]
+      "srt" -> data
+      "vtt" -> data
+      "verbose_json" -> data
+      _ -> data["text"] || data
+    end
+    
+    # For verbose_json format
+    metadata = if response_format == "verbose_json" do
+      %{
+        language: data["language"],
+        duration: data["duration"],
+        segments: data["segments"],
+        words: data["words"]
+      }
+    else
+      extract_metadata(data, opts)
+    end
+    
+    %{
+      content: content,
+      model: model,
+      metadata: metadata,
+      provider: provider
+    }
+  end
+
+  @doc """
+  Build a moderation response from provider data.
+  
+  Used for content moderation endpoints.
+  """
+  @spec build_moderation_response(map(), String.t(), keyword()) :: map()
+  def build_moderation_response(data, model, opts \\ []) do
+    provider = Keyword.get(opts, :provider)
+    
+    results = extract_moderation_results(data)
+    
+    %{
+      results: results,
+      model: model,
+      flagged: Enum.any?(results, & &1.flagged),
+      metadata: extract_metadata(data, opts),
+      provider: provider
+    }
+  end
+
+  @doc """
+  Extract metadata from response data.
+  
+  Includes timing information, model details, and provider-specific metadata.
+  """
+  @spec extract_metadata(map(), keyword()) :: map()
+  def extract_metadata(data, opts \\ []) do
+    metadata = %{}
+    
+    # Add timing information if available
+    metadata = if data["created"] do
+      Map.put(metadata, :created_at, data["created"])
+    else
+      metadata
+    end
+    
+    # Add model version/details
+    metadata = if data["model"] do
+      Map.put(metadata, :model_version, data["model"])
+    else
+      metadata
+    end
+    
+    # Add system fingerprint (OpenAI)
+    metadata = if data["system_fingerprint"] do
+      Map.put(metadata, :system_fingerprint, data["system_fingerprint"])
+    else
+      metadata
+    end
+    
+    # Add provider-specific metadata
+    provider = Keyword.get(opts, :provider)
+    add_provider_metadata(metadata, data, provider)
+  end
+
+  @doc """
   Extract and normalize usage data from various formats.
 
   Maps provider-specific field names to standardized ExLLM format:
@@ -358,4 +505,106 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
   defp categorize_error_by_status(status, message) do
     {:error, ExLLM.Error.api_error(status, message)}
   end
+
+  # New extraction functions for different response formats
+
+  defp extract_completion_content(data) do
+    cond do
+      # OpenAI completion format
+      choices = data["choices"] ->
+        get_in(choices, [Access.at(0), "text"])
+      
+      # Direct text field
+      text = data["text"] ->
+        text
+      
+      # Ollama generate format
+      response = data["response"] ->
+        response
+      
+      true ->
+        nil
+    end
+  end
+
+  defp extract_images(data) do
+    cond do
+      # OpenAI DALL-E format
+      images = data["data"] ->
+        Enum.map(images, fn img ->
+          %{
+            url: img["url"],
+            b64_json: img["b64_json"],
+            revised_prompt: img["revised_prompt"]
+          }
+        end)
+      
+      # Direct images array
+      images = data["images"] ->
+        images
+      
+      true ->
+        []
+    end
+  end
+
+  defp extract_moderation_results(data) do
+    cond do
+      # OpenAI moderation format
+      results = data["results"] ->
+        Enum.map(results, fn result ->
+          %{
+            flagged: result["flagged"],
+            categories: result["categories"],
+            category_scores: result["category_scores"]
+          }
+        end)
+      
+      # Single result
+      result = data["result"] ->
+        [result]
+      
+      true ->
+        []
+    end
+  end
+
+  defp add_provider_metadata(metadata, data, :openai) do
+    metadata
+    |> maybe_add_metadata(:service_tier, data["service_tier"])
+    |> maybe_add_metadata(:object, data["object"])
+  end
+
+  defp add_provider_metadata(metadata, data, :anthropic) do
+    metadata
+    |> maybe_add_metadata(:stop_sequence, data["stop_sequence"])
+    |> maybe_add_metadata(:log_id, data["log_id"])
+  end
+
+  defp add_provider_metadata(metadata, data, :gemini) do
+    metadata
+    |> maybe_add_metadata(:safety_ratings, data["safetyRatings"])
+    |> maybe_add_metadata(:citation_metadata, data["citationMetadata"])
+  end
+
+  defp add_provider_metadata(metadata, data, :ollama) do
+    metadata
+    |> maybe_add_metadata(:total_duration, data["total_duration"])
+    |> maybe_add_metadata(:load_duration, data["load_duration"])
+    |> maybe_add_metadata(:prompt_eval_duration, data["prompt_eval_duration"])
+    |> maybe_add_metadata(:eval_duration, data["eval_duration"])
+    |> maybe_add_metadata(:context, data["context"])
+  end
+
+  defp add_provider_metadata(metadata, data, :openrouter) do
+    metadata
+    |> maybe_add_metadata(:generation_id, data["generation_id"])
+    |> maybe_add_metadata(:provider, data["provider"])
+    |> maybe_add_metadata(:latency_ms, data["latency_ms"])
+  end
+
+  defp add_provider_metadata(metadata, _data, _provider), do: metadata
+
+  defp maybe_add_metadata(metadata, _key, nil), do: metadata
+  defp maybe_add_metadata(metadata, key, value), do: Map.put(metadata, key, value)
 end
