@@ -4,17 +4,14 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   alias ExLLM.Types
 
   setup do
-    # Ensure ModelLoader is running for tests
-    case Process.whereis(ExLLM.Bumblebee.ModelLoader) do
-      nil -> {:ok, _} = ExLLM.Bumblebee.ModelLoader.start_link([])
-      _pid -> :ok
-    end
-
+    # Skip ModelLoader for unit tests to avoid downloading models
     :ok
   end
 
   describe "configured?/1" do
+    @tag :skip
     test "returns true when Bumblebee is available and ModelLoader is running" do
+      # Skipped to avoid starting ModelLoader which triggers model downloads
       assert Bumblebee.configured?()
     end
   end

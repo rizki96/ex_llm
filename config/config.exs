@@ -69,8 +69,7 @@ if Mix.env() == :dev do
           {:cmd, "mix format --check-formatted"},
           {:cmd, "mix credo --config-file .credo.exs --only warning"},
           # {:cmd, "mix dialyzer"}, # Temporarily disabled - PLT issues
-          {:cmd,
-           "find test -name '*_test.exs' ! -name '*_integration_test.exs' | xargs mix test"},
+          {:cmd, "mix test --exclude integration"},
           {:cmd, "mix sobelow --skip"}
         ]
       ]

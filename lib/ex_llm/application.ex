@@ -14,9 +14,9 @@ defmodule ExLLM.Application do
       ]
       |> Enum.filter(& &1)
 
-    # Only start ModelLoader if Bumblebee is available
+    # Only start ModelLoader if Bumblebee is available and not in test env
     children =
-      if Code.ensure_loaded?(Bumblebee) do
+      if Code.ensure_loaded?(Bumblebee) and Mix.env() != :test do
         children ++ [ExLLM.Bumblebee.ModelLoader]
       else
         children
