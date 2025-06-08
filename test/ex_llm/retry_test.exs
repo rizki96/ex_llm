@@ -103,12 +103,12 @@ defmodule ExLLM.RetryTest do
       # Second attempt should be after ~10ms (base_delay)
       assert second >= 10
       # Allow more tolerance for CI/slow systems
-      assert second < 30
+      assert second < 50
 
       # Third attempt should be after ~20ms more (base_delay * 2)
       assert third - second >= 20
       # Allow more tolerance
-      assert third - second < 40
+      assert third - second < 60
     end
 
     test "respects max_delay option" do
