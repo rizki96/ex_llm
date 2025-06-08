@@ -154,7 +154,7 @@ defmodule ExLLM.Adapters.MockTest do
     test "simulates stream interruption" do
       # Start Mock GenServer for this test
       {:ok, _} = Mock.start_link()
-      
+
       chunks_with_error = [
         %StreamChunk{content: "Start", id: "chunk-0"},
         %StreamChunk{content: " of", id: "chunk-1"},
