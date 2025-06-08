@@ -78,6 +78,24 @@ mix credo
 mix dialyzer
 ```
 
+### Debug Logging
+
+ExLLM includes a comprehensive debug logging system that can be configured per environment:
+
+```bash
+# Test debug logging example
+elixir examples/debug_logging_example.exs
+```
+
+**Configuration Options:**
+- `log_level`: `:debug`, `:info`, `:warn`, `:error`, or `:none`
+- `log_components`: Enable/disable logging for specific components
+- `log_redaction`: Control redaction of sensitive data
+
+**Development Environment:** Enhanced logging with all components enabled
+**Test Environment:** Minimal logging to reduce noise  
+**Production Environment:** Configurable logging with security redaction
+
 ### Documentation
 ```bash
 # Generate documentation

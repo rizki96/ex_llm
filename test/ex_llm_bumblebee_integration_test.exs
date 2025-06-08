@@ -1,40 +1,40 @@
-defmodule ExLLM.LocalIntegrationTest do
+defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
   use ExUnit.Case, async: false
 
-  describe "local adapter integration" do
-    test "local adapter is registered" do
+  describe "bumblebee adapter integration" do
+    test "bumblebee adapter is registered" do
       providers = ExLLM.supported_providers()
-      assert :local in providers
+      assert :bumblebee in providers
     end
 
     test "default model is available" do
-      assert ExLLM.default_model(:local) == "microsoft/phi-2"
+      assert ExLLM.default_model(:bumblebee) == "microsoft/phi-2"
     end
 
     test "configured? returns false without Bumblebee" do
       # Without Bumblebee installed, should return false
-      assert ExLLM.configured?(:local) == false
+      assert ExLLM.configured?(:bumblebee) == false
     end
 
     test "list_models returns empty list without Bumblebee" do
-      assert {:ok, []} = ExLLM.list_models(:local)
+      assert {:ok, []} = ExLLM.list_models(:bumblebee)
     end
 
     test "chat returns error without Bumblebee" do
       messages = [%{role: "user", content: "Hello"}]
-      assert {:error, message} = ExLLM.chat(:local, messages)
+      assert {:error, message} = ExLLM.chat(:bumblebee, messages)
       assert message =~ "Bumblebee"
     end
 
     test "stream_chat returns error without Bumblebee" do
       messages = [%{role: "user", content: "Hello"}]
-      assert {:error, message} = ExLLM.stream_chat(:local, messages)
+      assert {:error, message} = ExLLM.stream_chat(:bumblebee, messages)
       assert message =~ "Bumblebee"
     end
   end
 
-  describe "context management with local models" do
-    test "prepare_messages works with local provider" do
+  describe "context management with bumblebee models" do
+    test "prepare_messages works with bumblebee provider" do
       messages = [
         %{role: "system", content: "You are a helpful assistant"},
         %{role: "user", content: "Hello"},
@@ -44,7 +44,7 @@ defmodule ExLLM.LocalIntegrationTest do
 
       prepared =
         ExLLM.prepare_messages(messages,
-          provider: "local",
+          provider: "bumblebee",
           model: "microsoft/phi-2",
           max_tokens: 1000
         )
@@ -53,9 +53,9 @@ defmodule ExLLM.LocalIntegrationTest do
       assert length(prepared) <= length(messages)
     end
 
-    test "context_window_size returns correct size for local models" do
-      assert ExLLM.context_window_size(:local, "microsoft/phi-2") == 2048
-      assert ExLLM.context_window_size(:local, "mistralai/Mistral-7B-v0.1") == 8192
+    test "context_window_size returns correct size for bumblebee models" do
+      assert ExLLM.context_window_size(:bumblebee, "microsoft/phi-2") == 2048
+      assert ExLLM.context_window_size(:bumblebee, "mistralai/Mistral-7B-v0.1") == 8192
     end
   end
 end

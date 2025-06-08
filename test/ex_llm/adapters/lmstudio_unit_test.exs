@@ -10,22 +10,31 @@ defmodule ExLLM.LMStudioUnitTest do
     # Chat completions with error handling first
     def post_json("http://localhost:1234/v1/chat/completions", body, _headers, _opts) do
       # Body might be JSON string, decode it
-      decoded_body = case body do
-        body when is_binary(body) ->
-          case Jason.decode(body) do
-            {:ok, decoded} -> decoded
-            {:error, _} -> %{}
-          end
-        body when is_map(body) -> body
-        _ -> %{}
-      end
+      decoded_body =
+        case body do
+          body when is_binary(body) ->
+            case Jason.decode(body) do
+              {:ok, decoded} -> decoded
+              {:error, _} -> %{}
+            end
+
+          body when is_map(body) ->
+            body
+
+          _ ->
+            %{}
+        end
 
       # Check for error conditions first
       cond do
         decoded_body["model"] == "invalid-model" ->
-          {:error, {:api_error, %{status: 404, body: %{"error" => %{"message" => "Model 'invalid-model' not found"}}}}}
+          {:error,
+           {:api_error,
+            %{status: 404, body: %{"error" => %{"message" => "Model 'invalid-model' not found"}}}}}
 
-        Enum.any?(decoded_body["messages"] || [], fn msg -> String.contains?(msg["content"] || "", "trigger error") end) ->
+        Enum.any?(decoded_body["messages"] || [], fn msg ->
+          String.contains?(msg["content"] || "", "trigger error")
+        end) ->
           {:error, {:api_error, %{status: 500, body: "Internal server error"}}}
 
         decoded_body["stream"] ->
@@ -96,7 +105,7 @@ defmodule ExLLM.LMStudioUnitTest do
             },
             %{
               "id" => "qwen2.5-7b-instruct",
-              "object" => "model", 
+              "object" => "model",
               "created" => 1_686_935_002,
               "owned_by" => "lmstudio"
             }
@@ -124,7 +133,7 @@ defmodule ExLLM.LMStudioUnitTest do
             "engine" => "llama.cpp"
           },
           %{
-            "id" => "qwen2.5-7b-instruct", 
+            "id" => "qwen2.5-7b-instruct",
             "object" => "model",
             "architecture" => "Qwen2ForCausalLM",
             "max_context_length" => 32_768,
@@ -141,13 +150,12 @@ defmodule ExLLM.LMStudioUnitTest do
       end
     end
 
-
     # Connection error for unknown URLs and ports
     def post_json(url, _body, _headers, _opts) do
       cond do
         String.starts_with?(url, "http://localhost:1234") ->
           {:error, {:api_error, %{status: 404, body: "Not found"}}}
-        
+
         String.contains?(url, ":8080") ->
           # Different port should simulate connection error
           {:error, :econnrefused}
@@ -160,13 +168,15 @@ defmodule ExLLM.LMStudioUnitTest do
 
   setup do
     # Mock the HTTPClient for unit tests
-    original_http_client = Application.get_env(:ex_llm, :http_client, ExLLM.Adapters.Shared.HTTPClient)
+    original_http_client =
+      Application.get_env(:ex_llm, :http_client, ExLLM.Adapters.Shared.HTTPClient)
+
     Application.put_env(:ex_llm, :http_client, MockHTTP)
-    
+
     on_exit(fn ->
       Application.put_env(:ex_llm, :http_client, original_http_client)
     end)
-    
+
     :ok
   end
 
@@ -178,7 +188,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert LMStudio.configured?() in [true, false]
     end
 
-    @tag :requires_http  
+    @tag :requires_http
     test "returns false when LM Studio is not accessible" do
       # This test requires actual HTTP connectivity
       assert LMStudio.configured?(host: "unreachable.local", port: 9999) == false
@@ -265,8 +275,10 @@ defmodule ExLLM.LMStudioUnitTest do
       # This test will make HTTP calls and likely fail in unit test environment
       # The validation itself is tested in the validation functions
       case LMStudio.chat(valid_messages) do
-        {:ok, _} -> :ok
-        {:error, reason} -> 
+        {:ok, _} ->
+          :ok
+
+        {:error, reason} ->
           # Should be HTTP-related error, not validation error
           refute String.contains?(reason, "Invalid message format")
       end
@@ -282,12 +294,15 @@ defmodule ExLLM.LMStudioUnitTest do
       invalid_messages = [
         %{role: "invalid", content: "test"},
         %{content: "missing role"},
-        %{role: "user"}  # missing content
+        # missing content
+        %{role: "user"}
       ]
 
       for messages <- invalid_messages do
         assert {:error, reason} = LMStudio.chat([messages])
-        assert String.contains?(reason, "Invalid message format") or String.contains?(reason, "LM Studio")
+
+        assert String.contains?(reason, "Invalid message format") or
+                 String.contains?(reason, "LM Studio")
       end
     end
 
@@ -297,8 +312,11 @@ defmodule ExLLM.LMStudioUnitTest do
 
       for role <- valid_roles do
         messages = [%{role: role, content: "test"}]
+
         case LMStudio.chat(messages) do
-          {:ok, _} -> :ok
+          {:ok, _} ->
+            :ok
+
           {:error, reason} ->
             # Should be HTTP error, not validation error
             refute String.contains?(reason, "Invalid message format")
@@ -441,7 +459,9 @@ defmodule ExLLM.LMStudioUnitTest do
     test "handles model loading status" do
       assert {:ok, models} = LMStudio.list_models(enhanced: true)
       loaded_models = Enum.filter(models, fn m -> String.contains?(m.description, "Loaded") end)
-      unloaded_models = Enum.filter(models, fn m -> String.contains?(m.description, "Available") end)
+
+      unloaded_models =
+        Enum.filter(models, fn m -> String.contains?(m.description, "Available") end)
 
       # Should have both loaded and unloaded models in test data
       assert length(loaded_models) > 0
@@ -487,9 +507,11 @@ defmodule ExLLM.LMStudioUnitTest do
       # Test with very short timeout - in unit tests this will just work with mock
       # Real timeout testing should be in integration tests
       case LMStudio.chat(messages, timeout: 1) do
-        {:ok, response} -> 
-          assert %Types.LLMResponse{} = response  # Mock responds quickly
-        {:error, reason} -> 
+        {:ok, response} ->
+          # Mock responds quickly
+          assert %Types.LLMResponse{} = response
+
+        {:error, reason} ->
           assert reason =~ "timeout" or reason =~ "LM Studio not accessible"
       end
     end
@@ -500,7 +522,7 @@ defmodule ExLLM.LMStudioUnitTest do
       # Valid combinations for localhost:1234
       assert {:ok, response1} = LMStudio.chat(messages, host: "localhost", port: 1234)
       assert %Types.LLMResponse{} = response1
-      
+
       # Different port should fail (simulated connection error)
       assert {:error, reason2} = LMStudio.chat(messages, host: "127.0.0.1", port: 8080)
       assert reason2 =~ "not accessible"

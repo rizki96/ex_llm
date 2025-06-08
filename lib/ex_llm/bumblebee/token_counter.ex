@@ -1,4 +1,4 @@
-defmodule ExLLM.Local.TokenCounter do
+defmodule ExLLM.Bumblebee.TokenCounter do
   @moduledoc """
   Token counting utilities for local models.
 
@@ -7,7 +7,7 @@ defmodule ExLLM.Local.TokenCounter do
   """
 
   alias ExLLM.Cost
-  alias ExLLM.Local.ModelLoader
+  alias ExLLM.Bumblebee.ModelLoader
 
   @doc """
   Count tokens for the given text using the specified model's tokenizer.

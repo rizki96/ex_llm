@@ -14,7 +14,17 @@ defmodule ExLLM.ModelConfig do
   alias ExLLM.Logger
 
   @config_dir Path.join([File.cwd!(), "config", "models"])
-  @providers [:anthropic, :openai, :openrouter, :gemini, :ollama, :bedrock, :mistral, :perplexity]
+  @providers [
+    :anthropic,
+    :openai,
+    :openrouter,
+    :gemini,
+    :ollama,
+    :bedrock,
+    :mistral,
+    :perplexity,
+    :bumblebee
+  ]
 
   # Cache configuration to avoid repeated file reads
   @config_cache :model_config_cache

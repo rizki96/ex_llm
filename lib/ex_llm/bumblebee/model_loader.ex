@@ -1,4 +1,4 @@
-defmodule ExLLM.Local.ModelLoader do
+defmodule ExLLM.Bumblebee.ModelLoader do
   @moduledoc """
   Handles loading and caching of Bumblebee models for local inference.
 
@@ -15,7 +15,7 @@ defmodule ExLLM.Local.ModelLoader do
   """
 
   use GenServer
-  alias ExLLM.Local.EXLAConfig
+  alias ExLLM.Bumblebee.EXLAConfig
   alias ExLLM.Logger
 
   @model_cache_dir Path.expand("~/.ex_llm/models")
@@ -149,48 +149,83 @@ defmodule ExLLM.Local.ModelLoader do
     if Code.ensure_loaded?(Bumblebee) do
       Logger.info("Loading model: #{model_identifier}")
 
-      try do
-        # Determine if this is a HuggingFace model or local path
-        {repository_id, opts} = parse_model_identifier(model_identifier)
-
-        # Load the model with Bumblebee
-        with {:ok, model_info} <- load_bumblebee_model(repository_id, opts),
-             {:ok, tokenizer} <- load_bumblebee_tokenizer(repository_id, opts),
-             {:ok, generation_config} <- load_bumblebee_generation_config(repository_id, opts) do
-          # Create serving for text generation with optimized settings
-          serving_opts = EXLAConfig.serving_options()
-
-          serving =
-            create_text_generation_serving(
-              model_info,
-              tokenizer,
-              generation_config,
-              Keyword.merge(serving_opts, stream: true)
-            )
-
-          model_data = %{
-            model_info: model_info,
-            tokenizer: tokenizer,
-            generation_config: generation_config,
-            serving: serving,
-            repository_id: repository_id,
-            loaded_at: DateTime.utc_now()
-          }
-
-          Logger.info("Successfully loaded model: #{model_identifier}")
-          {:ok, model_data}
-        else
-          {:error, reason} ->
-            Logger.error("Failed to load model #{model_identifier}: #{inspect(reason)}")
-            {:error, reason}
-        end
-      rescue
-        e ->
-          Logger.error("Exception loading model #{model_identifier}: #{inspect(e)}")
-          {:error, {:exception, e}}
+      # Check if this is an MLX model
+      if is_mlx_model?(model_identifier) do
+        load_mlx_model(model_identifier)
+      else
+        load_standard_model(model_identifier)
       end
     else
       {:error, "Bumblebee is not available"}
+    end
+  end
+
+  defp is_mlx_model?(model_identifier) do
+    String.contains?(model_identifier, "-mlx") or
+      String.contains?(model_identifier, "mlx-") or
+      String.contains?(model_identifier, "flux")
+  end
+
+  defp load_mlx_model(model_identifier) do
+    Logger.info("Detected MLX model: #{model_identifier}")
+
+    # MLX models aren't directly supported by Bumblebee
+    # Return a helpful error with guidance
+    {:error,
+     """
+     MLX models like '#{model_identifier}' are not directly supported by Bumblebee.
+
+     MLX models are optimized for Apple's MLX framework and use different formats.
+
+     Suggestions:
+     1. Try the non-MLX version: Look for the same model without '-mlx' suffix
+     2. Use a different Qwen model: 'Qwen/Qwen2.5-3B-Instruct' or 'Qwen/Qwen2.5-7B-Instruct'
+     3. Keep the MLX model listed for discovery but use standard models for inference
+
+     Your MLX models are still valuable for use with other MLX-compatible tools.
+     """}
+  end
+
+  defp load_standard_model(model_identifier) do
+    try do
+      # Determine if this is a HuggingFace model or local path
+      {repository_id, opts} = parse_model_identifier(model_identifier)
+
+      # Load the model with Bumblebee
+      with {:ok, model_info} <- load_bumblebee_model(repository_id, opts),
+           {:ok, tokenizer} <- load_bumblebee_tokenizer(repository_id, opts),
+           {:ok, generation_config} <- load_bumblebee_generation_config(repository_id, opts) do
+        # Create serving for text generation with optimized settings
+        serving_opts = EXLAConfig.serving_options()
+
+        serving =
+          create_text_generation_serving(
+            model_info,
+            tokenizer,
+            generation_config,
+            Keyword.merge(serving_opts, stream: true)
+          )
+
+        model_data = %{
+          model_info: model_info,
+          tokenizer: tokenizer,
+          generation_config: generation_config,
+          serving: serving,
+          repository_id: repository_id,
+          loaded_at: DateTime.utc_now()
+        }
+
+        Logger.info("Successfully loaded model: #{model_identifier}")
+        {:ok, model_data}
+      else
+        {:error, reason} ->
+          Logger.error("Failed to load model #{model_identifier}: #{inspect(reason)}")
+          {:error, reason}
+      end
+    rescue
+      e ->
+        Logger.error("Exception loading model #{model_identifier}: #{inspect(e)}")
+        {:error, {:exception, e}}
     end
   end
 
@@ -199,19 +234,19 @@ defmodule ExLLM.Local.ModelLoader do
       # Local file path
       String.starts_with?(identifier, "/") or String.starts_with?(identifier, "~/") ->
         path = Path.expand(identifier)
-        {path, [cache_dir: @model_cache_dir]}
+        {path, []}
 
       # HuggingFace model ID
       String.contains?(identifier, "/") ->
-        {identifier, [cache_dir: @model_cache_dir]}
+        {identifier, []}
 
       # Shorthand for common models
       true ->
         case identifier do
-          "llama2" -> {"meta-llama/Llama-2-7b-hf", [cache_dir: @model_cache_dir]}
-          "mistral" -> {"mistralai/Mistral-7B-v0.1", [cache_dir: @model_cache_dir]}
-          "phi" -> {"microsoft/phi-2", [cache_dir: @model_cache_dir]}
-          _ -> {identifier, [cache_dir: @model_cache_dir]}
+          "llama2" -> {"meta-llama/Llama-2-7b-hf", []}
+          "mistral" -> {"mistralai/Mistral-7B-v0.1", []}
+          "phi" -> {"microsoft/phi-2", []}
+          _ -> {identifier, []}
         end
     end
   end
@@ -220,7 +255,15 @@ defmodule ExLLM.Local.ModelLoader do
 
   defp load_bumblebee_model(repository_id, opts) do
     if Code.ensure_loaded?(Bumblebee) do
-      apply(Bumblebee, :load_model, [repository_id, opts])
+      # Convert to Bumblebee's expected format
+      repo =
+        if String.starts_with?(repository_id, "/") do
+          {:local, repository_id}
+        else
+          {:hf, repository_id}
+        end
+
+      apply(Bumblebee, :load_model, [repo, opts])
     else
       {:error, "Bumblebee not available"}
     end
@@ -228,7 +271,15 @@ defmodule ExLLM.Local.ModelLoader do
 
   defp load_bumblebee_tokenizer(repository_id, opts) do
     if Code.ensure_loaded?(Bumblebee) do
-      apply(Bumblebee, :load_tokenizer, [repository_id, opts])
+      # Convert to Bumblebee's expected format
+      repo =
+        if String.starts_with?(repository_id, "/") do
+          {:local, repository_id}
+        else
+          {:hf, repository_id}
+        end
+
+      apply(Bumblebee, :load_tokenizer, [repo, opts])
     else
       {:error, "Bumblebee not available"}
     end
@@ -236,7 +287,15 @@ defmodule ExLLM.Local.ModelLoader do
 
   defp load_bumblebee_generation_config(repository_id, opts) do
     if Code.ensure_loaded?(Bumblebee) do
-      apply(Bumblebee, :load_generation_config, [repository_id, opts])
+      # Convert to Bumblebee's expected format
+      repo =
+        if String.starts_with?(repository_id, "/") do
+          {:local, repository_id}
+        else
+          {:hf, repository_id}
+        end
+
+      apply(Bumblebee, :load_generation_config, [repo, opts])
     else
       {:error, "Bumblebee not available"}
     end

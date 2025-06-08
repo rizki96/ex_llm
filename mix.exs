@@ -60,11 +60,13 @@ defmodule ExLLM.MixProject do
       # Structured outputs
       {:instructor, "~> 0.1.0"},
 
-      # Optional dependencies for local model support
-      # Comment these out if you have compilation issues
-      # {:bumblebee, "~> 0.5", optional: true},
-      # {:nx, "~> 0.7", optional: true},
+      # Dependencies for local model support via Bumblebee
+      {:bumblebee, "~> 0.5"},
+      {:nx, "~> 0.7"},
+      # EXLA has compilation issues on newer macOS - uncomment if needed
       # {:exla, "~> 0.7", optional: true},
+      # EMLX for Apple Silicon Metal acceleration
+      {:emlx, github: "elixir-nx/emlx", branch: "main", optional: true},
 
       # Development and documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},

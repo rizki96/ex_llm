@@ -77,6 +77,7 @@ defmodule ExLLM.ModelLoader do
               :undefined ->
                 # Still doesn't exist, re-raise the error
                 :ets.new(@cache_table, [:set, :public, :named_table])
+
               _ ->
                 :ok
             end

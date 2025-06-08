@@ -1,0 +1,48 @@
+provider: bumblebee
+models:
+  microsoft/phi-2:
+    context_window: 2048
+    max_output_tokens: 2048
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+  meta-llama/Llama-2-7b-hf:
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+  mistralai/Mistral-7B-v0.1:
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+  EleutherAI/gpt-neo-1.3B:
+    context_window: 2048
+    max_output_tokens: 2048
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+  google/flan-t5-base:
+    context_window: 512
+    max_output_tokens: 512
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+default_model: microsoft/phi-2

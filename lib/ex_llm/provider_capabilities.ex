@@ -800,7 +800,8 @@ defmodule ExLLM.ProviderCapabilities do
       :gemini -> ExLLM.Adapters.Gemini
       :groq -> ExLLM.Adapters.Groq
       :openrouter -> ExLLM.Adapters.OpenRouter
-      :local -> ExLLM.Adapters.Local
+      :local -> ExLLM.Adapters.Bumblebee
+      :bumblebee -> ExLLM.Adapters.Bumblebee
       :mock -> ExLLM.Adapters.Mock
       _ -> nil
     end

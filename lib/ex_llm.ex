@@ -144,7 +144,8 @@ defmodule ExLLM do
     bumblebee: ExLLM.Adapters.Bumblebee,
     groq: ExLLM.Adapters.Groq,
     lmstudio: ExLLM.Adapters.LMStudio,
-    local: ExLLM.Adapters.Bumblebee,  # Deprecated alias
+    # Deprecated alias
+    local: ExLLM.Adapters.Bumblebee,
     mistral: ExLLM.Adapters.Mistral,
     openai: ExLLM.Adapters.OpenAI,
     openrouter: ExLLM.Adapters.OpenRouter,
@@ -166,7 +167,8 @@ defmodule ExLLM do
           | :perplexity
           | :openrouter
           | :ollama
-          | :local  # Deprecated
+          # Deprecated
+          | :local
           | :bedrock
           | :gemini
           | :xai

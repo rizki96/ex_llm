@@ -59,6 +59,7 @@ defmodule ExLLM.LMStudioIntegrationTest do
           assert is_map(model.capabilities)
 
           IO.puts("✓ Found #{length(models)} available models")
+
           Enum.each(models, fn m ->
             IO.puts("  - #{m.id} (#{m.context_window} context)")
           end)
@@ -101,9 +102,10 @@ defmodule ExLLM.LMStudioIntegrationTest do
 
           if length(models) > 0 do
             # All returned models should be loaded
-            loaded_count = Enum.count(models, fn m ->
-              String.contains?(m.description, "Loaded")
-            end)
+            loaded_count =
+              Enum.count(models, fn m ->
+                String.contains?(m.description, "Loaded")
+              end)
 
             assert loaded_count == length(models)
             IO.puts("✓ Found #{length(models)} loaded models")
@@ -202,7 +204,8 @@ defmodule ExLLM.LMStudioIntegrationTest do
       case LMStudio.chat(messages, max_tokens: 20) do
         {:ok, response} ->
           # Response should be limited
-          assert response.usage.output_tokens <= 25  # Allow some buffer
+          # Allow some buffer
+          assert response.usage.output_tokens <= 25
           IO.puts("✓ Token limits work")
           IO.puts("  Output tokens: #{response.usage.output_tokens}")
 
@@ -240,7 +243,10 @@ defmodule ExLLM.LMStudioIntegrationTest do
         {:ok, response} ->
           # Response should follow system instructions
           content_lower = String.downcase(response.content)
-          assert String.contains?(content_lower, "120") or String.contains?(content_lower, "15") or String.contains?(content_lower, "8")
+
+          assert String.contains?(content_lower, "120") or String.contains?(content_lower, "15") or
+                   String.contains?(content_lower, "8")
+
           IO.puts("✓ System prompts work")
           IO.puts("  Guided response: #{String.slice(response.content, 0, 60)}...")
 
@@ -252,7 +258,9 @@ defmodule ExLLM.LMStudioIntegrationTest do
 
   describe "streaming chat" do
     test "basic streaming response" do
-      messages = [%{role: "user", content: "Tell me a short story about a robot in exactly two sentences."}]
+      messages = [
+        %{role: "user", content: "Tell me a short story about a robot in exactly two sentences."}
+      ]
 
       case LMStudio.stream_chat(messages) do
         {:ok, stream} ->
@@ -268,7 +276,7 @@ defmodule ExLLM.LMStudioIntegrationTest do
           # Concatenate content
           full_content =
             chunks
-            |> Enum.map(& &1.content || "")
+            |> Enum.map(&(&1.content || ""))
             |> Enum.join("")
 
           assert String.trim(full_content) != ""
@@ -296,7 +304,7 @@ defmodule ExLLM.LMStudioIntegrationTest do
 
           full_content =
             chunks
-            |> Enum.map(& &1.content || "")
+            |> Enum.map(&(&1.content || ""))
             |> Enum.join("")
 
           # Should be limited due to token constraint
@@ -346,9 +354,11 @@ defmodule ExLLM.LMStudioIntegrationTest do
 
           # Enhanced models should have architecture info
           assert Map.has_key?(model.capabilities, :features)
-          architecture_mentioned = String.contains?(model.description, "llama.cpp") or
-                                  String.contains?(model.description, "MLX") or
-                                  String.contains?(model.description, "Loaded")
+
+          architecture_mentioned =
+            String.contains?(model.description, "llama.cpp") or
+              String.contains?(model.description, "MLX") or
+              String.contains?(model.description, "Loaded")
 
           assert architecture_mentioned
           IO.puts("✓ Native API provides enhanced info")

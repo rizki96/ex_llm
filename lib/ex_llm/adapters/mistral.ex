@@ -359,13 +359,14 @@ defmodule ExLLM.Adapters.Mistral do
 
   defp load_models_from_config do
     models_map = ModelConfig.get_all_models(:mistral)
-    
+
     if map_size(models_map) > 0 do
       # Convert the map of model configs to Model structs
-      models = 
+      models =
         models_map
         |> Enum.map(fn {model_id, config} ->
           model_id_str = to_string(model_id)
+
           %Types.Model{
             id: model_id_str,
             name: ModelUtils.format_model_name(model_id_str),
@@ -383,24 +384,25 @@ defmodule ExLLM.Adapters.Mistral do
       {:ok, models}
     else
       # Return some default models if config loading fails
-      {:ok, [
-        %Types.Model{
-          id: "mistral/mistral-tiny",
-          name: "Mistral Tiny",
-          description: "Small and fast model for simple tasks",
-          context_window: 32000,
-          max_output_tokens: 8191,
-          capabilities: %{features: ["streaming"]}
-        },
-        %Types.Model{
-          id: "mistral/mistral-small-latest",
-          name: "Mistral Small",
-          description: "Balanced model for most use cases",
-          context_window: 32000,
-          max_output_tokens: 8191,
-          capabilities: %{features: ["streaming", "function_calling"]}
-        }
-      ]}
+      {:ok,
+       [
+         %Types.Model{
+           id: "mistral/mistral-tiny",
+           name: "Mistral Tiny",
+           description: "Small and fast model for simple tasks",
+           context_window: 32000,
+           max_output_tokens: 8191,
+           capabilities: %{features: ["streaming"]}
+         },
+         %Types.Model{
+           id: "mistral/mistral-small-latest",
+           name: "Mistral Small",
+           description: "Balanced model for most use cases",
+           context_window: 32000,
+           max_output_tokens: 8191,
+           capabilities: %{features: ["streaming", "function_calling"]}
+         }
+       ]}
     end
   end
 

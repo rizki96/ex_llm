@@ -221,6 +221,7 @@ defmodule ExLLM.Adapters.Mock do
       :exit, {:noproc, _} ->
         # GenServer is not running, start it and try again
         start_link()
+
         Agent.update(__MODULE__, fn _state ->
           %State{
             response_mode: :static,
@@ -543,12 +544,14 @@ defmodule ExLLM.Adapters.Mock do
 
   defp ensure_started do
     case Process.whereis(__MODULE__) do
-      nil -> 
+      nil ->
         case start_link() do
           {:ok, _pid} -> :ok
           {:error, {:already_started, _pid}} -> :ok
         end
-      _pid -> :ok
+
+      _pid ->
+        :ok
     end
   end
 

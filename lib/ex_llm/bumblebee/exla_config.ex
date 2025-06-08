@@ -1,4 +1,4 @@
-defmodule ExLLM.Local.EXLAConfig do
+defmodule ExLLM.Bumblebee.EXLAConfig do
   @moduledoc """
   Configuration module for EXLA/EMLX backend optimization.
 

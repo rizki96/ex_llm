@@ -100,7 +100,7 @@ defmodule ExLLM.Adapters.Perplexity do
 
   # Search modes supported by Perplexity
   @valid_search_modes ["news", "academic", "general"]
-  
+
   # Reasoning effort levels for deep research models
   @valid_reasoning_efforts ["low", "medium", "high"]
 
@@ -281,9 +281,12 @@ defmodule ExLLM.Adapters.Perplexity do
   """
   @spec validate_search_mode(String.t()) :: :ok | {:error, String.t()}
   def validate_search_mode(mode) when mode in @valid_search_modes, do: :ok
+
   def validate_search_mode(mode) when is_binary(mode) do
-    {:error, "Invalid search_mode '#{mode}'. Valid options: #{Enum.join(@valid_search_modes, ", ")}"}
+    {:error,
+     "Invalid search_mode '#{mode}'. Valid options: #{Enum.join(@valid_search_modes, ", ")}"}
   end
+
   def validate_search_mode(_), do: {:error, "search_mode must be a string"}
 
   @doc """
@@ -291,9 +294,12 @@ defmodule ExLLM.Adapters.Perplexity do
   """
   @spec validate_reasoning_effort(String.t()) :: :ok | {:error, String.t()}
   def validate_reasoning_effort(effort) when effort in @valid_reasoning_efforts, do: :ok
+
   def validate_reasoning_effort(effort) when is_binary(effort) do
-    {:error, "Invalid reasoning_effort '#{effort}'. Valid options: #{Enum.join(@valid_reasoning_efforts, ", ")}"}
+    {:error,
+     "Invalid reasoning_effort '#{effort}'. Valid options: #{Enum.join(@valid_reasoning_efforts, ", ")}"}
   end
+
   def validate_reasoning_effort(_), do: {:error, "reasoning_effort must be a string"}
 
   @doc """
@@ -307,6 +313,7 @@ defmodule ExLLM.Adapters.Perplexity do
       {:error, "Image filters can have a maximum of #{@max_filter_items} entries"}
     end
   end
+
   def validate_image_filters(_), do: {:error, "Image filters must be a list of strings"}
 
   # Private helper functions
@@ -356,8 +363,10 @@ defmodule ExLLM.Adapters.Perplexity do
       id: model_data["id"],
       name: ModelUtils.format_model_name(model_data["id"]),
       description: ModelUtils.generate_description(model_data["id"], :perplexity),
-      context_window: 128000,  # Default for most Perplexity models
-      max_output_tokens: 8000, # Default max output
+      # Default for most Perplexity models
+      context_window: 128_000,
+      # Default max output
+      max_output_tokens: 8000,
       capabilities: build_model_capabilities(model_data["id"])
     }
   end
@@ -384,18 +393,19 @@ defmodule ExLLM.Adapters.Perplexity do
 
   defp load_models_from_config do
     models_map = ModelConfig.get_all_models(:perplexity)
-    
+
     if map_size(models_map) > 0 do
       # Convert the map of model configs to Model structs
-      models = 
+      models =
         models_map
         |> Enum.map(fn {model_id, config} ->
           model_id_str = to_string(model_id)
+
           %Types.Model{
             id: model_id_str,
             name: ModelUtils.format_model_name(model_id_str),
             description: ModelUtils.generate_description(model_id_str, :perplexity),
-            context_window: Map.get(config, :context_window) || 128000,
+            context_window: Map.get(config, :context_window) || 128_000,
             max_output_tokens: Map.get(config, :max_output_tokens) || 8000,
             pricing: Map.get(config, :pricing),
             capabilities: %{
@@ -408,24 +418,25 @@ defmodule ExLLM.Adapters.Perplexity do
       {:ok, models}
     else
       # Return some default models if config loading fails
-      {:ok, [
-        %Types.Model{
-          id: "perplexity/sonar",
-          name: "Sonar",
-          description: "Lightweight search model with grounding",
-          context_window: 128000,
-          max_output_tokens: 8000,
-          capabilities: %{features: ["streaming", "web_search"]}
-        },
-        %Types.Model{
-          id: "perplexity/sonar-pro", 
-          name: "Sonar Pro",
-          description: "Advanced search with grounding for complex queries",
-          context_window: 200000,
-          max_output_tokens: 8000,
-          capabilities: %{features: ["streaming", "web_search"]}
-        }
-      ]}
+      {:ok,
+       [
+         %Types.Model{
+           id: "perplexity/sonar",
+           name: "Sonar",
+           description: "Lightweight search model with grounding",
+           context_window: 128_000,
+           max_output_tokens: 8000,
+           capabilities: %{features: ["streaming", "web_search"]}
+         },
+         %Types.Model{
+           id: "perplexity/sonar-pro",
+           name: "Sonar Pro",
+           description: "Advanced search with grounding for complex queries",
+           context_window: 200_000,
+           max_output_tokens: 8000,
+           capabilities: %{features: ["streaming", "web_search"]}
+         }
+       ]}
     end
   end
 
@@ -443,7 +454,8 @@ defmodule ExLLM.Adapters.Perplexity do
           effort -> validate_reasoning_effort(effort)
         end
 
-      error -> error
+      error ->
+        error
     end
     |> case do
       :ok ->
@@ -453,7 +465,8 @@ defmodule ExLLM.Adapters.Perplexity do
           :ok
         end
 
-      error -> error
+      error ->
+        error
     end
   end
 

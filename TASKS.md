@@ -78,6 +78,33 @@ This represents a significant maturity milestone for the ExLLM codebase, ensurin
 
 ## Recently Completed
 
+### Provider Adapter Implementations ✅
+- [x] **Mistral AI Adapter**
+  - [x] OpenAI-compatible API implementation
+  - [x] Chat, streaming, and embeddings support
+  - [x] Function calling with tools format
+  - [x] Model listing from API and config fallback
+  - [x] Parameter validation with Mistral-specific restrictions
+  - [x] Safe prompt parameter support
+  - [x] Comprehensive test suite (14 unit tests, integration tests)
+
+- [x] **Perplexity Adapter**
+  - [x] Search-augmented language model support
+  - [x] OpenAI-compatible base with Perplexity extensions
+  - [x] Search modes: news, academic, general
+  - [x] Reasoning effort levels: low, medium, high
+  - [x] URL return and recency filters
+  - [x] Search domain inclusion/exclusion
+  - [x] Comprehensive test suite (33 tests)
+
+- [x] **Bumblebee Adapter (Renamed from Local)**
+  - [x] Complete refactoring from Local to Bumblebee naming
+  - [x] Split tests into unit and integration for consistency
+  - [x] Updated all references throughout codebase
+  - [x] Maintained backward compatibility with :local alias
+  - [x] Added model configuration in config/models/bumblebee.yml
+  - [x] Fixed ModelLoader references
+
 ### Ollama Adapter Full API Implementation ✅
 - [x] Fixed critical bugs
   - [x] Embeddings endpoint corrected to `/api/embed`
@@ -435,10 +462,10 @@ This represents a significant maturity milestone for the ExLLM codebase, ensurin
 #### High Priority Providers
 - [x] Groq adapter (fast inference)
 - [x] XAI adapter (Grok models)
-- [ ] Mistral AI adapter (European models)
+- [x] Mistral AI adapter (European models)
 - [ ] Together AI adapter (cost-effective)
 - [ ] Cohere adapter (enterprise, rerank API)
-- [ ] Perplexity adapter (search-augmented)
+- [x] Perplexity adapter (search-augmented)
 
 #### Medium Priority Providers
 - [ ] Replicate adapter (marketplace)

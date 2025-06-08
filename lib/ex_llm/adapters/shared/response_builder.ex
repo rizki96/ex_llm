@@ -99,6 +99,64 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
   end
 
   @doc """
+  Build a response with tool calls from provider data.
+  """
+  @spec build_tool_call_response(map(), String.t(), keyword()) :: Types.LLMResponse.t()
+  def build_tool_call_response(data, model, opts \\ []) do
+    provider = Keyword.get(opts, :provider)
+    calculate_cost = Keyword.get(opts, :calculate_cost, true)
+
+    tool_calls = extract_tool_calls(data)
+    usage = extract_usage(data)
+    finish_reason = extract_finish_reason(data)
+
+    cost =
+      if calculate_cost && usage != nil && provider != nil do
+        Cost.calculate(provider, model, usage)
+      else
+        nil
+      end
+
+    %Types.LLMResponse{
+      content: nil,
+      model: model,
+      usage: usage,
+      finish_reason: finish_reason,
+      cost: cost,
+      tool_calls: tool_calls,
+      id: data["id"]
+    }
+  end
+
+  @doc """
+  Build an error response from provider data.
+  """
+  @spec build_error_response(integer(), map() | String.t(), keyword()) :: {:error, term()}
+  def build_error_response(status, data, opts \\ []) do
+    _provider = Keyword.get(opts, :provider, :unknown)
+
+    case normalize_error_data(data) do
+      %{"error" => %{"type" => type, "message" => message}} ->
+        categorize_structured_error(type, message)
+
+      %{"error" => %{"message" => message}} ->
+        categorize_error_by_status(status, message)
+
+      %{"error" => message} when is_binary(message) ->
+        categorize_error_by_status(status, message)
+
+      %{"message" => message} ->
+        categorize_error_by_status(status, message)
+
+      %{"detail" => detail} ->
+        categorize_error_by_status(status, detail)
+
+      _ ->
+        {:error, ExLLM.Error.api_error(status, data)}
+    end
+  end
+
+  @doc """
   Extract and normalize usage data from various formats.
 
   Maps provider-specific field names to standardized ExLLM format:
@@ -222,5 +280,82 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
     else
       nil
     end
+  end
+
+  defp extract_tool_calls(data) do
+    cond do
+      # OpenAI format
+      choices = data["choices"] ->
+        message = get_in(choices, [Access.at(0), "message"])
+        message["tool_calls"] || []
+
+      # Anthropic format
+      content = data["content"] ->
+        content
+        |> Enum.filter(&(&1["type"] == "tool_use"))
+        |> Enum.map(fn tool_use ->
+          %{
+            "id" => tool_use["id"],
+            "type" => "function",
+            "function" => %{
+              "name" => tool_use["name"],
+              "arguments" => Jason.encode!(tool_use["input"] || %{})
+            }
+          }
+        end)
+
+      true ->
+        []
+    end
+  end
+
+  defp normalize_error_data(data) when is_binary(data) do
+    case Jason.decode(data) do
+      {:ok, decoded} -> decoded
+      {:error, _} -> %{"error" => data}
+    end
+  end
+
+  defp normalize_error_data(data) when is_map(data), do: data
+  defp normalize_error_data(data), do: %{"error" => inspect(data)}
+
+  defp categorize_structured_error("authentication_error", message) do
+    {:error, ExLLM.Error.authentication_error(message)}
+  end
+
+  defp categorize_structured_error("rate_limit_error", message) do
+    {:error, ExLLM.Error.rate_limit_error(message)}
+  end
+
+  defp categorize_structured_error("invalid_request_error", message) do
+    {:error, ExLLM.Error.validation_error(:request, message)}
+  end
+
+  defp categorize_structured_error("insufficient_quota", message) do
+    {:error, ExLLM.Error.rate_limit_error(message)}
+  end
+
+  defp categorize_structured_error(_, message) do
+    {:error, ExLLM.Error.api_error(nil, message)}
+  end
+
+  defp categorize_error_by_status(401, message) do
+    {:error, ExLLM.Error.authentication_error(message)}
+  end
+
+  defp categorize_error_by_status(403, message) do
+    {:error, ExLLM.Error.authentication_error(message)}
+  end
+
+  defp categorize_error_by_status(429, message) do
+    {:error, ExLLM.Error.rate_limit_error(message)}
+  end
+
+  defp categorize_error_by_status(503, message) do
+    {:error, ExLLM.Error.service_unavailable(message)}
+  end
+
+  defp categorize_error_by_status(status, message) do
+    {:error, ExLLM.Error.api_error(status, message)}
   end
 end

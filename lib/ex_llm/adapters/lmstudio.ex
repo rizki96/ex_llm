@@ -78,7 +78,7 @@ defmodule ExLLM.Adapters.LMStudio do
   def configured?(opts \\ []) do
     host = Keyword.get(opts, :host, @default_host)
     port = Keyword.get(opts, :port, @default_port)
-    
+
     case test_connection(host, port) do
       :ok -> true
       {:error, _} -> false
@@ -150,9 +150,10 @@ defmodule ExLLM.Adapters.LMStudio do
         # Convert non-streaming response to a stream
         chunk = %Types.StreamChunk{
           content: get_in(response_data, ["choices", Access.at(0), "message", "content"]) || "",
-          finish_reason: get_in(response_data, ["choices", Access.at(0), "finish_reason"]) || "stop"
+          finish_reason:
+            get_in(response_data, ["choices", Access.at(0), "finish_reason"]) || "stop"
         }
-        
+
         stream = Stream.iterate(chunk, fn _ -> nil end) |> Stream.take(1)
         {:ok, stream}
 
@@ -170,7 +171,11 @@ defmodule ExLLM.Adapters.LMStudio do
     url = build_url(host, port, "/v1/models")
     headers = build_headers(api_key)
 
-    case http_client().post_json(url, %{}, headers, method: :get, timeout: timeout, provider: :lmstudio) do
+    case http_client().post_json(url, %{}, headers,
+           method: :get,
+           timeout: timeout,
+           provider: :lmstudio
+         ) do
       {:ok, %{"data" => models}} ->
         formatted_models = Enum.map(models, &format_openai_model/1)
         {:ok, formatted_models}
@@ -192,25 +197,31 @@ defmodule ExLLM.Adapters.LMStudio do
     url = build_url(host, port, "/api/v0/models")
     headers = [{"Content-Type", "application/json"}]
 
-    case http_client().post_json(url, %{}, headers, method: :get, timeout: timeout, provider: :lmstudio) do
+    case http_client().post_json(url, %{}, headers,
+           method: :get,
+           timeout: timeout,
+           provider: :lmstudio
+         ) do
       {:ok, %{"data" => models}} when is_list(models) ->
         # Handle newer LM Studio API format with "data" wrapper
-        filtered_models = if loaded_only do
-          Enum.filter(models, fn model -> Map.get(model, "state", "not-loaded") == "loaded" end)
-        else
-          models
-        end
+        filtered_models =
+          if loaded_only do
+            Enum.filter(models, fn model -> Map.get(model, "state", "not-loaded") == "loaded" end)
+          else
+            models
+          end
 
         formatted_models = Enum.map(filtered_models, &format_enhanced_model/1)
         {:ok, formatted_models}
 
       {:ok, models} when is_list(models) ->
         # Handle older LM Studio API format (direct array)
-        filtered_models = if loaded_only do
-          Enum.filter(models, fn model -> Map.get(model, "loaded", false) end)
-        else
-          models
-        end
+        filtered_models =
+          if loaded_only do
+            Enum.filter(models, fn model -> Map.get(model, "loaded", false) end)
+          else
+            models
+          end
 
         formatted_models = Enum.map(filtered_models, &format_enhanced_model/1)
         {:ok, formatted_models}
@@ -227,7 +238,11 @@ defmodule ExLLM.Adapters.LMStudio do
     url = build_url(host, port, "/v1/models")
     headers = build_headers(@default_api_key)
 
-    case http_client().post_json(url, %{}, headers, method: :get, timeout: 5_000, provider: :lmstudio) do
+    case http_client().post_json(url, %{}, headers,
+           method: :get,
+           timeout: 5_000,
+           provider: :lmstudio
+         ) do
       {:ok, _} ->
         :ok
 
@@ -263,9 +278,12 @@ defmodule ExLLM.Adapters.LMStudio do
   defp validate_temperature(_), do: {:error, "Temperature must be between 0 and 2"}
 
   defp validate_max_tokens(nil), do: :ok
-  defp validate_max_tokens(-1), do: :ok  # LM Studio uses -1 for unlimited tokens
+  # LM Studio uses -1 for unlimited tokens
+  defp validate_max_tokens(-1), do: :ok
   defp validate_max_tokens(tokens) when is_integer(tokens) and tokens > 0, do: :ok
-  defp validate_max_tokens(_), do: {:error, "Max tokens must be a positive integer or -1 for unlimited"}
+
+  defp validate_max_tokens(_),
+    do: {:error, "Max tokens must be a positive integer or -1 for unlimited"}
 
   defp validate_host(nil), do: :ok
   defp validate_host(host) when is_binary(host) and byte_size(host) > 0, do: :ok
@@ -294,15 +312,17 @@ defmodule ExLLM.Adapters.LMStudio do
     }
 
     # Add optional parameters
-    request = base_request
-    |> maybe_add_param("temperature", Keyword.get(opts, :temperature))
-    |> maybe_add_param("max_tokens", Keyword.get(opts, :max_tokens, -1))  # LM Studio default
-    |> maybe_add_param("top_p", Keyword.get(opts, :top_p))
-    |> maybe_add_param("frequency_penalty", Keyword.get(opts, :frequency_penalty))
-    |> maybe_add_param("presence_penalty", Keyword.get(opts, :presence_penalty))
-    |> maybe_add_param("stop", Keyword.get(opts, :stop))
-    |> maybe_add_param("seed", Keyword.get(opts, :seed))
-    |> maybe_add_param("ttl", Keyword.get(opts, :ttl))
+    request =
+      base_request
+      |> maybe_add_param("temperature", Keyword.get(opts, :temperature))
+      # LM Studio default
+      |> maybe_add_param("max_tokens", Keyword.get(opts, :max_tokens, -1))
+      |> maybe_add_param("top_p", Keyword.get(opts, :top_p))
+      |> maybe_add_param("frequency_penalty", Keyword.get(opts, :frequency_penalty))
+      |> maybe_add_param("presence_penalty", Keyword.get(opts, :presence_penalty))
+      |> maybe_add_param("stop", Keyword.get(opts, :stop))
+      |> maybe_add_param("seed", Keyword.get(opts, :seed))
+      |> maybe_add_param("ttl", Keyword.get(opts, :ttl))
 
     request
   end
@@ -315,9 +335,11 @@ defmodule ExLLM.Adapters.LMStudio do
       id: model_data["id"],
       name: format_model_name(model_data["id"]),
       description: "LM Studio model - OpenAI compatible endpoint",
-      context_window: 4_096,  # Default, actual value may vary
+      # Default, actual value may vary
+      context_window: 4_096,
       max_output_tokens: 4_096,
-      pricing: %{input: 0.0, output: 0.0},  # Local models are free
+      # Local models are free
+      pricing: %{input: 0.0, output: 0.0},
       capabilities: %{
         features: ["chat", "completions"],
         supports_streaming: true,
@@ -328,14 +350,22 @@ defmodule ExLLM.Adapters.LMStudio do
 
   defp format_enhanced_model(model_data) do
     # Handle both old and new LM Studio API formats
-    loaded = Map.get(model_data, "loaded", false) or Map.get(model_data, "state", "not-loaded") == "loaded"
+    loaded =
+      Map.get(model_data, "loaded", false) or
+        Map.get(model_data, "state", "not-loaded") == "loaded"
+
     architecture = Map.get(model_data, "architecture") || Map.get(model_data, "arch", "Unknown")
     quantization = Map.get(model_data, "quantization", "Unknown")
-    engine = Map.get(model_data, "engine") || Map.get(model_data, "compatibility_type", "llama.cpp")
-    context_window = Map.get(model_data, "max_context_length") || Map.get(model_data, "loaded_context_length", 4_096)
+
+    engine =
+      Map.get(model_data, "engine") || Map.get(model_data, "compatibility_type", "llama.cpp")
+
+    context_window =
+      Map.get(model_data, "max_context_length") ||
+        Map.get(model_data, "loaded_context_length", 4_096)
 
     status = if loaded, do: "Loaded", else: "Available"
-    
+
     description = "#{architecture} model - #{quantization} quantization via #{engine} - #{status}"
 
     %Types.Model{
@@ -369,25 +399,26 @@ defmodule ExLLM.Adapters.LMStudio do
     architecture = Map.get(model_data, "architecture", "")
 
     features = base_features
-    
+
     # Add embedding support for certain architectures
-    features = if String.contains?(String.downcase(architecture), "bert") do
-      ["embeddings" | features]
-    else
-      features
-    end
+    features =
+      if String.contains?(String.downcase(architecture), "bert") do
+        ["embeddings" | features]
+      else
+        features
+      end
 
     # Add vision support for multimodal models
-    features = if String.contains?(String.downcase(architecture), "vision") or 
-                  String.contains?(String.downcase(architecture), "llava") do
-      ["vision" | features]
-    else
-      features
-    end
+    features =
+      if String.contains?(String.downcase(architecture), "vision") or
+           String.contains?(String.downcase(architecture), "llava") do
+        ["vision" | features]
+      else
+        features
+      end
 
     features
   end
-
 
   defp handle_error_response(status, error_body) do
     case error_body do

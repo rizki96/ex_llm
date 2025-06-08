@@ -318,10 +318,10 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "validates API key format" do
       # Store original env var
       original_key = System.get_env("ANTHROPIC_API_KEY")
-      
+
       # Temporarily unset env var to ensure test isolation
       System.delete_env("ANTHROPIC_API_KEY")
-      
+
       try do
         # Test with invalid API key formats
         invalid_configs = [

@@ -5,7 +5,21 @@ config :ex_llm,
   # Global cache configuration
   cache_enabled: false,
   cache_persist_disk: false,
-  cache_disk_path: "/tmp/ex_llm_cache"
+  cache_disk_path: "/tmp/ex_llm_cache",
+  # Debug logging configuration
+  log_level: :info,
+  log_components: %{
+    requests: true,
+    responses: true,
+    streaming: false,
+    retries: true,
+    cache: false,
+    models: true
+  },
+  log_redaction: %{
+    api_keys: true,
+    content: false
+  }
 
 # Logger Configuration
 config :logger, :console,
@@ -24,6 +38,22 @@ config :logger, :console,
   ]
 
 if Mix.env() == :dev do
+  # Enhanced logging for development
+  config :ex_llm,
+    log_level: :debug,
+    log_components: %{
+      requests: true,
+      responses: true,
+      streaming: true,
+      retries: true,
+      cache: true,
+      models: true
+    },
+    log_redaction: %{
+      api_keys: true,
+      content: false
+    }
+
   config :git_hooks,
     auto_install: true,
     verbose: true,
@@ -39,7 +69,7 @@ if Mix.env() == :dev do
           {:cmd, "mix format --check-formatted"},
           {:cmd, "mix credo --config-file .credo.exs --only warning"},
           # {:cmd, "mix dialyzer"}, # Temporarily disabled - PLT issues
-          {:cmd, "mix test"},
+          {:cmd, "find test -name '*_test.exs' ! -name '*_integration_test.exs' | xargs mix test"},
           {:cmd, "mix sobelow --skip"}
         ]
       ]
@@ -53,5 +83,15 @@ if Mix.env() == :test do
   # Test-specific configuration
   config :ex_llm,
     cache_enabled: true,
-    cache_persist_disk: false
+    cache_persist_disk: false,
+    # Minimal logging during tests
+    log_level: :error,
+    log_components: %{
+      requests: false,
+      responses: false,
+      streaming: false,
+      retries: false,
+      cache: false,
+      models: false
+    }
 end
