@@ -46,9 +46,11 @@ defmodule ExLLM.Adapters.XAITest do
   describe "provider detection" do
     test "provider/model string works with XAI" do
       # Test with mock to avoid real API calls
+      ExLLM.Adapters.Mock.start_link()
+      ExLLM.Adapters.Mock.set_response(%{content: "Test response from Grok"})
+      
       messages = [%{role: "user", content: "Hello"}]
-
-      {:ok, response} = ExLLM.chat(:mock, messages, mock_response: "Test response from Grok")
+      {:ok, response} = ExLLM.chat(:mock, messages)
 
       assert is_binary(response.content)
     end
