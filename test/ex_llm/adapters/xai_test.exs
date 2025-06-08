@@ -48,7 +48,7 @@ defmodule ExLLM.Adapters.XAITest do
       # Test with mock to avoid real API calls
       ExLLM.Adapters.Mock.start_link()
       ExLLM.Adapters.Mock.set_response(%{content: "Test response from Grok"})
-      
+
       messages = [%{role: "user", content: "Hello"}]
       {:ok, response} = ExLLM.chat(:mock, messages)
 

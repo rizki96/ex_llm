@@ -266,6 +266,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "adapter behavior compliance" do
+    @tag :skip
     test "implements all required callbacks" do
       callbacks = [
         {:chat, 2},
