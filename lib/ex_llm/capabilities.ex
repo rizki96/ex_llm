@@ -258,6 +258,7 @@ defmodule ExLLM.Capabilities do
         nil ->
           # Check if it's already a normalized capability name
           feature_atom = String.to_atom(feature_string)
+
           if feature_atom in Map.keys(@display_names) do
             feature_atom
           else

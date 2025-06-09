@@ -19,6 +19,7 @@ defmodule ExLLM.ModelConfig do
     case File.exists?("config/models") do
       true ->
         Path.expand("config/models")
+
       false ->
         # Fallback: look for it relative to the compiled beam file
         :code.priv_dir(:ex_llm)
@@ -26,6 +27,7 @@ defmodule ExLLM.ModelConfig do
         |> Path.expand()
     end
   end
+
   @providers [
     :anthropic,
     :openai,
@@ -319,7 +321,7 @@ defmodule ExLLM.ModelConfig do
 
   defp load_provider_config(provider) do
     config_file = Path.join(config_dir(), "#{provider}.yml")
-    
+
     Logger.debug("Loading config for #{provider} from #{config_file}")
     Logger.debug("File exists? #{File.exists?(config_file)}")
 
