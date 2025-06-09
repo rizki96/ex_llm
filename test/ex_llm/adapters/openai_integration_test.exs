@@ -502,17 +502,13 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
 
       case OpenAI.chat(messages, max_tokens: 10) do
         {:ok, response} ->
-          assert response.cost > 0
-          assert is_float(response.cost) or is_map(response.cost)
-
+          assert response.cost != nil, "Expected cost to be calculated"
+          cost = response.cost
+          assert is_map(cost)
+          assert is_number(Map.get(cost, :total_cost))
+          assert Map.get(cost, :total_cost) > 0
           # Cost should be reasonable (less than $0.01 for this simple request)
-          total_cost =
-            case response.cost do
-              cost when is_map(cost) -> cost.total_cost
-              cost when is_float(cost) -> cost
-            end
-
-          assert total_cost < 0.01
+          assert Map.get(cost, :total_cost) < 0.01
 
           # Verify cost matches usage
           expected_cost =

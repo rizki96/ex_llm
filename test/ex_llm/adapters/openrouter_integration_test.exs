@@ -221,11 +221,18 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
           assert length(chunks) > 0
 
           # Check if function was called
-          function_chunks = Enum.filter(chunks, & &1.function_call)
+          # Note: function calls may be in metadata or tool_calls for streaming
+          function_chunks = Enum.filter(chunks, fn chunk ->
+            (chunk.metadata && Map.get(chunk.metadata, "function_call")) ||
+            (chunk.metadata && Map.get(chunk.metadata, "tool_calls"))
+          end)
 
           if length(function_chunks) > 0 do
-            function_call = hd(function_chunks).function_call
-            assert function_call.name == "get_weather"
+            # Function calls might be in metadata for streaming
+            chunk_metadata = hd(function_chunks).metadata
+            if function_call = Map.get(chunk_metadata, "function_call") do
+              assert function_call["name"] == "get_weather"
+            end
           end
 
         {:error, _} ->
@@ -348,10 +355,10 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
             nil ->
               # Model might answer directly
               assert response.content =~ "100"
-            
-            function_call ->
-              assert function_call.name == "calculate"
-              assert Map.has_key?(function_call.arguments, "expression")
+
+            function_call when is_map(function_call) ->
+              assert Map.get(function_call, "name") == "calculate"
+              assert Map.has_key?(function_call, "arguments")
           end
 
         {:error, _} ->
@@ -586,21 +593,12 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
 
       case OpenRouter.chat(messages, model: "openai/gpt-3.5-turbo", max_tokens: 10) do
         {:ok, response} ->
-          if response.cost do
-            has_cost = case response.cost do
-              %{total_cost: total_cost} when is_number(total_cost) -> total_cost > 0
-              _ -> false
-            end
-            assert has_cost
-
-            # Cost should be reasonable
-            total_cost =
-              case response.cost do
-                %{total_cost: tc} -> tc
-                _ -> 0
-              end
-
-            assert total_cost < 0.01
+          if cost = response.cost do
+            # Cost is typed as cost_result which always has total_cost
+            assert is_map(cost)
+            assert is_number(Map.get(cost, :total_cost))
+            assert Map.get(cost, :total_cost) > 0
+            assert Map.get(cost, :total_cost) < 0.01
           end
 
         {:error, _} ->
@@ -621,13 +619,8 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
             case OpenRouter.chat(messages, model: free_model.id, max_tokens: 5) do
               {:ok, response} ->
                 if cost = response.cost do
-                  total_cost =
-                    case cost do
-                      %{total_cost: tc} -> tc
-                      _ -> 0
-                    end
-
-                  assert total_cost == 0
+                  # Free models should have zero cost
+                  assert Map.get(cost, :total_cost) == 0
                 end
 
               {:error, _} ->

@@ -83,7 +83,7 @@ defmodule ExLLM.OllamaIntegrationTest do
     @tag :skip
     test "streams generation responses" do
       {:ok, stream} = Ollama.stream_generate("Tell me a short story", model: "llama2")
-      
+
       try do
         chunks = stream |> Enum.take(5) |> Enum.to_list()
 
@@ -205,7 +205,7 @@ defmodule ExLLM.OllamaIntegrationTest do
       # Only test if explicitly enabled
       if System.get_env("TEST_OLLAMA_PULL") == "true" do
         {:ok, stream} = Ollama.pull_model("tinyllama:latest")
-        
+
         try do
           updates = Enum.to_list(stream)
           assert length(updates) > 0
