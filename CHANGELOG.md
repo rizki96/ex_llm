@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Excluded `emlx` dependency from Hex package until it's published
+- Updated README with instructions for adding `emlx` manually for Apple Silicon support
+
 ## [0.4.1] - 2025-06-08
 
 ### Added

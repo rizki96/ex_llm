@@ -105,12 +105,16 @@ Add `ex_llm` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.2.0"},
+    {:ex_llm, "~> 0.4.1"},
     
     # Optional: For local model support
     {:bumblebee, "~> 0.5", optional: true},
     {:nx, "~> 0.7", optional: true},
-    {:exla, "~> 0.7", optional: true}
+    {:exla, "~> 0.7", optional: true},
+    
+    # Optional: For Apple Silicon Metal acceleration
+    # (not included in Hex package, add manually if needed)
+    {:emlx, github: "elixir-nx/emlx", branch: "main", optional: true}
   ]
 end
 ```

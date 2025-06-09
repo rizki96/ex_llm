@@ -66,7 +66,9 @@ defmodule ExLLM.MixProject do
       # EXLA has compilation issues on newer macOS - uncomment if needed
       # {:exla, "~> 0.7", optional: true},
       # EMLX for Apple Silicon Metal acceleration
-      {:emlx, github: "elixir-nx/emlx", branch: "main", optional: true},
+      # Excluded from Hex package until emlx is published
+      # Users should add to their mix.exs: {:emlx, github: "elixir-nx/emlx", branch: "main"}
+      # {:emlx, github: "elixir-nx/emlx", branch: "main", optional: true},
 
       # Development and documentation
       {:ex_doc, "~> 0.31", only: :dev, runtime: false},
