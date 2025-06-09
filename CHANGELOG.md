@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.2] - 2025-06-08
+
 ### Changed
 - **BREAKING:** Renamed `:local` provider atom to `:bumblebee` for clarity
   - All references to `:local` in code and documentation have been updated
   - Update any code using `ExLLM.chat(:local, ...)` to `ExLLM.chat(:bumblebee, ...)`
+- Changed default Bumblebee model from `microsoft/phi-2` to `Qwen/Qwen3-0.6B`
 - Excluded `emlx` dependency from Hex package until it's published
 - Updated README with instructions for adding `emlx` manually for Apple Silicon support
 - Updated documentation to clarify that `instructor`, `bumblebee`, and `nx` are required dependencies
