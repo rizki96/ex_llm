@@ -32,7 +32,6 @@ defmodule ExLLM do
   - `:gemini` - Google Gemini models
   - `:xai` - X.AI Grok models
   - `:bumblebee` - Local models via Bumblebee (Phi-2, Llama 2, Mistral, etc.)
-  - `:local` - Deprecated, use `:bumblebee` instead
   - `:mock` - Mock adapter for testing
 
   ## Features
@@ -77,7 +76,7 @@ defmodule ExLLM do
         ollama: %{base_url: "http://localhost:11434", model: "llama2"},
         bedrock: %{access_key_id: "...", secret_access_key: "...", region: "us-east-1"},
         gemini: %{api_key: "...", model: "gemini-pro"},
-        local: %{model: "microsoft/phi-2"}
+        bumblebee: %{model: "microsoft/phi-2"}
       }
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
@@ -144,8 +143,6 @@ defmodule ExLLM do
     bumblebee: ExLLM.Adapters.Bumblebee,
     groq: ExLLM.Adapters.Groq,
     lmstudio: ExLLM.Adapters.LMStudio,
-    # Deprecated alias
-    local: ExLLM.Adapters.Bumblebee,
     mistral: ExLLM.Adapters.Mistral,
     openai: ExLLM.Adapters.OpenAI,
     openrouter: ExLLM.Adapters.OpenRouter,
@@ -167,8 +164,6 @@ defmodule ExLLM do
           | :perplexity
           | :openrouter
           | :ollama
-          # Deprecated
-          | :local
           | :bedrock
           | :gemini
           | :xai
@@ -1414,7 +1409,7 @@ defmodule ExLLM do
   ## Examples
 
       providers = ExLLM.list_providers()
-      # => [:anthropic, :bedrock, :gemini, :groq, :local, :mock, :ollama, :openai, :openrouter]
+      # => [:anthropic, :bedrock, :bumblebee, :gemini, :groq, :lmstudio, :mistral, :mock, :ollama, :openai, :openrouter, :perplexity, :xai]
   """
   @spec list_providers() :: [provider()]
   def list_providers do
@@ -1445,7 +1440,7 @@ defmodule ExLLM do
       ExLLM.provider_requires_auth?(:openai)
       # => true
       
-      ExLLM.provider_requires_auth?(:local)
+      ExLLM.provider_requires_auth?(:bumblebee)
       # => false
   """
   @spec provider_requires_auth?(provider()) :: boolean()

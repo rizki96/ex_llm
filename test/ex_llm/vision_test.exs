@@ -164,7 +164,7 @@ defmodule ExLLM.VisionTest do
     end
 
     test "returns false for non-vision providers" do
-      refute Vision.supports_vision?(:local)
+      refute Vision.supports_vision?(:bumblebee)
       refute Vision.supports_vision?(:unknown)
     end
   end

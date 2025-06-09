@@ -36,11 +36,14 @@ Add ExLLM to your `mix.exs` dependencies:
 def deps do
   [
     {:ex_llm, "~> 0.4.1"},
-    # Optional: for structured outputs
-    {:instructor, "~> 0.1.0"},
-    # Optional: for local models via Bumblebee
-    {:bumblebee, "~> 0.5", optional: true},
-    {:nx, "~> 0.7", optional: true}
+    # Included dependencies (automatically installed with ex_llm):
+    # - {:instructor, "~> 0.1.0"} - For structured outputs
+    # - {:bumblebee, "~> 0.5"} - For local model inference
+    # - {:nx, "~> 0.7"} - For numerical computing
+    
+    # Optional hardware acceleration (choose one):
+    # {:exla, "~> 0.7"}  # For CUDA/ROCm GPUs
+    # {:emlx, github: "elixir-nx/emlx", branch: "main"}  # For Apple Silicon
   ]
 end
 ```
@@ -49,9 +52,13 @@ Run `mix deps.get` to install the dependencies.
 
 ### Optional Dependencies
 
-- **Instructor**: Required for structured outputs with schema validation
 - **Req**: HTTP client (automatically included)
 - **Jason**: JSON parser (automatically included)
+- **Instructor**: Structured outputs with schema validation (automatically included)
+- **Bumblebee**: Local model inference (automatically included)
+- **Nx**: Numerical computing (automatically included)
+- **EXLA**: CUDA/ROCm GPU acceleration (optional)
+- **EMLX**: Apple Silicon Metal acceleration (optional)
 
 ## Configuration
 
@@ -213,7 +220,7 @@ ExLLM supports these providers out of the box:
 - **:bedrock** - AWS Bedrock
 - **:openrouter** - OpenRouter (300+ models)
 - **:xai** - X.AI Grok models
-- **:local** - Local models via Bumblebee/EXLA
+- **:bumblebee** - Local models via Bumblebee/NX
 - **:mock** - Mock adapter for testing
 
 ### Checking Provider Configuration

@@ -242,22 +242,27 @@ defmodule ExLLM.Adapters.Mock do
     # Capture request
     capture_request(:chat, messages, options)
 
-    # Check for mock response in Application env first
-    case Application.get_env(:ex_llm, :mock_responses, %{})[:chat] do
-      nil ->
-        handle_agent_response(messages, options)
+    # Check for mock_error in options first
+    if mock_error = Keyword.get(options, :mock_error) do
+      {:error, mock_error}
+    else
+      # Check for mock response in Application env
+      case Application.get_env(:ex_llm, :mock_responses, %{})[:chat] do
+        nil ->
+          handle_agent_response(messages, options)
 
-      {:error, _} = error ->
-        error
+        {:error, _} = error ->
+          error
 
-      response when is_function(response, 2) ->
-        handle_function_response(response, messages, options)
+        response when is_function(response, 2) ->
+          handle_function_response(response, messages, options)
 
-      responses when is_list(responses) ->
-        handle_list_response(responses)
+        responses when is_list(responses) ->
+          handle_list_response(responses)
 
-      response ->
-        {:ok, normalize_response(response)}
+        response ->
+          {:ok, normalize_response(response)}
+      end
     end
   end
 

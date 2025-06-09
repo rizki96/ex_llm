@@ -196,12 +196,13 @@ defmodule ExLLM.MockTest do
     end
 
     test "respects retry disabled option" do
-      Mock.set_error({:network_error, "Connection failed"})
-
       messages = [%{role: "user", content: "No retry"}]
 
       assert {:error, {:network_error, "Connection failed"}} =
-               ExLLM.chat(:mock, messages, retry: false, cache: false)
+               ExLLM.chat(:mock, messages, 
+                         retry: false, 
+                         cache: false,
+                         mock_error: {:network_error, "Connection failed"})
 
       # Should only have one request
       assert length(Mock.get_requests()) == 1

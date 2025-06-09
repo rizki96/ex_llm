@@ -270,7 +270,7 @@ defmodule ExLLM.RetryTest do
 
     test "Local adapter policy with minimal retries" do
       # Local uses default policy
-      policy = Retry.get_provider_policy(:local)
+      policy = Retry.get_provider_policy(:bumblebee)
       assert policy.max_attempts == 3
       assert policy.base_delay == 1_000
       assert policy.max_delay == 60_000
@@ -375,7 +375,7 @@ defmodule ExLLM.RetryTest do
       end
 
       # Test different providers
-      for provider <- [:openai, :anthropic, :gemini, :local] do
+      for provider <- [:openai, :anthropic, :gemini, :bumblebee] do
         # Reset counter
         :counters.put(counter, 1, 0)
 

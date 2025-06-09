@@ -88,7 +88,7 @@ defmodule ExLLM.ProviderCapabilitiesTest do
       assert [:api_key, :bearer_token] = ProviderCapabilities.get_auth_methods(:openai)
       assert [:api_key, :bearer_token] = ProviderCapabilities.get_auth_methods(:anthropic)
       assert [] = ProviderCapabilities.get_auth_methods(:ollama)
-      assert [] = ProviderCapabilities.get_auth_methods(:local)
+      assert [] = ProviderCapabilities.get_auth_methods(:bumblebee)
     end
 
     test "returns empty list for unknown provider" do
@@ -196,7 +196,7 @@ defmodule ExLLM.ProviderCapabilitiesTest do
         })
 
       # Local providers should have higher scores
-      local_providers = [:ollama, :local]
+      local_providers = [:ollama, :bumblebee]
 
       if length(recommendations) > 1 do
         top_providers = recommendations |> Enum.take(2) |> Enum.map(& &1.provider)
@@ -232,7 +232,7 @@ defmodule ExLLM.ProviderCapabilitiesTest do
 
   describe "is_local?/1" do
     test "identifies local providers" do
-      assert ProviderCapabilities.is_local?(:local) == true
+      assert ProviderCapabilities.is_local?(:bumblebee) == true
       assert ProviderCapabilities.is_local?(:ollama) == true
       assert ProviderCapabilities.is_local?(:mock) == true
     end
@@ -252,7 +252,7 @@ defmodule ExLLM.ProviderCapabilitiesTest do
     end
 
     test "identifies providers not requiring authentication" do
-      assert ProviderCapabilities.requires_auth?(:local) == false
+      assert ProviderCapabilities.requires_auth?(:bumblebee) == false
       assert ProviderCapabilities.requires_auth?(:ollama) == false
       assert ProviderCapabilities.requires_auth?(:mock) == false
     end

@@ -28,7 +28,7 @@ defmodule ExLLM.InstructorTest do
   describe "chat/3" do
     test "returns error for unsupported providers" do
       messages = [%{role: "user", content: "Test"}]
-      unsupported_providers = [:local, :bedrock, :openrouter]
+      unsupported_providers = [:bumblebee, :bedrock, :openrouter]
 
       for provider <- unsupported_providers do
         assert {:error, :unsupported_provider_for_instructor} =

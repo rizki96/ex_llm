@@ -17,7 +17,7 @@ defmodule ExLLM.Instructor do
   - `:groq` - Groq cloud models
   - `:xai` - X.AI Grok models
 
-  Other providers (`:bedrock`, `:openrouter`, `:local`) do not currently
+  Other providers (`:bedrock`, `:openrouter`, `:bumblebee`) do not currently
   support structured outputs through Instructor.
 
   ## Requirements
@@ -200,7 +200,7 @@ defmodule ExLLM.Instructor do
       :groq -> Instructor.Adapters.Groq
       :xai -> Instructor.Adapters.XAI
       :mock -> :mock_direct
-      :local -> {:error, :unsupported_provider_for_instructor}
+      :bumblebee -> {:error, :unsupported_provider_for_instructor}
       _ -> {:error, :unsupported_provider_for_instructor}
     end
   end

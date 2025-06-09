@@ -118,7 +118,7 @@ defmodule ExLLM.ModelCapabilities do
       :ollama,
       :openrouter,
       :mock,
-      :local,
+      :bumblebee,
       :bedrock,
       :mistral,
       :cohere,
@@ -381,9 +381,9 @@ defmodule ExLLM.ModelCapabilities do
         release_date: ~D[2023-12-06]
       },
 
-      # Local Models (via Bumblebee)
-      "local:microsoft/phi-2" => %ModelInfo{
-        provider: :local,
+      # Bumblebee Models
+      "bumblebee:microsoft/phi-2" => %ModelInfo{
+        provider: :bumblebee,
         model_id: "microsoft/phi-2",
         display_name: "Phi-2",
         context_window: 2_048,
@@ -395,8 +395,8 @@ defmodule ExLLM.ModelCapabilities do
           stop_sequences: %Capability{feature: :stop_sequences, supported: true}
         }
       },
-      "local:meta-llama/Llama-2-7b-hf" => %ModelInfo{
-        provider: :local,
+      "bumblebee:meta-llama/Llama-2-7b-hf" => %ModelInfo{
+        provider: :bumblebee,
         model_id: "meta-llama/Llama-2-7b-hf",
         display_name: "Llama 2 7B",
         context_window: 4_096,
@@ -522,7 +522,7 @@ defmodule ExLLM.ModelCapabilities do
       :ollama,
       :openrouter,
       :mock,
-      :local,
+      :bumblebee,
       :bedrock,
       :mistral,
       :cohere,
@@ -649,7 +649,7 @@ defmodule ExLLM.ModelCapabilities do
       :ollama,
       :openrouter,
       :mock,
-      :local,
+      :bumblebee,
       :bedrock,
       :mistral,
       :cohere,
@@ -777,7 +777,7 @@ defmodule ExLLM.ModelCapabilities do
     # Prefer local models if requested
     score =
       if Keyword.get(requirements, :prefer_local, false) do
-        if model_info.provider == :local, do: score + 50, else: score
+        if model_info.provider == :bumblebee, do: score + 50, else: score
       else
         score
       end

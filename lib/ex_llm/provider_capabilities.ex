@@ -415,10 +415,10 @@ defmodule ExLLM.ProviderCapabilities do
         }
       },
 
-      # Local (Bumblebee)
-      local: %__MODULE__.ProviderInfo{
-        id: :local,
-        name: "Local (Bumblebee)",
+      # Bumblebee
+      bumblebee: %__MODULE__.ProviderInfo{
+        id: :bumblebee,
+        name: "Bumblebee",
         description: "Run models locally using Elixir's Bumblebee",
         documentation_url: "https://github.com/elixir-nx/bumblebee",
         endpoints: [:chat, :embeddings],
@@ -593,7 +593,7 @@ defmodule ExLLM.ProviderCapabilities do
   ## Examples
 
       ExLLM.ProviderCapabilities.list_providers()
-      # => [:anthropic, :bedrock, :gemini, :groq, :local, :mock, :ollama, :openai, :openrouter]
+      # => [:anthropic, :bedrock, :bumblebee, :gemini, :groq, :mock, :ollama, :openai, :openrouter, :xai]
   """
   @spec list_providers() :: [atom()]
   def list_providers do
@@ -747,11 +747,11 @@ defmodule ExLLM.ProviderCapabilities do
         score = length(matched_required) * 1.0 + length(matched_preferred) * 0.5
 
         # Bonus for local providers
-        score = if prefer_local and provider in [:local, :ollama], do: score + 0.5, else: score
+        score = if prefer_local and provider in [:bumblebee, :ollama], do: score + 0.5, else: score
 
         # Bonus for free providers
         score =
-          if prefer_free and provider in [:local, :ollama, :mock], do: score + 0.5, else: score
+          if prefer_free and provider in [:bumblebee, :ollama, :mock], do: score + 0.5, else: score
 
         # Penalty for limitations
         limitation_count = map_size(info.limitations)
@@ -800,7 +800,6 @@ defmodule ExLLM.ProviderCapabilities do
       :gemini -> ExLLM.Adapters.Gemini
       :groq -> ExLLM.Adapters.Groq
       :openrouter -> ExLLM.Adapters.OpenRouter
-      :local -> ExLLM.Adapters.Bumblebee
       :bumblebee -> ExLLM.Adapters.Bumblebee
       :mock -> ExLLM.Adapters.Mock
       _ -> nil
@@ -826,7 +825,7 @@ defmodule ExLLM.ProviderCapabilities do
   """
   @spec is_local?(atom()) :: boolean()
   def is_local?(provider) do
-    provider in [:local, :ollama, :mock]
+    provider in [:bumblebee, :ollama, :mock]
   end
 
   @doc """

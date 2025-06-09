@@ -111,7 +111,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - llama-3.1-sonar series
   - Various open-source models
 
-- **Local Models** via Bumblebee/EXLA
+- **Bumblebee** - Local model inference
   - microsoft/phi-2 (default)
   - meta-llama/Llama-2-7b-hf
   - mistralai/Mistral-7B-v0.1
@@ -134,12 +134,12 @@ def deps do
   [
     {:ex_llm, "~> 0.4.1"},
     
-    # Optional: For structured outputs
-    {:instructor, "~> 0.1.0", optional: true},
+    # Included dependencies (no need to add these manually):
+    # - {:instructor, "~> 0.1.0"} - For structured outputs
+    # - {:bumblebee, "~> 0.5"} - For local model support
+    # - {:nx, "~> 0.7"} - For numerical computing
     
-    # Optional: For local model support via Bumblebee
-    {:bumblebee, "~> 0.5", optional: true},
-    {:nx, "~> 0.7", optional: true},
+    # Optional hardware acceleration backends (choose one):
     {:exla, "~> 0.7", optional: true},
     
     # Optional: For Apple Silicon Metal acceleration
@@ -219,8 +219,8 @@ messages = [
 IO.puts(response.content)
 IO.puts("Cost: #{ExLLM.format_cost(response.cost.total_cost)}")
 
-# Using local models (no API costs!)
-{:ok, response} = ExLLM.chat(:local, messages, model: "microsoft/phi-2")
+# Using Bumblebee for local models (no API costs!)
+{:ok, response} = ExLLM.chat(:bumblebee, messages, model: "microsoft/phi-2")
 IO.puts(response.content)
 
 # Using LM Studio (local server)
@@ -619,7 +619,7 @@ ExLLM includes pricing data (as of January 2025) in external YAML files for all 
 - **Google Gemini**: Pro, Ultra, Nano
 - **AWS Bedrock**: Various models including Claude, Titan, Llama 2
 - **Ollama**: Local models (free - $0.00)
-- **Local Models**: Free ($0.00) - no API costs
+- **Bumblebee**: Free ($0.00) - no API costs
 
 Pricing data is stored in `config/models/*.yml` files and can be updated independently of code changes.
 
@@ -896,7 +896,7 @@ Structured outputs work with providers that have instructor adapters:
 - `:ollama` - Local Ollama models
 - `:gemini` - Google Gemini
 - `:bedrock` - AWS Bedrock models
-- `:local` - Local Bumblebee models
+- `:bumblebee` - Local Bumblebee models
 
 ### Error Handling
 
@@ -1202,15 +1202,16 @@ ExLLM supports running models locally using Bumblebee and EXLA/EMLX backends. Th
 
 ### Setup
 
-1. Add optional dependencies to your `mix.exs`:
+1. ExLLM includes Bumblebee and Nx dependencies. For hardware acceleration, add one of these optional backends to your `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.2.0"},
-    {:bumblebee, "~> 0.5"},
-    {:nx, "~> 0.7"},
-    {:exla, "~> 0.7"}  # or {:emlx, "~> 0.1"} for Apple Silicon
+    {:ex_llm, "~> 0.4.1"},
+    # For CUDA/ROCm GPUs:
+    {:exla, "~> 0.7"}
+    # OR for Apple Silicon Metal acceleration:
+    # {:emlx, github: "elixir-nx/emlx", branch: "main"}
   ]
 end
 ```
@@ -1244,17 +1245,17 @@ messages = [
   %{role: "user", content: "Explain quantum computing in simple terms"}
 ]
 
-{:ok, response} = ExLLM.chat(:local, messages, model: "microsoft/phi-2")
+{:ok, response} = ExLLM.chat(:bumblebee, messages, model: "microsoft/phi-2")
 IO.puts(response.content)
 
 # Stream responses
-{:ok, stream} = ExLLM.stream_chat(:local, messages)
+{:ok, stream} = ExLLM.stream_chat(:bumblebee, messages)
 for chunk <- stream do
   IO.write(chunk.content)
 end
 
 # List available models
-{:ok, models} = ExLLM.list_models(:local)
+{:ok, models} = ExLLM.list_models(:bumblebee)
 Enum.each(models, fn model ->
   IO.puts("#{model.name} - Context: #{model.context_window} tokens")
 end)

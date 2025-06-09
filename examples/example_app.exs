@@ -1997,7 +1997,7 @@ defmodule ExLLM.ExampleApp do
       IO.puts("This is typically because:")
       case provider do
         :ollama -> IO.puts("  - Ollama runs models locally, so there's no API cost")
-        :local -> IO.puts("  - Local models run on your hardware without API costs")
+        :bumblebee -> IO.puts("  - Bumblebee models run on your hardware without API costs")
         _ -> IO.puts("  - This provider doesn't expose pricing information")
       end
       wait_for_continue()

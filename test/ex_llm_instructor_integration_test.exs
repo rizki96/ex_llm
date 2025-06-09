@@ -180,7 +180,7 @@ defmodule ExLLM.InstructorIntegrationTest do
       messages = [%{role: "user", content: "Test"}]
 
       assert {:error, :unsupported_provider_for_instructor} =
-               ExLLM.chat(:local, messages, response_model: TestPerson)
+               ExLLM.chat(:bumblebee, messages, response_model: TestPerson)
     end
   end
 end

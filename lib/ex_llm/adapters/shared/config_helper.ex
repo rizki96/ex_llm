@@ -149,10 +149,10 @@ defmodule ExLLM.Adapters.Shared.ConfigHelper do
     }
   end
 
-  defp build_env_config(:local) do
+  defp build_env_config(:bumblebee) do
     %{
-      model_path: ConfigProvider.Env.get(:local, :model_path),
-      device: ConfigProvider.Env.get(:local, :device) || :cpu
+      model_path: ConfigProvider.Env.get(:bumblebee, :model_path),
+      device: ConfigProvider.Env.get(:bumblebee, :device) || :cpu
     }
   end
 

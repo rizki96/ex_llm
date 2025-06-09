@@ -86,7 +86,7 @@ defmodule ExLLM.Adapters.Shared.ModelUtils do
   def infer_capabilities(model_id, provider) do
     base_capabilities = %{
       supports_streaming: true,
-      supports_functions: provider not in [:local, :ollama],
+      supports_functions: provider not in [:bumblebee, :ollama],
       supports_vision: false,
       supports_json_mode: provider in [:openai, :groq],
       features: []

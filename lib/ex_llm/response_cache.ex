@@ -718,7 +718,7 @@ defmodule ExLLM.ResponseCache do
       "anyscale" -> :anyscale
       "replicate" -> :replicate
       "xai" -> :xai
-      "local" -> :local
+      "bumblebee" -> :bumblebee
       "mock" -> :mock
       # Return as string if not a known provider
       _ -> provider

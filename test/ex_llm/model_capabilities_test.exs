@@ -46,13 +46,13 @@ defmodule ExLLM.ModelCapabilitiesTest do
     test "returns true for supported features" do
       assert ModelCapabilities.supports?(:openai, "gpt-4-turbo", :vision)
       assert ModelCapabilities.supports?(:anthropic, "claude-3-opus-20240229", :function_calling)
-      assert ModelCapabilities.supports?(:local, "microsoft/phi-2", :streaming)
+      assert ModelCapabilities.supports?(:bumblebee, "microsoft/phi-2", :streaming)
     end
 
     test "returns false for unsupported features" do
       assert not ModelCapabilities.supports?(:openai, "gpt-3.5-turbo", :vision)
       assert not ModelCapabilities.supports?(:gemini, "gemini-pro-vision", :multi_turn)
-      assert not ModelCapabilities.supports?(:local, "microsoft/phi-2", :vision)
+      assert not ModelCapabilities.supports?(:bumblebee, "microsoft/phi-2", :vision)
     end
 
     test "returns false for unknown models" do
@@ -76,7 +76,7 @@ defmodule ExLLM.ModelCapabilitiesTest do
 
     test "returns error for unsupported capability" do
       assert {:error, :not_supported} =
-               ModelCapabilities.get_capability_details(:local, "microsoft/phi-2", :vision)
+               ModelCapabilities.get_capability_details(:bumblebee, "microsoft/phi-2", :vision)
     end
 
     test "returns error for unknown model" do
@@ -122,7 +122,7 @@ defmodule ExLLM.ModelCapabilitiesTest do
         ModelCapabilities.compare_models([
           {:openai, "gpt-4-turbo"},
           {:anthropic, "claude-3-5-sonnet-20241022"},
-          {:local, "microsoft/phi-2"}
+          {:bumblebee, "microsoft/phi-2"}
         ])
 
       assert length(comparison.models) == 3
@@ -155,7 +155,7 @@ defmodule ExLLM.ModelCapabilitiesTest do
 
       assert {:openai, "gpt-4-turbo"} in groups.supported
       assert {:anthropic, "claude-3-opus-20240229"} in groups.supported
-      assert {:local, "microsoft/phi-2"} in groups.not_supported
+      assert {:bumblebee, "microsoft/phi-2"} in groups.not_supported
     end
   end
 
@@ -202,13 +202,13 @@ defmodule ExLLM.ModelCapabilitiesTest do
       # Local models should appear first (higher score)
       local_models =
         recommendations
-        |> Enum.filter(fn {provider, _model, _meta} -> provider == :local end)
+        |> Enum.filter(fn {provider, _model, _meta} -> provider == :bumblebee end)
 
       if length(local_models) > 0 do
         {_provider, _model, %{score: local_score}} = hd(local_models)
 
         # Find first non-local model
-        non_local = Enum.find(recommendations, fn {p, _, _} -> p != :local end)
+        non_local = Enum.find(recommendations, fn {p, _, _} -> p != :bumblebee end)
 
         if non_local do
           {_provider, _model, %{score: non_local_score}} = non_local
@@ -245,7 +245,7 @@ defmodule ExLLM.ModelCapabilitiesTest do
 
     test "model_supports?/3 works through ExLLM" do
       assert ExLLM.model_supports?(:anthropic, "claude-3-opus-20240229", :vision)
-      assert not ExLLM.model_supports?(:local, "microsoft/phi-2", :vision)
+      assert not ExLLM.model_supports?(:bumblebee, "microsoft/phi-2", :vision)
     end
 
     test "find_models_with_features/1 works through ExLLM" do
