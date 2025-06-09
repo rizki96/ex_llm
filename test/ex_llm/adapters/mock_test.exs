@@ -4,8 +4,15 @@ defmodule ExLLM.Adapters.MockTest do
   alias ExLLM.Types.{LLMResponse, StreamChunk}
 
   setup do
+    # Ensure Mock adapter is started
+    case Mock.start_link() do
+      {:ok, _pid} -> :ok
+      {:error, {:already_started, _pid}} -> :ok
+    end
+    
     # Clear any existing mock configuration
     Application.delete_env(:ex_llm, :mock_responses)
+    Mock.reset()
     :ok
   end
 
@@ -152,8 +159,11 @@ defmodule ExLLM.Adapters.MockTest do
     end
 
     test "simulates stream interruption" do
-      # Start Mock GenServer for this test
-      {:ok, _} = Mock.start_link()
+      # Ensure Mock GenServer is started for this test
+      case Mock.start_link() do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
+      end
 
       chunks_with_error = [
         %StreamChunk{content: "Start", id: "chunk-0"},
