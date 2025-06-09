@@ -9,7 +9,7 @@ Add ExLLM to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.3.1"}
+    {:ex_llm, "~> 0.4.1"}
   ]
 end
 ```
@@ -22,8 +22,11 @@ Run `mix deps.get` to install.
 
 ```bash
 export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="claude-..."
+export ANTHROPIC_API_KEY="sk-ant-..."
 export GROQ_API_KEY="gsk_..."
+export MISTRAL_API_KEY="..."
+export PERPLEXITY_API_KEY="pplx-..."
+export XAI_API_KEY="xai-..."
 ```
 
 ### Using Static Configuration
@@ -60,8 +63,17 @@ IO.puts(response.content)
 # Groq (fast inference)
 {:ok, response} = ExLLM.chat(:groq, messages)
 
+# Mistral AI
+{:ok, response} = ExLLM.chat(:mistral, messages)
+
+# Perplexity (search-enhanced)
+{:ok, response} = ExLLM.chat(:perplexity, messages)
+
 # Ollama (local)
 {:ok, response} = ExLLM.chat(:ollama, messages)
+
+# LM Studio (local)
+{:ok, response} = ExLLM.chat(:lmstudio, messages)
 
 # Using provider/model syntax
 {:ok, response} = ExLLM.chat("groq/llama-3.3-70b-versatile", messages)
@@ -229,6 +241,23 @@ case ExLLM.chat(:openai, messages) do
   {:error, error} ->
     IO.inspect(error)
 end
+```
+
+## Response Caching (New!)
+
+Cache provider responses for testing and development:
+
+```elixir
+# Enable response caching
+export EX_LLM_CACHE_RESPONSES=true
+
+# Make API calls - they'll be cached automatically
+{:ok, response} = ExLLM.chat(:openai, messages)
+
+# Later, use cached responses with mock adapter
+ExLLM.ResponseCache.configure_mock_provider("openai")
+{:ok, cached_response} = ExLLM.chat(:mock, messages)
+# Returns the same response without making an API call!
 ```
 
 ## Finding the Right Model

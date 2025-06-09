@@ -35,9 +35,12 @@ Add ExLLM to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.3.1"},
+    {:ex_llm, "~> 0.4.1"},
     # Optional: for structured outputs
-    {:instructor, "~> 0.1.0"}
+    {:instructor, "~> 0.1.0"},
+    # Optional: for local models via Bumblebee
+    {:bumblebee, "~> 0.5", optional: true},
+    {:nx, "~> 0.7", optional: true}
   ]
 end
 ```
@@ -80,6 +83,12 @@ export OPENROUTER_API_KEY="sk-or-..."
 # X.AI
 export XAI_API_KEY="xai-..."
 
+# Mistral AI
+export MISTRAL_API_KEY="..."
+
+# Perplexity
+export PERPLEXITY_API_KEY="pplx-..."
+
 # AWS Bedrock
 export AWS_ACCESS_KEY_ID="..."
 export AWS_SECRET_ACCESS_KEY="..."
@@ -87,6 +96,9 @@ export AWS_REGION="us-east-1"
 
 # Ollama
 export OLLAMA_API_BASE="http://localhost:11434"
+
+# LM Studio
+export LMSTUDIO_API_BASE="http://localhost:1234"
 ```
 
 ### Static Configuration
@@ -194,11 +206,14 @@ ExLLM supports these providers out of the box:
 - **:anthropic** - Anthropic Claude models
 - **:gemini** - Google Gemini models
 - **:groq** - Groq fast inference
+- **:mistral** - Mistral AI models
+- **:perplexity** - Perplexity search-enhanced models
 - **:ollama** - Local models via Ollama
+- **:lmstudio** - Local models via LM Studio
 - **:bedrock** - AWS Bedrock
 - **:openrouter** - OpenRouter (300+ models)
 - **:xai** - X.AI Grok models
-- **:local** - Local models via Bumblebee
+- **:local** - Local models via Bumblebee/EXLA
 - **:mock** - Mock adapter for testing
 
 ### Checking Provider Configuration

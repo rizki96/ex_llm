@@ -4,6 +4,13 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
 
 > ⚠️ **Alpha Quality Software**: This library is in early development. APIs may change without notice until version 1.0.0 is released. Use in production at your own risk.
 
+## What's New in v0.4.1
+
+- **Response Caching System** - Cache and replay real provider responses for testing
+- **3 New Providers** - Added support for LM Studio, Mistral AI, and Perplexity
+- **Enhanced Shared Modules** - Better error handling and response building across all providers
+- **Improved Documentation** - Updated guides with all 14 supported providers
+
 ## Features
 
 - **Unified API**: Single interface for multiple LLM providers
@@ -85,6 +92,25 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - Web search and tool use capabilities
   - Vision support on select models
 
+- **LM Studio** - Local model server with OpenAI-compatible API
+  - Any model loaded in LM Studio
+  - Automatic model discovery
+  - No API costs
+  - OpenAI-compatible endpoints
+
+- **Mistral AI** - Mistral platform models
+  - mistral-large-latest (flagship model)
+  - pixtral-large-latest (128K context)
+  - ministral-3b and ministral-8b (edge models)
+  - codestral-latest (code generation)
+  - mistral-small, mistral-embed
+
+- **Perplexity** - Search-enhanced language models
+  - sonar-reasoning (latest reasoning model)
+  - sonar-pro and sonar (search-enhanced)
+  - llama-3.1-sonar series
+  - Various open-source models
+
 - **Local Models** via Bumblebee/EXLA
   - microsoft/phi-2 (default)
   - meta-llama/Llama-2-7b-hf
@@ -96,6 +122,7 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - Configurable responses
   - Error simulation
   - Request capture
+  - Response caching integration
   - No API calls needed
 
 ## Installation
@@ -107,7 +134,10 @@ def deps do
   [
     {:ex_llm, "~> 0.4.1"},
     
-    # Optional: For local model support
+    # Optional: For structured outputs
+    {:instructor, "~> 0.1.0", optional: true},
+    
+    # Optional: For local model support via Bumblebee
     {:bumblebee, "~> 0.5", optional: true},
     {:nx, "~> 0.7", optional: true},
     {:exla, "~> 0.7", optional: true},
@@ -142,8 +172,23 @@ config :ex_llm,
     api_key: System.get_env("XAI_API_KEY"),
     base_url: "https://api.x.ai"
   ],
+  groq: [
+    api_key: System.get_env("GROQ_API_KEY"),
+    base_url: "https://api.groq.com"
+  ],
+  mistral: [
+    api_key: System.get_env("MISTRAL_API_KEY"),
+    base_url: "https://api.mistral.ai"
+  ],
+  perplexity: [
+    api_key: System.get_env("PERPLEXITY_API_KEY"),
+    base_url: "https://api.perplexity.ai"
+  ],
   ollama: [
     base_url: "http://localhost:11434"
+  ],
+  lmstudio: [
+    base_url: "http://localhost:1234"
   ],
   bedrock: [
     # AWS credentials (optional - uses credential chain by default)
@@ -176,6 +221,22 @@ IO.puts("Cost: #{ExLLM.format_cost(response.cost.total_cost)}")
 
 # Using local models (no API costs!)
 {:ok, response} = ExLLM.chat(:local, messages, model: "microsoft/phi-2")
+IO.puts(response.content)
+
+# Using LM Studio (local server)
+{:ok, response} = ExLLM.chat(:lmstudio, messages)
+IO.puts(response.content)
+
+# Using Groq for ultra-fast inference
+{:ok, response} = ExLLM.chat(:groq, messages, model: "deepseek-r1-distill-llama-70b")
+IO.puts(response.content)
+
+# Using Mistral AI
+{:ok, response} = ExLLM.chat(:mistral, messages, model: "mistral-large-latest")
+IO.puts(response.content)
+
+# Using Perplexity for search-enhanced responses
+{:ok, response} = ExLLM.chat(:perplexity, messages, model: "sonar-reasoning")
 IO.puts(response.content)
 
 # Using OpenRouter for access to many models
