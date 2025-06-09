@@ -143,12 +143,9 @@ defmodule ExLLM.EmbeddingsTest do
   describe "embeddings/3 integration" do
     setup do
       # Ensure Mock adapter is started
-      case GenServer.whereis(ExLLM.Adapters.Mock) do
-        nil ->
-          {:ok, _pid} = ExLLM.Adapters.Mock.start_link([])
-
-        _pid ->
-          :ok
+      case ExLLM.Adapters.Mock.start_link() do
+        {:ok, _pid} -> :ok
+        {:error, {:already_started, _pid}} -> :ok
       end
 
       # Configure mock adapter for embeddings

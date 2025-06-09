@@ -192,10 +192,26 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
   end
 
   defp handle_streaming_error(response, parent, opts) do
+    # Extract the actual body content, handling async responses
+    body = 
+      case response.body do
+        %Req.Response.Async{} ->
+          # For async responses, we can't get the body here
+          %{"error" => "Streaming error", "status" => response.status}
+        other ->
+          other
+      end
+    
     if error_handler = Keyword.get(opts, :on_error) do
-      error_handler.(response.status, Jason.encode!(response.body))
+      # Only encode if it's not already a string
+      body_string = 
+        case body do
+          body when is_binary(body) -> body
+          _ -> Jason.encode!(body)
+        end
+      error_handler.(response.status, body_string)
     else
-      send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+      send(parent, {:stream_error, Error.api_error(response.status, body)})
     end
   end
 

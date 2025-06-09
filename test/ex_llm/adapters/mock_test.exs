@@ -9,7 +9,7 @@ defmodule ExLLM.Adapters.MockTest do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
     end
-    
+
     # Clear any existing mock configuration
     Application.delete_env(:ex_llm, :mock_responses)
     Mock.reset()

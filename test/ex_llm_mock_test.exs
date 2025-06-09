@@ -138,6 +138,7 @@ defmodule ExLLM.MockTest do
       messages = [%{role: "user", content: "What's the weather?"}]
 
       assert {:ok, response} = ExLLM.chat(:mock, messages, functions: functions, cache: false)
+      assert response.function_call != nil
       assert response.function_call.name == "get_weather"
       assert response.function_call.arguments == ~s({"location": "San Francisco"})
     end
@@ -199,10 +200,11 @@ defmodule ExLLM.MockTest do
       messages = [%{role: "user", content: "No retry"}]
 
       assert {:error, {:network_error, "Connection failed"}} =
-               ExLLM.chat(:mock, messages, 
-                         retry: false, 
-                         cache: false,
-                         mock_error: {:network_error, "Connection failed"})
+               ExLLM.chat(:mock, messages,
+                 retry: false,
+                 cache: false,
+                 mock_error: {:network_error, "Connection failed"}
+               )
 
       # Should only have one request
       assert length(Mock.get_requests()) == 1

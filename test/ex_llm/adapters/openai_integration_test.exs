@@ -507,9 +507,10 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
 
           # Cost should be reasonable (less than $0.01 for this simple request)
           total_cost =
-            if is_map(response.cost),
-              do: response.cost.total_cost,
-              else: response.cost
+            case response.cost do
+              cost when is_map(cost) -> cost.total_cost
+              cost when is_float(cost) -> cost
+            end
 
           assert total_cost < 0.01
 

@@ -747,11 +747,14 @@ defmodule ExLLM.ProviderCapabilities do
         score = length(matched_required) * 1.0 + length(matched_preferred) * 0.5
 
         # Bonus for local providers
-        score = if prefer_local and provider in [:bumblebee, :ollama], do: score + 0.5, else: score
+        score =
+          if prefer_local and provider in [:bumblebee, :ollama], do: score + 0.5, else: score
 
         # Bonus for free providers
         score =
-          if prefer_free and provider in [:bumblebee, :ollama, :mock], do: score + 0.5, else: score
+          if prefer_free and provider in [:bumblebee, :ollama, :mock],
+            do: score + 0.5,
+            else: score
 
         # Penalty for limitations
         limitation_count = map_size(info.limitations)

@@ -82,18 +82,21 @@ defmodule ExLLM.OllamaIntegrationTest do
   describe "stream_generate/2" do
     @tag :skip
     test "streams generation responses" do
-      case Ollama.stream_generate("Tell me a short story", model: "llama2") do
-        {:ok, stream} ->
-          chunks = stream |> Enum.take(5) |> Enum.to_list()
+      {:ok, stream} = Ollama.stream_generate("Tell me a short story", model: "llama2")
+      
+      try do
+        chunks = stream |> Enum.take(5) |> Enum.to_list()
 
-          assert length(chunks) > 0
+        assert length(chunks) > 0
 
-          assert Enum.all?(chunks, fn chunk ->
-                   %Types.StreamChunk{} = chunk
-                   is_binary(chunk.content)
-                 end)
-
-        {:error, _} ->
+        assert Enum.all?(chunks, fn chunk ->
+                 %Types.StreamChunk{} = chunk
+                 is_binary(chunk.content)
+               end)
+      catch
+        error ->
+          # Stream might throw an error if model is not available
+          IO.puts("Stream error (expected if model not available): #{inspect(error)}")
           :ok
       end
     end
@@ -201,17 +204,18 @@ defmodule ExLLM.OllamaIntegrationTest do
     test "pulls a small model" do
       # Only test if explicitly enabled
       if System.get_env("TEST_OLLAMA_PULL") == "true" do
-        case Ollama.pull_model("tinyllama:latest") do
-          {:ok, stream} ->
-            updates = Enum.to_list(stream)
-            assert length(updates) > 0
+        {:ok, stream} = Ollama.pull_model("tinyllama:latest")
+        
+        try do
+          updates = Enum.to_list(stream)
+          assert length(updates) > 0
 
-            # Check for expected status messages
-            statuses = Enum.map(updates, & &1["status"])
-            assert "pulling manifest" in statuses or "success" in statuses
-
-          {:error, reason} ->
-            IO.puts("Pull failed: #{inspect(reason)}")
+          # Check for expected status messages
+          statuses = Enum.map(updates, & &1["status"])
+          assert "pulling manifest" in statuses or "success" in statuses
+        catch
+          error ->
+            IO.puts("Pull failed: #{inspect(error)}")
         end
       else
         IO.puts("Skipping pull test (set TEST_OLLAMA_PULL=true to enable)")

@@ -206,38 +206,33 @@ defmodule ExLLM.BumblebeeIntegrationTest do
 
   describe "list_models/1 with Bumblebee" do
     test "returns available models including cached MLX models" do
-      case Bumblebee.list_models() do
-        {:ok, models} ->
-          assert is_list(models)
-          assert length(models) > 0
+      {:ok, models} = Bumblebee.list_models()
+      assert is_list(models)
+      assert length(models) > 0
 
-          # Each model should have proper structure
-          assert Enum.all?(models, fn model ->
-                   assert %Types.Model{} = model
-                   assert is_binary(model.id)
-                   assert is_binary(model.name)
-                   assert is_binary(model.description)
-                   assert is_integer(model.context_window)
-                   assert model.context_window > 0
-                   assert is_map(model.capabilities)
-                 end)
+      # Each model should have proper structure
+      assert Enum.all?(models, fn model ->
+               assert %Types.Model{} = model
+               assert is_binary(model.id)
+               assert is_binary(model.name)
+               assert is_binary(model.description)
+               assert is_integer(model.context_window)
+               assert model.context_window > 0
+               assert is_map(model.capabilities)
+             end)
 
-          # Should include cached MLX models
-          model_ids = Enum.map(models, & &1.id)
-          assert "giangndm/qwen2.5-omni-3b-mlx-8bit" in model_ids
-          assert "giangndm/qwen2.5-omni-7b-mlx-8bit" in model_ids
-          assert "WaveCut/QwenLong-L1-32B-mlx-4Bit" in model_ids
-          assert "black-forest-labs/FLUX.1-dev" in model_ids
+      # Should include cached MLX models
+      model_ids = Enum.map(models, & &1.id)
+      assert "giangndm/qwen2.5-omni-3b-mlx-8bit" in model_ids
+      assert "giangndm/qwen2.5-omni-7b-mlx-8bit" in model_ids
+      assert "WaveCut/QwenLong-L1-32B-mlx-4Bit" in model_ids
+      assert "black-forest-labs/FLUX.1-dev" in model_ids
 
-          # Check that multimodal models are detected correctly
-          qwen_3b = Enum.find(models, fn m -> m.id == "giangndm/qwen2.5-omni-3b-mlx-8bit" end)
-          assert "multimodal" in qwen_3b.capabilities.features
+      # Check that multimodal models are detected correctly
+      qwen_3b = Enum.find(models, fn m -> m.id == "giangndm/qwen2.5-omni-3b-mlx-8bit" end)
+      assert "multimodal" in qwen_3b.capabilities.features
 
-          IO.puts("✓ Found #{length(models)} total models including your cached MLX models")
-
-        {:error, _reason} ->
-          :ok
-      end
+      IO.puts("✓ Found #{length(models)} total models including your cached MLX models")
     end
 
     test "provides helpful error for MLX models" do
@@ -267,14 +262,9 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       messages = [%{role: "user", content: "Hi"}]
       Bumblebee.chat(messages)
 
-      case Bumblebee.list_models(verbose: true) do
-        {:ok, models} ->
-          # With verbose, might include load status
-          assert is_list(models)
-
-        {:error, _reason} ->
-          :ok
-      end
+      {:ok, models} = Bumblebee.list_models(verbose: true)
+      # With verbose, might include load status
+      assert is_list(models)
     end
   end
 
@@ -296,15 +286,10 @@ defmodule ExLLM.BumblebeeIntegrationTest do
     @tag :skip
     test "detects and uses available acceleration" do
       # This test would check actual hardware acceleration
-      case Bumblebee.list_models(verbose: true) do
-        {:ok, _models} ->
-          # In real scenario, would check acceleration info
-          # For now, just ensure it doesn't crash
-          assert true
-
-        _ ->
-          :ok
-      end
+      {:ok, _models} = Bumblebee.list_models(verbose: true)
+      # In real scenario, would check acceleration info
+      # For now, just ensure it doesn't crash
+      assert true
     end
 
     @tag :skip

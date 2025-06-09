@@ -344,12 +344,14 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
 
       case OpenRouter.chat(messages, functions: functions, function_call: "auto") do
         {:ok, response} ->
-          if function_call = response.function_call do
-            assert function_call.name == "calculate"
-            assert Map.has_key?(function_call.arguments, "expression")
-          else
-            # Model might answer directly
-            assert response.content =~ "100"
+          case response.function_call do
+            nil ->
+              # Model might answer directly
+              assert response.content =~ "100"
+            
+            function_call ->
+              assert function_call.name == "calculate"
+              assert Map.has_key?(function_call.arguments, "expression")
           end
 
         {:error, _} ->
@@ -585,14 +587,16 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       case OpenRouter.chat(messages, model: "openai/gpt-3.5-turbo", max_tokens: 10) do
         {:ok, response} ->
           if response.cost do
-            assert (is_float(response.cost) and response.cost > 0) or
-                     (is_map(response.cost) and response.cost.total_cost > 0)
+            has_cost = case response.cost do
+              %{total_cost: total_cost} when is_number(total_cost) -> total_cost > 0
+              _ -> false
+            end
+            assert has_cost
 
             # Cost should be reasonable
             total_cost =
               case response.cost do
-                cost when is_map(cost) -> cost.total_cost
-                cost when is_float(cost) -> cost
+                %{total_cost: tc} -> tc
                 _ -> 0
               end
 
@@ -618,9 +622,10 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
               {:ok, response} ->
                 if cost = response.cost do
                   total_cost =
-                    if is_map(cost),
-                      do: cost.total_cost,
-                      else: cost
+                    case cost do
+                      %{total_cost: tc} -> tc
+                      _ -> 0
+                    end
 
                   assert total_cost == 0
                 end
