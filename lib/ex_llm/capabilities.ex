@@ -255,10 +255,17 @@ defmodule ExLLM.Capabilities do
 
       # Check if this string form exists in our mappings
       case Map.get(@capability_mappings, feature_string) do
-        nil -> 
-          # Return the original atom if it's already an atom, otherwise return nil
-          if is_atom(feature), do: feature, else: nil
-        mapped -> 
+        nil ->
+          # Check if it's already a normalized capability name
+          feature_atom = String.to_atom(feature_string)
+          if feature_atom in Map.keys(@display_names) do
+            feature_atom
+          else
+            # Return the original atom if it's already an atom, otherwise return nil
+            if is_atom(feature), do: feature, else: nil
+          end
+
+        mapped ->
           mapped
       end
     end

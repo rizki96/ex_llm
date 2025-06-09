@@ -232,6 +232,12 @@ defmodule ExLLM.ModelCapabilitiesTest do
   end
 
   describe "integration with main API" do
+    setup do
+      # Reload config to pick up any YAML changes
+      ExLLM.ModelConfig.reload_config()
+      :ok
+    end
+
     test "get_model_info/2 works through ExLLM" do
       assert {:ok, info} = ExLLM.get_model_info(:openai, "gpt-4-turbo")
       assert info.display_name == "GPT-4 Turbo"

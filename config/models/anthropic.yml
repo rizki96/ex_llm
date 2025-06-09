@@ -96,6 +96,7 @@ models:
     capabilities:
     - streaming
     - system_messages
+    - vision
     - json_mode
     - xml_mode
     - structured_outputs

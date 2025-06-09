@@ -148,6 +148,7 @@ defmodule ExLLM.ModelCapabilities do
               cap when is_binary(cap) ->
                 # Handle string capabilities from YAML safely
                 atom_cap = normalize_capability_string(cap)
+
                 if atom_cap do
                   {atom_cap, %Capability{feature: atom_cap, supported: true}}
                 else

@@ -469,18 +469,26 @@ defmodule ExLLM.ResponseCache do
   defp atomize_keys(list) when is_list(list) do
     Enum.map(list, &atomize_keys/1)
   end
-  
+
   defp atomize_keys(value), do: value
 
   # Safe atomization of known cache entry keys
   defp safe_atomize_cache_key(key) when is_binary(key) do
     case key do
+      # CacheEntry struct fields
+      "request_hash" -> :request_hash
+      "provider" -> :provider
+      "endpoint" -> :endpoint
+      "request_data" -> :request_data
+      "response_data" -> :response_data
+      "cached_at" -> :cached_at
+      "model" -> :model
+      "response_time_ms" -> :response_time_ms
+      # Common fields in request/response data
       "key" -> :key
       "response" -> :response
       "timestamp" -> :timestamp
       "metadata" -> :metadata
-      "provider" -> :provider
-      "model" -> :model
       "messages" -> :messages
       "content" -> :content
       "role" -> :role
@@ -493,6 +501,18 @@ defmodule ExLLM.ResponseCache do
       "finish_reason" -> :finish_reason
       "function_call" -> :function_call
       "tool_calls" -> :tool_calls
+      # OpenAI/Compatible format fields
+      "choices" -> :choices
+      "message" -> :message
+      "prompt_tokens" -> :prompt_tokens
+      "completion_tokens" -> :completion_tokens
+      # Anthropic format fields
+      "stop_reason" -> :stop_reason
+      "text" -> :text
+      # Ollama format fields
+      "done" -> :done
+      "prompt_eval_count" -> :prompt_eval_count
+      "eval_count" -> :eval_count
       # Keep as string if not a known key
       _ -> key
     end

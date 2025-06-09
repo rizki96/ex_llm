@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] - 2025-06-08
+
 ### Added
 - **Response Caching System** - Cache real provider responses for offline testing and development
   - **Automatic Response Collection**: All provider responses automatically cached when enabled
@@ -18,6 +20,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Realistic Testing**: Use authentic provider responses in tests without API calls
   - **Streaming Support**: Cache and replay streaming responses with exact chunk reproduction
   - **Cross-Provider Testing**: Test application compatibility across different provider response formats
+
+### Changed
+- Enhanced shared response builder to support more response formats (completion, image, audio, moderation)
+- Extended HTTP client with provider-specific headers for 15+ providers
+- Improved error handling with normalization and retry logic for multiple providers
+
+### Fixed
+- Fixed pre-push hook to exclude integration tests preventing timeouts
+- Fixed unsafe String.to_atom usage throughout codebase (Sobelow warnings)
+- Fixed length() > 0 warnings by using pattern matching
+- Fixed typing warnings for potentially nil values
+- Fixed ModelConfig runtime path resolution for test environment
+- Fixed ResponseCache JSON key atomization for proper cache loading
+- Fixed capability normalization to handle already-normalized capability names
+- Added missing model capabilities (vision for Claude-3-Opus, reasoning for XAI models)
 
 ## [0.4.0] - 2025-06-06
 

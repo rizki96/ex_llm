@@ -13,7 +13,19 @@ defmodule ExLLM.ModelConfig do
 
   alias ExLLM.Logger
 
-  @config_dir Path.join([File.cwd!(), "config", "models"])
+  # Get the config directory path
+  defp config_dir do
+    # Try to find the config directory relative to the current file
+    case File.exists?("config/models") do
+      true ->
+        Path.expand("config/models")
+      false ->
+        # Fallback: look for it relative to the compiled beam file
+        :code.priv_dir(:ex_llm)
+        |> Path.join("../../config/models")
+        |> Path.expand()
+    end
+  end
   @providers [
     :anthropic,
     :openai,
@@ -23,7 +35,9 @@ defmodule ExLLM.ModelConfig do
     :bedrock,
     :mistral,
     :perplexity,
-    :bumblebee
+    :bumblebee,
+    :lmstudio,
+    :xai
   ]
 
   # Cache configuration to avoid repeated file reads
@@ -304,13 +318,19 @@ defmodule ExLLM.ModelConfig do
   end
 
   defp load_provider_config(provider) do
-    config_file = Path.join(@config_dir, "#{provider}.yml")
+    config_file = Path.join(config_dir(), "#{provider}.yml")
+    
+    Logger.debug("Loading config for #{provider} from #{config_file}")
+    Logger.debug("File exists? #{File.exists?(config_file)}")
 
     if File.exists?(config_file) do
       case YamlElixir.read_from_file(config_file) do
         {:ok, config} ->
+          Logger.debug("Loaded YAML config for #{provider}, keys: #{inspect(Map.keys(config))}")
           # Convert string keys to atoms for easier access
-          normalize_config(config)
+          normalized = normalize_config(config)
+          Logger.debug("Normalized config keys: #{inspect(Map.keys(normalized))}")
+          normalized
 
         {:error, reason} ->
           Logger.warn("Failed to load model config for #{provider}: #{inspect(reason)}")
@@ -342,6 +362,11 @@ defmodule ExLLM.ModelConfig do
   defp safe_atomize_key(key) when is_binary(key) do
     # Known top-level and nested keys in model configs
     case key do
+      # Top-level config fields
+      "provider" -> :provider
+      "default_model" -> :default_model
+      "models" -> :models
+      "metadata" -> :metadata
       # Top-level model fields
       "name" -> :name
       "context_window" -> :context_window
@@ -354,11 +379,9 @@ defmodule ExLLM.ModelConfig do
       "supports_streaming" -> :supports_streaming
       "supports_tools" -> :supports_tools
       "features" -> :features
-      
       # Pricing fields
       "input" -> :input
       "output" -> :output
-      
       # Capability fields  
       "vision" -> :vision
       "function_calling" -> :function_calling
@@ -366,11 +389,9 @@ defmodule ExLLM.ModelConfig do
       "embeddings" -> :embeddings
       "audio" -> :audio
       "tools" -> :tools
-      
       # Feature flags
       "supported" -> :supported
       "formats" -> :formats
-      
       # Keep model IDs as strings since they're dynamic
       _ -> key
     end

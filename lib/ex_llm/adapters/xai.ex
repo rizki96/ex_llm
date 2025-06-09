@@ -183,9 +183,12 @@ defmodule ExLLM.Adapters.XAI do
                 "vision" -> :vision
                 "audio" -> :audio
                 "embeddings" -> :embeddings
+                "reasoning" -> :reasoning
                 _ -> nil
               end
-            cap when is_atom(cap) -> cap
+
+            cap when is_atom(cap) ->
+              cap
           end)
           |> Enum.filter(&(&1 != nil))
 
