@@ -36,7 +36,7 @@ defmodule ExLLM.MixProject do
   defp package do
     [
       name: "ex_llm",
-      files: ~w(lib .formatter.exs mix.exs README.md LICENSE CHANGELOG.md),
+      files: ~w(lib docs .formatter.exs mix.exs README.md LICENSE CHANGELOG.md),
       licenses: ["MIT"],
       links: %{
         "GitHub" => "https://github.com/azmaveth/ex_llm",
