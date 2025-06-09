@@ -101,7 +101,7 @@ This represents a significant maturity milestone for the ExLLM codebase, ensurin
   - [x] Complete refactoring from Local to Bumblebee naming
   - [x] Split tests into unit and integration for consistency
   - [x] Updated all references throughout codebase
-  - [x] Maintained backward compatibility with :local alias
+  - [x] **BREAKING:** Removed :local alias completely (use :bumblebee instead)
   - [x] Added model configuration in config/models/bumblebee.yml
   - [x] Fixed ModelLoader references
 

@@ -8,8 +8,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **BREAKING:** Renamed `:local` provider atom to `:bumblebee` for clarity
+  - All references to `:local` in code and documentation have been updated
+  - Update any code using `ExLLM.chat(:local, ...)` to `ExLLM.chat(:bumblebee, ...)`
 - Excluded `emlx` dependency from Hex package until it's published
 - Updated README with instructions for adding `emlx` manually for Apple Silicon support
+- Updated documentation to clarify that `instructor`, `bumblebee`, and `nx` are required dependencies
+- Clarified that `exla` and `emlx` are optional hardware acceleration backends
+
+### Fixed
+- Mock adapter now properly checks for `mock_error` option in chat function
 
 ## [0.4.1] - 2025-06-08
 
