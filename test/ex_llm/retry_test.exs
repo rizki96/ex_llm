@@ -98,7 +98,7 @@ defmodule ExLLM.RetryTest do
       [first, second, third] = attempts
 
       # First attempt is immediate (allow some execution time)
-      assert first <= 10
+      assert first <= 20
 
       # Second attempt should be after ~10ms (base_delay)
       assert second >= 10

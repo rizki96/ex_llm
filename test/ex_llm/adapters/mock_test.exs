@@ -285,17 +285,18 @@ defmodule ExLLM.Adapters.MockTest do
     setup do
       # Ensure Mock adapter is started
       case GenServer.whereis(ExLLM.Adapters.Mock) do
-        nil -> 
+        nil ->
           {:ok, _pid} = ExLLM.Adapters.Mock.start_link([])
-        _pid -> 
+
+        _pid ->
           :ok
       end
-      
+
       on_exit(fn ->
         # Clear any mock configuration
         Application.delete_env(:ex_llm, :mock_responses)
       end)
-      
+
       :ok
     end
 
