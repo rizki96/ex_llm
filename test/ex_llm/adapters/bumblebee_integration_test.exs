@@ -30,10 +30,10 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   end
 
   describe "chat/2 with real models" do
-    test "generates response with default Phi-2 model" do
+    test "generates response with default Phi-4 model" do
       messages = [%{role: "user", content: "What is 2+2? Answer briefly."}]
 
-      result = Bumblebee.chat(messages, model: "microsoft/phi-2")
+      result = Bumblebee.chat(messages, model: "microsoft/phi-4")
 
       case result do
         {:ok, response} ->
@@ -42,8 +42,8 @@ defmodule ExLLM.BumblebeeIntegrationTest do
           assert response.content != ""
           assert response.usage.input_tokens > 0
           assert response.usage.output_tokens > 0
-          assert response.model == "microsoft/phi-2"
-          IO.puts("✓ Phi-2 response: #{response.content}")
+          assert response.model == "microsoft/phi-4"
+          IO.puts("✓ Phi-4 response: #{response.content}")
 
         {:error, reason} ->
           IO.puts("Bumblebee error: #{inspect(reason)}")
@@ -58,12 +58,12 @@ defmodule ExLLM.BumblebeeIntegrationTest do
     test "generates response with specific model" do
       messages = [%{role: "user", content: "Hello, how are you?"}]
 
-      result = Bumblebee.chat(messages, model: "EleutherAI/gpt-neo-1.3B")
+      result = Bumblebee.chat(messages, model: "Qwen/Qwen3-1.7B")
 
       case result do
         {:ok, response} ->
           assert %Types.LLMResponse{} = response
-          assert response.model == "EleutherAI/gpt-neo-1.3B"
+          assert response.model == "Qwen/Qwen3-1.7B"
           assert String.length(response.content) > 0
 
         {:error, _reason} ->
@@ -330,7 +330,7 @@ defmodule ExLLM.BumblebeeIntegrationTest do
 
     @tag :skip
     test "handles multiple models in memory" do
-      models = ["microsoft/phi-2", "EleutherAI/gpt-neo-1.3B"]
+      models = ["microsoft/phi-4", "Qwen/Qwen3-1.7B"]
       messages = [%{role: "user", content: "Test"}]
 
       # Load multiple models
@@ -387,9 +387,9 @@ defmodule ExLLM.BumblebeeIntegrationTest do
     @tag :skip
     test "handles models with different token formats" do
       test_cases = [
-        {"microsoft/phi-2", "Test prompt"},
-        {"mistralai/Mistral-7B-v0.1", "Test prompt"},
-        {"google/flan-t5-base", "Test prompt"}
+        {"microsoft/phi-4", "Test prompt"},
+        {"mistralai/Mistral-Small-24B", "Test prompt"},
+        {"google/gemma-3-4b", "Test prompt"}
       ]
 
       for {model, prompt} <- test_cases do

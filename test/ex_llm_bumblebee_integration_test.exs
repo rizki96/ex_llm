@@ -10,7 +10,7 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
     end
 
     test "default model is available" do
-      assert ExLLM.default_model(:bumblebee) == "microsoft/phi-2"
+      assert ExLLM.default_model(:bumblebee) == "microsoft/phi-4"
     end
 
     test "configured? returns false without Bumblebee" do
@@ -47,7 +47,7 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
       prepared =
         ExLLM.prepare_messages(messages,
           provider: "bumblebee",
-          model: "microsoft/phi-2",
+          model: "microsoft/phi-4",
           max_tokens: 1000
         )
 

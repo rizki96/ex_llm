@@ -112,11 +112,17 @@ A unified Elixir client for Large Language Models with integrated cost tracking,
   - Various open-source models
 
 - **Bumblebee** - Local model inference
-  - microsoft/phi-2 (default)
-  - meta-llama/Llama-2-7b-hf
-  - mistralai/Mistral-7B-v0.1
-  - EleutherAI/gpt-neo-1.3B
-  - google/flan-t5-base
+  - microsoft/phi-4 (14B params, default)
+  - meta-llama/Llama-3.3-70B
+  - meta-llama/Llama-3.2-3B
+  - meta-llama/Llama-3.1-8B
+  - mistralai/Mistral-Small-24B
+  - google/gemma-3-4b
+  - google/gemma-3-12b
+  - google/gemma-3-27b
+  - Qwen/Qwen3-1.7B
+  - Qwen/Qwen3-8B
+  - Qwen/Qwen3-14B
 
 - **Mock Adapter** - For testing and development
   - Configurable responses
@@ -220,7 +226,7 @@ IO.puts(response.content)
 IO.puts("Cost: #{ExLLM.format_cost(response.cost.total_cost)}")
 
 # Using Bumblebee for local models (no API costs!)
-{:ok, response} = ExLLM.chat(:bumblebee, messages, model: "microsoft/phi-2")
+{:ok, response} = ExLLM.chat(:bumblebee, messages, model: "microsoft/phi-4")
 IO.puts(response.content)
 
 # Using LM Studio (local server)
@@ -612,7 +618,7 @@ end)
 
 ### Supported Pricing
 
-ExLLM includes pricing data (as of January 2025) in external YAML files for all supported providers:
+ExLLM includes pricing data (as of June 2025) in external YAML files for all supported providers:
 - **Anthropic**: Claude 3 series (Opus, Sonnet, Haiku), Claude 3.5, Claude 4
 - **OpenAI**: GPT-4, GPT-4 Turbo, GPT-3.5 Turbo, GPT-4o series  
 - **OpenRouter**: 300+ models with dynamic pricing
@@ -1228,11 +1234,17 @@ config :nx, :default_backend, EMLX.Backend
 
 ### Available Models
 
-- **microsoft/phi-2** - Phi-2 (2.7B parameters) - Default
-- **meta-llama/Llama-2-7b-hf** - Llama 2 (7B)
-- **mistralai/Mistral-7B-v0.1** - Mistral (7B)
-- **EleutherAI/gpt-neo-1.3B** - GPT-Neo (1.3B)
-- **google/flan-t5-base** - Flan-T5 Base
+- **microsoft/phi-4** - Phi-4 (14B parameters) - Default
+- **meta-llama/Llama-3.3-70B** - Llama 3.3 (70B, performance of 405B)
+- **meta-llama/Llama-3.2-3B** - Llama 3.2 (3B, efficient for edge)
+- **meta-llama/Llama-3.1-8B** - Llama 3.1 (8B)
+- **mistralai/Mistral-Small-24B** - Mistral Small (24B)
+- **google/gemma-3-4b** - Gemma 3 (4B, multimodal)
+- **google/gemma-3-12b** - Gemma 3 (12B, multimodal)
+- **google/gemma-3-27b** - Gemma 3 (27B, multimodal)
+- **Qwen/Qwen3-1.7B** - Qwen3 (1.7B, multilingual)
+- **Qwen/Qwen3-8B** - Qwen3 (8B)
+- **Qwen/Qwen3-14B** - Qwen3 (14B)
 
 ### Usage
 
@@ -1245,7 +1257,7 @@ messages = [
   %{role: "user", content: "Explain quantum computing in simple terms"}
 ]
 
-{:ok, response} = ExLLM.chat(:bumblebee, messages, model: "microsoft/phi-2")
+{:ok, response} = ExLLM.chat(:bumblebee, messages, model: "microsoft/phi-4")
 IO.puts(response.content)
 
 # Stream responses

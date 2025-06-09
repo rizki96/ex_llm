@@ -1,48 +1,105 @@
 provider: bumblebee
 models:
-  microsoft/phi-2:
-    context_window: 2048
-    max_output_tokens: 2048
+  microsoft/phi-4:
+    context_window: 16000
+    max_output_tokens: 16000
     pricing:
       input: 0.0
       output: 0.0
     capabilities:
     - streaming
     - local_inference
-  meta-llama/Llama-2-7b-hf:
-    context_window: 4096
-    max_output_tokens: 4096
+  meta-llama/Llama-3.3-70B:
+    context_window: 128000
+    max_output_tokens: 128000
     pricing:
       input: 0.0
       output: 0.0
     capabilities:
     - streaming
     - local_inference
-  mistralai/Mistral-7B-v0.1:
-    context_window: 8192
-    max_output_tokens: 8192
+  meta-llama/Llama-3.2-3B:
+    context_window: 128000
+    max_output_tokens: 128000
     pricing:
       input: 0.0
       output: 0.0
     capabilities:
     - streaming
     - local_inference
-  EleutherAI/gpt-neo-1.3B:
-    context_window: 2048
-    max_output_tokens: 2048
+  meta-llama/Llama-3.1-8B:
+    context_window: 128000
+    max_output_tokens: 128000
     pricing:
       input: 0.0
       output: 0.0
     capabilities:
     - streaming
     - local_inference
-  google/flan-t5-base:
-    context_window: 512
-    max_output_tokens: 512
+  mistralai/Mistral-Small-24B:
+    context_window: 32000
+    max_output_tokens: 32000
     pricing:
       input: 0.0
       output: 0.0
     capabilities:
     - streaming
     - local_inference
-default_model: microsoft/phi-2
+  google/gemma-3-4b:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+    - vision
+  google/gemma-3-12b:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+    - vision
+  google/gemma-3-27b:
+    context_window: 128000
+    max_output_tokens: 128000
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+    - vision
+  Qwen/Qwen3-1.7B:
+    context_window: 32768
+    max_output_tokens: 32768
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+  Qwen/Qwen3-8B:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+  Qwen/Qwen3-14B:
+    context_window: 131072
+    max_output_tokens: 131072
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+default_model: microsoft/phi-4

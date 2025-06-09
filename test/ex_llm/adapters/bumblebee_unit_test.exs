@@ -17,8 +17,8 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "default_model/0" do
-    test "returns microsoft/phi-2 as default" do
-      assert Bumblebee.default_model() == "microsoft/phi-2"
+    test "returns microsoft/phi-4 as default" do
+      assert Bumblebee.default_model() == "microsoft/phi-4"
     end
   end
 
@@ -129,11 +129,17 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       assert %Types.Model{} = model
 
       assert model.id in [
-               "microsoft/phi-2",
-               "meta-llama/Llama-2-7b-hf",
-               "mistralai/Mistral-7B-v0.1",
-               "EleutherAI/gpt-neo-1.3B",
-               "google/flan-t5-base"
+               "microsoft/phi-4",
+               "meta-llama/Llama-3.3-70B",
+               "meta-llama/Llama-3.2-3B",
+               "meta-llama/Llama-3.1-8B",
+               "mistralai/Mistral-Small-24B",
+               "google/gemma-3-4b",
+               "google/gemma-3-12b",
+               "google/gemma-3-27b",
+               "Qwen/Qwen3-1.7B",
+               "Qwen/Qwen3-8B",
+               "Qwen/Qwen3-14B"
              ]
 
       assert is_binary(model.name)
@@ -153,11 +159,17 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   describe "model handling" do
     test "available models constant is defined" do
       models = [
-        "microsoft/phi-2",
-        "meta-llama/Llama-2-7b-hf",
-        "mistralai/Mistral-7B-v0.1",
-        "EleutherAI/gpt-neo-1.3B",
-        "google/flan-t5-base"
+        "microsoft/phi-4",
+        "meta-llama/Llama-3.3-70B",
+        "meta-llama/Llama-3.2-3B",
+        "meta-llama/Llama-3.1-8B",
+        "mistralai/Mistral-Small-24B",
+        "google/gemma-3-4b",
+        "google/gemma-3-12b",
+        "google/gemma-3-27b",
+        "Qwen/Qwen3-1.7B",
+        "Qwen/Qwen3-8B",
+        "Qwen/Qwen3-14B"
       ]
 
       # Each model should be a valid string
@@ -240,7 +252,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       messages = [%{role: "user", content: "test"}]
 
       model_opts = [
-        model: "EleutherAI/gpt-neo-1.3B",
+        model: "Qwen/Qwen3-1.7B",
         compile: true,
         cache_dir: "/tmp/models"
       ]

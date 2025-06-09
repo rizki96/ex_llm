@@ -222,14 +222,16 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
 
           # Check if function was called
           # Note: function calls may be in metadata or tool_calls for streaming
-          function_chunks = Enum.filter(chunks, fn chunk ->
-            (chunk.metadata && Map.get(chunk.metadata, "function_call")) ||
-            (chunk.metadata && Map.get(chunk.metadata, "tool_calls"))
-          end)
+          function_chunks =
+            Enum.filter(chunks, fn chunk ->
+              (chunk.metadata && Map.get(chunk.metadata, "function_call")) ||
+                (chunk.metadata && Map.get(chunk.metadata, "tool_calls"))
+            end)
 
           if length(function_chunks) > 0 do
             # Function calls might be in metadata for streaming
             chunk_metadata = hd(function_chunks).metadata
+
             if function_call = Map.get(chunk_metadata, "function_call") do
               assert function_call["name"] == "get_weather"
             end
