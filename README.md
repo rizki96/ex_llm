@@ -1297,13 +1297,13 @@ ExLLM automatically detects and uses available hardware acceleration:
 
 ```elixir
 # Pre-load a model
-{:ok, _} = ExLLM.Local.ModelLoader.load_model("microsoft/phi-2")
+{:ok, _} = ExLLM.Local.ModelLoader.load_model("Qwen/Qwen3-0.6B")
 
 # Load from local path
 {:ok, _} = ExLLM.Local.ModelLoader.load_model("/path/to/model")
 
 # Unload to free memory
-:ok = ExLLM.Local.ModelLoader.unload_model("microsoft/phi-2")
+:ok = ExLLM.Local.ModelLoader.unload_model("Qwen/Qwen3-0.6B")
 
 # List loaded models
 loaded = ExLLM.Local.ModelLoader.list_loaded_models()

@@ -17,8 +17,8 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "default_model/0" do
-    test "returns microsoft/phi-4 as default" do
-      assert Bumblebee.default_model() == "microsoft/phi-4"
+    test "returns Qwen/Qwen3-0.6B as default" do
+      assert Bumblebee.default_model() == "Qwen/Qwen3-0.6B"
     end
   end
 

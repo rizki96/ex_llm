@@ -100,7 +100,7 @@ defmodule ExLLM.Adapters.Bumblebee do
 
   @impl true
   def default_model do
-    "microsoft/phi-2"
+    "Qwen/Qwen3-0.6B"
   end
 
   @impl true
