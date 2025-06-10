@@ -56,22 +56,22 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
     test "validates temperature parameter" do
       messages = [%{role: "user", content: "Test"}]
 
-      # Invalid temperature
-      assert {:error, msg} = Bumblebee.chat(messages, temperature: 3.0)
+      # Invalid temperature - use a model that's available
+      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", temperature: 3.0)
       assert msg =~ "Temperature must be between 0 and 2"
 
-      assert {:error, msg} = Bumblebee.chat(messages, temperature: -1)
+      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", temperature: -1)
       assert msg =~ "Temperature must be between 0 and 2"
     end
 
     test "validates max_tokens parameter" do
       messages = [%{role: "user", content: "Test"}]
 
-      # Invalid max_tokens
-      assert {:error, msg} = Bumblebee.chat(messages, max_tokens: -100)
+      # Invalid max_tokens - use a model that's available
+      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", max_tokens: -100)
       assert msg =~ "Max tokens must be a positive integer"
 
-      assert {:error, msg} = Bumblebee.chat(messages, max_tokens: "not a number")
+      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", max_tokens: "not a number")
       assert msg =~ "Max tokens must be a positive integer"
     end
 
