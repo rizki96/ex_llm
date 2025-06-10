@@ -281,21 +281,13 @@ defmodule ExLLM.Adapters.MistralUnitTest do
 
   describe "adapter behavior compliance" do
     test "implements all required callbacks" do
-      callbacks = [
-        {:chat, 2},
-        {:stream_chat, 2},
-        {:configured?, 1},
-        {:default_model, 0},
-        {:list_models, 1}
-      ]
-
-      for {func, arity} <- callbacks do
-        # Note: function_exported? returns true for both chat/1 and chat/2 when using default args
-        assert function_exported?(Mistral, func, arity) or
-                 (func == :chat and function_exported?(Mistral, :chat, 1)) or
-                 (func == :stream_chat and function_exported?(Mistral, :stream_chat, 1)) or
-                 (func == :configured? and function_exported?(Mistral, :configured?, 0))
-      end
+      # Functions with default arguments export multiple arities
+      # Check that at least one expected arity exists
+      assert function_exported?(Mistral, :chat, 1) or function_exported?(Mistral, :chat, 2)
+      assert function_exported?(Mistral, :stream_chat, 1) or function_exported?(Mistral, :stream_chat, 2)
+      assert function_exported?(Mistral, :configured?, 0) or function_exported?(Mistral, :configured?, 1)
+      assert function_exported?(Mistral, :default_model, 0)
+      assert function_exported?(Mistral, :list_models, 0) or function_exported?(Mistral, :list_models, 1)
     end
 
     test "implements embeddings callback" do

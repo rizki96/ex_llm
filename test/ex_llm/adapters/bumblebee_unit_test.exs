@@ -71,7 +71,9 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", max_tokens: -100)
       assert msg =~ "Max tokens must be a positive integer"
 
-      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", max_tokens: "not a number")
+      assert {:error, msg} =
+               Bumblebee.chat(messages, model: "microsoft/phi-2", max_tokens: "not a number")
+
       assert msg =~ "Max tokens must be a positive integer"
     end
 
