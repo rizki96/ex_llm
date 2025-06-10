@@ -706,4 +706,104 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     custom_headers = Keyword.get(opts, :custom_headers, [])
     headers ++ custom_headers
   end
+
+  @doc """
+  Make a multipart form POST request to upload files.
+
+  ## Parameters
+  - `url` - The endpoint URL
+  - `form_data` - A keyword list of form fields, where file fields are {:file, path}
+  - `headers` - Request headers
+  - `opts` - Additional options
+
+  ## Examples
+
+      HTTPClient.post_multipart(
+        "https://api.openai.com/v1/files",
+        [
+          purpose: "fine-tune",
+          file: {:file, "/path/to/file.jsonl"}
+        ],
+        [{"Authorization", "Bearer sk-..."}]
+      )
+  """
+  @spec post_multipart(String.t(), keyword(), list({String.t(), String.t()}), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def post_multipart(url, form_data, headers, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    provider = Keyword.get(opts, :provider, :unknown)
+
+    # Prepare multipart form
+    multipart =
+      Enum.map(form_data, fn
+        {field, {:file, path}} ->
+          # For file fields, read the file and create a file part
+          case File.read(path) do
+            {:ok, content} ->
+              filename = Path.basename(path)
+              {to_string(field), {content, [filename: filename]}}
+
+            {:error, reason} ->
+              throw({:file_read_error, path, reason})
+          end
+
+        {field, value} when is_binary(value) ->
+          # Binary data (for upload parts)
+          {to_string(field), value}
+          
+        {field, value} ->
+          # Regular form fields
+          {to_string(field), to_string(value)}
+      end)
+
+    # Remove Content-Type from headers as Req will set it with boundary
+    headers = List.keydelete(headers, "Content-Type", 0)
+    headers = prepare_headers(headers)
+
+    # Log request
+    Logger.log_request(provider, url, %{multipart: true, fields: Keyword.keys(form_data)}, headers)
+
+    req_opts = [
+      headers: headers,
+      receive_timeout: timeout,
+      form_multipart: multipart
+    ]
+
+    start_time = System.monotonic_time(:millisecond)
+
+    result = Req.post(url, req_opts)
+    duration = System.monotonic_time(:millisecond) - start_time
+
+    case result do
+      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
+        # Log successful response
+        Logger.log_response(provider, %{status: status, body: response_body}, duration)
+        {:ok, response_body}
+
+      {:ok, %{status: status, body: response_body}} ->
+        # Log error response
+        Logger.error("API error response",
+          provider: provider,
+          status: status,
+          body: response_body,
+          duration_ms: duration
+        )
+
+        handle_error_response(status, response_body)
+
+      {:error, reason} ->
+        # Log connection error
+        Logger.error("Connection error",
+          provider: provider,
+          error: reason,
+          duration_ms: duration
+        )
+
+        Error.connection_error(reason)
+    end
+  catch
+    {:file_read_error, path, reason} ->
+      Logger.error("File read error", path: path, error: reason)
+      {:error, reason}
+  end
 end
