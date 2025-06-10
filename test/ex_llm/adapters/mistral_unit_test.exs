@@ -304,7 +304,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
       # Debug: Check what functions are exported
       functions = ExLLM.Adapters.Mistral.__info__(:functions)
       embeddings_funcs = Enum.filter(functions, fn {name, _} -> name == :embeddings end)
-      
+
       # The test should pass because Mistral does implement embeddings
       assert length(embeddings_funcs) > 0
     end
