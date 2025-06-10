@@ -934,7 +934,7 @@ defmodule ExLLM.Adapters.OpenAI do
 
   @doc """
   Upload a file to OpenAI for use with assistants or other endpoints.
-  
+
   ## Parameters
   - `file_path` - Path to the file to upload
   - `purpose` - The intended purpose of the file. Supported values:
@@ -948,15 +948,15 @@ defmodule ExLLM.Adapters.OpenAI do
     - `"user_data"` - Flexible file type for any purpose
     - `"evals"` - For evaluation datasets
   - `options` - Additional options including config_provider
-  
+
   ## Examples
-  
+
       {:ok, file} = OpenAI.upload_file("/path/to/data.jsonl", "fine-tune")
       file["id"] # => "file-abc123"
       file["expires_at"] # => 1680202602
-  
+
   ## File Object Structure
-  
+
   The returned file object contains:
   - `"id"` - The file identifier (e.g., "file-abc123")
   - `"object"` - Always "file"
@@ -977,36 +977,36 @@ defmodule ExLLM.Adapters.OpenAI do
          {:ok, _} <- validate_file_purpose(purpose) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/files"
-      
+
       form_data = [
         purpose: purpose,
         file: {:file, file_path}
       ]
-      
+
       case HTTPClient.post_multipart(url, form_data, headers, timeout: 60_000, provider: :openai) do
         {:ok, response} ->
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   @doc """
   List all uploaded files.
-  
+
   ## Options
   - `:after` - Cursor for pagination (object ID)
   - `:limit` - Number of objects to return (1-10000, default: 10000)
   - `:order` - Sort order: "asc" or "desc" (default: "desc")
   - `:purpose` - Filter by file purpose
-  
+
   ## Examples
-  
+
       # List all files
       {:ok, files} = OpenAI.list_files()
       
@@ -1020,24 +1020,24 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/files"
-      
+
       # Build query parameters according to API spec
       query_params = []
-      
+
       # Add pagination cursor
-      query_params = 
+      query_params =
         if after_cursor = Keyword.get(options, :after) do
           [{"after", after_cursor} | query_params]
         else
           query_params
         end
-      
+
       # Add limit (1-10000, default 10000)
-      query_params = 
+      query_params =
         if limit = Keyword.get(options, :limit) do
           # Validate limit range
           limit = max(1, min(limit, 10_000))
@@ -1045,46 +1045,50 @@ defmodule ExLLM.Adapters.OpenAI do
         else
           query_params
         end
-      
+
       # Add order (asc/desc, default desc)
-      query_params = 
+      query_params =
         if order = Keyword.get(options, :order) do
           order = if order in ["asc", "desc"], do: order, else: "desc"
           [{"order", order} | query_params]
         else
           query_params
         end
-      
+
       # Add purpose filter
-      query_params = 
+      query_params =
         if purpose = Keyword.get(options, :purpose) do
           [{"purpose", purpose} | query_params]
         else
           query_params
         end
-      
+
       # Build final URL with query string
-      url = 
+      url =
         if query_params != [] do
           url <> "?" <> URI.encode_query(query_params)
         else
           url
         end
-      
-      case HTTPClient.post_json(url, %{}, headers, method: :get, timeout: 30_000, provider: :openai) do
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
         {:ok, response} ->
           # Response should have "data" array and "object": "list"
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   @doc """
   Get metadata for a specific file.
   """
@@ -1092,24 +1096,28 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/files/#{file_id}"
-      
-      case HTTPClient.post_json(url, %{}, headers, method: :get, timeout: 30_000, provider: :openai) do
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
         {:ok, response} ->
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   @doc """
   Delete an uploaded file.
   """
@@ -1117,24 +1125,28 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/files/#{file_id}"
-      
-      case HTTPClient.post_json(url, %{}, headers, method: :delete, timeout: 30_000, provider: :openai) do
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :delete,
+             timeout: 30_000,
+             provider: :openai
+           ) do
         {:ok, response} ->
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   @doc """
   Retrieve the content of an uploaded file.
   """
@@ -1142,66 +1154,74 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/files/#{file_id}/content"
-      
+
       # Remove content-type header for file download
       headers = List.keydelete(headers, "Content-Type", 0)
-      
-      case HTTPClient.post_json(url, %{}, headers, method: :get, timeout: 60_000, provider: :openai) do
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 60_000,
+             provider: :openai
+           ) do
         {:ok, response} when is_binary(response) ->
           {:ok, response}
-          
+
         {:ok, response} ->
           # If response is JSON, convert to string
           {:ok, Jason.encode!(response)}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
-  defp validate_file_purpose(purpose) when purpose in [
-    "fine-tune", 
-    "fine-tune-results",
-    "assistants", 
-    "assistants_output",
-    "batch", 
-    "batch_output",
-    "vision", 
-    "user_data", 
-    "evals"
-  ] do
+
+  defp validate_file_purpose(purpose)
+       when purpose in [
+              "fine-tune",
+              "fine-tune-results",
+              "assistants",
+              "assistants_output",
+              "batch",
+              "batch_output",
+              "vision",
+              "user_data",
+              "evals"
+            ] do
     {:ok, purpose}
   end
-  
+
   defp validate_file_purpose(purpose) do
-    Error.validation_error(:purpose, "Invalid purpose '#{purpose}'. Must be one of: fine-tune, fine-tune-results, assistants, assistants_output, batch, batch_output, vision, user_data, evals")  
+    Error.validation_error(
+      :purpose,
+      "Invalid purpose '#{purpose}'. Must be one of: fine-tune, fine-tune-results, assistants, assistants_output, batch, batch_output, vision, user_data, evals"
+    )
   end
-  
+
   # Upload API functions
-  
+
   @doc """
   Create an Upload object for multipart file uploads.
-  
+
   Use this for files larger than the regular file upload limit. 
   An Upload can accept at most 8 GB and expires after 1 hour.
-  
+
   ## Parameters
   - `bytes` - The total number of bytes to upload
   - `filename` - The name of the file
   - `mime_type` - The MIME type (e.g., "text/jsonl")
   - `purpose` - The intended purpose of the file
   - `options` - Additional options
-  
+
   ## Examples
-  
+
       {:ok, upload} = OpenAI.create_upload(
         bytes: 2_147_483_648,
         filename: "training_examples.jsonl",
@@ -1216,44 +1236,44 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, _} <- validate_upload_params(params) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/uploads"
-      
+
       body = %{
         bytes: params[:bytes],
         filename: params[:filename],
         mime_type: params[:mime_type],
         purpose: params[:purpose]
       }
-      
+
       case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
         {:ok, response} ->
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   @doc """
   Add a part to an existing upload.
-  
+
   Each part can be at most 64 MB. Parts can be added in parallel.
-  
+
   ## Parameters
   - `upload_id` - The ID of the Upload
   - `data` - The chunk of bytes for this part
   - `options` - Additional options
-  
+
   ## Examples
-  
+
       {:ok, part} = OpenAI.add_upload_part("upload_abc123", chunk_data)
       part["id"] # => "part_def456"
   """
@@ -1261,40 +1281,40 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, _} <- validate_part_size(data) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/uploads/#{upload_id}/parts"
-      
+
       # Use multipart form for the data chunk
       form_data = [
         data: data
       ]
-      
+
       case HTTPClient.post_multipart(url, form_data, headers, timeout: 60_000, provider: :openai) do
         {:ok, response} ->
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   @doc """
   Complete an upload and create the final File object.
-  
+
   ## Parameters
   - `upload_id` - The ID of the Upload
   - `part_ids` - Ordered list of Part IDs
   - `options` - Additional options (can include `:md5` for checksum verification)
-  
+
   ## Examples
-  
+
       {:ok, completed} = OpenAI.complete_upload(
         "upload_abc123",
         ["part_def456", "part_ghi789"]
@@ -1307,47 +1327,47 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/uploads/#{upload_id}/complete"
-      
+
       body = %{
         part_ids: part_ids
       }
-      
+
       # Add optional MD5 checksum if provided
-      body = 
+      body =
         if md5 = Keyword.get(options, :md5) do
           Map.put(body, :md5, md5)
         else
           body
         end
-      
+
       case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
         {:ok, response} ->
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   @doc """
   Cancel an upload.
-  
+
   No parts may be added after an upload is cancelled.
-  
+
   ## Parameters
   - `upload_id` - The ID of the Upload to cancel
   - `options` - Additional options
-  
+
   ## Examples
-  
+
       {:ok, cancelled} = OpenAI.cancel_upload("upload_abc123")
       cancelled["status"] # => "cancelled"
   """
@@ -1355,33 +1375,36 @@ defmodule ExLLM.Adapters.OpenAI do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
-    
+
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/uploads/#{upload_id}/cancel"
-      
+
       case HTTPClient.post_json(url, %{}, headers, timeout: 30_000, provider: :openai) do
         {:ok, response} ->
           {:ok, response}
-          
+
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
-          
+
         {:error, reason} ->
           {:error, reason}
       end
     end
   end
-  
+
   defp validate_upload_params(params) do
     required = [:bytes, :filename, :mime_type, :purpose]
-    
+
     missing = required -- Keyword.keys(params)
+
     if missing != [] do
       Error.validation_error(:params, "Missing required parameters: #{inspect(missing)}")
     else
       # Validate bytes (max 8GB)
-      max_bytes = 8 * 1024 * 1024 * 1024  # 8 GB
+      # 8 GB
+      max_bytes = 8 * 1024 * 1024 * 1024
+
       if params[:bytes] > max_bytes do
         Error.validation_error(:bytes, "Upload size cannot exceed 8 GB")
       else
@@ -1390,21 +1413,26 @@ defmodule ExLLM.Adapters.OpenAI do
       end
     end
   end
-  
+
   defp validate_part_size(data) do
-    max_part_size = 64 * 1024 * 1024  # 64 MB
-    
-    size = 
+    # 64 MB
+    max_part_size = 64 * 1024 * 1024
+
+    size =
       case data do
-        binary when is_binary(binary) -> byte_size(binary)
-        {:file, path} -> 
+        binary when is_binary(binary) ->
+          byte_size(binary)
+
+        {:file, path} ->
           case File.stat(path) do
             {:ok, %{size: size}} -> size
             _ -> 0
           end
-        _ -> 0
+
+        _ ->
+          0
       end
-    
+
     if size > max_part_size do
       Error.validation_error(:data, "Part size cannot exceed 64 MB")
     else

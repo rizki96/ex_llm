@@ -503,23 +503,23 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
       # Test all valid purpose values (including output types)
       valid_purposes = [
-        "fine-tune", 
+        "fine-tune",
         "fine-tune-results",
-        "assistants", 
+        "assistants",
         "assistants_output",
-        "batch", 
+        "batch",
         "batch_output",
-        "vision", 
-        "user_data", 
+        "vision",
+        "user_data",
         "evals"
       ]
-      
+
       for purpose <- valid_purposes do
         # Will implement actual upload later, for now just verify validation passes
         _result = OpenAI.upload_file(tmp_path, purpose, config_provider: provider)
         # We don't assert here as the error is from multipart not being fully implemented
       end
-      
+
       # Test invalid purpose
       result = OpenAI.upload_file(tmp_path, "invalid_purpose", config_provider: provider)
       assert {:error, {:validation, _, _}} = result
@@ -533,7 +533,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
       # No API key
       config = %{openai: %{}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       result = OpenAI.upload_file(tmp_path, "fine-tune", config_provider: provider)
       assert {:error, "API key not configured"} = result
     end
@@ -542,7 +542,9 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
       config = %{openai: %{api_key: "test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
 
-      result = OpenAI.upload_file("/non/existent/file.jsonl", "fine-tune", config_provider: provider)
+      result =
+        OpenAI.upload_file("/non/existent/file.jsonl", "fine-tune", config_provider: provider)
+
       assert {:error, :enoent} = result
     end
   end
@@ -552,23 +554,24 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
       # This test verifies query parameter handling without making actual API calls
       # The actual API call will fail due to test environment, but we can verify
       # that the parameters are being processed correctly
-      
+
       config = %{openai: %{api_key: "test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       # Test with all query parameters
-      _result = OpenAI.list_files(
-        config_provider: provider,
-        after: "file-abc123",
-        limit: 50,
-        order: "asc",
-        purpose: "fine-tune"
-      )
-      
+      _result =
+        OpenAI.list_files(
+          config_provider: provider,
+          after: "file-abc123",
+          limit: 50,
+          order: "asc",
+          purpose: "fine-tune"
+        )
+
       # Test limit validation (should be clamped to 1-10000)
       _result = OpenAI.list_files(config_provider: provider, limit: 0)
       _result = OpenAI.list_files(config_provider: provider, limit: 20_000)
-      
+
       # Test order validation (should default to "desc" for invalid values)
       _result = OpenAI.list_files(config_provider: provider, order: "invalid")
     end
@@ -603,27 +606,27 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
       # assert is_binary(content)
     end
   end
-  
+
   describe "upload API" do
     test "create_upload with valid parameters" do
       config = %{openai: %{api_key: "test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       params = [
         bytes: 1_000_000,
         filename: "test.jsonl",
         mime_type: "text/jsonl",
         purpose: "fine-tune"
       ]
-      
+
       # Will fail with connection error in test, but validates parameter handling
       _result = OpenAI.create_upload(params, config_provider: provider)
     end
-    
+
     test "create_upload validates size limit" do
       config = %{openai: %{api_key: "test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       # 9GB exceeds limit
       params = [
         bytes: 9 * 1024 * 1024 * 1024,
@@ -631,34 +634,35 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
         mime_type: "text/jsonl",
         purpose: "fine-tune"
       ]
-      
+
       result = OpenAI.create_upload(params, config_provider: provider)
       assert {:error, {:validation, _, _}} = result
     end
-    
+
     test "add_upload_part validates chunk size" do
       config = %{openai: %{api_key: "test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       # 65MB exceeds part limit
       large_chunk = :binary.copy(<<0>>, 65 * 1024 * 1024)
-      
+
       result = OpenAI.add_upload_part("upload_123", large_chunk, config_provider: provider)
       assert {:error, {:validation, _, msg}} = result
       assert msg =~ "64 MB"
     end
-    
+
     test "complete_upload with MD5 checksum" do
       config = %{openai: %{api_key: "test-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-      
+
       # Test with optional MD5
-      _result = OpenAI.complete_upload(
-        "upload_123",
-        ["part_1", "part_2"],
-        config_provider: provider,
-        md5: "d41d8cd98f00b204e9800998ecf8427e"
-      )
+      _result =
+        OpenAI.complete_upload(
+          "upload_123",
+          ["part_1", "part_2"],
+          config_provider: provider,
+          md5: "d41d8cd98f00b204e9800998ecf8427e"
+        )
     end
   end
 end
