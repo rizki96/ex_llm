@@ -750,7 +750,7 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
         {field, value} when is_binary(value) ->
           # Binary data (for upload parts)
           {to_string(field), value}
-          
+
         {field, value} ->
           # Regular form fields
           {to_string(field), to_string(value)}
@@ -761,7 +761,12 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     headers = prepare_headers(headers)
 
     # Log request
-    Logger.log_request(provider, url, %{multipart: true, fields: Keyword.keys(form_data)}, headers)
+    Logger.log_request(
+      provider,
+      url,
+      %{multipart: true, fields: Keyword.keys(form_data)},
+      headers
+    )
 
     req_opts = [
       headers: headers,
@@ -803,7 +808,7 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     end
   catch
     {:file_read_error, path, reason} ->
-      Logger.error("File read error", path: path, error: reason)
+      Logger.error("File read error: #{inspect(reason)} for path: #{path}")
       {:error, reason}
   end
 end
