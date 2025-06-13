@@ -120,7 +120,7 @@ defmodule ExLLM.Capabilities do
     "web_grounding" => :grounding,
     "search_grounding" => :grounding,
     "rag" => :grounding,
-    
+
     # Streaming
     "stream" => :streaming,
     "sse" => :streaming,
