@@ -1,12 +1,12 @@
 defmodule ExLLM.Gemini.QA do
   @moduledoc """
   Google Gemini Question Answering API implementation.
-  
+
   The Semantic Retrieval API provides a hosted question answering service for building 
   Retrieval Augmented Generation (RAG) systems using Google's infrastructure.
-  
+
   ## Usage
-  
+
       # With inline passages
       contents = [
         %{
@@ -53,15 +53,15 @@ defmodule ExLLM.Gemini.QA do
     @moduledoc """
     Request structure for generating grounded answers.
     """
-    
+
     @type t :: %__MODULE__{
-      contents: [map()],
-      answer_style: :abstractive | :extractive | :verbose,
-      grounding_source: GroundingPassages.t() | SemanticRetrieverConfig.t(),
-      safety_settings: [map()] | nil,
-      temperature: float() | nil
-    }
-    
+            contents: [map()],
+            answer_style: :abstractive | :extractive | :verbose,
+            grounding_source: GroundingPassages.t() | SemanticRetrieverConfig.t(),
+            safety_settings: [map()] | nil,
+            temperature: float() | nil
+          }
+
     defstruct [
       :contents,
       :answer_style,
@@ -75,13 +75,13 @@ defmodule ExLLM.Gemini.QA do
     @moduledoc """
     Response structure for grounded answers.
     """
-    
+
     @type t :: %__MODULE__{
-      answer: map() | nil,
-      answerable_probability: float() | nil,
-      input_feedback: InputFeedback.t() | nil
-    }
-    
+            answer: map() | nil,
+            answerable_probability: float() | nil,
+            input_feedback: InputFeedback.t() | nil
+          }
+
     defstruct [
       :answer,
       :answerable_probability,
@@ -93,11 +93,11 @@ defmodule ExLLM.Gemini.QA do
     @moduledoc """
     A list of passages provided inline with the request.
     """
-    
+
     @type t :: %__MODULE__{
-      passages: [GroundingPassage.t()]
-    }
-    
+            passages: [GroundingPassage.t()]
+          }
+
     defstruct [:passages]
   end
 
@@ -105,12 +105,12 @@ defmodule ExLLM.Gemini.QA do
     @moduledoc """
     A single passage included inline with a grounding configuration.
     """
-    
+
     @type t :: %__MODULE__{
-      id: String.t(),
-      content: map()
-    }
-    
+            id: String.t(),
+            content: map()
+          }
+
     defstruct [:id, :content]
   end
 
@@ -119,15 +119,15 @@ defmodule ExLLM.Gemini.QA do
     Configuration for retrieving grounding content from a Corpus or Document 
     created using the Semantic Retriever API.
     """
-    
+
     @type t :: %__MODULE__{
-      source: String.t(),
-      query: map(),
-      metadata_filters: [map()] | nil,
-      max_chunks_count: integer() | nil,
-      minimum_relevance_score: float() | nil
-    }
-    
+            source: String.t(),
+            query: map(),
+            metadata_filters: [map()] | nil,
+            max_chunks_count: integer() | nil,
+            minimum_relevance_score: float() | nil
+          }
+
     defstruct [
       :source,
       :query,
@@ -141,36 +141,36 @@ defmodule ExLLM.Gemini.QA do
     @moduledoc """
     Feedback related to the input data used to answer the question.
     """
-    
+
     @type t :: %__MODULE__{
-      safety_ratings: [map()],
-      block_reason: atom() | nil
-    }
-    
+            safety_ratings: [map()],
+            block_reason: atom() | nil
+          }
+
     defstruct [:safety_ratings, :block_reason]
   end
 
   @doc """
   Generates a grounded answer from the model given an input.
-  
+
   ## Parameters
-  
+
   * `model` - The name of the model to use (e.g., "models/gemini-1.5-flash")
   * `contents` - List of conversation content (messages)
   * `answer_style` - Style for the answer (:abstractive, :extractive, :verbose)
   * `opts` - Additional options
-  
+
   ## Options
-  
+
   * `:inline_passages` - List of passages to use for grounding
   * `:semantic_retriever` - Configuration for semantic retrieval
   * `:temperature` - Controls randomness (0.0-1.0)
   * `:safety_settings` - List of safety settings
   * `:api_key` - Gemini API key
   * `:oauth_token` - OAuth2 token (alternative to API key)
-  
+
   ## Examples
-  
+
       {:ok, response} = ExLLM.Gemini.QA.generate_answer(
         "models/gemini-1.5-flash",
         [%{parts: [%{text: "What is AI?"}], role: "user"}],
@@ -185,30 +185,31 @@ defmodule ExLLM.Gemini.QA do
         api_key: "your-api-key"
       )
   """
-  @spec generate_answer(String.t(), [map()], atom(), Keyword.t()) :: 
-    {:ok, GenerateAnswerResponse.t()} | {:error, map()}
+  @spec generate_answer(String.t(), [map()], atom(), Keyword.t()) ::
+          {:ok, GenerateAnswerResponse.t()} | {:error, map()}
   def generate_answer(model, contents, answer_style, opts \\ []) do
     request = build_generate_answer_request(contents, answer_style, opts)
-    
+
     request_opts = [
       method: :post,
       url: "/#{model}:generateAnswer",
       body: encode_request(request),
       query: %{}
     ]
-    
+
     # Add authentication
-    request_opts = if oauth_token = opts[:oauth_token] do
-      Keyword.put(request_opts, :oauth_token, oauth_token)
-    else
-      api_key = opts[:api_key] || get_api_key(opts)
-      Keyword.put(request_opts, :api_key, api_key)
-    end
-    
+    request_opts =
+      if oauth_token = opts[:oauth_token] do
+        Keyword.put(request_opts, :oauth_token, oauth_token)
+      else
+        api_key = opts[:api_key] || get_api_key(opts)
+        Keyword.put(request_opts, :api_key, api_key)
+      end
+
     case Base.request(request_opts) do
       {:ok, response_body} ->
         {:ok, parse_generate_answer_response(response_body)}
-        
+
       {:error, error} ->
         {:error, error}
     end
@@ -222,13 +223,13 @@ defmodule ExLLM.Gemini.QA do
     # Validate required fields
     validate_contents!(contents)
     validate_answer_style!(answer_style)
-    
+
     # Build grounding source
     grounding_source = build_grounding_source!(opts)
-    
+
     # Validate optional fields
     temperature = validate_temperature(opts[:temperature])
-    
+
     %GenerateAnswerRequest{
       contents: contents,
       answer_style: answer_style,
@@ -257,8 +258,10 @@ defmodule ExLLM.Gemini.QA do
   def format_answer_style(:abstractive), do: "ABSTRACTIVE"
   def format_answer_style(:extractive), do: "EXTRACTIVE"
   def format_answer_style(:verbose), do: "VERBOSE"
+
   def format_answer_style(style) do
-    raise ArgumentError, "Invalid answer_style: #{inspect(style)}. Must be :abstractive, :extractive, or :verbose"
+    raise ArgumentError,
+          "Invalid answer_style: #{inspect(style)}. Must be :abstractive, :extractive, or :verbose"
   end
 
   @doc """
@@ -293,19 +296,21 @@ defmodule ExLLM.Gemini.QA do
   defp validate_answer_style!(style) when style in [:abstractive, :extractive, :verbose], do: :ok
 
   defp validate_answer_style!(style) do
-    raise ArgumentError, "Invalid answer_style: #{inspect(style)}. Must be :abstractive, :extractive, or :verbose"
+    raise ArgumentError,
+          "Invalid answer_style: #{inspect(style)}. Must be :abstractive, :extractive, or :verbose"
   end
 
   defp build_grounding_source!(opts) do
     cond do
       inline_passages = opts[:inline_passages] ->
         build_grounding_passages!(inline_passages)
-        
+
       semantic_retriever = opts[:semantic_retriever] ->
         build_semantic_retriever_config!(semantic_retriever)
-        
+
       true ->
-        raise ArgumentError, "grounding source is required (either :inline_passages or :semantic_retriever)"
+        raise ArgumentError,
+              "grounding source is required (either :inline_passages or :semantic_retriever)"
     end
   end
 
@@ -321,15 +326,15 @@ defmodule ExLLM.Gemini.QA do
   defp validate_grounding_passage!(passage) do
     id = passage[:id] || passage["id"]
     content = passage[:content] || passage["content"]
-    
+
     if is_nil(id) do
       raise ArgumentError, "passage id is required"
     end
-    
+
     if is_nil(content) do
       raise ArgumentError, "passage content is required"
     end
-    
+
     %GroundingPassage{
       id: id,
       content: content
@@ -339,15 +344,15 @@ defmodule ExLLM.Gemini.QA do
   defp build_semantic_retriever_config!(config) when is_map(config) do
     source = config[:source] || config["source"]
     query = config[:query] || config["query"]
-    
+
     if is_nil(source) do
       raise ArgumentError, "semantic retriever source is required"
     end
-    
+
     if is_nil(query) do
       raise ArgumentError, "semantic retriever query is required"
     end
-    
+
     %SemanticRetrieverConfig{
       source: source,
       query: query,
@@ -376,40 +381,44 @@ defmodule ExLLM.Gemini.QA do
       "contents" => request.contents,
       "answerStyle" => format_answer_style(request.answer_style)
     }
-    
+
     # Add grounding source
-    base_request = case request.grounding_source do
-      %GroundingPassages{} = passages ->
-        Map.put(base_request, "inlinePassages", encode_grounding_passages(passages))
-        
-      %SemanticRetrieverConfig{} = retriever ->
-        Map.put(base_request, "semanticRetriever", encode_semantic_retriever_config(retriever))
-    end
-    
+    base_request =
+      case request.grounding_source do
+        %GroundingPassages{} = passages ->
+          Map.put(base_request, "inlinePassages", encode_grounding_passages(passages))
+
+        %SemanticRetrieverConfig{} = retriever ->
+          Map.put(base_request, "semanticRetriever", encode_semantic_retriever_config(retriever))
+      end
+
     # Add optional fields
-    base_request = if request.temperature do
-      Map.put(base_request, "temperature", request.temperature)
-    else
-      base_request
-    end
-    
-    base_request = if request.safety_settings do
-      Map.put(base_request, "safetySettings", request.safety_settings)
-    else
-      base_request
-    end
-    
+    base_request =
+      if request.temperature do
+        Map.put(base_request, "temperature", request.temperature)
+      else
+        base_request
+      end
+
+    base_request =
+      if request.safety_settings do
+        Map.put(base_request, "safetySettings", request.safety_settings)
+      else
+        base_request
+      end
+
     base_request
   end
 
   defp encode_grounding_passages(%GroundingPassages{passages: passages}) do
     %{
-      "passages" => Enum.map(passages, fn %GroundingPassage{id: id, content: content} ->
-        %{
-          "id" => id,
-          "content" => content
-        }
-      end)
+      "passages" =>
+        Enum.map(passages, fn %GroundingPassage{id: id, content: content} ->
+          %{
+            "id" => id,
+            "content" => content
+          }
+        end)
     }
   end
 
@@ -418,25 +427,28 @@ defmodule ExLLM.Gemini.QA do
       "source" => config.source,
       "query" => config.query
     }
-    
-    base_config = if config.metadata_filters do
-      Map.put(base_config, "metadataFilters", config.metadata_filters)
-    else
-      base_config
-    end
-    
-    base_config = if config.max_chunks_count do
-      Map.put(base_config, "maxChunksCount", config.max_chunks_count)
-    else
-      base_config
-    end
-    
-    base_config = if config.minimum_relevance_score do
-      Map.put(base_config, "minimumRelevanceScore", config.minimum_relevance_score)
-    else
-      base_config
-    end
-    
+
+    base_config =
+      if config.metadata_filters do
+        Map.put(base_config, "metadataFilters", config.metadata_filters)
+      else
+        base_config
+      end
+
+    base_config =
+      if config.max_chunks_count do
+        Map.put(base_config, "maxChunksCount", config.max_chunks_count)
+      else
+        base_config
+      end
+
+    base_config =
+      if config.minimum_relevance_score do
+        Map.put(base_config, "minimumRelevanceScore", config.minimum_relevance_score)
+      else
+        base_config
+      end
+
     base_config
   end
 
@@ -445,16 +457,18 @@ defmodule ExLLM.Gemini.QA do
   defp parse_input_feedback(feedback) do
     %InputFeedback{
       safety_ratings: feedback["safetyRatings"] || [],
-      block_reason: if feedback["blockReason"] do
-        format_block_reason(feedback["blockReason"])
-      else
-        nil
-      end
+      block_reason:
+        if feedback["blockReason"] do
+          format_block_reason(feedback["blockReason"])
+        else
+          nil
+        end
     }
   end
 
   defp get_api_key(opts) do
     opts[:api_key] || System.get_env("GEMINI_API_KEY") ||
-      raise ArgumentError, "API key is required. Set GEMINI_API_KEY environment variable or pass :api_key option"
+      raise ArgumentError,
+            "API key is required. Set GEMINI_API_KEY environment variable or pass :api_key option"
   end
 end

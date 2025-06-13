@@ -10,7 +10,7 @@ defmodule ExLLM.Gemini.ModelsUnitTest do
         "version" => "2.0",
         "displayName" => "Gemini 2.0 Flash",
         "description" => "Fast and versatile multimodal model",
-        "inputTokenLimit" => 1048576,
+        "inputTokenLimit" => 1_048_576,
         "outputTokenLimit" => 8192,
         "supportedGenerationMethods" => ["generateContent", "streamGenerateContent"],
         "temperature" => 1.0,
@@ -18,15 +18,15 @@ defmodule ExLLM.Gemini.ModelsUnitTest do
         "topP" => 0.95,
         "topK" => 40
       }
-      
+
       model = Model.from_api(raw_model)
-      
+
       assert model.name == "models/gemini-2.0-flash"
       assert model.base_model_id == "gemini-2.0-flash"
       assert model.version == "2.0"
       assert model.display_name == "Gemini 2.0 Flash"
       assert model.description == "Fast and versatile multimodal model"
-      assert model.input_token_limit == 1048576
+      assert model.input_token_limit == 1_048_576
       assert model.output_token_limit == 8192
       assert model.supported_generation_methods == ["generateContent", "streamGenerateContent"]
       assert model.temperature == 1.0
@@ -46,9 +46,9 @@ defmodule ExLLM.Gemini.ModelsUnitTest do
         "outputTokenLimit" => 100,
         "supportedGenerationMethods" => ["generateContent"]
       }
-      
+
       model = Model.from_api(minimal_model)
-      
+
       assert model.name == "models/test-model"
       assert model.base_model_id == "test-model"
       assert model.temperature == nil
@@ -68,7 +68,7 @@ defmodule ExLLM.Gemini.ModelsUnitTest do
         "outputTokenLimit" => 100,
         "supportedGenerationMethods" => []
       }
-      
+
       model = Model.from_api(model_data)
       assert model.supported_generation_methods == []
     end
@@ -83,7 +83,7 @@ defmodule ExLLM.Gemini.ModelsUnitTest do
         "inputTokenLimit" => 1000,
         "outputTokenLimit" => 100
       }
-      
+
       model = Model.from_api(model_data)
       assert model.supported_generation_methods == []
     end

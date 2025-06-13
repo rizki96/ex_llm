@@ -2,6 +2,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
   use ExUnit.Case, async: false
 
   alias ExLLM.Gemini.Tuning
+
   alias ExLLM.Gemini.Tuning.{
     TunedModel,
     TuningExamples,
@@ -100,11 +101,13 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       }
 
       custom_id = "test-model-#{:rand.uniform(10000)}"
-      
-      assert {:ok, operation} = Tuning.create_tuned_model(request, 
-        api_key: @api_key,
-        tuned_model_id: custom_id
-      )
+
+      assert {:ok, operation} =
+               Tuning.create_tuned_model(request,
+                 api_key: @api_key,
+                 tuned_model_id: custom_id
+               )
+
       assert operation["name"]
     end
 
@@ -133,11 +136,11 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
 
   describe "list_tuned_models/1" do
     test "lists tuned models" do
-      assert {:ok, %ListTunedModelsResponse{} = response} = 
-        Tuning.list_tuned_models(api_key: @api_key)
-      
+      assert {:ok, %ListTunedModelsResponse{} = response} =
+               Tuning.list_tuned_models(api_key: @api_key)
+
       assert is_list(response.tuned_models)
-      
+
       # If there are tuned models, verify their structure
       if length(response.tuned_models) > 0 do
         [model | _] = response.tuned_models
@@ -148,20 +151,21 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
     end
 
     test "lists tuned models with pagination" do
-      assert {:ok, %ListTunedModelsResponse{}} = 
-        Tuning.list_tuned_models(api_key: @api_key, page_size: 2)
+      assert {:ok, %ListTunedModelsResponse{}} =
+               Tuning.list_tuned_models(api_key: @api_key, page_size: 2)
     end
 
     test "lists tuned models with filter" do
-      assert {:ok, %ListTunedModelsResponse{}} = 
-        Tuning.list_tuned_models(api_key: @api_key, filter: "owner:me")
+      assert {:ok, %ListTunedModelsResponse{}} =
+               Tuning.list_tuned_models(api_key: @api_key, filter: "owner:me")
     end
   end
 
   describe "get_tuned_model/2" do
     test "returns error for non-existent model" do
-      assert {:error, %{status: status}} = 
-        Tuning.get_tuned_model("tunedModels/non-existent", api_key: @api_key)
+      assert {:error, %{status: status}} =
+               Tuning.get_tuned_model("tunedModels/non-existent", api_key: @api_key)
+
       assert status in [400, 403, 404]
     end
 
@@ -189,11 +193,11 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       }
 
       {:ok, _operation} = Tuning.create_tuned_model(request, api_key: @api_key)
-      
+
       # Extract model name from operation
       # In real scenario, we'd wait for the operation to complete
       # and then get the actual tuned model name
-      
+
       # For now, we'll test with a hypothetical model name
       # assert {:ok, %TunedModel{} = model} = 
       #   Tuning.get_tuned_model("tunedModels/test-model", api_key: @api_key)
@@ -209,8 +213,9 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
         display_name: "Updated Name"
       }
 
-      assert {:error, %{status: status}} = 
-        Tuning.update_tuned_model("tunedModels/non-existent", update, api_key: @api_key)
+      assert {:error, %{status: status}} =
+               Tuning.update_tuned_model("tunedModels/non-existent", update, api_key: @api_key)
+
       assert status in [400, 403, 404]
     end
 
@@ -235,8 +240,9 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
 
   describe "delete_tuned_model/2" do
     test "returns error for non-existent model" do
-      assert {:error, %{status: status}} = 
-        Tuning.delete_tuned_model("tunedModels/non-existent", api_key: @api_key)
+      assert {:error, %{status: status}} =
+               Tuning.delete_tuned_model("tunedModels/non-existent", api_key: @api_key)
+
       assert status in [400, 403, 404]
     end
 
@@ -244,15 +250,15 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
     test "deletes a tuned model" do
       # This test requires creating and then deleting a model
       # In practice, this would be an expensive operation
-      
+
       # Create model first
       # examples = %TuningExamples{...}
       # {:ok, operation} = Tuning.create_tuned_model(...)
       # Wait for completion...
       # model_name = get_model_name_from_operation(operation)
-      
+
       # assert {:ok, %{}} = Tuning.delete_tuned_model(model_name, api_key: @api_key)
-      
+
       # Verify deletion
       # assert {:error, %{status: 404}} = 
       #   Tuning.get_tuned_model(model_name, api_key: @api_key)
@@ -299,7 +305,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       # Would need actual tuned model name
       # assert {:ok, stream} = 
       #   Tuning.stream_generate_content("tunedModels/test-model", request, api_key: @api_key)
-      
+
       # chunks = Enum.to_list(stream)
       # assert length(chunks) > 0
     end
@@ -329,7 +335,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       }
 
       {:ok, _operation} = Tuning.create_tuned_model(request, api_key: @api_key)
-      
+
       # In real scenario, we'd wait with timeout
       # assert {:ok, %TunedModel{}} = 
       #   Tuning.wait_for_tuning(operation["name"], api_key: @api_key, timeout: 300_000)

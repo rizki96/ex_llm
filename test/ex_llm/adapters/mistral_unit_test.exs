@@ -284,10 +284,17 @@ defmodule ExLLM.Adapters.MistralUnitTest do
       # Functions with default arguments export multiple arities
       # Check that at least one expected arity exists
       assert function_exported?(Mistral, :chat, 1) or function_exported?(Mistral, :chat, 2)
-      assert function_exported?(Mistral, :stream_chat, 1) or function_exported?(Mistral, :stream_chat, 2)
-      assert function_exported?(Mistral, :configured?, 0) or function_exported?(Mistral, :configured?, 1)
+
+      assert function_exported?(Mistral, :stream_chat, 1) or
+               function_exported?(Mistral, :stream_chat, 2)
+
+      assert function_exported?(Mistral, :configured?, 0) or
+               function_exported?(Mistral, :configured?, 1)
+
       assert function_exported?(Mistral, :default_model, 0)
-      assert function_exported?(Mistral, :list_models, 0) or function_exported?(Mistral, :list_models, 1)
+
+      assert function_exported?(Mistral, :list_models, 0) or
+               function_exported?(Mistral, :list_models, 1)
     end
 
     test "implements embeddings callback" do

@@ -2,6 +2,7 @@ defmodule ExLLM.Gemini.CorpusTest do
   use ExUnit.Case, async: true
 
   alias ExLLM.Gemini.Corpus
+
   alias ExLLM.Gemini.Corpus.{
     CreateCorpusRequest,
     UpdateCorpusRequest,
@@ -27,10 +28,11 @@ defmodule ExLLM.Gemini.CorpusTest do
     end
 
     test "builds valid create request with name and display name" do
-      request = Corpus.build_create_corpus_request(%{
-        name: "corpora/my-test-corpus",
-        display_name: "My Test Corpus"
-      })
+      request =
+        Corpus.build_create_corpus_request(%{
+          name: "corpora/my-test-corpus",
+          display_name: "My Test Corpus"
+        })
 
       assert %CreateCorpusRequest{} = request
       assert request.name == "corpora/my-test-corpus"
@@ -39,7 +41,7 @@ defmodule ExLLM.Gemini.CorpusTest do
 
     test "validates display name length" do
       long_name = String.duplicate("a", 513)
-      
+
       assert_raise ArgumentError, ~r/Display name must be 512 characters or less/, fn ->
         Corpus.build_create_corpus_request(%{display_name: long_name})
       end
@@ -54,12 +56,18 @@ defmodule ExLLM.Gemini.CorpusTest do
 
       # Invalid names
       invalid_names = [
-        "invalid-format",  # No corpora/ prefix
-        "corpora/-invalid",  # Starts with dash
-        "corpora/invalid-",  # Ends with dash
-        "corpora/INVALID",  # Uppercase
-        "corpora/has_underscore",  # Underscore
-        "corpora/" <> String.duplicate("a", 41)  # Too long
+        # No corpora/ prefix
+        "invalid-format",
+        # Starts with dash
+        "corpora/-invalid",
+        # Ends with dash
+        "corpora/invalid-",
+        # Uppercase
+        "corpora/INVALID",
+        # Underscore
+        "corpora/has_underscore",
+        # Too long
+        "corpora/" <> String.duplicate("a", 41)
       ]
 
       for name <- invalid_names do
@@ -87,10 +95,11 @@ defmodule ExLLM.Gemini.CorpusTest do
     end
 
     test "builds valid list request with pagination" do
-      request = Corpus.build_list_corpora_request(%{
-        page_size: 5,
-        page_token: "next_page_token"
-      })
+      request =
+        Corpus.build_list_corpora_request(%{
+          page_size: 5,
+          page_token: "next_page_token"
+        })
 
       assert %ListCorporaRequest{} = request
       assert request.page_size == 5
@@ -115,9 +124,14 @@ defmodule ExLLM.Gemini.CorpusTest do
 
   describe "update_corpus/3" do
     test "builds valid update request" do
-      request = Corpus.build_update_corpus_request("corpora/test-corpus", %{
-        display_name: "Updated Corpus Name"
-      }, ["displayName"])
+      request =
+        Corpus.build_update_corpus_request(
+          "corpora/test-corpus",
+          %{
+            display_name: "Updated Corpus Name"
+          },
+          ["displayName"]
+        )
 
       assert %UpdateCorpusRequest{} = request
       assert request.name == "corpora/test-corpus"
@@ -127,15 +141,19 @@ defmodule ExLLM.Gemini.CorpusTest do
 
     test "validates update mask contains only supported fields" do
       valid_fields = ["displayName"]
-      
+
       for field <- valid_fields do
-        request = Corpus.build_update_corpus_request("corpora/test", %{display_name: "Test"}, [field])
+        request =
+          Corpus.build_update_corpus_request("corpora/test", %{display_name: "Test"}, [field])
+
         assert request.update_mask == [field]
       end
 
       # Invalid field
       assert_raise ArgumentError, ~r/Update mask can only contain: displayName/, fn ->
-        Corpus.build_update_corpus_request("corpora/test", %{display_name: "Test"}, ["invalidField"])
+        Corpus.build_update_corpus_request("corpora/test", %{display_name: "Test"}, [
+          "invalidField"
+        ])
       end
     end
 
@@ -174,15 +192,16 @@ defmodule ExLLM.Gemini.CorpusTest do
         }
       ]
 
-      request = Corpus.build_query_corpus_request("corpora/test-corpus", "search query", %{
-        results_count: 25,
-        metadata_filters: metadata_filters
-      })
+      request =
+        Corpus.build_query_corpus_request("corpora/test-corpus", "search query", %{
+          results_count: 25,
+          metadata_filters: metadata_filters
+        })
 
       assert %QueryCorpusRequest{} = request
       assert request.results_count == 25
       assert length(request.metadata_filters) == 2
-      
+
       first_filter = List.first(request.metadata_filters)
       assert %MetadataFilter{} = first_filter
       assert first_filter.key == "document.custom_metadata.genre"
@@ -192,7 +211,9 @@ defmodule ExLLM.Gemini.CorpusTest do
     test "validates results count limits" do
       # Valid counts
       for count <- [1, 50, 100] do
-        request = Corpus.build_query_corpus_request("corpora/test", "query", %{results_count: count})
+        request =
+          Corpus.build_query_corpus_request("corpora/test", "query", %{results_count: count})
+
         assert request.results_count == count
       end
 
@@ -213,10 +234,11 @@ defmodule ExLLM.Gemini.CorpusTest do
         ]
       }
 
-      request = Corpus.build_query_corpus_request("corpora/test", "query", %{
-        metadata_filters: [valid_filter]
-      })
-      
+      request =
+        Corpus.build_query_corpus_request("corpora/test", "query", %{
+          metadata_filters: [valid_filter]
+        })
+
       assert length(request.metadata_filters) == 1
 
       # Invalid filter - missing key
@@ -254,10 +276,11 @@ defmodule ExLLM.Gemini.CorpusTest do
           conditions: [condition]
         }
 
-        request = Corpus.build_query_corpus_request("corpora/test", "query", %{
-          metadata_filters: [filter]
-        })
-        
+        request =
+          Corpus.build_query_corpus_request("corpora/test", "query", %{
+            metadata_filters: [filter]
+          })
+
         assert length(request.metadata_filters) == 1
       end
 
@@ -273,11 +296,13 @@ defmodule ExLLM.Gemini.CorpusTest do
       # Invalid condition - missing value
       invalid_condition = %{operation: "EQUAL"}
 
-      assert_raise ArgumentError, ~r/Condition must have either string_value or numeric_value/, fn ->
-        Corpus.build_query_corpus_request("corpora/test", "query", %{
-          metadata_filters: [%{key: "test", conditions: [invalid_condition]}]
-        })
-      end
+      assert_raise ArgumentError,
+                   ~r/Condition must have either string_value or numeric_value/,
+                   fn ->
+                     Corpus.build_query_corpus_request("corpora/test", "query", %{
+                       metadata_filters: [%{key: "test", conditions: [invalid_condition]}]
+                     })
+                   end
     end
   end
 
@@ -323,7 +348,7 @@ defmodule ExLLM.Gemini.CorpusTest do
       assert %ListCorporaResponse{} = result
       assert length(result.corpora) == 2
       assert result.next_page_token == "next_page_token_123"
-      
+
       first_corpus = List.first(result.corpora)
       assert %CorpusInfo{} = first_corpus
       assert first_corpus.name == "corpora/corpus-1"
@@ -364,7 +389,7 @@ defmodule ExLLM.Gemini.CorpusTest do
 
       assert %QueryCorpusResponse{} = result
       assert length(result.relevant_chunks) == 2
-      
+
       first_chunk = List.first(result.relevant_chunks)
       assert %RelevantChunk{} = first_chunk
       assert first_chunk.chunk_relevance_score == 0.95
@@ -404,7 +429,7 @@ defmodule ExLLM.Gemini.CorpusTest do
       assert Corpus.operator_to_api_string(:less_equal) == "LESS_EQUAL"
       assert Corpus.operator_to_api_string(:includes) == "INCLUDES"
       assert Corpus.operator_to_api_string(:not_equal) == "NOT_EQUAL"
-      
+
       assert_raise ArgumentError, ~r/Invalid operator/, fn ->
         Corpus.operator_to_api_string(:invalid_op)
       end
@@ -427,13 +452,20 @@ defmodule ExLLM.Gemini.CorpusTest do
 
       # Invalid names
       invalid_names = [
-        "test",  # No prefix
-        "corpora/",  # Empty ID
-        "corpora/-test",  # Starts with dash
-        "corpora/test-",  # Ends with dash
-        "corpora/Test",  # Uppercase
-        "corpora/test_name",  # Underscore
-        "corpora/" <> String.duplicate("a", 41)  # Too long
+        # No prefix
+        "test",
+        # Empty ID
+        "corpora/",
+        # Starts with dash
+        "corpora/-test",
+        # Ends with dash
+        "corpora/test-",
+        # Uppercase
+        "corpora/Test",
+        # Underscore
+        "corpora/test_name",
+        # Too long
+        "corpora/" <> String.duplicate("a", 41)
       ]
 
       for name <- invalid_names do

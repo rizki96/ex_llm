@@ -1,12 +1,12 @@
 defmodule ExLLM.Gemini.Corpus do
   @moduledoc """
   Google Gemini Corpus Management API implementation.
-  
+
   Corpora are collections of Documents used for semantic retrieval. A project can 
   create up to 5 corpora.
-  
+
   ## Usage
-  
+
       # Create a corpus
       {:ok, corpus} = ExLLM.Gemini.Corpus.create_corpus(%{
         display_name: "My Knowledge Base"
@@ -46,12 +46,12 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Request structure for creating a corpus.
     """
-    
+
     @type t :: %__MODULE__{
-      name: String.t() | nil,
-      display_name: String.t() | nil
-    }
-    
+            name: String.t() | nil,
+            display_name: String.t() | nil
+          }
+
     defstruct [:name, :display_name]
   end
 
@@ -59,13 +59,13 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Request structure for updating a corpus.
     """
-    
+
     @type t :: %__MODULE__{
-      name: String.t(),
-      display_name: String.t() | nil,
-      update_mask: [String.t()]
-    }
-    
+            name: String.t(),
+            display_name: String.t() | nil,
+            update_mask: [String.t()]
+          }
+
     defstruct [:name, :display_name, :update_mask]
   end
 
@@ -73,12 +73,12 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Request structure for listing corpora.
     """
-    
+
     @type t :: %__MODULE__{
-      page_size: integer() | nil,
-      page_token: String.t() | nil
-    }
-    
+            page_size: integer() | nil,
+            page_token: String.t() | nil
+          }
+
     defstruct [:page_size, :page_token]
   end
 
@@ -86,14 +86,14 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Request structure for querying a corpus.
     """
-    
+
     @type t :: %__MODULE__{
-      name: String.t(),
-      query: String.t(),
-      metadata_filters: [MetadataFilter.t()],
-      results_count: integer() | nil
-    }
-    
+            name: String.t(),
+            query: String.t(),
+            metadata_filters: [MetadataFilter.t()],
+            results_count: integer() | nil
+          }
+
     defstruct [:name, :query, :metadata_filters, :results_count]
   end
 
@@ -101,14 +101,14 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Information about a corpus.
     """
-    
+
     @type t :: %__MODULE__{
-      name: String.t(),
-      display_name: String.t() | nil,
-      create_time: String.t() | nil,
-      update_time: String.t() | nil
-    }
-    
+            name: String.t(),
+            display_name: String.t() | nil,
+            create_time: String.t() | nil,
+            update_time: String.t() | nil
+          }
+
     defstruct [:name, :display_name, :create_time, :update_time]
   end
 
@@ -116,12 +116,12 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Response from listing corpora.
     """
-    
+
     @type t :: %__MODULE__{
-      corpora: [CorpusInfo.t()],
-      next_page_token: String.t() | nil
-    }
-    
+            corpora: [CorpusInfo.t()],
+            next_page_token: String.t() | nil
+          }
+
     defstruct [:corpora, :next_page_token]
   end
 
@@ -129,11 +129,11 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Response from querying a corpus.
     """
-    
+
     @type t :: %__MODULE__{
-      relevant_chunks: [RelevantChunk.t()]
-    }
-    
+            relevant_chunks: [RelevantChunk.t()]
+          }
+
     defstruct [:relevant_chunks]
   end
 
@@ -141,12 +141,12 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Filter for chunk and document metadata.
     """
-    
+
     @type t :: %__MODULE__{
-      key: String.t(),
-      conditions: [Condition.t()]
-    }
-    
+            key: String.t(),
+            conditions: [Condition.t()]
+          }
+
     defstruct [:key, :conditions]
   end
 
@@ -154,13 +154,13 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     Filter condition for metadata values.
     """
-    
+
     @type t :: %__MODULE__{
-      operation: atom(),
-      string_value: String.t() | nil,
-      numeric_value: number() | nil
-    }
-    
+            operation: atom(),
+            string_value: String.t() | nil,
+            numeric_value: number() | nil
+          }
+
     defstruct [:operation, :string_value, :numeric_value]
   end
 
@@ -168,31 +168,31 @@ defmodule ExLLM.Gemini.Corpus do
     @moduledoc """
     A chunk relevant to a query with its relevance score.
     """
-    
+
     @type t :: %__MODULE__{
-      chunk_relevance_score: float(),
-      chunk: map()
-    }
-    
+            chunk_relevance_score: float(),
+            chunk: map()
+          }
+
     defstruct [:chunk_relevance_score, :chunk]
   end
 
   @doc """
   Creates a new corpus.
-  
+
   ## Parameters
-  
+
   * `corpus_data` - Map containing corpus information
     * `:name` - Optional corpus name (will be auto-generated if not provided)
     * `:display_name` - Optional human-readable display name
   * `opts` - Options including OAuth2 token
-  
+
   ## Options
-  
+
   * `:oauth_token` - OAuth2 token (required for corpus operations)
-  
+
   ## Examples
-  
+
       # Create corpus with auto-generated name
       {:ok, corpus} = ExLLM.Gemini.Corpus.create_corpus(%{
         display_name: "My Knowledge Base"
@@ -207,20 +207,20 @@ defmodule ExLLM.Gemini.Corpus do
   @spec create_corpus(map(), Keyword.t()) :: {:ok, CorpusInfo.t()} | {:error, map()}
   def create_corpus(corpus_data, opts \\ []) do
     request = build_create_corpus_request(corpus_data)
-    
+
     request_opts = [
       method: :post,
       url: "/corpora",
       body: encode_create_corpus_request(request),
       query: %{}
     ]
-    
+
     request_opts = add_auth(request_opts, opts)
-    
+
     case Base.request(request_opts) do
       {:ok, response_body} ->
         {:ok, parse_corpus_response(response_body)}
-        
+
       {:error, error} ->
         {:error, error}
     end
@@ -228,16 +228,16 @@ defmodule ExLLM.Gemini.Corpus do
 
   @doc """
   Lists corpora owned by the user.
-  
+
   ## Parameters
-  
+
   * `list_options` - Map containing pagination options
     * `:page_size` - Optional maximum number of corpora per page (1-20)
     * `:page_token` - Optional page token for pagination
   * `opts` - Options including OAuth2 token
-  
+
   ## Examples
-  
+
       # List all corpora
       {:ok, response} = ExLLM.Gemini.Corpus.list_corpora(%{}, 
         oauth_token: "your-oauth-token")
@@ -251,24 +251,32 @@ defmodule ExLLM.Gemini.Corpus do
   @spec list_corpora(map(), Keyword.t()) :: {:ok, ListCorporaResponse.t()} | {:error, map()}
   def list_corpora(list_options, opts \\ []) do
     request = build_list_corpora_request(list_options)
-    
+
     query_params = %{}
-    query_params = if request.page_size, do: Map.put(query_params, "pageSize", request.page_size), else: query_params
-    query_params = if request.page_token, do: Map.put(query_params, "pageToken", request.page_token), else: query_params
-    
+
+    query_params =
+      if request.page_size,
+        do: Map.put(query_params, "pageSize", request.page_size),
+        else: query_params
+
+    query_params =
+      if request.page_token,
+        do: Map.put(query_params, "pageToken", request.page_token),
+        else: query_params
+
     request_opts = [
       method: :get,
       url: "/corpora",
       body: nil,
       query: query_params
     ]
-    
+
     request_opts = add_auth(request_opts, opts)
-    
+
     case Base.request(request_opts) do
       {:ok, response_body} ->
         {:ok, parse_list_corpora_response(response_body)}
-        
+
       {:error, error} ->
         {:error, error}
     end
@@ -276,14 +284,14 @@ defmodule ExLLM.Gemini.Corpus do
 
   @doc """
   Gets information about a specific corpus.
-  
+
   ## Parameters
-  
+
   * `corpus_name` - The name of the corpus (e.g., "corpora/my-corpus")
   * `opts` - Options including OAuth2 token
-  
+
   ## Examples
-  
+
       {:ok, corpus} = ExLLM.Gemini.Corpus.get_corpus(
         "corpora/my-corpus",
         oauth_token: "your-oauth-token"
@@ -297,13 +305,13 @@ defmodule ExLLM.Gemini.Corpus do
       body: nil,
       query: %{}
     ]
-    
+
     request_opts = add_auth(request_opts, opts)
-    
+
     case Base.request(request_opts) do
       {:ok, response_body} ->
         {:ok, parse_corpus_response(response_body)}
-        
+
       {:error, error} ->
         {:error, error}
     end
@@ -311,17 +319,17 @@ defmodule ExLLM.Gemini.Corpus do
 
   @doc """
   Updates a corpus.
-  
+
   ## Parameters
-  
+
   * `corpus_name` - The name of the corpus to update
   * `update_data` - Map containing fields to update
     * `:display_name` - New display name
   * `update_mask` - List of fields to update (currently only ["displayName"] is supported)
   * `opts` - Options including OAuth2 token
-  
+
   ## Examples
-  
+
       {:ok, corpus} = ExLLM.Gemini.Corpus.update_corpus(
         "corpora/my-corpus",
         %{display_name: "Updated Name"},
@@ -329,26 +337,26 @@ defmodule ExLLM.Gemini.Corpus do
         oauth_token: "your-oauth-token"
       )
   """
-  @spec update_corpus(String.t(), map(), [String.t()], Keyword.t()) :: 
-    {:ok, CorpusInfo.t()} | {:error, map()}
+  @spec update_corpus(String.t(), map(), [String.t()], Keyword.t()) ::
+          {:ok, CorpusInfo.t()} | {:error, map()}
   def update_corpus(corpus_name, update_data, update_mask, opts \\ []) do
     request = build_update_corpus_request(corpus_name, update_data, update_mask)
-    
+
     query_params = %{"updateMask" => Enum.join(update_mask, ",")}
-    
+
     request_opts = [
       method: :patch,
       url: "/#{corpus_name}",
       body: encode_update_corpus_request(request),
       query: query_params
     ]
-    
+
     request_opts = add_auth(request_opts, opts)
-    
+
     case Base.request(request_opts) do
       {:ok, response_body} ->
         {:ok, parse_corpus_response(response_body)}
-        
+
       {:error, error} ->
         {:error, error}
     end
@@ -356,15 +364,15 @@ defmodule ExLLM.Gemini.Corpus do
 
   @doc """
   Deletes a corpus.
-  
+
   ## Parameters
-  
+
   * `corpus_name` - The name of the corpus to delete
   * `opts` - Options including OAuth2 token and force flag
     * `:force` - If true, delete all documents in the corpus as well
-  
+
   ## Examples
-  
+
       # Delete empty corpus
       :ok = ExLLM.Gemini.Corpus.delete_corpus(
         "corpora/my-corpus",
@@ -381,20 +389,20 @@ defmodule ExLLM.Gemini.Corpus do
   @spec delete_corpus(String.t(), Keyword.t()) :: :ok | {:error, map()}
   def delete_corpus(corpus_name, opts \\ []) do
     query_params = if opts[:force], do: %{"force" => "true"}, else: %{}
-    
+
     request_opts = [
       method: :delete,
       url: "/#{corpus_name}",
       body: nil,
       query: query_params
     ]
-    
+
     request_opts = add_auth(request_opts, opts)
-    
+
     case Base.request(request_opts) do
       {:ok, _response_body} ->
         :ok
-        
+
       {:error, error} ->
         {:error, error}
     end
@@ -402,18 +410,18 @@ defmodule ExLLM.Gemini.Corpus do
 
   @doc """
   Performs semantic search over a corpus.
-  
+
   ## Parameters
-  
+
   * `corpus_name` - The name of the corpus to query
   * `query` - The search query string
   * `query_options` - Map containing query options
     * `:results_count` - Maximum number of chunks to return (1-100)
     * `:metadata_filters` - List of metadata filters
   * `opts` - Options including OAuth2 token
-  
+
   ## Examples
-  
+
       # Simple query
       {:ok, response} = ExLLM.Gemini.Corpus.query_corpus(
         "corpora/my-corpus",
@@ -440,24 +448,24 @@ defmodule ExLLM.Gemini.Corpus do
         oauth_token: "your-oauth-token"
       )
   """
-  @spec query_corpus(String.t(), String.t(), map(), Keyword.t()) :: 
-    {:ok, QueryCorpusResponse.t()} | {:error, map()}
+  @spec query_corpus(String.t(), String.t(), map(), Keyword.t()) ::
+          {:ok, QueryCorpusResponse.t()} | {:error, map()}
   def query_corpus(corpus_name, query, query_options, opts \\ []) do
     request = build_query_corpus_request(corpus_name, query, query_options)
-    
+
     request_opts = [
       method: :post,
       url: "/#{corpus_name}:query",
       body: encode_query_corpus_request(request),
       query: %{}
     ]
-    
+
     request_opts = add_auth(request_opts, opts)
-    
+
     case Base.request(request_opts) do
       {:ok, response_body} ->
         {:ok, parse_query_corpus_response(response_body)}
-        
+
       {:error, error} ->
         {:error, error}
     end
@@ -472,16 +480,16 @@ defmodule ExLLM.Gemini.Corpus do
   def build_create_corpus_request(corpus_data) do
     name = corpus_data[:name] || corpus_data["name"]
     display_name = corpus_data[:display_name] || corpus_data["displayName"]
-    
+
     # Validate inputs
     if name && !valid_corpus_name?(name) do
       raise ArgumentError, "Invalid corpus name format: #{name}"
     end
-    
+
     if display_name && !valid_display_name?(display_name) do
       raise ArgumentError, "Display name must be 512 characters or less"
     end
-    
+
     %CreateCorpusRequest{
       name: name,
       display_name: display_name
@@ -495,12 +503,12 @@ defmodule ExLLM.Gemini.Corpus do
   def build_list_corpora_request(list_options) do
     page_size = list_options[:page_size] || list_options["pageSize"]
     page_token = list_options[:page_token] || list_options["pageToken"]
-    
+
     # Validate page size
     if page_size && (page_size < 1 || page_size > 20) do
       raise ArgumentError, "Page size must be between 1 and 20, got: #{page_size}"
     end
-    
+
     %ListCorporaRequest{
       page_size: page_size,
       page_token: page_token
@@ -516,20 +524,21 @@ defmodule ExLLM.Gemini.Corpus do
     if Enum.empty?(update_mask) do
       raise ArgumentError, "Update mask is required"
     end
-    
+
     valid_fields = ["displayName"]
     invalid_fields = Enum.reject(update_mask, &(&1 in valid_fields))
-    
+
     if !Enum.empty?(invalid_fields) do
-      raise ArgumentError, "Update mask can only contain: #{Enum.join(valid_fields, ", ")}. Invalid: #{Enum.join(invalid_fields, ", ")}"
+      raise ArgumentError,
+            "Update mask can only contain: #{Enum.join(valid_fields, ", ")}. Invalid: #{Enum.join(invalid_fields, ", ")}"
     end
-    
+
     display_name = update_data[:display_name] || update_data["displayName"]
-    
+
     if display_name && !valid_display_name?(display_name) do
       raise ArgumentError, "Display name must be 512 characters or less"
     end
-    
+
     %UpdateCorpusRequest{
       name: corpus_name,
       display_name: display_name,
@@ -544,15 +553,15 @@ defmodule ExLLM.Gemini.Corpus do
   def build_query_corpus_request(corpus_name, query, query_options) do
     results_count = query_options[:results_count] || query_options["resultsCount"]
     metadata_filters = query_options[:metadata_filters] || query_options["metadataFilters"] || []
-    
+
     # Validate results count
     if results_count && (results_count < 1 || results_count > 100) do
       raise ArgumentError, "Results count must be between 1 and 100, got: #{results_count}"
     end
-    
+
     # Validate and build metadata filters
     validated_filters = Enum.map(metadata_filters, &build_metadata_filter/1)
-    
+
     %QueryCorpusRequest{
       name: corpus_name,
       query: query,
@@ -581,9 +590,10 @@ defmodule ExLLM.Gemini.Corpus do
   """
   @spec parse_list_corpora_response(map()) :: ListCorporaResponse.t()
   def parse_list_corpora_response(response_body) do
-    corpora = (response_body["corpora"] || [])
-              |> Enum.map(&parse_corpus_response/1)
-    
+    corpora =
+      (response_body["corpora"] || [])
+      |> Enum.map(&parse_corpus_response/1)
+
     %ListCorporaResponse{
       corpora: corpora,
       next_page_token: response_body["nextPageToken"]
@@ -595,9 +605,10 @@ defmodule ExLLM.Gemini.Corpus do
   """
   @spec parse_query_corpus_response(map()) :: QueryCorpusResponse.t()
   def parse_query_corpus_response(response_body) do
-    relevant_chunks = (response_body["relevantChunks"] || [])
-                     |> Enum.map(&parse_relevant_chunk/1)
-    
+    relevant_chunks =
+      (response_body["relevantChunks"] || [])
+      |> Enum.map(&parse_relevant_chunk/1)
+
     %QueryCorpusResponse{
       relevant_chunks: relevant_chunks
     }
@@ -631,6 +642,7 @@ defmodule ExLLM.Gemini.Corpus do
   def operator_to_api_string(:not_equal), do: "NOT_EQUAL"
   def operator_to_api_string(:includes), do: "INCLUDES"
   def operator_to_api_string(:excludes), do: "EXCLUDES"
+
   def operator_to_api_string(op) do
     raise ArgumentError, "Invalid operator: #{inspect(op)}"
   end
@@ -645,10 +657,11 @@ defmodule ExLLM.Gemini.Corpus do
     case String.split(name, "/", parts: 2) do
       ["corpora", corpus_id] ->
         String.length(corpus_id) > 0 &&
-        String.length(corpus_id) <= 40 &&
-        !String.starts_with?(corpus_id, "-") &&
-        !String.ends_with?(corpus_id, "-") &&
-        String.match?(corpus_id, ~r/^[a-z0-9-]+$/)
+          String.length(corpus_id) <= 40 &&
+          !String.starts_with?(corpus_id, "-") &&
+          !String.ends_with?(corpus_id, "-") &&
+          String.match?(corpus_id, ~r/^[a-z0-9-]+$/)
+
       _ ->
         false
     end
@@ -668,37 +681,41 @@ defmodule ExLLM.Gemini.Corpus do
     if oauth_token = opts[:oauth_token] do
       Keyword.put(request_opts, :oauth_token, oauth_token)
     else
-      raise ArgumentError, "OAuth2 token is required for corpus operations. Set :oauth_token option"
+      raise ArgumentError,
+            "OAuth2 token is required for corpus operations. Set :oauth_token option"
     end
   end
 
   defp encode_create_corpus_request(%CreateCorpusRequest{} = request) do
     base_request = %{}
-    
-    base_request = if request.name do
-      Map.put(base_request, "name", request.name)
-    else
-      base_request
-    end
-    
-    base_request = if request.display_name do
-      Map.put(base_request, "displayName", request.display_name)
-    else
-      base_request
-    end
-    
+
+    base_request =
+      if request.name do
+        Map.put(base_request, "name", request.name)
+      else
+        base_request
+      end
+
+    base_request =
+      if request.display_name do
+        Map.put(base_request, "displayName", request.display_name)
+      else
+        base_request
+      end
+
     base_request
   end
 
   defp encode_update_corpus_request(%UpdateCorpusRequest{} = request) do
     base_request = %{}
-    
-    base_request = if request.display_name do
-      Map.put(base_request, "displayName", request.display_name)
-    else
-      base_request
-    end
-    
+
+    base_request =
+      if request.display_name do
+        Map.put(base_request, "displayName", request.display_name)
+      else
+        base_request
+      end
+
     base_request
   end
 
@@ -706,36 +723,42 @@ defmodule ExLLM.Gemini.Corpus do
     base_request = %{
       "query" => request.query
     }
-    
-    base_request = if request.results_count do
-      Map.put(base_request, "resultsCount", request.results_count)
-    else
-      base_request
-    end
-    
-    base_request = if !Enum.empty?(request.metadata_filters) do
-      Map.put(base_request, "metadataFilters", Enum.map(request.metadata_filters, &encode_metadata_filter/1))
-    else
-      base_request
-    end
-    
+
+    base_request =
+      if request.results_count do
+        Map.put(base_request, "resultsCount", request.results_count)
+      else
+        base_request
+      end
+
+    base_request =
+      if !Enum.empty?(request.metadata_filters) do
+        Map.put(
+          base_request,
+          "metadataFilters",
+          Enum.map(request.metadata_filters, &encode_metadata_filter/1)
+        )
+      else
+        base_request
+      end
+
     base_request
   end
 
   defp build_metadata_filter(filter_data) when is_map(filter_data) do
     key = filter_data[:key] || filter_data["key"]
     conditions = filter_data[:conditions] || filter_data["conditions"]
-    
+
     if is_nil(key) do
       raise ArgumentError, "Metadata filter key is required"
     end
-    
+
     if is_nil(conditions) || !is_list(conditions) || Enum.empty?(conditions) do
       raise ArgumentError, "Metadata filter conditions are required and must be a non-empty list"
     end
-    
+
     validated_conditions = Enum.map(conditions, &build_condition/1)
-    
+
     %MetadataFilter{
       key: key,
       conditions: validated_conditions
@@ -746,22 +769,23 @@ defmodule ExLLM.Gemini.Corpus do
     operation = condition_data[:operation] || condition_data["operation"]
     string_value = condition_data[:string_value] || condition_data["stringValue"]
     numeric_value = condition_data[:numeric_value] || condition_data["numericValue"]
-    
+
     if is_nil(operation) do
       raise ArgumentError, "Condition operation is required"
     end
-    
+
     if is_nil(string_value) && is_nil(numeric_value) do
       raise ArgumentError, "Condition must have either string_value or numeric_value"
     end
-    
+
     # Convert operation string to atom if needed
-    operation_atom = if is_binary(operation) do
-      format_operator(operation)
-    else
-      operation
-    end
-    
+    operation_atom =
+      if is_binary(operation) do
+        format_operator(operation)
+      else
+        operation
+      end
+
     %Condition{
       operation: operation_atom,
       string_value: string_value,
@@ -780,19 +804,21 @@ defmodule ExLLM.Gemini.Corpus do
     base_condition = %{
       "operation" => operator_to_api_string(condition.operation)
     }
-    
-    base_condition = if condition.string_value do
-      Map.put(base_condition, "stringValue", condition.string_value)
-    else
-      base_condition
-    end
-    
-    base_condition = if condition.numeric_value do
-      Map.put(base_condition, "numericValue", condition.numeric_value)
-    else
-      base_condition
-    end
-    
+
+    base_condition =
+      if condition.string_value do
+        Map.put(base_condition, "stringValue", condition.string_value)
+      else
+        base_condition
+      end
+
+    base_condition =
+      if condition.numeric_value do
+        Map.put(base_condition, "numericValue", condition.numeric_value)
+      else
+        base_condition
+      end
+
     base_condition
   end
 

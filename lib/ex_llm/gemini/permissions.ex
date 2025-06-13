@@ -1,7 +1,7 @@
 defmodule ExLLM.Gemini.Permissions do
   @moduledoc """
   Google Gemini Permissions API implementation.
-  
+
   This module provides functionality for managing permissions on tuned models
   and corpora in the Gemini API. Permissions control access levels (reader, writer, owner)
   for users, groups, or everyone.
@@ -24,27 +24,29 @@ defmodule ExLLM.Gemini.Permissions do
     defstruct [:name, :grantee_type, :email_address, :role]
 
     @type t :: %__MODULE__{
-      name: String.t() | nil,
-      grantee_type: ExLLM.Gemini.Permissions.grantee_type() | nil,
-      email_address: String.t() | nil,
-      role: ExLLM.Gemini.Permissions.role()
-    }
+            name: String.t() | nil,
+            grantee_type: ExLLM.Gemini.Permissions.grantee_type() | nil,
+            email_address: String.t() | nil,
+            role: ExLLM.Gemini.Permissions.role()
+          }
 
     def to_json(%__MODULE__{} = permission) do
       json = %{}
-      
-      json = if permission.grantee_type do
-        Map.put(json, "granteeType", to_string(permission.grantee_type))
-      else
-        json
-      end
-      
-      json = if permission.email_address do
-        Map.put(json, "emailAddress", permission.email_address)
-      else
-        json
-      end
-      
+
+      json =
+        if permission.grantee_type do
+          Map.put(json, "granteeType", to_string(permission.grantee_type))
+        else
+          json
+        end
+
+      json =
+        if permission.email_address do
+          Map.put(json, "emailAddress", permission.email_address)
+        else
+          json
+        end
+
       Map.put(json, "role", to_string(permission.role))
     end
 
@@ -65,9 +67,9 @@ defmodule ExLLM.Gemini.Permissions do
     defstruct [:permissions, :next_page_token]
 
     @type t :: %__MODULE__{
-      permissions: [Permission.t()],
-      next_page_token: String.t() | nil
-    }
+            permissions: [Permission.t()],
+            next_page_token: String.t() | nil
+          }
 
     def from_json(json) do
       %__MODULE__{
@@ -84,8 +86,8 @@ defmodule ExLLM.Gemini.Permissions do
     defstruct [:email_address]
 
     @type t :: %__MODULE__{
-      email_address: String.t()
-    }
+            email_address: String.t()
+          }
 
     def to_json(%__MODULE__{} = request) do
       %{
@@ -97,42 +99,43 @@ defmodule ExLLM.Gemini.Permissions do
   # API Functions
 
   @type options :: [
-    {:api_key, String.t()} |
-    {:oauth_token, String.t()} |
-    {:config_provider, module()} |
-    {:page_size, integer()} |
-    {:page_token, String.t()} |
-    {:update_mask, String.t()}
-  ]
+          {:api_key, String.t()}
+          | {:oauth_token, String.t()}
+          | {:config_provider, module()}
+          | {:page_size, integer()}
+          | {:page_token, String.t()}
+          | {:update_mask, String.t()}
+        ]
 
   @doc """
   Creates a permission for a tuned model or corpus.
-  
+
   ## Parameters
-  
+
   * `parent` - The parent resource (e.g., "tunedModels/my-model" or "corpora/my-corpus")
   * `permission` - The permission to create containing:
     * `:grantee_type` - Type of grantee (USER, GROUP, or EVERYONE)
     * `:email_address` - Email for USER or GROUP types
     * `:role` - Permission level (READER, WRITER, or OWNER)
   * `opts` - Options including `:api_key`
-  
+
   ## Returns
-  
+
   * `{:ok, permission}` - The created permission
   * `{:error, reason}` - Error details
   """
-  @spec create_permission(String.t(), map(), options()) :: {:ok, Permission.t()} | {:error, term()}
+  @spec create_permission(String.t(), map(), options()) ::
+          {:ok, Permission.t()} | {:error, term()}
   def create_permission(parent, permission, opts \\ []) do
     with :ok <- validate_parent(parent),
          :ok <- validate_create_permission(permission),
          body <- Permission.to_json(struct(Permission, permission)) do
-      
       auth_opts = get_auth_opts(opts)
-      
+
       case Base.request(
-        [{:method, :post}, {:url, "/#{parent}/permissions"}, {:body, body}] ++ auth_opts ++ [{:opts, opts}]
-      ) do
+             [{:method, :post}, {:url, "/#{parent}/permissions"}, {:body, body}] ++
+               auth_opts ++ [{:opts, opts}]
+           ) do
         {:ok, json} -> {:ok, Permission.from_json(json)}
         {:error, _} = error -> error
       end
@@ -141,30 +144,31 @@ defmodule ExLLM.Gemini.Permissions do
 
   @doc """
   Lists permissions for a tuned model or corpus.
-  
+
   ## Parameters
-  
+
   * `parent` - The parent resource
   * `opts` - Options including:
     * `:api_key` - Google API key
     * `:page_size` - Maximum number of permissions to return
     * `:page_token` - Token for pagination
-  
+
   ## Returns
-  
+
   * `{:ok, response}` - List of permissions
   * `{:error, reason}` - Error details
   """
-  @spec list_permissions(String.t(), options()) :: {:ok, ListPermissionsResponse.t()} | {:error, term()}
+  @spec list_permissions(String.t(), options()) ::
+          {:ok, ListPermissionsResponse.t()} | {:error, term()}
   def list_permissions(parent, opts \\ []) do
     with :ok <- validate_parent(parent),
          query_params <- build_list_query_params(opts) do
-      
       auth_opts = get_auth_opts(opts)
-      
+
       case Base.request(
-        [{:method, :get}, {:url, "/#{parent}/permissions"}, {:query, query_params}] ++ auth_opts ++ [{:opts, opts}]
-      ) do
+             [{:method, :get}, {:url, "/#{parent}/permissions"}, {:query, query_params}] ++
+               auth_opts ++ [{:opts, opts}]
+           ) do
         {:ok, json} -> {:ok, ListPermissionsResponse.from_json(json)}
         {:error, _} = error -> error
       end
@@ -173,24 +177,22 @@ defmodule ExLLM.Gemini.Permissions do
 
   @doc """
   Gets information about a specific permission.
-  
+
   ## Parameters
-  
+
   * `name` - The resource name (e.g., "tunedModels/my-model/permissions/perm-123")
   * `opts` - Options including `:api_key`
-  
+
   ## Returns
-  
+
   * `{:ok, permission}` - The permission details
   * `{:error, reason}` - Error details
   """
   @spec get_permission(String.t(), options()) :: {:ok, Permission.t()} | {:error, term()}
   def get_permission(name, opts \\ []) do
     auth_opts = get_auth_opts(opts)
-    
-    case Base.request(
-      [{:method, :get}, {:url, "/#{name}"}] ++ auth_opts ++ [{:opts, opts}]
-    ) do
+
+    case Base.request([{:method, :get}, {:url, "/#{name}"}] ++ auth_opts ++ [{:opts, opts}]) do
       {:ok, json} -> {:ok, Permission.from_json(json)}
       {:error, _} = error -> error
     end
@@ -198,32 +200,33 @@ defmodule ExLLM.Gemini.Permissions do
 
   @doc """
   Updates a permission's role.
-  
+
   ## Parameters
-  
+
   * `name` - The resource name of the permission
   * `update` - Map containing `:role` to update
   * `opts` - Options including:
     * `:api_key` - Google API key
     * `:update_mask` - Required field mask (should be "role")
-  
+
   ## Returns
-  
+
   * `{:ok, permission}` - The updated permission
   * `{:error, reason}` - Error details
   """
-  @spec update_permission(String.t(), map(), options()) :: {:ok, Permission.t()} | {:error, term()}
+  @spec update_permission(String.t(), map(), options()) ::
+          {:ok, Permission.t()} | {:error, term()}
   def update_permission(name, update, opts \\ []) do
     with :ok <- validate_update_permission(update),
          :ok <- validate_update_mask(opts[:update_mask]),
          body <- %{"role" => to_string(update[:role])},
          query_params <- %{"updateMask" => opts[:update_mask]} do
-      
       auth_opts = get_auth_opts(opts)
-      
+
       case Base.request(
-        [{:method, :patch}, {:url, "/#{name}"}, {:body, body}, {:query, query_params}] ++ auth_opts ++ [{:opts, opts}]
-      ) do
+             [{:method, :patch}, {:url, "/#{name}"}, {:body, body}, {:query, query_params}] ++
+               auth_opts ++ [{:opts, opts}]
+           ) do
         {:ok, json} -> {:ok, Permission.from_json(json)}
         {:error, _} = error -> error
       end
@@ -232,39 +235,37 @@ defmodule ExLLM.Gemini.Permissions do
 
   @doc """
   Deletes a permission.
-  
+
   ## Parameters
-  
+
   * `name` - The resource name of the permission
   * `opts` - Options including `:api_key`
-  
+
   ## Returns
-  
+
   * `{:ok, %{}}` - Empty response on success
   * `{:error, reason}` - Error details
   """
   @spec delete_permission(String.t(), options()) :: {:ok, map()} | {:error, term()}
   def delete_permission(name, opts \\ []) do
     auth_opts = get_auth_opts(opts)
-    
-    Base.request(
-      [{:method, :delete}, {:url, "/#{name}"}] ++ auth_opts ++ [{:opts, opts}]
-    )
+
+    Base.request([{:method, :delete}, {:url, "/#{name}"}] ++ auth_opts ++ [{:opts, opts}])
   end
 
   @doc """
   Transfers ownership of a tuned model.
-  
+
   The current owner will be downgraded to writer role.
-  
+
   ## Parameters
-  
+
   * `name` - The resource name of the tuned model
   * `request` - Map containing `:email_address` of new owner
   * `opts` - Options including `:api_key`
-  
+
   ## Returns
-  
+
   * `{:ok, %{}}` - Empty response on success
   * `{:error, reason}` - Error details
   """
@@ -272,11 +273,11 @@ defmodule ExLLM.Gemini.Permissions do
   def transfer_ownership(name, request, opts \\ []) do
     with :ok <- validate_transfer_ownership(request),
          body <- TransferOwnershipRequest.to_json(struct(TransferOwnershipRequest, request)) do
-      
       auth_opts = get_auth_opts(opts)
-      
+
       Base.request(
-        [{:method, :post}, {:url, "/#{name}:transferOwnership"}, {:body, body}] ++ auth_opts ++ [{:opts, opts}]
+        [{:method, :post}, {:url, "/#{name}:transferOwnership"}, {:body, body}] ++
+          auth_opts ++ [{:opts, opts}]
       )
     end
   end
@@ -292,20 +293,20 @@ defmodule ExLLM.Gemini.Permissions do
     cond do
       !permission[:role] ->
         {:error, "role is required"}
-      
+
       permission[:role] not in [:READER, :WRITER, :OWNER] ->
         {:error, "role must be one of: READER, WRITER, OWNER"}
-      
+
       !permission[:grantee_type] ->
         # Default to USER if not specified
         :ok
-      
+
       permission[:grantee_type] not in [:USER, :GROUP, :EVERYONE] ->
         {:error, "grantee_type must be one of: USER, GROUP, EVERYONE"}
-      
+
       permission[:grantee_type] in [:USER, :GROUP] and !permission[:email_address] ->
         {:error, "email_address is required for #{permission[:grantee_type]} grantee type"}
-      
+
       true ->
         :ok
     end
@@ -316,10 +317,10 @@ defmodule ExLLM.Gemini.Permissions do
     cond do
       !update[:role] ->
         {:error, "role is required for update"}
-      
+
       update[:role] not in [:READER, :WRITER, :OWNER] ->
         {:error, "role must be one of: READER, WRITER, OWNER"}
-      
+
       true ->
         :ok
     end
@@ -334,10 +335,10 @@ defmodule ExLLM.Gemini.Permissions do
     cond do
       !request[:email_address] ->
         {:error, "email_address is required"}
-      
+
       !String.contains?(request[:email_address], "@") ->
         {:error, "email_address must be a valid email"}
-      
+
       true ->
         :ok
     end
@@ -377,13 +378,14 @@ defmodule ExLLM.Gemini.Permissions do
 
   defp build_list_query_params(opts) do
     params = %{}
-    
-    params = if opts[:page_size] do
-      Map.put(params, "pageSize", opts[:page_size])
-    else
-      params
-    end
-    
+
+    params =
+      if opts[:page_size] do
+        Map.put(params, "pageSize", opts[:page_size])
+      else
+        params
+      end
+
     if opts[:page_token] do
       Map.put(params, "pageToken", opts[:page_token])
     else

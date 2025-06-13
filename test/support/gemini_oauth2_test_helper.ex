@@ -1,7 +1,7 @@
 defmodule ExLLM.Test.GeminiOAuth2Helper do
   @moduledoc """
   Test helper for Gemini OAuth2 authentication.
-  
+
   This module provides utilities for using OAuth2 tokens in tests,
   including automatic token refresh when needed.
   """
@@ -11,15 +11,15 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
 
   @doc """
   Gets a valid OAuth2 token for testing.
-  
+
   This function:
   1. Checks for tokens in environment variables (CI/CD friendly)
   2. Falls back to loading from .gemini_tokens file
   3. Automatically refreshes if token is expired
   4. Returns nil if no tokens are available
-  
+
   ## Usage in Tests
-  
+
       setup do
         case ExLLM.Test.GeminiOAuth2Helper.get_valid_token() do
           {:ok, token} ->
@@ -62,9 +62,9 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
 
   @doc """
   Skips a test if OAuth2 tokens are not available.
-  
+
   ## Usage
-  
+
       setup :skip_without_oauth
       
       test "requires oauth" do
@@ -90,16 +90,19 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
   @spec get_refresh_token() :: {:ok, String.t()} | {:error, :no_token | String.t()}
   def get_refresh_token do
     case System.get_env("GEMINI_REFRESH_TOKEN") do
-      nil -> 
+      nil ->
         case load_tokens() do
-          {:ok, tokens} -> 
+          {:ok, tokens} ->
             case tokens["refresh_token"] do
               nil -> {:error, :no_token}
               token -> {:ok, token}
             end
-          error -> error
+
+          error ->
+            error
         end
-      token -> 
+
+      token ->
         {:ok, token}
     end
   end
@@ -115,15 +118,17 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
 
   defp load_tokens do
     token_path = Path.join(File.cwd!(), @token_file)
-    
+
     case File.read(token_path) do
       {:ok, content} ->
         case Jason.decode(content) do
           {:ok, tokens} -> {:ok, tokens}
           {:error, _} -> {:error, "Invalid token file format"}
         end
+
       {:error, :enoent} ->
         {:error, :no_token}
+
       {:error, reason} ->
         {:error, "Failed to read tokens: #{reason}"}
     end
@@ -131,10 +136,10 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
 
   defp ensure_token_valid(tokens) do
     case tokens["expires_at"] do
-      nil -> 
+      nil ->
         # No expiry info, assume valid
         :ok
-        
+
       expires_at ->
         case DateTime.from_iso8601(expires_at) do
           {:ok, expiry_time, _} ->
@@ -145,15 +150,17 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
               IO.puts("\n🔄 OAuth2 token expired, attempting refresh...")
               refresh_token()
             end
+
           _ ->
-            :ok  # Can't parse expiry, assume valid
+            # Can't parse expiry, assume valid
+            :ok
         end
     end
   end
 
   defp refresh_token do
     refresh_script = Path.join(File.cwd!(), @token_refresh_script)
-    
+
     if File.exists?(refresh_script) do
       case System.cmd("elixir", [refresh_script], stderr_to_stdout: true) do
         {output, 0} ->
@@ -163,6 +170,7 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
           else
             {:error, "Token refresh failed"}
           end
+
         {output, _} ->
           {:error, "Token refresh failed: #{output}"}
       end
@@ -188,8 +196,8 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
   """
   def assert_oauth_error({:error, %{status: 401} = error}) do
     assert error.message =~ "API keys are not supported" or
-           error.message =~ "authentication" or
-           error.message =~ "unauthorized"
+             error.message =~ "authentication" or
+             error.message =~ "unauthorized"
   end
 
   def assert_oauth_error(other) do

@@ -2,6 +2,7 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
   use ExUnit.Case, async: false
 
   alias ExLLM.Gemini.Permissions
+
   alias ExLLM.Gemini.Permissions.{
     Permission,
     ListPermissionsResponse
@@ -14,13 +15,14 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
     test "creates a corpus permission for a user" do
       permission = %{
         grantee_type: :USER,
-        email_address: "user@example.com", 
+        email_address: "user@example.com",
         role: :READER
       }
 
       # Using non-existent corpus - should return proper error
-      assert {:error, %{status: status}} = 
-        Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
+      assert {:error, %{status: status}} =
+               Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
+
       assert status in [400, 401, 403, 404]
     end
 
@@ -31,23 +33,27 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
       }
 
       # Using non-existent corpus - should return proper error
-      assert {:error, %{status: status}} = 
-        Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
+      assert {:error, %{status: status}} =
+               Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
+
       assert status in [400, 401, 403, 404]
     end
 
     test "lists corpus permissions" do
       # Should work with any corpus name format
-      assert {:ok, %ListPermissionsResponse{} = response} = 
-        Permissions.list_permissions("corpora/test-corpus", api_key: @api_key)
-      
+      assert {:ok, %ListPermissionsResponse{} = response} =
+               Permissions.list_permissions("corpora/test-corpus", api_key: @api_key)
+
       assert is_list(response.permissions)
     end
 
     test "gets specific corpus permission" do
       # Should return error for non-existent permission
-      assert {:error, %{status: status}} = 
-        Permissions.get_permission("corpora/test-corpus/permissions/invalid", api_key: @api_key)
+      assert {:error, %{status: status}} =
+               Permissions.get_permission("corpora/test-corpus/permissions/invalid",
+                 api_key: @api_key
+               )
+
       assert status in [400, 401, 403, 404]
     end
 
@@ -55,20 +61,24 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
       update = %{role: :WRITER}
 
       # Should return error for non-existent permission
-      assert {:error, %{status: status}} = 
-        Permissions.update_permission(
-          "corpora/test-corpus/permissions/invalid", 
-          update,
-          api_key: @api_key,
-          update_mask: "role"
-        )
+      assert {:error, %{status: status}} =
+               Permissions.update_permission(
+                 "corpora/test-corpus/permissions/invalid",
+                 update,
+                 api_key: @api_key,
+                 update_mask: "role"
+               )
+
       assert status in [400, 401, 403, 404]
     end
 
     test "deletes corpus permission" do
       # Should return error for non-existent permission
-      assert {:error, %{status: status}} = 
-        Permissions.delete_permission("corpora/test-corpus/permissions/invalid", api_key: @api_key)
+      assert {:error, %{status: status}} =
+               Permissions.delete_permission("corpora/test-corpus/permissions/invalid",
+                 api_key: @api_key
+               )
+
       assert status in [400, 401, 403, 404]
     end
   end
@@ -77,7 +87,7 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
     test "validates corpus parent format" do
       # Valid corpus format should pass validation
       assert :ok = Permissions.validate_parent("corpora/my-corpus")
-      
+
       # Empty parent should fail
       assert {:error, _} = Permissions.validate_parent("")
     end
@@ -89,6 +99,7 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
         email_address: "user@example.com",
         role: :READER
       }
+
       assert :ok = Permissions.validate_create_permission(permission)
 
       # Invalid role
@@ -97,6 +108,7 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
         email_address: "user@example.com",
         role: :INVALID
       }
+
       assert {:error, _} = Permissions.validate_create_permission(invalid_permission)
 
       # Missing email for USER type
@@ -104,6 +116,7 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
         grantee_type: :USER,
         role: :READER
       }
+
       assert {:error, _} = Permissions.validate_create_permission(missing_email)
 
       # EVERYONE type doesn't need email
@@ -111,6 +124,7 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
         grantee_type: :EVERYONE,
         role: :READER
       }
+
       assert :ok = Permissions.validate_create_permission(everyone_permission)
     end
 
@@ -121,6 +135,7 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
           grantee_type: :EVERYONE,
           role: role
         }
+
         assert :ok = Permissions.validate_create_permission(permission)
       end
     end
@@ -209,8 +224,8 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
       }
 
       # Should work with api_key option
-      assert {:error, %{status: _}} = 
-        Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
+      assert {:error, %{status: _}} =
+               Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
     end
 
     test "supports OAuth2 authentication for corpus permissions" do
@@ -220,8 +235,10 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
       }
 
       # Should work with oauth_token option (even with invalid token)
-      assert {:error, %{status: _}} = 
-        Permissions.create_permission("corpora/test-corpus", permission, oauth_token: "invalid-token")
+      assert {:error, %{status: _}} =
+               Permissions.create_permission("corpora/test-corpus", permission,
+                 oauth_token: "invalid-token"
+               )
     end
   end
 end

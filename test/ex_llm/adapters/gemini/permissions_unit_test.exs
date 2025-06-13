@@ -2,6 +2,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
   use ExUnit.Case
 
   alias ExLLM.Gemini.Permissions
+
   alias ExLLM.Gemini.Permissions.{
     Permission,
     ListPermissionsResponse,
@@ -76,12 +77,12 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       json = Permission.to_json(permission)
-      
+
       assert json == %{
-        "granteeType" => "USER",
-        "emailAddress" => "user@example.com",
-        "role" => "READER"
-      }
+               "granteeType" => "USER",
+               "emailAddress" => "user@example.com",
+               "role" => "READER"
+             }
     end
 
     test "Permission to_json for EVERYONE" do
@@ -91,11 +92,12 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       json = Permission.to_json(permission)
-      
+
       assert json == %{
-        "granteeType" => "EVERYONE",
-        "role" => "READER"
-      }
+               "granteeType" => "EVERYONE",
+               "role" => "READER"
+             }
+
       refute Map.has_key?(json, "emailAddress")
     end
 
@@ -105,10 +107,10 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       json = TransferOwnershipRequest.to_json(request)
-      
+
       assert json == %{
-        "emailAddress" => "newowner@example.com"
-      }
+               "emailAddress" => "newowner@example.com"
+             }
     end
   end
 
@@ -122,7 +124,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       permission = Permission.from_json(json)
-      
+
       assert %Permission{} = permission
       assert permission.name == "tunedModels/test-123/permissions/perm-456"
       assert permission.grantee_type == :USER
@@ -139,7 +141,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       permission = Permission.from_json(json)
-      
+
       assert permission.grantee_type == :GROUP
       assert permission.role == :OWNER
     end
@@ -152,7 +154,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       permission = Permission.from_json(json)
-      
+
       assert permission.grantee_type == :EVERYONE
       assert is_nil(permission.email_address)
       assert permission.role == :READER
@@ -177,11 +179,11 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       response = ListPermissionsResponse.from_json(json)
-      
+
       assert %ListPermissionsResponse{} = response
       assert length(response.permissions) == 2
       assert response.next_page_token == "next-page"
-      
+
       [perm1, perm2] = response.permissions
       assert perm1.grantee_type == :USER
       assert perm2.grantee_type == :EVERYONE
@@ -193,7 +195,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       }
 
       response = ListPermissionsResponse.from_json(json)
-      
+
       assert response.permissions == []
       assert is_nil(response.next_page_token)
     end
@@ -245,8 +247,8 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
         role: :INVALID
       }
 
-      assert {:error, "role must be one of: READER, WRITER, OWNER"} = 
-        Permissions.validate_create_permission(permission)
+      assert {:error, "role must be one of: READER, WRITER, OWNER"} =
+               Permissions.validate_create_permission(permission)
     end
 
     test "returns error for USER without email" do
@@ -255,8 +257,8 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
         role: :READER
       }
 
-      assert {:error, "email_address is required for USER grantee type"} = 
-        Permissions.validate_create_permission(permission)
+      assert {:error, "email_address is required for USER grantee type"} =
+               Permissions.validate_create_permission(permission)
     end
 
     test "returns error for GROUP without email" do
@@ -265,8 +267,8 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
         role: :WRITER
       }
 
-      assert {:error, "email_address is required for GROUP grantee type"} = 
-        Permissions.validate_create_permission(permission)
+      assert {:error, "email_address is required for GROUP grantee type"} =
+               Permissions.validate_create_permission(permission)
     end
 
     test "returns error for invalid grantee type" do
@@ -275,8 +277,8 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
         role: :READER
       }
 
-      assert {:error, "grantee_type must be one of: USER, GROUP, EVERYONE"} = 
-        Permissions.validate_create_permission(permission)
+      assert {:error, "grantee_type must be one of: USER, GROUP, EVERYONE"} =
+               Permissions.validate_create_permission(permission)
     end
   end
 
@@ -300,13 +302,13 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
         role: :INVALID
       }
 
-      assert {:error, "role must be one of: READER, WRITER, OWNER"} = 
-        Permissions.validate_update_permission(update)
+      assert {:error, "role must be one of: READER, WRITER, OWNER"} =
+               Permissions.validate_update_permission(update)
     end
 
     test "returns error for empty update" do
-      assert {:error, "role is required for update"} = 
-        Permissions.validate_update_permission(%{})
+      assert {:error, "role is required for update"} =
+               Permissions.validate_update_permission(%{})
     end
   end
 
@@ -320,8 +322,8 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
     end
 
     test "returns error for missing email" do
-      assert {:error, "email_address is required"} = 
-        Permissions.validate_transfer_ownership(%{})
+      assert {:error, "email_address is required"} =
+               Permissions.validate_transfer_ownership(%{})
     end
 
     test "returns error for invalid email format" do
@@ -329,8 +331,8 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
         email_address: "not-an-email"
       }
 
-      assert {:error, "email_address must be a valid email"} = 
-        Permissions.validate_transfer_ownership(request)
+      assert {:error, "email_address must be a valid email"} =
+               Permissions.validate_transfer_ownership(request)
     end
   end
 
@@ -339,7 +341,9 @@ defmodule ExLLM.Adapters.Gemini.PermissionsUnitTest do
       assert Permissions.parse_grantee_type("USER") == :USER
       assert Permissions.parse_grantee_type("GROUP") == :GROUP
       assert Permissions.parse_grantee_type("EVERYONE") == :EVERYONE
-      assert Permissions.parse_grantee_type("GRANTEE_TYPE_UNSPECIFIED") == :GRANTEE_TYPE_UNSPECIFIED
+
+      assert Permissions.parse_grantee_type("GRANTEE_TYPE_UNSPECIFIED") ==
+               :GRANTEE_TYPE_UNSPECIFIED
     end
 
     test "returns GRANTEE_TYPE_UNSPECIFIED for unknown types" do

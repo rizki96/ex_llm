@@ -1,12 +1,12 @@
 defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
   use ExUnit.Case, async: false
-  
+
   alias ExLLM.Gemini.Permissions
   alias ExLLM.Test.GeminiOAuth2Helper
 
   # Skip all tests if OAuth2 is not available
   setup :skip_without_oauth
-  
+
   defp skip_without_oauth(_context) do
     GeminiOAuth2Helper.skip_without_oauth(%{})
   end
@@ -17,21 +17,23 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
 
     test "lists permissions for a tuned model", %{oauth_token: token} do
       # This will likely return empty list unless you have actual tuned models
-      assert {:ok, response} = Permissions.list_permissions(
-        "tunedModels/test-model-#{System.unique_integer([:positive])}",
-        oauth_token: token
-      )
-      
+      assert {:ok, response} =
+               Permissions.list_permissions(
+                 "tunedModels/test-model-#{System.unique_integer([:positive])}",
+                 oauth_token: token
+               )
+
       assert %Permissions.ListPermissionsResponse{} = response
       assert is_list(response.permissions)
     end
 
     test "handles non-existent model gracefully", %{oauth_token: token} do
-      result = Permissions.get_permission(
-        "tunedModels/non-existent/permissions/fake",
-        oauth_token: token
-      )
-      
+      result =
+        Permissions.get_permission(
+          "tunedModels/non-existent/permissions/fake",
+          oauth_token: token
+        )
+
       assert {:error, %{status: status}} = result
       assert status in [403, 404]
     end
@@ -40,7 +42,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
     test "creates and manages permissions", %{oauth_token: token} do
       # This test requires an actual tuned model that you own
       # Uncomment and update model_name to test with a real model
-      
+
       # model_name = "tunedModels/your-actual-model"
       # 
       # # Create permission
@@ -79,22 +81,24 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
 
     test "returns proper error with invalid token" do
       invalid_token = GeminiOAuth2Helper.mock_token(:invalid)
-      
-      result = Permissions.list_permissions(
-        "tunedModels/test",
-        oauth_token: invalid_token
-      )
-      
+
+      result =
+        Permissions.list_permissions(
+          "tunedModels/test",
+          oauth_token: invalid_token
+        )
+
       GeminiOAuth2Helper.assert_oauth_error(result)
     end
 
     test "returns error when using API key instead of OAuth2" do
       # The Permissions API specifically requires OAuth2
-      result = Permissions.list_permissions(
-        "tunedModels/test",
-        api_key: "some-api-key"
-      )
-      
+      result =
+        Permissions.list_permissions(
+          "tunedModels/test",
+          api_key: "some-api-key"
+        )
+
       assert {:error, %{status: 401}} = result
     end
   end
@@ -109,10 +113,10 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
         {"empty", ""},
         {"nil", nil}
       ]
-      
+
       for {description, token} <- tokens do
         if token && String.starts_with?(token, "ya29.") do
-          assert {:ok, _} = validate_token_format(token), 
+          assert {:ok, _} = validate_token_format(token),
                  "Token '#{description}' should be valid"
         else
           assert {:error, _} = validate_token_format(token),
@@ -125,6 +129,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
   # Helper function
   defp validate_token_format(nil), do: {:error, "Token is nil"}
   defp validate_token_format(""), do: {:error, "Token is empty"}
+
   defp validate_token_format(token) when is_binary(token) do
     if String.starts_with?(token, "ya29.") do
       {:ok, token}
@@ -132,5 +137,6 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
       {:error, "Invalid token format"}
     end
   end
+
   defp validate_token_format(_), do: {:error, "Token must be a string"}
 end

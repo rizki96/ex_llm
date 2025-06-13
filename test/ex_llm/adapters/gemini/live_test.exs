@@ -7,14 +7,16 @@ defmodule ExLLM.Adapters.Gemini.LiveTest do
   describe "connection management" do
     test "build_websocket_url/1 constructs correct WebSocket URL" do
       url = Live.build_websocket_url("test-api-key")
-      
-      assert url == "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=test-api-key"
+
+      assert url ==
+               "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=test-api-key"
     end
 
     test "build_websocket_url/1 with OAuth2" do
       url = Live.build_websocket_url(nil, "oauth-token")
-      
-      assert url == "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
+
+      assert url ==
+               "wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent"
     end
   end
 
@@ -58,7 +60,7 @@ defmodule ExLLM.Adapters.Gemini.LiveTest do
       turns = [
         %{role: "user", parts: [%{text: "Hello, how are you?"}]}
       ]
-      
+
       message = Live.build_client_content_message(turns, true)
 
       assert %{client_content: content} = message
@@ -234,6 +236,7 @@ defmodule ExLLM.Adapters.Gemini.LiveTest do
           response_modalities: ["TEXT"]
         }
       }
+
       assert :ok = Live.validate_setup_config(config)
 
       # Invalid temperature
@@ -241,6 +244,7 @@ defmodule ExLLM.Adapters.Gemini.LiveTest do
         model: "models/gemini-2.5-flash-preview-05-20",
         generation_config: %{temperature: -1}
       }
+
       assert {:error, message} = Live.validate_setup_config(config)
       assert String.contains?(message, "temperature must be between 0 and 2")
 
@@ -249,6 +253,7 @@ defmodule ExLLM.Adapters.Gemini.LiveTest do
         model: "models/gemini-2.5-flash-preview-05-20",
         generation_config: %{response_modalities: ["INVALID"]}
       }
+
       assert {:error, message} = Live.validate_setup_config(config)
       assert String.contains?(message, "response_modalities must contain only TEXT and/or AUDIO")
     end

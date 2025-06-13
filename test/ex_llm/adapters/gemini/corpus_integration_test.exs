@@ -21,9 +21,13 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
     test "creates corpus with auto-generated name", %{oauth_token: oauth_token} do
       opts = [oauth_token: oauth_token]
 
-      {:ok, corpus} = Corpus.create_corpus(%{
-        display_name: "Test Corpus #{System.system_time(:second)}"
-      }, opts)
+      {:ok, corpus} =
+        Corpus.create_corpus(
+          %{
+            display_name: "Test Corpus #{System.system_time(:second)}"
+          },
+          opts
+        )
 
       assert corpus.name != nil
       assert String.starts_with?(corpus.name, "corpora/")
@@ -38,13 +42,17 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
     test "creates corpus with specified name", %{oauth_token: oauth_token} do
       corpus_id = "test-corpus-#{System.system_time(:second)}"
       corpus_name = "corpora/#{corpus_id}"
-      
+
       opts = [oauth_token: oauth_token]
 
-      {:ok, corpus} = Corpus.create_corpus(%{
-        name: corpus_name,
-        display_name: "Named Test Corpus"
-      }, opts)
+      {:ok, corpus} =
+        Corpus.create_corpus(
+          %{
+            name: corpus_name,
+            display_name: "Named Test Corpus"
+          },
+          opts
+        )
 
       assert corpus.name == corpus_name
       assert corpus.display_name == "Named Test Corpus"
@@ -57,9 +65,13 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       opts = [oauth_token: oauth_token]
 
       # Create a corpus first
-      {:ok, created_corpus} = Corpus.create_corpus(%{
-        display_name: "Get Test Corpus"
-      }, opts)
+      {:ok, created_corpus} =
+        Corpus.create_corpus(
+          %{
+            display_name: "Get Test Corpus"
+          },
+          opts
+        )
 
       # Get the corpus
       {:ok, retrieved_corpus} = Corpus.get_corpus(created_corpus.name, opts)
@@ -76,14 +88,24 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       opts = [oauth_token: oauth_token]
 
       # Create a corpus first
-      {:ok, corpus} = Corpus.create_corpus(%{
-        display_name: "Original Name"
-      }, opts)
+      {:ok, corpus} =
+        Corpus.create_corpus(
+          %{
+            display_name: "Original Name"
+          },
+          opts
+        )
 
       # Update the corpus
-      {:ok, updated_corpus} = Corpus.update_corpus(corpus.name, %{
-        display_name: "Updated Name"
-      }, ["displayName"], opts)
+      {:ok, updated_corpus} =
+        Corpus.update_corpus(
+          corpus.name,
+          %{
+            display_name: "Updated Name"
+          },
+          ["displayName"],
+          opts
+        )
 
       assert updated_corpus.name == corpus.name
       assert updated_corpus.display_name == "Updated Name"
@@ -101,24 +123,31 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       opts = [oauth_token: oauth_token]
 
       # Create a few corpora for testing
-      corpus_names = for i <- 1..3 do
-        {:ok, corpus} = Corpus.create_corpus(%{
-          display_name: "List Test Corpus #{i}"
-        }, opts)
-        corpus.name
-      end
+      corpus_names =
+        for i <- 1..3 do
+          {:ok, corpus} =
+            Corpus.create_corpus(
+              %{
+                display_name: "List Test Corpus #{i}"
+              },
+              opts
+            )
+
+          corpus.name
+        end
 
       # List all corpora
       {:ok, response} = Corpus.list_corpora(%{}, opts)
 
       assert length(response.corpora) >= 3
-      assert Enum.all?(response.corpora, fn corpus -> 
-        String.starts_with?(corpus.name, "corpora/")
-      end)
+
+      assert Enum.all?(response.corpora, fn corpus ->
+               String.starts_with?(corpus.name, "corpora/")
+             end)
 
       # Test pagination with page size
       {:ok, page_response} = Corpus.list_corpora(%{page_size: 2}, opts)
-      
+
       assert length(page_response.corpora) <= 2
 
       # Clean up
@@ -131,9 +160,13 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       opts = [oauth_token: oauth_token]
 
       # Create a corpus first
-      {:ok, corpus} = Corpus.create_corpus(%{
-        display_name: "Delete Test Corpus"
-      }, opts)
+      {:ok, corpus} =
+        Corpus.create_corpus(
+          %{
+            display_name: "Delete Test Corpus"
+          },
+          opts
+        )
 
       # Delete the corpus
       :ok = Corpus.delete_corpus(corpus.name, opts)
@@ -147,9 +180,13 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       opts = [oauth_token: oauth_token]
 
       # Create an empty corpus
-      {:ok, corpus} = Corpus.create_corpus(%{
-        display_name: "Query Test Corpus"
-      }, opts)
+      {:ok, corpus} =
+        Corpus.create_corpus(
+          %{
+            display_name: "Query Test Corpus"
+          },
+          opts
+        )
 
       # Query the empty corpus
       {:ok, response} = Corpus.query_corpus(corpus.name, "test query", %{}, opts)
@@ -168,9 +205,16 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       assert error.status == 404
 
       # Test updating non-existent corpus
-      {:error, error} = Corpus.update_corpus("corpora/non-existent", %{
-        display_name: "New Name"
-      }, ["displayName"], opts)
+      {:error, error} =
+        Corpus.update_corpus(
+          "corpora/non-existent",
+          %{
+            display_name: "New Name"
+          },
+          ["displayName"],
+          opts
+        )
+
       assert error.status == 404
 
       # Test deleting non-existent corpus
@@ -191,10 +235,14 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
 
       # If we're at the limit (5), we should get an error creating more
       if current_count >= 5 do
-        {:error, error} = Corpus.create_corpus(%{
-          display_name: "Over Limit Corpus"
-        }, opts)
-        
+        {:error, error} =
+          Corpus.create_corpus(
+            %{
+              display_name: "Over Limit Corpus"
+            },
+            opts
+          )
+
         assert error.status in [400, 429]
         assert String.contains?(String.downcase(error.message), "limit")
       end
@@ -228,7 +276,9 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       {:error, error} = Corpus.get_corpus("corpora/test", opts)
       assert error.status in [401, 403]
 
-      {:error, error} = Corpus.update_corpus("corpora/test", %{display_name: "New"}, ["displayName"], opts)
+      {:error, error} =
+        Corpus.update_corpus("corpora/test", %{display_name: "New"}, ["displayName"], opts)
+
       assert error.status in [401, 403]
 
       {:error, error} = Corpus.delete_corpus("corpora/test", opts)
@@ -249,14 +299,19 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       cond do
         is_nil(oauth_token) ->
           {:skip, "GEMINI_OAUTH_TOKEN not set"}
+
         is_nil(test_corpus) ->
           {:skip, "GEMINI_TEST_CORPUS_WITH_CONTENT not set"}
+
         true ->
           {:ok, oauth_token: oauth_token, test_corpus: test_corpus}
       end
     end
 
-    test "queries corpus with metadata filters", %{oauth_token: oauth_token, test_corpus: test_corpus} do
+    test "queries corpus with metadata filters", %{
+      oauth_token: oauth_token,
+      test_corpus: test_corpus
+    } do
       opts = [oauth_token: oauth_token]
 
       # Query with string metadata filter
@@ -269,14 +324,20 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
         }
       ]
 
-      {:ok, response} = Corpus.query_corpus(test_corpus, "artificial intelligence", %{
-        results_count: 5,
-        metadata_filters: metadata_filters
-      }, opts)
+      {:ok, response} =
+        Corpus.query_corpus(
+          test_corpus,
+          "artificial intelligence",
+          %{
+            results_count: 5,
+            metadata_filters: metadata_filters
+          },
+          opts
+        )
 
       # Should return chunks (assuming the test corpus has content)
       assert is_list(response.relevant_chunks)
-      
+
       # Each chunk should have a relevance score
       for chunk <- response.relevant_chunks do
         assert is_number(chunk.chunk_relevance_score)
@@ -286,7 +347,10 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
       end
     end
 
-    test "queries corpus with numeric metadata filter", %{oauth_token: oauth_token, test_corpus: test_corpus} do
+    test "queries corpus with numeric metadata filter", %{
+      oauth_token: oauth_token,
+      test_corpus: test_corpus
+    } do
       opts = [oauth_token: oauth_token]
 
       # Query with numeric metadata filter
@@ -299,15 +363,24 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
         }
       ]
 
-      {:ok, response} = Corpus.query_corpus(test_corpus, "important information", %{
-        results_count: 3,
-        metadata_filters: metadata_filters
-      }, opts)
+      {:ok, response} =
+        Corpus.query_corpus(
+          test_corpus,
+          "important information",
+          %{
+            results_count: 3,
+            metadata_filters: metadata_filters
+          },
+          opts
+        )
 
       assert is_list(response.relevant_chunks)
     end
 
-    test "queries corpus with multiple metadata filters", %{oauth_token: oauth_token, test_corpus: test_corpus} do
+    test "queries corpus with multiple metadata filters", %{
+      oauth_token: oauth_token,
+      test_corpus: test_corpus
+    } do
       opts = [oauth_token: oauth_token]
 
       # Query with multiple metadata filters (AND logic)
@@ -327,10 +400,16 @@ defmodule ExLLM.Gemini.CorpusIntegrationTest do
         }
       ]
 
-      {:ok, response} = Corpus.query_corpus(test_corpus, "comprehensive guide", %{
-        results_count: 10,
-        metadata_filters: metadata_filters
-      }, opts)
+      {:ok, response} =
+        Corpus.query_corpus(
+          test_corpus,
+          "comprehensive guide",
+          %{
+            results_count: 10,
+            metadata_filters: metadata_filters
+          },
+          opts
+        )
 
       assert is_list(response.relevant_chunks)
     end

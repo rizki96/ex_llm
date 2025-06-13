@@ -61,6 +61,7 @@ defmodule ExLLM.Adapters.Gemini do
 
   alias ExLLM.Types
   alias ExLLM.Adapters.Shared.{ConfigHelper, ModelUtils}
+
   alias ExLLM.Gemini.Content.{
     GenerateContentRequest,
     GenerateContentResponse,
@@ -96,10 +97,11 @@ defmodule ExLLM.Adapters.Gemini do
 
       # Convert messages to Gemini Content format
       request = build_content_request(messages, options)
-      
+
       case ExLLM.Gemini.Content.generate_content(model, request, config_provider: config_provider) do
         {:ok, response} ->
           convert_content_response_to_llm_response(response, model)
+
         {:error, error} ->
           {:error, error}
       end
@@ -131,14 +133,19 @@ defmodule ExLLM.Adapters.Gemini do
 
       # Convert messages to Gemini Content format
       request = build_content_request(messages, options)
-      
-      case ExLLM.Gemini.Content.stream_generate_content(model, request, config_provider: config_provider) do
+
+      case ExLLM.Gemini.Content.stream_generate_content(model, request,
+             config_provider: config_provider
+           ) do
         {:ok, stream} ->
           # Convert the Content stream to ExLLM stream format
-          converted_stream = Stream.map(stream, fn response ->
-            convert_content_response_to_stream_chunk(response)
-          end)
+          converted_stream =
+            Stream.map(stream, fn response ->
+              convert_content_response_to_stream_chunk(response)
+            end)
+
           {:ok, converted_stream}
+
         {:error, error} ->
           {:error, error}
       end
@@ -169,7 +176,7 @@ defmodule ExLLM.Adapters.Gemini do
           )
 
         _config = get_config(config_provider)
-        
+
         # Use ModelLoader with config only
         ExLLM.ModelLoader.load_models(
           :gemini,
@@ -181,7 +188,6 @@ defmodule ExLLM.Adapters.Gemini do
     end
   end
 
-
   defp is_gemini_chat_model_struct?(%ExLLM.Gemini.Models.Model{} = model) do
     # Filter for Gemini chat models from API struct
     String.starts_with?(model.name, "models/gemini")
@@ -190,7 +196,7 @@ defmodule ExLLM.Adapters.Gemini do
   defp convert_api_model_to_types(%ExLLM.Gemini.Models.Model{} = api_model) do
     # Convert from Gemini Models API format to ExLLM Types.Model format
     model_id = String.replace_prefix(api_model.name, "models/", "")
-    
+
     %Types.Model{
       id: model_id,
       name: api_model.display_name,
@@ -200,9 +206,10 @@ defmodule ExLLM.Adapters.Gemini do
       capabilities: %{
         supports_streaming: "streamGenerateContent" in api_model.supported_generation_methods,
         supports_functions: "generateContent" in api_model.supported_generation_methods,
-        supports_vision: String.contains?(model_id, "vision") || 
-                        String.contains?(model_id, "gemini-1.5") ||
-                        String.contains?(model_id, "gemini-2"),
+        supports_vision:
+          String.contains?(model_id, "vision") ||
+            String.contains?(model_id, "gemini-1.5") ||
+            String.contains?(model_id, "gemini-2"),
         features: parse_features_from_methods(api_model.supported_generation_methods)
       }
     }
@@ -214,7 +221,6 @@ defmodule ExLLM.Adapters.Gemini do
     features = if "generateContent" in methods, do: [:chat | features], else: features
     features
   end
-
 
   # Transform config data to Gemini model format
   defp gemini_model_transformer(model_id, config) do
@@ -280,14 +286,17 @@ defmodule ExLLM.Adapters.Gemini do
         {:ok, response} ->
           # Convert from Gemini format to ExLLM format
           embeddings = Enum.map(response.embeddings, & &1.values)
-          
-          {:ok, %ExLLM.Types.EmbeddingResponse{
-            embeddings: embeddings,
-            model: model,
-            usage: %{
-              total_tokens: length(inputs) * 100  # Estimate, Gemini doesn't provide token counts
-            }
-          }}
+
+          {:ok,
+           %ExLLM.Types.EmbeddingResponse{
+             embeddings: embeddings,
+             model: model,
+             usage: %{
+               # Estimate, Gemini doesn't provide token counts
+               total_tokens: length(inputs) * 100
+             }
+           }}
+
         {:error, error} ->
           {:error, error}
       end
@@ -310,10 +319,10 @@ defmodule ExLLM.Adapters.Gemini do
   # New helper functions for Content API integration
   defp build_content_request(messages, options) do
     contents = Enum.map(messages, &convert_message_to_content/1)
-    
+
     # Extract system instruction if present
     {system_instruction, contents} = extract_system_instruction(contents)
-    
+
     %GenerateContentRequest{
       contents: contents,
       system_instruction: system_instruction,
@@ -329,16 +338,19 @@ defmodule ExLLM.Adapters.Gemini do
       parts: [%Part{text: content}]
     }
   end
+
   defp convert_message_to_content(message) when is_map(message) do
     role = Map.get(message, "role", "user")
     content = Map.get(message, "content", "")
+
     %Content{
       role: convert_role(role),
       parts: [%Part{text: content}]
     }
   end
 
-  defp convert_role("system"), do: "user"  # Gemini doesn't have system role
+  # Gemini doesn't have system role
+  defp convert_role("system"), do: "user"
   defp convert_role("assistant"), do: "model"
   defp convert_role(role), do: to_string(role)
 
@@ -352,10 +364,12 @@ defmodule ExLLM.Adapters.Gemini do
         else
           {nil, [first | rest]}
         end
+
       _ ->
         {nil, [first | rest]}
     end
   end
+
   defp extract_system_instruction(contents), do: {nil, contents}
 
   defp build_generation_config(options) do
@@ -367,7 +381,7 @@ defmodule ExLLM.Adapters.Gemini do
       stop_sequences: Keyword.get(options, :stop_sequences),
       response_mime_type: Keyword.get(options, :response_mime_type)
     }
-    
+
     # Only return if any field is set
     if Enum.any?(Map.from_struct(config), fn {_k, v} -> v != nil end) do
       config
@@ -378,13 +392,16 @@ defmodule ExLLM.Adapters.Gemini do
 
   defp build_safety_settings(options) do
     case Keyword.get(options, :safety_settings) do
-      nil -> nil
-      settings -> Enum.map(settings, fn setting ->
-        %SafetySetting{
-          category: setting[:category] || setting["category"],
-          threshold: setting[:threshold] || setting["threshold"]
-        }
-      end)
+      nil ->
+        nil
+
+      settings ->
+        Enum.map(settings, fn setting ->
+          %SafetySetting{
+            category: setting[:category] || setting["category"],
+            threshold: setting[:threshold] || setting["threshold"]
+          }
+        end)
     end
   end
 
@@ -405,31 +422,33 @@ defmodule ExLLM.Adapters.Gemini do
     case response.candidates do
       [candidate | _] ->
         content = extract_text_from_candidate(candidate)
-        
+
         # Get usage data
-        usage = if response.usage_metadata do
-          %{
-            input_tokens: response.usage_metadata.prompt_token_count,
-            output_tokens: response.usage_metadata.candidates_token_count,
-            total_tokens: response.usage_metadata.total_token_count
-          }
-        else
-          # Estimate if not provided
-          %{
-            input_tokens: 100,
-            output_tokens: ExLLM.Cost.estimate_tokens(content),
-            total_tokens: 100 + ExLLM.Cost.estimate_tokens(content)
-          }
-        end
-        
-        {:ok, %Types.LLMResponse{
-          content: content,
-          usage: usage,
-          model: model,
-          finish_reason: candidate.finish_reason || "stop",
-          cost: ExLLM.Cost.calculate("gemini", model, usage)
-        }}
-        
+        usage =
+          if response.usage_metadata do
+            %{
+              input_tokens: response.usage_metadata.prompt_token_count,
+              output_tokens: response.usage_metadata.candidates_token_count,
+              total_tokens: response.usage_metadata.total_token_count
+            }
+          else
+            # Estimate if not provided
+            %{
+              input_tokens: 100,
+              output_tokens: ExLLM.Cost.estimate_tokens(content),
+              total_tokens: 100 + ExLLM.Cost.estimate_tokens(content)
+            }
+          end
+
+        {:ok,
+         %Types.LLMResponse{
+           content: content,
+           usage: usage,
+           model: model,
+           finish_reason: candidate.finish_reason || "stop",
+           cost: ExLLM.Cost.calculate("gemini", model, usage)
+         }}
+
       [] ->
         # Check if blocked
         if response.prompt_feedback && response.prompt_feedback["blockReason"] do
@@ -450,10 +469,12 @@ defmodule ExLLM.Adapters.Gemini do
     case response.candidates do
       [candidate | _] ->
         text = extract_text_from_candidate(candidate)
+
         %Types.StreamChunk{
           content: text,
           finish_reason: candidate.finish_reason
         }
+
       [] ->
         %Types.StreamChunk{
           content: "",

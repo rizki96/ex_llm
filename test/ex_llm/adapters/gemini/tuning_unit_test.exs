@@ -2,6 +2,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
   use ExUnit.Case
 
   alias ExLLM.Gemini.Tuning
+
   alias ExLLM.Gemini.Tuning.{
     TunedModel,
     TuningTask,
@@ -114,11 +115,11 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       json = Tuning.TuningExample.to_json(example)
-      
+
       assert json == %{
-        "textInput" => "Test input",
-        "output" => "Test output"
-      }
+               "textInput" => "Test input",
+               "output" => "Test output"
+             }
     end
 
     test "TuningExamples to_json" do
@@ -136,13 +137,13 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       json = Tuning.TuningExamples.to_json(examples)
-      
+
       assert json == %{
-        "examples" => [
-          %{"textInput" => "Input 1", "output" => "Output 1"},
-          %{"textInput" => "Input 2", "output" => "Output 2"}
-        ]
-      }
+               "examples" => [
+                 %{"textInput" => "Input 1", "output" => "Output 1"},
+                 %{"textInput" => "Input 2", "output" => "Output 2"}
+               ]
+             }
     end
 
     test "Hyperparameters to_json with learning rate" do
@@ -153,12 +154,12 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       json = Tuning.Hyperparameters.to_json(hyper)
-      
+
       assert json == %{
-        "learningRate" => 0.001,
-        "epochCount" => 5,
-        "batchSize" => 4
-      }
+               "learningRate" => 0.001,
+               "epochCount" => 5,
+               "batchSize" => 4
+             }
     end
 
     test "Hyperparameters to_json with learning rate multiplier" do
@@ -168,11 +169,11 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       json = Tuning.Hyperparameters.to_json(hyper)
-      
+
       assert json == %{
-        "learningRateMultiplier" => 1.5,
-        "epochCount" => 3
-      }
+               "learningRateMultiplier" => 1.5,
+               "epochCount" => 3
+             }
     end
 
     test "Dataset to_json" do
@@ -188,14 +189,14 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       json = Tuning.Dataset.to_json(dataset)
-      
+
       assert json == %{
-        "examples" => %{
-          "examples" => [
-            %{"textInput" => "Test", "output" => "Result"}
-          ]
-        }
-      }
+               "examples" => %{
+                 "examples" => [
+                   %{"textInput" => "Test", "output" => "Result"}
+                 ]
+               }
+             }
     end
 
     test "TuningTask to_json" do
@@ -211,7 +212,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       json = Tuning.TuningTask.to_json(task)
-      
+
       assert json["trainingData"]
       assert json["hyperparameters"]["epochCount"] == 5
     end
@@ -243,7 +244,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       model = Tuning.TunedModel.from_json(json)
-      
+
       assert %TunedModel{} = model
       assert model.name == "tunedModels/test-123"
       assert model.display_name == "Test Model"
@@ -270,7 +271,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       model = Tuning.TunedModel.from_json(json)
-      
+
       assert %TunedModel{} = model
       assert %TunedModelSource{} = model.tuned_model_source
       assert model.tuned_model_source.tuned_model == "tunedModels/base-123"
@@ -285,7 +286,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       snapshot = Tuning.TuningSnapshot.from_json(json)
-      
+
       assert %TuningSnapshot{} = snapshot
       assert snapshot.step == 10
       assert snapshot.epoch == 2
@@ -312,7 +313,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       response = Tuning.ListTunedModelsResponse.from_json(json)
-      
+
       assert %ListTunedModelsResponse{} = response
       assert length(response.tuned_models) == 1
       assert response.next_page_token == "token123"
@@ -395,8 +396,8 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
         }
       }
 
-      assert {:error, "training_data must contain at least one example"} = 
-        Tuning.validate_create_request(request)
+      assert {:error, "training_data must contain at least one example"} =
+               Tuning.validate_create_request(request)
     end
   end
 
@@ -424,8 +425,8 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
         temperature: 1.5
       }
 
-      assert {:error, "temperature must be between 0.0 and 1.0"} = 
-        Tuning.validate_update_request(update)
+      assert {:error, "temperature must be between 0.0 and 1.0"} =
+               Tuning.validate_update_request(update)
     end
 
     test "returns error for invalid top_p" do
@@ -433,8 +434,8 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
         top_p: -0.1
       }
 
-      assert {:error, "top_p must be between 0.0 and 1.0"} = 
-        Tuning.validate_update_request(update)
+      assert {:error, "top_p must be between 0.0 and 1.0"} =
+               Tuning.validate_update_request(update)
     end
   end
 
@@ -466,7 +467,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       body = Tuning.create_request_body(request)
-      
+
       assert body["displayName"] == "Test Model"
       assert body["description"] == "A test model"
       assert body["baseModel"] == "models/gemini-1.5-flash-001"
@@ -495,7 +496,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       body = Tuning.create_request_body(request)
-      
+
       assert body["baseModel"] == "models/gemini-1.5-flash-001"
       assert body["tuningTask"]["trainingData"]
       refute body["displayName"]
@@ -512,10 +513,11 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       body = Tuning.update_request_body(update, "displayName,description")
-      
+
       assert body["displayName"] == "New Name"
       assert body["description"] == "New description"
-      refute body["temperature"]  # Not in mask
+      # Not in mask
+      refute body["temperature"]
     end
 
     test "creates update body without mask" do
@@ -525,7 +527,7 @@ defmodule ExLLM.Adapters.Gemini.TuningUnitTest do
       }
 
       body = Tuning.update_request_body(update, nil)
-      
+
       assert body["displayName"] == "New Name"
       assert body["temperature"] == 0.8
     end

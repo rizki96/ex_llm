@@ -2,6 +2,7 @@ defmodule ExLLM.Gemini.QATest do
   use ExUnit.Case, async: true
 
   alias ExLLM.Gemini.QA
+
   alias ExLLM.Gemini.QA.{
     GenerateAnswerRequest,
     GenerateAnswerResponse,
@@ -26,21 +27,24 @@ defmodule ExLLM.Gemini.QATest do
         %{
           id: "passage_1",
           content: %{
-            parts: [%{text: "France is a country in Europe. Paris is the capital city of France."}]
+            parts: [
+              %{text: "France is a country in Europe. Paris is the capital city of France."}
+            ]
           }
         }
       ]
 
-      request = QA.build_generate_answer_request(contents, :abstractive, %{
-        inline_passages: passages,
-        temperature: 0.1,
-        safety_settings: [
-          %{
-            category: "HARM_CATEGORY_HARASSMENT",
-            threshold: "BLOCK_MEDIUM_AND_ABOVE"
-          }
-        ]
-      })
+      request =
+        QA.build_generate_answer_request(contents, :abstractive, %{
+          inline_passages: passages,
+          temperature: 0.1,
+          safety_settings: [
+            %{
+              category: "HARM_CATEGORY_HARASSMENT",
+              threshold: "BLOCK_MEDIUM_AND_ABOVE"
+            }
+          ]
+        })
 
       assert %GenerateAnswerRequest{} = request
       assert request.contents == contents
@@ -48,11 +52,14 @@ defmodule ExLLM.Gemini.QATest do
       assert request.temperature == 0.1
       assert %GroundingPassages{} = request.grounding_source
       assert length(request.grounding_source.passages) == 1
-      
+
       passage = List.first(request.grounding_source.passages)
       assert %GroundingPassage{} = passage
       assert passage.id == "passage_1"
-      assert passage.content.parts == [%{text: "France is a country in Europe. Paris is the capital city of France."}]
+
+      assert passage.content.parts == [
+               %{text: "France is a country in Europe. Paris is the capital city of France."}
+             ]
     end
 
     test "builds valid request with semantic retriever" do
@@ -63,21 +70,22 @@ defmodule ExLLM.Gemini.QATest do
         }
       ]
 
-      request = QA.build_generate_answer_request(contents, :verbose, %{
-        semantic_retriever: %{
-          source: "corpora/my_corpus",
-          query: %{parts: [%{text: "machine learning definition"}]},
-          max_chunks_count: 5,
-          minimum_relevance_score: 0.7,
-          metadata_filters: [
-            %{
-              key: "category",
-              conditions: [%{string_value: "technology", operation: "EQUAL"}]
-            }
-          ]
-        },
-        temperature: 0.3
-      })
+      request =
+        QA.build_generate_answer_request(contents, :verbose, %{
+          semantic_retriever: %{
+            source: "corpora/my_corpus",
+            query: %{parts: [%{text: "machine learning definition"}]},
+            max_chunks_count: 5,
+            minimum_relevance_score: 0.7,
+            metadata_filters: [
+              %{
+                key: "category",
+                conditions: [%{string_value: "technology", operation: "EQUAL"}]
+              }
+            ]
+          },
+          temperature: 0.3
+        })
 
       assert %GenerateAnswerRequest{} = request
       assert request.contents == contents
@@ -134,10 +142,12 @@ defmodule ExLLM.Gemini.QATest do
 
       # Valid temperatures
       for temp <- [0.0, 0.5, 1.0] do
-        request = QA.build_generate_answer_request(contents, :abstractive, %{
-          inline_passages: passages,
-          temperature: temp
-        })
+        request =
+          QA.build_generate_answer_request(contents, :abstractive, %{
+            inline_passages: passages,
+            temperature: temp
+          })
+
         assert request.temperature == temp
       end
 
@@ -165,7 +175,9 @@ defmodule ExLLM.Gemini.QATest do
         }
       ]
 
-      request = QA.build_generate_answer_request(contents, :abstractive, %{inline_passages: passages})
+      request =
+        QA.build_generate_answer_request(contents, :abstractive, %{inline_passages: passages})
+
       assert %GroundingPassages{} = request.grounding_source
 
       # Missing passage ID
@@ -176,7 +188,9 @@ defmodule ExLLM.Gemini.QATest do
       ]
 
       assert_raise ArgumentError, ~r/passage id is required/, fn ->
-        QA.build_generate_answer_request(contents, :abstractive, %{inline_passages: invalid_passages})
+        QA.build_generate_answer_request(contents, :abstractive, %{
+          inline_passages: invalid_passages
+        })
       end
 
       # Missing passage content
@@ -187,7 +201,9 @@ defmodule ExLLM.Gemini.QATest do
       ]
 
       assert_raise ArgumentError, ~r/passage content is required/, fn ->
-        QA.build_generate_answer_request(contents, :abstractive, %{inline_passages: invalid_passages})
+        QA.build_generate_answer_request(contents, :abstractive, %{
+          inline_passages: invalid_passages
+        })
       end
     end
 
@@ -200,7 +216,11 @@ defmodule ExLLM.Gemini.QATest do
         query: %{parts: [%{text: "test query"}]}
       }
 
-      request = QA.build_generate_answer_request(contents, :abstractive, %{semantic_retriever: semantic_retriever})
+      request =
+        QA.build_generate_answer_request(contents, :abstractive, %{
+          semantic_retriever: semantic_retriever
+        })
+
       assert %SemanticRetrieverConfig{} = request.grounding_source
 
       # Missing source
@@ -209,7 +229,9 @@ defmodule ExLLM.Gemini.QATest do
       }
 
       assert_raise ArgumentError, ~r/semantic retriever source is required/, fn ->
-        QA.build_generate_answer_request(contents, :abstractive, %{semantic_retriever: invalid_retriever})
+        QA.build_generate_answer_request(contents, :abstractive, %{
+          semantic_retriever: invalid_retriever
+        })
       end
 
       # Missing query
@@ -218,7 +240,9 @@ defmodule ExLLM.Gemini.QATest do
       }
 
       assert_raise ArgumentError, ~r/semantic retriever query is required/, fn ->
-        QA.build_generate_answer_request(contents, :abstractive, %{semantic_retriever: invalid_retriever})
+        QA.build_generate_answer_request(contents, :abstractive, %{
+          semantic_retriever: invalid_retriever
+        })
       end
     end
   end
@@ -304,7 +328,10 @@ defmodule ExLLM.Gemini.QATest do
 
       assert %GenerateAnswerResponse{} = result
       assert result.answerable_probability == 0.23
-      assert result.answer["content"]["parts"] == [%{"text" => "I don't have enough information to answer that question."}]
+
+      assert result.answer["content"]["parts"] == [
+               %{"text" => "I don't have enough information to answer that question."}
+             ]
     end
 
     test "parses response with blocked input" do

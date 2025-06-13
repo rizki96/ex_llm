@@ -1,7 +1,7 @@
 defmodule ExLLM.Gemini.Files do
   @moduledoc """
   Google Gemini Files API implementation.
-  
+
   Provides functionality to upload, manage, and delete files that can be used
   with Gemini models for multimodal generation.
   """
@@ -12,20 +12,21 @@ defmodule ExLLM.Gemini.Files do
     @moduledoc """
     Error status information.
     """
-    
+
     @type t :: %__MODULE__{
-      code: integer(),
-      message: String.t() | nil,
-      details: list(map())
-    }
-    
+            code: integer(),
+            message: String.t() | nil,
+            details: list(map())
+          }
+
     defstruct [:code, :message, details: []]
-    
+
     @doc """
     Converts API response to Status struct.
     """
     @spec from_api(map() | nil) :: t() | nil
     def from_api(nil), do: nil
+
     def from_api(data) when is_map(data) do
       %__MODULE__{
         code: data["code"],
@@ -39,25 +40,27 @@ defmodule ExLLM.Gemini.Files do
     @moduledoc """
     Metadata for video files.
     """
-    
+
     @type t :: %__MODULE__{
-      video_duration: float() | nil
-    }
-    
+            video_duration: float() | nil
+          }
+
     defstruct [:video_duration]
-    
+
     @doc """
     Converts API response to VideoFileMetadata struct.
     """
     @spec from_api(map() | nil) :: t() | nil
     def from_api(nil), do: nil
+
     def from_api(data) when is_map(data) do
       %__MODULE__{
         video_duration: parse_duration(data["videoDuration"])
       }
     end
-    
+
     defp parse_duration(nil), do: nil
+
     defp parse_duration(duration) when is_binary(duration) do
       case Regex.run(~r/^(\d+(?:\.\d+)?)s$/, duration) do
         [_, number] -> String.to_float(number)
@@ -70,27 +73,27 @@ defmodule ExLLM.Gemini.Files do
     @moduledoc """
     Represents an uploaded file in the Gemini API.
     """
-    
+
     @type state :: :state_unspecified | :processing | :active | :failed | atom()
     @type source :: :source_unspecified | :uploaded | :generated | atom()
-    
+
     @type t :: %__MODULE__{
-      name: String.t(),
-      display_name: String.t() | nil,
-      mime_type: String.t(),
-      size_bytes: integer(),
-      create_time: DateTime.t() | nil,
-      update_time: DateTime.t() | nil,
-      expiration_time: DateTime.t() | nil,
-      sha256_hash: String.t() | nil,
-      uri: String.t() | nil,
-      download_uri: String.t() | nil,
-      state: state(),
-      source: source() | nil,
-      error: Status.t() | nil,
-      video_metadata: VideoFileMetadata.t() | nil
-    }
-    
+            name: String.t(),
+            display_name: String.t() | nil,
+            mime_type: String.t(),
+            size_bytes: integer(),
+            create_time: DateTime.t() | nil,
+            update_time: DateTime.t() | nil,
+            expiration_time: DateTime.t() | nil,
+            sha256_hash: String.t() | nil,
+            uri: String.t() | nil,
+            download_uri: String.t() | nil,
+            state: state(),
+            source: source() | nil,
+            error: Status.t() | nil,
+            video_metadata: VideoFileMetadata.t() | nil
+          }
+
     @enforce_keys [:name, :mime_type, :size_bytes, :state]
     defstruct [
       :name,
@@ -108,7 +111,7 @@ defmodule ExLLM.Gemini.Files do
       :error,
       :video_metadata
     ]
-    
+
     @doc """
     Converts API response to File struct.
     """
@@ -131,61 +134,64 @@ defmodule ExLLM.Gemini.Files do
         video_metadata: VideoFileMetadata.from_api(data["videoMetadata"])
       }
     end
-    
+
     defp parse_size_bytes(nil), do: 0
     defp parse_size_bytes(size) when is_integer(size), do: size
     defp parse_size_bytes(size) when is_binary(size), do: String.to_integer(size)
-    
+
     defp parse_timestamp(nil), do: nil
+
     defp parse_timestamp(timestamp) when is_binary(timestamp) do
       case DateTime.from_iso8601(timestamp) do
         {:ok, datetime, _offset} -> datetime
         {:error, _} -> nil
       end
     end
-    
+
     defp parse_state(nil), do: :state_unspecified
     defp parse_state("STATE_UNSPECIFIED"), do: :state_unspecified
     defp parse_state("PROCESSING"), do: :processing
     defp parse_state("ACTIVE"), do: :active
     defp parse_state("FAILED"), do: :failed
+
     defp parse_state(state) when is_binary(state) do
       state |> String.downcase() |> String.to_atom()
     end
-    
+
     defp parse_source(nil), do: nil
     defp parse_source("SOURCE_UNSPECIFIED"), do: :source_unspecified
     defp parse_source("UPLOADED"), do: :uploaded
     defp parse_source("GENERATED"), do: :generated
+
     defp parse_source(source) when is_binary(source) do
       source |> String.downcase() |> String.to_atom()
     end
   end
 
   @type upload_options :: [
-    {:display_name, String.t()} |
-    {:config_provider, pid() | atom()}
-  ]
-  
+          {:display_name, String.t()}
+          | {:config_provider, pid() | atom()}
+        ]
+
   @type list_options :: [
-    {:page_size, integer()} |
-    {:page_token, String.t()} |
-    {:config_provider, pid() | atom()}
-  ]
-  
+          {:page_size, integer()}
+          | {:page_token, String.t()}
+          | {:config_provider, pid() | atom()}
+        ]
+
   @type wait_options :: [
-    {:timeout, integer()} |
-    {:poll_interval, integer()} |
-    {:config_provider, pid() | atom()}
-  ]
+          {:timeout, integer()}
+          | {:poll_interval, integer()}
+          | {:config_provider, pid() | atom()}
+        ]
 
   @doc """
   Uploads a file to the Gemini API using resumable upload.
-  
+
   ## Parameters
     * `file_path` - Path to the file to upload
     * `opts` - Upload options including `:display_name` and `:config_provider`
-  
+
   ## Examples
       
       {:ok, file} = ExLLM.Gemini.Files.upload_file("/path/to/image.png", display_name: "My Image")
@@ -200,15 +206,14 @@ defmodule ExLLM.Gemini.Files do
          config <- ConfigHelper.get_config(:gemini, config_provider),
          api_key <- get_api_key(config),
          {:ok, _} <- validate_api_key(api_key) do
-      
       # Step 1: Initiate resumable upload
       metadata = build_upload_metadata(file_path, opts)
-      
+
       case initiate_upload(api_key, mime_type, file_size, metadata) do
         {:ok, upload_url} ->
           # Step 2: Upload the file content
           upload_content(upload_url, file_data, file_size)
-          
+
         {:error, _} = error ->
           error
       end
@@ -219,11 +224,11 @@ defmodule ExLLM.Gemini.Files do
 
   @doc """
   Gets metadata for a specific file.
-  
+
   ## Parameters
     * `file_name` - The file name (e.g., "files/abc-123")
     * `opts` - Options including `:config_provider`
-  
+
   ## Examples
       
       {:ok, file} = ExLLM.Gemini.Files.get_file("files/abc-123")
@@ -235,26 +240,25 @@ defmodule ExLLM.Gemini.Files do
          config <- ConfigHelper.get_config(:gemini, config_provider),
          api_key <- get_api_key(config),
          {:ok, _} <- validate_api_key(api_key) do
-      
       url = build_url("/v1beta/#{file_name}", api_key)
       headers = build_headers()
-      
+
       case Req.get(url, headers: headers) do
         {:ok, %{status: 200, body: body}} ->
           {:ok, File.from_api(body)}
-          
+
         {:ok, %{status: 404}} ->
           {:error, %{status: 404, message: "File not found: #{file_name}"}}
-          
+
         {:ok, %{status: 403, body: body}} ->
           {:error, %{status: 403, message: "API error", body: body}}
-          
+
         {:ok, %{status: 400, body: %{"error" => %{"message" => message}}}} ->
           {:error, %{status: 400, message: message}}
-          
+
         {:ok, %{status: status, body: body}} ->
           {:error, %{status: status, message: "API error", body: body}}
-          
+
         {:error, reason} ->
           {:error, %{reason: :network_error, message: inspect(reason)}}
       end
@@ -265,44 +269,45 @@ defmodule ExLLM.Gemini.Files do
 
   @doc """
   Lists files owned by the requesting project.
-  
+
   ## Parameters
     * `opts` - Options including `:page_size`, `:page_token`, and `:config_provider`
-  
+
   ## Examples
       
       {:ok, %{files: files, next_page_token: token}} = ExLLM.Gemini.Files.list_files(page_size: 10)
   """
-  @spec list_files(list_options()) :: {:ok, %{files: [File.t()], next_page_token: String.t() | nil}} | {:error, term()}
+  @spec list_files(list_options()) ::
+          {:ok, %{files: [File.t()], next_page_token: String.t() | nil}} | {:error, term()}
   def list_files(opts \\ []) do
     with :ok <- validate_list_params(opts),
          config_provider <- get_config_provider(opts),
          config <- ConfigHelper.get_config(:gemini, config_provider),
          api_key <- get_api_key(config),
          {:ok, _} <- validate_api_key(api_key) do
-      
       query_params = build_list_query_params(opts)
       url = build_url("/v1beta/files", api_key, query_params)
       headers = build_headers()
-      
+
       case Req.get(url, headers: headers) do
         {:ok, %{status: 200, body: body}} ->
-          files = 
+          files =
             body
             |> Map.get("files", [])
             |> Enum.map(&File.from_api/1)
-          
-          {:ok, %{
-            files: files,
-            next_page_token: Map.get(body, "nextPageToken")
-          }}
-          
+
+          {:ok,
+           %{
+             files: files,
+             next_page_token: Map.get(body, "nextPageToken")
+           }}
+
         {:ok, %{status: 400, body: %{"error" => %{"message" => message}}}} ->
           {:error, %{status: 400, message: message}}
-          
+
         {:ok, %{status: status, body: body}} ->
           {:error, %{status: status, message: "API error", body: body}}
-          
+
         {:error, reason} ->
           {:error, %{reason: :network_error, message: inspect(reason)}}
       end
@@ -313,11 +318,11 @@ defmodule ExLLM.Gemini.Files do
 
   @doc """
   Deletes a file.
-  
+
   ## Parameters
     * `file_name` - The file name (e.g., "files/abc-123")
     * `opts` - Options including `:config_provider`
-  
+
   ## Examples
       
       :ok = ExLLM.Gemini.Files.delete_file("files/abc-123")
@@ -329,26 +334,25 @@ defmodule ExLLM.Gemini.Files do
          config <- ConfigHelper.get_config(:gemini, config_provider),
          api_key <- get_api_key(config),
          {:ok, _} <- validate_api_key(api_key) do
-      
       url = build_url("/v1beta/#{file_name}", api_key)
       headers = build_headers()
-      
+
       case Req.delete(url, headers: headers) do
         {:ok, %{status: status}} when status in [200, 204] ->
           :ok
-          
+
         {:ok, %{status: 404}} ->
           {:error, %{status: 404, message: "File not found: #{file_name}"}}
-          
+
         {:ok, %{status: 403, body: body}} ->
           {:error, %{status: 403, message: "API error", body: body}}
-          
+
         {:ok, %{status: 400, body: %{"error" => %{"message" => message}}}} ->
           {:error, %{status: 400, message: message}}
-          
+
         {:ok, %{status: status, body: body}} ->
           {:error, %{status: status, message: "API error", body: body}}
-          
+
         {:error, reason} ->
           {:error, %{reason: :network_error, message: inspect(reason)}}
       end
@@ -359,11 +363,11 @@ defmodule ExLLM.Gemini.Files do
 
   @doc """
   Waits for a file to become active (processed).
-  
+
   ## Parameters
     * `file_name` - The file name (e.g., "files/abc-123")
     * `opts` - Options including `:timeout`, `:poll_interval`, and `:config_provider`
-  
+
   ## Examples
       
       {:ok, file} = ExLLM.Gemini.Files.wait_for_file("files/abc-123", timeout: 30_000)
@@ -372,9 +376,9 @@ defmodule ExLLM.Gemini.Files do
   def wait_for_file(file_name, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, 60_000)
     poll_interval = Keyword.get(opts, :poll_interval, 1_000)
-    
+
     wait_until = System.monotonic_time(:millisecond) + timeout
-    
+
     do_wait_for_file(file_name, wait_until, poll_interval, opts)
   end
 
@@ -382,8 +386,12 @@ defmodule ExLLM.Gemini.Files do
 
   @doc false
   @spec validate_file_path(String.t() | nil) :: :ok | {:error, map()}
-  def validate_file_path(nil), do: {:error, %{reason: :invalid_params, message: "File path is required"}}
-  def validate_file_path(""), do: {:error, %{reason: :invalid_params, message: "File path is required"}}
+  def validate_file_path(nil),
+    do: {:error, %{reason: :invalid_params, message: "File path is required"}}
+
+  def validate_file_path(""),
+    do: {:error, %{reason: :invalid_params, message: "File path is required"}}
+
   def validate_file_path(path) when is_binary(path) do
     if Elixir.File.exists?(path) do
       :ok
@@ -394,8 +402,12 @@ defmodule ExLLM.Gemini.Files do
 
   @doc false
   @spec validate_file_name(String.t() | nil) :: :ok | {:error, map()}
-  def validate_file_name(nil), do: {:error, %{reason: :invalid_params, message: "File name is required"}}
-  def validate_file_name(""), do: {:error, %{reason: :invalid_params, message: "File name is required"}}
+  def validate_file_name(nil),
+    do: {:error, %{reason: :invalid_params, message: "File name is required"}}
+
+  def validate_file_name(""),
+    do: {:error, %{reason: :invalid_params, message: "File name is required"}}
+
   def validate_file_name(name) when is_binary(name) do
     if String.starts_with?(name, "files/") and String.length(name) > 6 do
       :ok
@@ -407,16 +419,18 @@ defmodule ExLLM.Gemini.Files do
   @doc false
   @spec validate_page_size(term()) :: :ok | {:error, map()}
   def validate_page_size(size) when is_integer(size) and size > 0 and size <= 100, do: :ok
-  def validate_page_size(_), do: {:error, %{reason: :invalid_params, message: "Page size must be between 1 and 100"}}
+
+  def validate_page_size(_),
+    do: {:error, %{reason: :invalid_params, message: "Page size must be between 1 and 100"}}
 
   @doc false
   @spec mime_type_from_extension(String.t()) :: String.t()
   def mime_type_from_extension(ext) do
-    ext = 
+    ext =
       ext
       |> String.downcase()
       |> String.trim_leading(".")
-    
+
     case ext do
       "txt" -> "text/plain"
       "png" -> "image/png"
@@ -439,6 +453,7 @@ defmodule ExLLM.Gemini.Files do
   def parse_state("PROCESSING"), do: :processing
   def parse_state("ACTIVE"), do: :active
   def parse_state("FAILED"), do: :failed
+
   def parse_state(state) when is_binary(state) do
     state |> String.downcase() |> String.to_atom()
   end
@@ -449,6 +464,7 @@ defmodule ExLLM.Gemini.Files do
   def parse_source("SOURCE_UNSPECIFIED"), do: :source_unspecified
   def parse_source("UPLOADED"), do: :uploaded
   def parse_source("GENERATED"), do: :generated
+
   def parse_source(source) when is_binary(source) do
     source |> String.downcase() |> String.to_atom()
   end
@@ -457,6 +473,7 @@ defmodule ExLLM.Gemini.Files do
   @spec parse_timestamp(String.t() | nil) :: DateTime.t() | nil
   def parse_timestamp(nil), do: nil
   def parse_timestamp(""), do: nil
+
   def parse_timestamp(timestamp) when is_binary(timestamp) do
     case DateTime.from_iso8601(timestamp) do
       {:ok, datetime, _offset} -> datetime
@@ -467,15 +484,18 @@ defmodule ExLLM.Gemini.Files do
   @doc false
   @spec parse_duration(String.t() | nil) :: float() | nil
   def parse_duration(nil), do: nil
+
   def parse_duration(duration) when is_binary(duration) do
     case Regex.run(~r/^(\d+(?:\.\d+)?)s$/, duration) do
-      [_, number] -> 
+      [_, number] ->
         if String.contains?(number, ".") do
           String.to_float(number)
         else
           String.to_float(number <> ".0")
         end
-      nil -> nil
+
+      nil ->
+        nil
     end
   end
 
@@ -483,29 +503,38 @@ defmodule ExLLM.Gemini.Files do
   @spec build_upload_metadata(String.t(), Keyword.t()) :: map()
   def build_upload_metadata(_file_path, opts) do
     file_metadata = %{}
-    
-    file_metadata = 
+
+    file_metadata =
       case Keyword.get(opts, :display_name) do
         nil -> file_metadata
         name -> Map.put(file_metadata, "displayName", name)
       end
-    
+
     %{"file" => file_metadata}
   end
 
   @doc false
   @spec extract_upload_url(list()) :: {:ok, String.t()} | {:error, map()}
   def extract_upload_url(headers) do
-    header = Enum.find(headers, fn 
-      {k, _v} when is_binary(k) -> String.downcase(k) == "x-goog-upload-url"
-      _ -> false
-    end)
-    
+    header =
+      Enum.find(headers, fn
+        {k, _v} when is_binary(k) -> String.downcase(k) == "x-goog-upload-url"
+        _ -> false
+      end)
+
     case header do
-      {_, url} when is_binary(url) -> {:ok, url}
-      {_, [url | _]} when is_binary(url) -> {:ok, url}
-      nil -> {:error, %{reason: :upload_url_not_found, message: "Upload URL not found in response headers"}}
-      _ -> {:error, %{reason: :invalid_upload_url, message: "Invalid upload URL format"}}
+      {_, url} when is_binary(url) ->
+        {:ok, url}
+
+      {_, [url | _]} when is_binary(url) ->
+        {:ok, url}
+
+      nil ->
+        {:error,
+         %{reason: :upload_url_not_found, message: "Upload URL not found in response headers"}}
+
+      _ ->
+        {:error, %{reason: :invalid_upload_url, message: "Invalid upload URL format"}}
     end
   end
 
@@ -523,8 +552,12 @@ defmodule ExLLM.Gemini.Files do
     config[:api_key] || System.get_env("GOOGLE_API_KEY") || System.get_env("GEMINI_API_KEY")
   end
 
-  defp validate_api_key(nil), do: {:error, %{reason: :missing_api_key, message: "API key is required"}}
-  defp validate_api_key(""), do: {:error, %{reason: :missing_api_key, message: "API key is required"}}
+  defp validate_api_key(nil),
+    do: {:error, %{reason: :missing_api_key, message: "API key is required"}}
+
+  defp validate_api_key(""),
+    do: {:error, %{reason: :missing_api_key, message: "API key is required"}}
+
   defp validate_api_key(_), do: {:ok, :valid}
 
   defp validate_list_params(opts) do
@@ -541,6 +574,7 @@ defmodule ExLLM.Gemini.Files do
 
   defp initiate_upload(api_key, mime_type, file_size, metadata) do
     url = build_url("/upload/v1beta/files", api_key)
+
     headers = [
       {"X-Goog-Upload-Protocol", "resumable"},
       {"X-Goog-Upload-Command", "start"},
@@ -548,17 +582,17 @@ defmodule ExLLM.Gemini.Files do
       {"X-Goog-Upload-Header-Content-Type", mime_type},
       {"Content-Type", "application/json"}
     ]
-    
+
     case Req.post(url, json: metadata, headers: headers) do
       {:ok, %{status: 200, headers: response_headers}} ->
         extract_upload_url(response_headers)
-        
+
       {:ok, %{status: 400, body: %{"error" => %{"message" => message}}}} ->
         {:error, %{status: 400, message: message}}
-        
+
       {:ok, %{status: status, body: body}} ->
         {:error, %{status: status, message: "Failed to initiate upload", body: body}}
-        
+
       {:error, reason} ->
         {:error, %{reason: :network_error, message: inspect(reason)}}
     end
@@ -570,14 +604,14 @@ defmodule ExLLM.Gemini.Files do
       {"X-Goog-Upload-Offset", "0"},
       {"X-Goog-Upload-Command", "upload, finalize"}
     ]
-    
+
     case Req.request(method: :put, url: upload_url, body: file_data, headers: headers) do
       {:ok, %{status: 200, body: body}} ->
         {:ok, File.from_api(body["file"])}
-        
+
       {:ok, %{status: status, body: body}} ->
         {:error, %{status: status, message: "Failed to upload content", body: body}}
-        
+
       {:error, reason} ->
         {:error, %{reason: :network_error, message: inspect(reason)}}
     end
@@ -585,21 +619,21 @@ defmodule ExLLM.Gemini.Files do
 
   defp do_wait_for_file(file_name, wait_until, poll_interval, opts) do
     now = System.monotonic_time(:millisecond)
-    
+
     if now > wait_until do
       {:error, :timeout}
     else
       case get_file(file_name, opts) do
         {:ok, %File{state: :active} = file} ->
           {:ok, file}
-          
+
         {:ok, %File{state: :failed} = file} ->
           {:ok, file}
-          
+
         {:ok, %File{state: :processing}} ->
           Process.sleep(poll_interval)
           do_wait_for_file(file_name, wait_until, poll_interval, opts)
-          
+
         {:error, _} = error ->
           error
       end
@@ -608,13 +642,13 @@ defmodule ExLLM.Gemini.Files do
 
   defp build_list_query_params(opts) do
     params = %{}
-    
-    params = 
+
+    params =
       case Keyword.get(opts, :page_size) do
         nil -> params
         size -> Map.put(params, "pageSize", size)
       end
-    
+
     case Keyword.get(opts, :page_token) do
       nil -> params
       token -> Map.put(params, "pageToken", token)

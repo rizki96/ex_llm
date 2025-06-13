@@ -9,10 +9,10 @@ defmodule ExLLM.Gemini.ModelsTest do
       assert {:ok, response} = Models.list_models()
       assert is_list(response.models)
       assert is_binary(response.next_page_token) or is_nil(response.next_page_token)
-      
+
       # Check that we get some models
       assert length(response.models) > 0
-      
+
       # Verify model structure
       [model | _] = response.models
       assert %Model{} = model
@@ -35,12 +35,12 @@ defmodule ExLLM.Gemini.ModelsTest do
       # Test with page size
       assert {:ok, response} = Models.list_models(page_size: 10)
       assert length(response.models) <= 10
-      
+
       # Test with page token (if we have one from first response)
       if response.next_page_token do
         assert {:ok, page2} = Models.list_models(page_token: response.next_page_token)
         assert is_list(page2.models)
-        
+
         # Verify we get different models on page 2
         page1_names = Enum.map(response.models, & &1.name)
         page2_names = Enum.map(page2.models, & &1.name)
@@ -56,8 +56,9 @@ defmodule ExLLM.Gemini.ModelsTest do
 
     test "returns error for invalid API key" do
       # Test with invalid credentials
-      assert {:error, %{status: 400, message: message, body: _}} = 
-        Models.list_models(config_provider: invalid_config_provider())
+      assert {:error, %{status: 400, message: message, body: _}} =
+               Models.list_models(config_provider: invalid_config_provider())
+
       assert message =~ "API"
     end
 
@@ -65,19 +66,21 @@ defmodule ExLLM.Gemini.ModelsTest do
     test "returns error for network issues" do
       # Test network error handling
       # This test requires mocking the HTTP client
-      assert {:error, %{reason: :network_error}} = 
-        Models.list_models(config_provider: network_error_provider())
+      assert {:error, %{reason: :network_error}} =
+               Models.list_models(config_provider: network_error_provider())
     end
 
     test "validates page_size parameter" do
       # Negative page size
-      assert {:error, %{reason: :invalid_params, message: message}} = 
-        Models.list_models(page_size: -1)
+      assert {:error, %{reason: :invalid_params, message: message}} =
+               Models.list_models(page_size: -1)
+
       assert message =~ "page_size must be positive"
-      
+
       # Zero page size
-      assert {:error, %{reason: :invalid_params, message: message}} = 
-        Models.list_models(page_size: 0)
+      assert {:error, %{reason: :invalid_params, message: message}} =
+               Models.list_models(page_size: 0)
+
       assert message =~ "page_size must be positive"
     end
   end
@@ -85,7 +88,7 @@ defmodule ExLLM.Gemini.ModelsTest do
   describe "get_model/2" do
     test "retrieves specific model information" do
       model_name = "gemini-2.0-flash"
-      
+
       assert {:ok, model} = Models.get_model(model_name)
       assert %Model{} = model
       assert model.name == "models/#{model_name}"
@@ -105,7 +108,7 @@ defmodule ExLLM.Gemini.ModelsTest do
         "gemini-1.5-flash",
         "gemini-1.5-pro"
       ]
-      
+
       for model_name <- models_to_test do
         assert {:ok, model} = Models.get_model(model_name)
         # base_model_id is not returned by the API, verify name instead
@@ -114,15 +117,16 @@ defmodule ExLLM.Gemini.ModelsTest do
     end
 
     test "returns specific error for non-existent model" do
-      assert {:error, %{status: 404, message: message}} = 
-        Models.get_model("non-existent-model")
+      assert {:error, %{status: 404, message: message}} =
+               Models.get_model("non-existent-model")
+
       assert message =~ "not found" or message =~ "Model not found"
     end
 
     test "returns error for invalid model name format" do
       # Test various invalid formats
       invalid_names = ["", "models/", "/gemini", "gemini/", nil]
-      
+
       for invalid_name <- invalid_names do
         result = Models.get_model(invalid_name)
         assert {:error, _} = result
@@ -133,15 +137,15 @@ defmodule ExLLM.Gemini.ModelsTest do
       # Should work with both formats
       assert {:ok, model1} = Models.get_model("gemini-2.0-flash")
       assert {:ok, model2} = Models.get_model("models/gemini-2.0-flash")
-      
+
       # Should return the same model
       assert model1.name == model2.name
       assert model1.version == model2.version
     end
 
     test "returns error for invalid API key" do
-      assert {:error, %{status: 400, body: _}} = 
-        Models.get_model("gemini-2.0-flash", config_provider: invalid_config_provider())
+      assert {:error, %{status: 400, body: _}} =
+               Models.get_model("gemini-2.0-flash", config_provider: invalid_config_provider())
     end
   end
 
@@ -153,7 +157,7 @@ defmodule ExLLM.Gemini.ModelsTest do
         "version" => "2.0",
         "displayName" => "Gemini 2.0 Flash",
         "description" => "Fast and versatile multimodal model",
-        "inputTokenLimit" => 1048576,
+        "inputTokenLimit" => 1_048_576,
         "outputTokenLimit" => 8192,
         "supportedGenerationMethods" => ["generateContent", "streamGenerateContent"],
         "temperature" => 1.0,
@@ -161,15 +165,15 @@ defmodule ExLLM.Gemini.ModelsTest do
         "topP" => 0.95,
         "topK" => 40
       }
-      
+
       model = Model.from_api(raw_model)
-      
+
       assert model.name == "models/gemini-2.0-flash"
       assert model.base_model_id == "gemini-2.0-flash"
       assert model.version == "2.0"
       assert model.display_name == "Gemini 2.0 Flash"
       assert model.description == "Fast and versatile multimodal model"
-      assert model.input_token_limit == 1048576
+      assert model.input_token_limit == 1_048_576
       assert model.output_token_limit == 8192
       assert model.supported_generation_methods == ["generateContent", "streamGenerateContent"]
       assert model.temperature == 1.0
@@ -189,9 +193,9 @@ defmodule ExLLM.Gemini.ModelsTest do
         "outputTokenLimit" => 100,
         "supportedGenerationMethods" => ["generateContent"]
       }
-      
+
       model = Model.from_api(minimal_model)
-      
+
       assert model.temperature == nil
       assert model.max_temperature == nil
       assert model.top_p == nil
@@ -207,17 +211,17 @@ defmodule ExLLM.Gemini.ModelsTest do
         {:ok, models} ->
           assert is_list(models)
           assert length(models) > 0
-          
+
           # Check structure matches our expectations
           [model | _] = models
           assert Map.has_key?(model, :id)
           assert Map.has_key?(model, :name)
           assert Map.has_key?(model, :context_window)
-          
+
         {:error, %{reason: :missing_api_key}} ->
           # Skip test if API key not configured
           :ok
-          
+
         {:error, reason} ->
           flunk("Unexpected error: #{inspect(reason)}")
       end
@@ -232,11 +236,12 @@ defmodule ExLLM.Gemini.ModelsTest do
             {:ok, info} ->
               assert info.context_window > 0
               assert is_list(info.capabilities)
+
             _ ->
               # Model capabilities integration can be tested separately
               :ok
           end
-          
+
         _ ->
           :ok
       end
