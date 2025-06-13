@@ -723,6 +723,20 @@ models:
     - function_calling
     - vision
     - tool_choice
+  gemini/embedding-001:
+    context_window: 2048
+    max_output_tokens: 1
+    capabilities:
+    - embeddings
+    display_name: Embedding 001
+    description: Legacy text embedding model
+  gemini/text-embedding-004:
+    context_window: 2048
+    max_output_tokens: 1
+    capabilities:
+    - embeddings
+    display_name: Text Embedding 004
+    description: Latest text embedding model with improved performance
 metadata:
   updated_at: '2025-06-12T23:13:29.735554'
   source: gemini_api

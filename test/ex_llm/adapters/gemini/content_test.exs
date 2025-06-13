@@ -287,7 +287,9 @@ defmodule ExLLM.Gemini.ContentTest do
       }
 
       assert {:error, error} = Content.generate_content(model, request)
-      assert Map.get(error, :status, 400) in [404, 400, 401] || Map.get(error, :reason) == :missing_api_key
+
+      assert Map.get(error, :status, 400) in [404, 400, 401] ||
+               Map.get(error, :reason) == :missing_api_key
     end
 
     test "validates request structure" do
@@ -373,7 +375,12 @@ defmodule ExLLM.Gemini.ContentTest do
 
         {:error, error} ->
           # Or immediately
-          assert Map.get(error, :status, 400) == 400 || Map.get(error, :reason, :api_error) in [:invalid_request, :api_error, :missing_api_key]
+          assert Map.get(error, :status, 400) == 400 ||
+                   Map.get(error, :reason, :api_error) in [
+                     :invalid_request,
+                     :api_error,
+                     :missing_api_key
+                   ]
       end
     end
 

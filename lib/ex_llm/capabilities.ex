@@ -119,7 +119,12 @@ defmodule ExLLM.Capabilities do
     # Grounding/search
     "web_grounding" => :grounding,
     "search_grounding" => :grounding,
-    "rag" => :grounding
+    "rag" => :grounding,
+    
+    # Streaming
+    "stream" => :streaming,
+    "sse" => :streaming,
+    "server_sent_events" => :streaming
   }
 
   # Inverse mappings for display purposes
@@ -142,7 +147,8 @@ defmodule ExLLM.Capabilities do
     code_execution: "Code Execution",
     assistants_api: "Assistants API",
     fine_tuning: "Fine-tuning",
-    grounding: "Grounding/Web Search"
+    grounding: "Grounding/Web Search",
+    streaming: "Streaming (Server-Sent Events)"
   }
 
   @doc """

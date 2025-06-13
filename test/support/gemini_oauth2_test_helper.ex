@@ -196,8 +196,8 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
   """
   def assert_oauth_error({:error, %{status: 401} = error}) do
     if error.message =~ "API keys are not supported" or
-       error.message =~ "authentication" or
-       error.message =~ "unauthorized" do
+         error.message =~ "authentication" or
+         error.message =~ "unauthorized" do
       :ok
     else
       {:error, "Expected OAuth2 authentication message, got: #{error.message}"}

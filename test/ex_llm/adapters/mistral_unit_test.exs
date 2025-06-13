@@ -2,25 +2,26 @@ defmodule ExLLM.Adapters.MistralUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Adapters.Mistral
   alias ExLLM.Types
+  alias ExLLM.Test.ConfigProviderHelper
 
   describe "configured?/1" do
     test "returns true when API key is available" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       assert Mistral.configured?(config_provider: provider)
     end
 
     test "returns false with empty API key" do
       config = %{mistral: %{api_key: ""}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       refute Mistral.configured?(config_provider: provider)
     end
 
     test "returns false with no API key" do
       config = %{mistral: %{}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       refute Mistral.configured?(config_provider: provider)
     end
@@ -45,7 +46,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
 
     test "accepts valid message formats" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Hello"}]
 
@@ -57,7 +58,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
   describe "parameter validation" do
     test "rejects unsupported OpenAI parameters" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
 
@@ -76,7 +77,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
 
     test "accepts supported parameters" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
 
@@ -106,7 +107,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
   describe "function calling support" do
     test "converts functions to tools format" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "What's the weather?"}]
 
@@ -136,7 +137,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
 
     test "handles tool_choice parameter" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
 
@@ -155,7 +156,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
   describe "embeddings support" do
     test "handles text embeddings" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       result =
         Mistral.embeddings("Hello world",
@@ -168,7 +169,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
 
     test "handles batch embeddings" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       inputs = ["Hello", "World", "Test"]
 
@@ -235,7 +236,7 @@ defmodule ExLLM.Adapters.MistralUnitTest do
 
     test "provides specific error for unsupported parameters" do
       config = %{mistral: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
 

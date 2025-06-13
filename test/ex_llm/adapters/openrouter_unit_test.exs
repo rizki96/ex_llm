@@ -2,6 +2,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Adapters.OpenRouter
   alias ExLLM.Types
+  alias ExLLM.Test.ConfigProviderHelper
 
   describe "configured?/1" do
     test "returns true when API key is available" do
@@ -13,14 +14,14 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
     test "returns false with empty API key" do
       config = %{openrouter: %{api_key: ""}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       refute OpenRouter.configured?(config_provider: provider)
     end
 
     test "returns true with valid API key" do
       config = %{openrouter: %{api_key: "sk-or-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       assert OpenRouter.configured?(config_provider: provider)
     end
@@ -145,7 +146,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         }
       }
 
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
@@ -242,7 +243,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         }
       }
 
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
@@ -257,7 +258,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         }
       }
 
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
       # Should include HTTP-Referer and X-Title headers
@@ -385,8 +386,8 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       ]
 
       for config <- invalid_configs do
-        {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-        refute OpenRouter.configured?(config_provider: provider)
+        {:ok, _pid} = ExLLM.ConfigProvider.Static.start_link(config)
+        refute OpenRouter.configured?(config_provider: ExLLM.ConfigProvider.Static)
       end
     end
 
@@ -394,7 +395,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       messages = [%{role: "user", content: "Test"}]
 
       config = %{openrouter: %{}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       assert {:error, "OpenRouter API key not configured"} =
                OpenRouter.chat(messages, config_provider: provider)

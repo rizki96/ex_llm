@@ -2,6 +2,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Adapters.Anthropic
   alias ExLLM.Types
+  alias ExLLM.Test.ConfigProviderHelper
 
   describe "configured?/1" do
     test "returns true when API key is available" do
@@ -13,14 +14,14 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
     test "returns false with empty API key" do
       config = %{anthropic: %{api_key: ""}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       refute Anthropic.configured?(config_provider: provider)
     end
 
     test "returns true with valid API key" do
       config = %{anthropic: %{api_key: "sk-ant-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       assert Anthropic.configured?(config_provider: provider)
     end
@@ -191,7 +192,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
         }
       }
 
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
@@ -331,7 +332,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
         ]
 
         for config <- invalid_configs do
-          {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+          provider = ConfigProviderHelper.setup_static_provider(config)
           refute Anthropic.configured?(config_provider: provider)
         end
       after

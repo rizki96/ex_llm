@@ -2,25 +2,26 @@ defmodule ExLLM.Adapters.PerplexityUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Adapters.Perplexity
   alias ExLLM.Types
+  alias ExLLM.Test.ConfigProviderHelper
 
   describe "configured?/1" do
     test "returns true when API key is available" do
       config = %{perplexity: %{api_key: "pplx-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       assert Perplexity.configured?(config_provider: provider)
     end
 
     test "returns false with empty API key" do
       config = %{perplexity: %{api_key: ""}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       refute Perplexity.configured?(config_provider: provider)
     end
 
     test "returns false with no API key" do
       config = %{perplexity: %{}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       refute Perplexity.configured?(config_provider: provider)
     end
@@ -46,7 +47,7 @@ defmodule ExLLM.Adapters.PerplexityUnitTest do
 
     test "accepts valid message formats" do
       config = %{perplexity: %{api_key: "pplx-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Hello"}]
 
@@ -93,7 +94,7 @@ defmodule ExLLM.Adapters.PerplexityUnitTest do
 
     test "rejects invalid search parameters" do
       config = %{perplexity: %{api_key: "pplx-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test query"}]
 
@@ -111,7 +112,7 @@ defmodule ExLLM.Adapters.PerplexityUnitTest do
 
     test "rejects too many image filters" do
       config = %{perplexity: %{api_key: "pplx-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test query"}]
       large_filter = Enum.map(1..15, &"domain#{&1}.com")
@@ -129,7 +130,7 @@ defmodule ExLLM.Adapters.PerplexityUnitTest do
 
     test "validates reasoning effort parameter in chat" do
       config = %{perplexity: %{api_key: "pplx-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test query"}]
 
@@ -235,7 +236,7 @@ defmodule ExLLM.Adapters.PerplexityUnitTest do
 
       # Invalid search mode
       config = %{perplexity: %{api_key: "test"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       {:error, msg2} =
         Perplexity.chat(messages,

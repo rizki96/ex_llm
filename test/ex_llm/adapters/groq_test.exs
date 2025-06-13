@@ -1,17 +1,18 @@
 defmodule ExLLM.Adapters.GroqTest do
   use ExUnit.Case
   alias ExLLM.Adapters.Groq
+  alias ExLLM.Test.ConfigProviderHelper
 
   describe "Groq adapter" do
     test "configured?/1 returns false when no API key" do
-      {:ok, pid} = ExLLM.ConfigProvider.Static.start_link(%{groq: %{}})
-      refute Groq.configured?(config_provider: pid)
+      provider = ConfigProviderHelper.setup_static_provider(%{groq: %{}})
+      refute Groq.configured?(config_provider: provider)
     end
 
     test "configured?/1 returns true when API key is set" do
       config = %{groq: %{api_key: "test-key"}}
-      {:ok, pid} = ExLLM.ConfigProvider.Static.start_link(config)
-      assert Groq.configured?(config_provider: pid)
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      assert Groq.configured?(config_provider: provider)
     end
 
     test "transform_request/2 handles Groq-specific parameters" do

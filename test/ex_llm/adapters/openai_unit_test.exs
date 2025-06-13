@@ -2,6 +2,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Adapters.OpenAI
   alias ExLLM.Types
+  alias ExLLM.Test.ConfigProviderHelper
 
   describe "configured?/1" do
     test "returns true when API key is available" do
@@ -13,14 +14,14 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "returns false with empty API key" do
       config = %{openai: %{api_key: ""}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       refute OpenAI.configured?(config_provider: provider)
     end
 
     test "returns true with valid API key" do
       config = %{openai: %{api_key: "sk-test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       assert OpenAI.configured?(config_provider: provider)
     end
@@ -293,7 +294,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
         }
       }
 
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       messages = [%{role: "user", content: "Test"}]
       assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 1)
@@ -421,7 +422,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
       ]
 
       for config <- invalid_configs do
-        {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+        provider = ConfigProviderHelper.setup_static_provider(config)
         refute OpenAI.configured?(config_provider: provider)
       end
     end
@@ -490,7 +491,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "upload_file returns proper response structure", %{tmp_path: tmp_path} do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       # With test key, we'll get an API error
       result = OpenAI.upload_file(tmp_path, "fine-tune", config_provider: provider)
@@ -499,7 +500,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "upload_file validates purpose parameter", %{tmp_path: tmp_path} do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       # Test all valid purpose values (including output types)
       valid_purposes = [
@@ -532,7 +533,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
       # No API key
       config = %{openai: %{}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       result = OpenAI.upload_file(tmp_path, "fine-tune", config_provider: provider)
       assert {:error, "API key not configured"} = result
@@ -540,7 +541,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "upload_file handles non-existent file" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       result =
         OpenAI.upload_file("/non/existent/file.jsonl", "fine-tune", config_provider: provider)
@@ -556,7 +557,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
       # that the parameters are being processed correctly
 
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       # Test with all query parameters
       _result =
@@ -610,7 +611,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
   describe "upload API" do
     test "create_upload with valid parameters" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       params = [
         bytes: 1_000_000,
@@ -625,7 +626,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "create_upload validates size limit" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       # 9GB exceeds limit
       params = [
@@ -641,7 +642,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "add_upload_part validates chunk size" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       # 65MB exceeds part limit
       large_chunk = :binary.copy(<<0>>, 65 * 1024 * 1024)
@@ -653,7 +654,7 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
     test "complete_upload with MD5 checksum" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      provider = ConfigProviderHelper.setup_static_provider(config)
 
       # Test with optional MD5
       _result =
