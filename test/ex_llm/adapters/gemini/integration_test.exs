@@ -148,7 +148,7 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
                Embeddings.embed_content("text-embedding-004", request, api_key: "invalid")
 
       # Test Semantic Retrieval APIs structure
-      assert {:error, _} = Corpus.list_corpora(%{}, api_key: "invalid")
+      assert {:error, _} = Corpus.list_corpora([], api_key: "invalid")
       assert {:error, _} = Document.list_documents("corpora/test", api_key: "invalid")
       assert {:error, _} = Chunk.list_chunks("corpora/test/documents/test", api_key: "invalid")
 

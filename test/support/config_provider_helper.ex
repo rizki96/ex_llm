@@ -22,12 +22,12 @@ defmodule ExLLM.Test.ConfigProviderHelper do
 
   @doc """
   Starts a Static config provider with invalid API keys for testing error handling.
-  
+
   This is useful for unit tests that need to verify error handling behavior
   without making real API calls.
-  
+
   ## Examples
-  
+
       provider = ConfigProviderHelper.setup_invalid_provider(:openai)
       # Will have an invalid API key that should fail authentication
   """
@@ -36,23 +36,24 @@ defmodule ExLLM.Test.ConfigProviderHelper do
       provider_name => %{
         api_key: "invalid-test-key-#{provider_name}",
         # Some providers need additional config
-        base_url: case provider_name do
-          :ollama -> "http://localhost:11434"
-          _ -> nil
-        end
+        base_url:
+          case provider_name do
+            :ollama -> "http://localhost:11434"
+            _ -> nil
+          end
       }
     }
-    
+
     setup_static_provider(config)
   end
-  
+
   @doc """
   Temporarily disables environment variable API keys for testing.
-  
+
   Returns a function to restore the original values.
-  
+
   ## Examples
-  
+
       restore_fn = ConfigProviderHelper.disable_env_api_keys()
       # Run tests without environment API keys
       restore_fn.()
@@ -60,7 +61,7 @@ defmodule ExLLM.Test.ConfigProviderHelper do
   def disable_env_api_keys() do
     env_vars = [
       "OPENAI_API_KEY",
-      "ANTHROPIC_API_KEY", 
+      "ANTHROPIC_API_KEY",
       "GROQ_API_KEY",
       "MISTRAL_API_KEY",
       "PERPLEXITY_API_KEY",
@@ -68,15 +69,16 @@ defmodule ExLLM.Test.ConfigProviderHelper do
       "GOOGLE_API_KEY",
       "GEMINI_API_KEY"
     ]
-    
+
     # Save current values
-    original_values = Enum.map(env_vars, fn var ->
-      {var, System.get_env(var)}
-    end)
-    
+    original_values =
+      Enum.map(env_vars, fn var ->
+        {var, System.get_env(var)}
+      end)
+
     # Clear them
     Enum.each(env_vars, &System.delete_env/1)
-    
+
     # Return restore function
     fn ->
       Enum.each(original_values, fn

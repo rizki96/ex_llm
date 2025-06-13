@@ -40,7 +40,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "extracts system message from messages" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [
         %{role: "system", content: "You are a helpful assistant"},
         %{role: "user", content: "Hello"},
@@ -55,7 +55,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "handles alternating user/assistant messages" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi!"},
@@ -69,7 +69,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "handles multimodal content with images" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [
         %{
           role: "user",
@@ -93,7 +93,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "handles image_url format conversion" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [
         %{
           role: "user",
@@ -118,7 +118,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "adds optional parameters to request body" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
 
       opts = [
@@ -135,7 +135,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "uses default max_tokens when not specified" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
 
       # Should use default of 4096
@@ -145,7 +145,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "overrides model from options" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
 
       # Model in options should override config
@@ -193,7 +193,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "includes required Anthropic headers" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       # Headers should include:
       # - x-api-key
       # - anthropic-version
@@ -207,7 +207,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "uses default base URL when not configured" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       messages = [%{role: "user", content: "Test"}]
       # Should use https://api.anthropic.com/v1
       assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
@@ -340,7 +340,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     test "handles API errors properly" do
       config = %{anthropic: %{api_key: "invalid-test-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       # Various error scenarios
       messages = [%{role: "user", content: "Test"}]
 
