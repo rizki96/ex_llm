@@ -146,6 +146,7 @@ The project uses two methods to keep model configurations up-to-date:
 - The fetch script may reset defaults, so check and fix them after running
 - Both scripts update YAML files in `config/models/`
 - Commit changes with descriptive messages about what was updated
+- **Use Python Virtual Environment and uv to interact with Python**
 
 ## Architecture Overview
 
@@ -194,3 +195,4 @@ The `ExLLM.Application` module starts the supervision tree, including the option
 4. **Automatic Cost Tracking**: Usage and costs are calculated transparently
 5. **Context Window Management**: Automatic message truncation based on model limits
 6. **Streaming Support**: Real-time responses via Server-Sent Events where supported
+```

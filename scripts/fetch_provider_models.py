@@ -313,34 +313,104 @@ class ModelFetcher:
                         model_name = model['name'].replace('models/', '')
                         capabilities = ["streaming", "function_calling", "system_messages"]
                         
-                        # Detect capabilities from model name and properties
-                        if 'vision' in model_name or 'gemini-pro-vision' in model_name:
+                        # Enhanced capability detection using API data
+                        display_name = model.get('displayName', '').lower()
+                        description = model.get('description', '').lower()
+                        
+                        # Vision capabilities
+                        if ('vision' in model_name or 'vision' in display_name or 
+                            'image' in description or 'gemini-pro-vision' in model_name):
                             capabilities.append("vision")
+                        
+                        # Advanced capabilities based on model family
                         if 'gemini-1.5' in model_name:
                             capabilities.extend(["long_context", "document_understanding", "audio_input"])
                             if 'pro' in model_name:
                                 capabilities.append("video_understanding")
+                        
+                        if 'gemini-2.0' in model_name or 'gemini-2.5' in model_name:
+                            capabilities.extend(["long_context", "document_understanding", "audio_input", "vision"])
+                            if 'pro' in model_name or '2.0' in model_name:
+                                capabilities.append("video_understanding")
+                        
+                        # Experimental features
+                        if 'exp' in model_name or 'experimental' in display_name:
+                            capabilities.append("experimental")
+                        
+                        if 'thinking' in model_name:
+                            capabilities.extend(["reasoning", "chain_of_thought"])
+                        
+                        if 'tts' in model_name:
+                            capabilities.append("audio_output")
+                        
+                        # Code execution and grounding from API properties
                         if model.get('supportsCodeExecution', False):
                             capabilities.append("code_execution")
                         if model.get('supportsGrounding', False):
                             capabilities.append("grounding")
-                            
-                        models[f"gemini/{model_name}"] = {
+                        
+                        # Build model config with enhanced metadata
+                        model_config = {
                             "context_window": model.get('inputTokenLimit', 32760),
                             "max_output_tokens": model.get('outputTokenLimit', 2048),
                             "capabilities": capabilities
                         }
+                        
+                        # Add API metadata if available
+                        if 'version' in model:
+                            model_config["version"] = model['version']
+                        if 'displayName' in model:
+                            model_config["display_name"] = model['displayName']
+                        if 'description' in model:
+                            model_config["description"] = model['description']
+                        
+                        # Add generation parameters if they differ from defaults
+                        if 'temperature' in model and model['temperature'] != 0.9:
+                            model_config["default_temperature"] = model['temperature']
+                        if 'topP' in model and model['topP'] != 1.0:
+                            model_config["default_top_p"] = model['topP']
+                        if 'topK' in model and model['topK'] != 40:
+                            model_config["default_top_k"] = model['topK']
+                        
+                        # Detect deprecation from description
+                        if ('deprecated' in description or 'deprecation' in description):
+                            import re
+                            # Try to extract deprecation date from description
+                            date_match = re.search(r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2},?\s+\d{4}', description, re.IGNORECASE)
+                            if date_match:
+                                model_config["deprecation_notice"] = f"Deprecated as mentioned in description: {date_match.group()}"
+                        
+                        models[f"gemini/{model_name}"] = model_config
                 
                 if models:
+                    # Load existing config to preserve pricing and manual additions
+                    existing_config = {}
+                    config_path = os.path.join(self.config_dir, "gemini.yml")
+                    if os.path.exists(config_path):
+                        with open(config_path, 'r') as f:
+                            existing_config = yaml.safe_load(f) or {}
+                    
+                    # Determine best default model (prefer stable 2.0-flash over experimental)
+                    default_model = existing_config.get("default_model", "gemini/gemini-2.0-flash")
+                    if "gemini/gemini-2.0-flash" in models:
+                        default_model = "gemini/gemini-2.0-flash"
+                    elif "gemini/gemini-1.5-flash" in models:
+                        default_model = "gemini/gemini-1.5-flash"
+                    elif "gemini/gemini-pro" in models:
+                        default_model = "gemini/gemini-pro"
+                    
                     config = {
                         "provider": "gemini",
-                        "default_model": "gemini/gemini-pro",
+                        "default_model": default_model,
                         "models": models,
                         "metadata": {
                             "updated_at": datetime.now().isoformat(),
-                            "source": "gemini_api"
+                            "source": "gemini_api",
+                            "api_version": "v1beta",
+                            "total_models_fetched": len(models)
                         }
                     }
+                    
                     self._save_config("gemini", config)
                     return True
             else:

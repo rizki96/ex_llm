@@ -59,11 +59,17 @@ defmodule ExLLM.Adapters.Gemini do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.{Error, Logger, Types}
+  alias ExLLM.Types
   alias ExLLM.Adapters.Shared.{ConfigHelper, ModelUtils}
-
-  @base_url "https://generativelanguage.googleapis.com"
-  @api_version "v1beta"
+  alias ExLLM.Gemini.Content.{
+    GenerateContentRequest,
+    GenerateContentResponse,
+    Content,
+    Part,
+    GenerationConfig,
+    SafetySetting,
+    Tool
+  }
 
   @impl true
   def chat(messages, options \\ []) do
@@ -88,9 +94,14 @@ defmodule ExLLM.Adapters.Gemini do
           Map.get(config, :model, ConfigHelper.ensure_default_model(:gemini))
         )
 
-      with {:ok, request_body} <- build_request_body(messages, options),
-           {:ok, response} <- call_gemini_api(model, request_body, api_key) do
-        parse_response(response, model)
+      # Convert messages to Gemini Content format
+      request = build_content_request(messages, options)
+      
+      case ExLLM.Gemini.Content.generate_content(model, request, config_provider: config_provider) do
+        {:ok, response} ->
+          convert_content_response_to_llm_response(response, model)
+        {:error, error} ->
+          {:error, error}
       end
     end
   end
@@ -118,102 +129,92 @@ defmodule ExLLM.Adapters.Gemini do
           Map.get(config, :model, ConfigHelper.ensure_default_model(:gemini))
         )
 
-      with {:ok, request_body} <- build_request_body(messages, options) do
-        stream_gemini_api(model, request_body, api_key)
+      # Convert messages to Gemini Content format
+      request = build_content_request(messages, options)
+      
+      case ExLLM.Gemini.Content.stream_generate_content(model, request, config_provider: config_provider) do
+        {:ok, stream} ->
+          # Convert the Content stream to ExLLM stream format
+          converted_stream = Stream.map(stream, fn response ->
+            convert_content_response_to_stream_chunk(response)
+          end)
+          {:ok, converted_stream}
+        {:error, error} ->
+          {:error, error}
       end
     end
   end
 
   @impl true
   def list_models(options \\ []) do
-    config_provider =
-      Keyword.get(
-        options,
-        :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
-      )
+    # Use the new Models API module
+    case ExLLM.Gemini.Models.list_models(options) do
+      {:ok, response} ->
+        # Convert from Models API format to ExLLM Types.Model format
+        models =
+          response.models
+          |> Enum.filter(&is_gemini_chat_model_struct?/1)
+          |> Enum.map(&convert_api_model_to_types/1)
+          |> Enum.sort_by(& &1.id)
 
-    config = get_config(config_provider)
+        {:ok, models}
 
-    # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(
-      :gemini,
-      Keyword.merge(options,
-        api_fetcher: fn _opts -> fetch_gemini_models(config) end,
-        config_transformer: &gemini_model_transformer/2
-      )
-    )
-  end
+      {:error, _reason} ->
+        # Fallback to config-based models if API fails
+        config_provider =
+          Keyword.get(
+            options,
+            :config_provider,
+            Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+          )
 
-  defp fetch_gemini_models(config) do
-    api_key = get_api_key(config)
-
-    if !api_key || api_key == "" do
-      {:error, "Google API key not configured"}
-    else
-      url = "#{@base_url}/#{@api_version}/models?key=#{api_key}"
-
-      case Req.get(url) do
-        {:ok, %{status: 200, body: body}} ->
-          models =
-            body["models"]
-            |> Enum.filter(&is_gemini_chat_model?/1)
-            |> Enum.map(&parse_gemini_api_model/1)
-            |> Enum.sort_by(& &1.id)
-
-          {:ok, models}
-
-        {:ok, %{status: status, body: body}} ->
-          Logger.debug("Gemini API returned status #{status}: #{inspect(body)}")
-          {:error, "API returned status #{status}"}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+        _config = get_config(config_provider)
+        
+        # Use ModelLoader with config only
+        ExLLM.ModelLoader.load_models(
+          :gemini,
+          Keyword.merge(options,
+            api_fetcher: fn _opts -> {:ok, []} end,
+            config_transformer: &gemini_model_transformer/2
+          )
+        )
     end
   end
 
-  defp is_gemini_chat_model?(model) do
-    # Filter for Gemini chat models
-    String.starts_with?(model["name"], "models/gemini")
+
+  defp is_gemini_chat_model_struct?(%ExLLM.Gemini.Models.Model{} = model) do
+    # Filter for Gemini chat models from API struct
+    String.starts_with?(model.name, "models/gemini")
   end
 
-  defp parse_gemini_api_model(model) do
-    model_id = String.replace_prefix(model["name"], "models/", "")
-
+  defp convert_api_model_to_types(%ExLLM.Gemini.Models.Model{} = api_model) do
+    # Convert from Gemini Models API format to ExLLM Types.Model format
+    model_id = String.replace_prefix(api_model.name, "models/", "")
+    
     %Types.Model{
       id: model_id,
-      name: Map.get(model, "displayName", model_id),
-      description: Map.get(model, "description"),
-      context_window: get_input_token_limit(model),
-      capabilities: parse_gemini_capabilities(model)
+      name: api_model.display_name,
+      description: api_model.description,
+      context_window: api_model.input_token_limit,
+      max_output_tokens: api_model.output_token_limit,
+      capabilities: %{
+        supports_streaming: "streamGenerateContent" in api_model.supported_generation_methods,
+        supports_functions: "generateContent" in api_model.supported_generation_methods,
+        supports_vision: String.contains?(model_id, "vision") || 
+                        String.contains?(model_id, "gemini-1.5") ||
+                        String.contains?(model_id, "gemini-2"),
+        features: parse_features_from_methods(api_model.supported_generation_methods)
+      }
     }
   end
 
-  defp get_input_token_limit(model) do
-    get_in(model, ["inputTokenLimit"]) || 1_048_576
-  end
-
-  defp parse_gemini_capabilities(model) do
-    supported_methods = Map.get(model, "supportedGenerationMethods", [])
-
+  defp parse_features_from_methods(methods) do
     features = []
-
-    features =
-      if "generateContent" in supported_methods, do: [:streaming | features], else: features
-
-    features = if model["name"] =~ "vision", do: [:vision | features], else: features
-
-    %{
-      supports_streaming: "generateContent" in supported_methods,
-      # Gemini uses different mechanism
-      supports_functions: false,
-      supports_vision:
-        model["name"] =~ "vision" || String.contains?(model["name"], "gemini-1.5") ||
-          String.contains?(model["name"], "gemini-2"),
-      features: features
-    }
+    features = if "streamGenerateContent" in methods, do: [:streaming | features], else: features
+    features = if "generateContent" in methods, do: [:chat | features], else: features
+    features
   end
+
 
   # Transform config data to Gemini model format
   defp gemini_model_transformer(model_id, config) do
@@ -252,6 +253,47 @@ defmodule ExLLM.Adapters.Gemini do
     ConfigHelper.ensure_default_model(:gemini)
   end
 
+  @impl true
+  def embeddings(inputs, options \\ []) do
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+      )
+
+    config = get_config(config_provider)
+    api_key = get_api_key(config)
+
+    if !api_key || api_key == "" do
+      {:error, "Google API key not configured"}
+    else
+      model =
+        Keyword.get(
+          options,
+          :model,
+          Map.get(config, :embedding_model, "text-embedding-004")
+        )
+
+      # Use Gemini Embeddings API
+      case ExLLM.Gemini.Embeddings.embed_content(model, inputs, api_key: api_key) do
+        {:ok, response} ->
+          # Convert from Gemini format to ExLLM format
+          embeddings = Enum.map(response.embeddings, & &1.values)
+          
+          {:ok, %ExLLM.Types.EmbeddingResponse{
+            embeddings: embeddings,
+            model: model,
+            usage: %{
+              total_tokens: length(inputs) * 100  # Estimate, Gemini doesn't provide token counts
+            }
+          }}
+        {:error, error} ->
+          {:error, error}
+      end
+    end
+  end
+
   # Default model fetching moved to shared ConfigHelper module
 
   # Private functions
@@ -265,251 +307,158 @@ defmodule ExLLM.Adapters.Gemini do
       System.get_env("GEMINI_API_KEY")
   end
 
-  defp build_request_body(messages, options) do
-    contents = format_messages_for_gemini(messages)
-
-    generation_config = %{
-      temperature: Keyword.get(options, :temperature, 0.7),
-      topP: Keyword.get(options, :top_p, 0.95),
-      topK: Keyword.get(options, :top_k, 40),
-      maxOutputTokens: Keyword.get(options, :max_tokens, 2_048)
-    }
-
-    safety_settings = get_safety_settings(options)
-
-    body = %{
+  # New helper functions for Content API integration
+  defp build_content_request(messages, options) do
+    contents = Enum.map(messages, &convert_message_to_content/1)
+    
+    # Extract system instruction if present
+    {system_instruction, contents} = extract_system_instruction(contents)
+    
+    %GenerateContentRequest{
       contents: contents,
-      generationConfig: generation_config
+      system_instruction: system_instruction,
+      generation_config: build_generation_config(options),
+      safety_settings: build_safety_settings(options),
+      tools: build_tools(options)
     }
-
-    body = if safety_settings, do: Map.put(body, :safetySettings, safety_settings), else: body
-
-    {:ok, body}
   end
 
-  defp format_messages_for_gemini(messages) do
-    messages
-    |> Enum.map(fn msg ->
-      role =
-        case to_string(msg.role || msg["role"]) do
-          # Gemini doesn't have system role
-          "system" -> "user"
-          "assistant" -> "model"
-          role -> role
-        end
-
-      %{
-        role: role,
-        parts: [%{text: to_string(msg.content || msg["content"])}]
-      }
-    end)
-    |> merge_system_messages()
+  defp convert_message_to_content(%{role: role, content: content}) do
+    %Content{
+      role: convert_role(role),
+      parts: [%Part{text: content}]
+    }
+  end
+  defp convert_message_to_content(message) when is_map(message) do
+    role = Map.get(message, "role", "user")
+    content = Map.get(message, "content", "")
+    %Content{
+      role: convert_role(role),
+      parts: [%Part{text: content}]
+    }
   end
 
-  defp merge_system_messages(messages) do
-    # Merge system messages into the first user message
-    case messages do
-      [%{role: "user", parts: parts} = first | rest] ->
-        system_parts =
-          messages
-          |> Enum.take_while(&(&1.role == "user"))
-          |> Enum.drop(1)
-          |> Enum.flat_map(& &1.parts)
+  defp convert_role("system"), do: "user"  # Gemini doesn't have system role
+  defp convert_role("assistant"), do: "model"
+  defp convert_role(role), do: to_string(role)
 
-        if length(system_parts) > 0 do
-          merged_first = %{first | parts: system_parts ++ parts}
-          [merged_first | Enum.drop_while(rest, &(&1.role == "user"))]
+  defp extract_system_instruction([%Content{role: "user", parts: parts} = first | rest]) do
+    # Check if this was originally a system message
+    case parts do
+      [%Part{text: text}] when is_binary(text) ->
+        if String.starts_with?(text, "System: ") or String.starts_with?(text, "[System]") do
+          system_content = %Content{role: "system", parts: parts}
+          {system_content, rest}
         else
-          messages
+          {nil, [first | rest]}
         end
-
       _ ->
-        messages
+        {nil, [first | rest]}
+    end
+  end
+  defp extract_system_instruction(contents), do: {nil, contents}
+
+  defp build_generation_config(options) do
+    config = %GenerationConfig{
+      temperature: Keyword.get(options, :temperature),
+      top_p: Keyword.get(options, :top_p),
+      top_k: Keyword.get(options, :top_k),
+      max_output_tokens: Keyword.get(options, :max_tokens),
+      stop_sequences: Keyword.get(options, :stop_sequences),
+      response_mime_type: Keyword.get(options, :response_mime_type)
+    }
+    
+    # Only return if any field is set
+    if Enum.any?(Map.from_struct(config), fn {_k, v} -> v != nil end) do
+      config
+    else
+      nil
     end
   end
 
-  defp get_safety_settings(options) do
-    Keyword.get(options, :safety_settings, [
-      %{category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_MEDIUM_AND_ABOVE"},
-      %{category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_MEDIUM_AND_ABOVE"},
-      %{category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_MEDIUM_AND_ABOVE"},
-      %{category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_MEDIUM_AND_ABOVE"}
-    ])
-  end
-
-  defp call_gemini_api(model, request_body, api_key) do
-    url = build_url(model, "generateContent", api_key)
-    headers = [{"content-type", "application/json"}]
-
-    case Req.post(url, json: request_body, headers: headers) do
-      {:ok, %{status: 200, body: body}} ->
-        {:ok, body}
-
-      {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  defp stream_gemini_api(model, request_body, api_key) do
-    url = build_url(model, "streamGenerateContent", api_key)
-
-    headers = [
-      {"content-type", "application/json"},
-      {"accept", "text/event-stream"}
-    ]
-
-    parent = self()
-
-    # Start async request task
-    Task.start(fn ->
-      case Req.post(url,
-             json: request_body,
-             headers: headers,
-             receive_timeout: 60_000,
-             into: :self
-           ) do
-        {:ok, response} ->
-          if response.status == 200 do
-            handle_stream_response(response, parent, model, "")
-          else
-            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
-          end
-
-        {:error, reason} ->
-          send(parent, {:stream_error, {:error, reason}})
-      end
-    end)
-
-    # Create stream that receives messages
-    stream =
-      Stream.resource(
-        fn -> :ok end,
-        fn state ->
-          receive do
-            {:chunk, chunk} -> {[chunk], state}
-            :stream_done -> {:halt, state}
-            {:stream_error, error} -> throw(error)
-          after
-            100 -> {[], state}
-          end
-        end,
-        fn _ -> :ok end
-      )
-
-    {:ok, stream}
-  end
-
-  defp build_url(model, method, api_key) do
-    "#{@base_url}/#{@api_version}/models/#{model}:#{method}?key=#{api_key}"
-  end
-
-  defp parse_response(%{"candidates" => [candidate | _]}, model) do
-    case candidate do
-      %{"content" => %{"parts" => parts}} ->
-        content =
-          parts
-          |> Enum.map_join(fn %{"text" => text} -> text end, "")
-
-        # Gemini doesn't provide token usage, so we estimate
-        # Placeholder
-        prompt_tokens = 100
-        completion_tokens = ExLLM.Cost.estimate_tokens(content)
-
-        %Types.LLMResponse{
-          content: content,
-          usage: %{
-            input_tokens: prompt_tokens,
-            output_tokens: completion_tokens,
-            total_tokens: prompt_tokens + completion_tokens
-          },
-          model: model,
-          finish_reason: candidate["finishReason"] || "stop",
-          cost:
-            ExLLM.Cost.calculate("gemini", model, %{
-              input_tokens: prompt_tokens,
-              output_tokens: completion_tokens
-            })
+  defp build_safety_settings(options) do
+    case Keyword.get(options, :safety_settings) do
+      nil -> nil
+      settings -> Enum.map(settings, fn setting ->
+        %SafetySetting{
+          category: setting[:category] || setting["category"],
+          threshold: setting[:threshold] || setting["threshold"]
         }
-
-      %{"finishReason" => reason} when reason in ["SAFETY", "RECITATION"] ->
-        {:error, "Response blocked: #{reason}"}
-
-      _ ->
-        {:error, "Unexpected response format"}
+      end)
     end
   end
 
-  defp parse_response(%{"error" => error}, _model) do
-    Error.api_error(error["code"] || 500, error["message"])
-  end
-
-  defp parse_response(_, _model) do
-    {:error, "Invalid response format"}
-  end
-
-  defp handle_stream_response(response, parent, model, buffer) do
-    %Req.Response.Async{ref: ref} = response.body
-
-    receive do
-      {^ref, {:data, data}} ->
-        {new_buffer, chunks} = parse_sse_data(buffer <> data)
-        Enum.each(chunks, &send(parent, {:chunk, &1}))
-        handle_stream_response(response, parent, model, new_buffer)
-
-      {^ref, :done} ->
-        send(parent, :stream_done)
-
-      {^ref, {:error, reason}} ->
-        send(parent, {:stream_error, {:error, reason}})
-    after
-      30_000 ->
-        send(parent, {:stream_error, {:error, :timeout}})
+  defp build_tools(options) do
+    case Keyword.get(options, :tools) do
+      nil -> nil
+      tools -> Enum.map(tools, &convert_tool/1)
     end
   end
 
-  defp parse_sse_data(data) do
-    lines = String.split(data, "\n")
-
-    {complete_lines, rest} =
-      case List.last(lines) do
-        "" -> {lines, ""}
-        last_line -> {Enum.drop(lines, -1), last_line}
-      end
-
-    chunks =
-      complete_lines
-      |> Enum.filter(&String.starts_with?(&1, "data: "))
-      |> Enum.map(&String.replace_prefix(&1, "data: ", ""))
-      |> Enum.reject(&(&1 == "[DONE]"))
-      |> Enum.map(&parse_streaming_chunk/1)
-      |> Enum.reject(&is_nil/1)
-
-    {rest, chunks}
+  defp convert_tool(tool) do
+    %Tool{
+      function_declarations: tool[:function_declarations] || tool["function_declarations"]
+    }
   end
 
-  defp parse_streaming_chunk(json_data) do
-    case Jason.decode(json_data) do
-      {:ok, %{"candidates" => [%{"content" => %{"parts" => parts}} | _]}} ->
-        text =
-          parts
-          |> Enum.map_join(fn %{"text" => text} -> text end, "")
+  defp convert_content_response_to_llm_response(%GenerateContentResponse{} = response, model) do
+    case response.candidates do
+      [candidate | _] ->
+        content = extract_text_from_candidate(candidate)
+        
+        # Get usage data
+        usage = if response.usage_metadata do
+          %{
+            input_tokens: response.usage_metadata.prompt_token_count,
+            output_tokens: response.usage_metadata.candidates_token_count,
+            total_tokens: response.usage_metadata.total_token_count
+          }
+        else
+          # Estimate if not provided
+          %{
+            input_tokens: 100,
+            output_tokens: ExLLM.Cost.estimate_tokens(content),
+            total_tokens: 100 + ExLLM.Cost.estimate_tokens(content)
+          }
+        end
+        
+        {:ok, %Types.LLMResponse{
+          content: content,
+          usage: usage,
+          model: model,
+          finish_reason: candidate.finish_reason || "stop",
+          cost: ExLLM.Cost.calculate("gemini", model, usage)
+        }}
+        
+      [] ->
+        # Check if blocked
+        if response.prompt_feedback && response.prompt_feedback["blockReason"] do
+          {:error, "Response blocked: #{response.prompt_feedback["blockReason"]}"}
+        else
+          {:error, "No candidates returned"}
+        end
+    end
+  end
 
+  defp extract_text_from_candidate(candidate) do
+    candidate.content.parts
+    |> Enum.map(fn part -> part.text || "" end)
+    |> Enum.join("")
+  end
+
+  defp convert_content_response_to_stream_chunk(%GenerateContentResponse{} = response) do
+    case response.candidates do
+      [candidate | _] ->
+        text = extract_text_from_candidate(candidate)
         %Types.StreamChunk{
           content: text,
-          finish_reason: nil
+          finish_reason: candidate.finish_reason
         }
-
-      {:ok, %{"candidates" => [%{"finishReason" => reason} | _]}} ->
+      [] ->
         %Types.StreamChunk{
           content: "",
-          finish_reason: reason
+          finish_reason: "stop"
         }
-
-      _ ->
-        nil
     end
   end
 end

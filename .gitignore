@@ -29,6 +29,36 @@ ex_llm-*.tar
 config/prod.secret.exs
 config/dev.secret.exs
 
+# Environment and credential files
+.env
+.envrc
+.gemini_tokens
+client_secret*.json
+service_account*.json
+*.pem
+*.p12
+
+# OAuth2 and API credential files
+*_credentials.json
+*_tokens.json
+.google_credentials
+.anthropic_key
+.openai_key
+
+# Google OAuth2 and service account files
+.google-*
+google-*.json
+service-account-*.json
+oauth2_credentials.json
+refresh_token.json
+
+# API keys and tokens
+*.token
+*.key
+api_keys.txt
+credentials.yaml
+auth.json
+
 # OS generated files
 .DS_Store
 .DS_Store?

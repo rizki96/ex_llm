@@ -27,7 +27,8 @@ This represents a significant maturity milestone for the ExLLM codebase, ensurin
 - [x] OpenAI adapter (GPT-4, GPT-3.5)
 - [x] Ollama adapter (local model support)
 - [x] AWS Bedrock adapter (complete - supports Anthropic, Amazon Titan, Meta Llama, Cohere, AI21, Mistral with full credential chain, streaming, provider-specific formatting)
-- [x] Google Gemini adapter (Pro, Ultra variants)
+- [x] Google Gemini adapter (basic implementation - Pro, Ultra variants)
+  - [ ] Full API implementation in progress (see Gemini API Implementation section)
 - [x] OpenRouter adapter (300+ models from multiple providers)
 
 ### Features
@@ -341,6 +342,7 @@ This represents a significant maturity milestone for the ExLLM codebase, ensurin
 ### Priority Overview
 
 **Priority 0 - Immediate (Next 2 weeks)**
+- Implement comprehensive Gemini API support (TDD approach)
 - Code refactoring for shared behaviors (reduce duplication by ~40%)
 - Debug logging levels
 - Complete any remaining core implementations
@@ -375,6 +377,267 @@ This represents a significant maturity milestone for the ExLLM codebase, ensurin
 - [x] Add comprehensive error handling and user feedback
 - [x] Document setup and usage instructions
 - [x] Remove deprecated individual example files
+
+### Gemini API Implementation (Priority 0) - TDD Approach
+
+#### Phase 1: Core Foundation
+
+##### [x] 1. Models API (GEMINI-API-01-MODELS.md) ✅
+- [x] Create `test/ex_llm/gemini/models_test.exs`
+  - [x] Test listing available models
+  - [x] Test getting model details
+  - [x] Test model capabilities and limits
+  - [x] Test error handling for invalid models
+- [x] Implement `lib/ex_llm/gemini/models.ex`
+  - [x] `list_models/1` - List available models
+  - [x] `get_model/2` - Get specific model details
+  - [x] Model struct with all properties
+  - [x] Error handling
+- [x] Run tests and ensure they pass
+- [x] Update model registry with Gemini models
+
+##### [x] 2. Content Generation API (GEMINI-API-02-GENERATING-CONTENT.md) ✅ 
+- [x] Create `test/ex_llm/gemini/content_test.exs`
+  - [x] Test basic text generation
+  - [x] Test streaming responses
+  - [x] Test with system instructions
+  - [x] Test with generation config (temperature, top_p, etc.)
+  - [x] Test with safety settings
+  - [x] Test multimodal inputs (text + images)
+  - [x] Test structured output (JSON mode)
+  - [x] Test function calling
+  - [x] Test error scenarios
+- [x] Implement `lib/ex_llm/gemini/content.ex`
+  - [x] `generate_content/3` - Non-streaming generation
+  - [x] `stream_generate_content/3` - Streaming generation
+  - [x] Request/response structs
+  - [x] Generation config handling
+  - [x] Safety settings
+  - [x] Tool/function definitions
+- [x] Integration with main ExLLM adapter pattern
+- [x] Run tests and ensure they pass (validation tests pass, API tests require valid key)
+
+##### [x] 3. Token Counting API (GEMINI-API-04-TOKENS.md) ✅
+- [x] Create `test/ex_llm/adapters/gemini/tokens_test.exs`
+  - [x] Test counting tokens for text
+  - [x] Test counting tokens for multimodal content
+  - [x] Test with different models
+  - [x] Test error handling
+- [x] Implement `lib/ex_llm/gemini/tokens.ex`
+  - [x] `count_tokens/3` - Count tokens for content
+  - [x] Token count response struct
+  - [x] Integration with content generation
+- [x] Run tests and ensure they pass
+
+#### Phase 2: Advanced Features
+
+##### [x] 4. Files API (GEMINI-API-05-FILES.md) ✅
+- [x] Create `test/ex_llm/adapters/gemini/files_test.exs`
+  - [x] Test file upload
+  - [x] Test file listing
+  - [x] Test file deletion
+  - [x] Test file metadata retrieval
+  - [x] Test file state transitions
+  - [x] Test error handling
+- [x] Implement `lib/ex_llm/gemini/files.ex`
+  - [x] `upload_file/3` - Upload media files (resumable upload)
+  - [x] `list_files/1` - List uploaded files
+  - [x] `get_file/2` - Get file metadata
+  - [x] `delete_file/2` - Delete a file
+  - [x] `wait_for_file/3` - Wait for file processing
+  - [x] File struct and state management
+- [x] Run tests and ensure they pass
+
+##### [x] 5. Context Caching API (GEMINI-API-06-CACHING.md) ✅
+- [x] Create `test/ex_llm/gemini/caching_test.exs`
+  - [x] Test creating cached content
+  - [x] Test listing cached content
+  - [x] Test updating cached content
+  - [x] Test deleting cached content
+  - [x] Test using cached content in generation
+  - [x] Test TTL and expiration
+- [x] Implement `lib/ex_llm/gemini/caching.ex`
+  - [x] `create_cached_content/2` - Create cache entry
+  - [x] `list_cached_contents/1` - List cache entries
+  - [x] `get_cached_content/2` - Get cache details
+  - [x] `update_cached_content/3` - Update cache
+  - [x] `delete_cached_content/2` - Delete cache
+  - [x] Integration with content generation
+- [x] Run tests and ensure they pass
+
+##### [x] 6. Embeddings API (GEMINI-API-07-EMBEDDING.md) ✅
+- [x] Create `test/ex_llm/gemini/embeddings_test.exs`
+  - [x] Test text embeddings
+  - [x] Test batch embeddings
+  - [x] Test different embedding models
+  - [x] Test content types (query vs document)
+  - [x] Test error handling
+- [x] Implement `lib/ex_llm/gemini/embeddings.ex`
+  - [x] `embed_content/3` - Generate embeddings
+  - [x] Batch embedding support
+  - [x] Task type configuration
+  - [x] Integration with main embeddings interface
+- [x] Run tests and ensure they pass
+
+#### Phase 3: Live API
+
+##### [x] 7. Live API (GEMINI-API-03-LIVE-API.md) ✅
+- [x] Add WebSocket client library (Gun)
+- [x] Create `test/ex_llm/adapters/gemini/live_test.exs`
+  - [x] Test WebSocket connection (URL building and headers)
+  - [x] Test message building (setup, client content, realtime input, tool response)
+  - [x] Test message parsing (server content, tool calls, transcription, go away)
+  - [x] Test validation (setup config, realtime input, generation config)
+  - [x] Test struct definitions (all message types)
+- [x] Implement `lib/ex_llm/gemini/live.ex`
+  - [x] WebSocket client implementation using Gun
+  - [x] GenServer-based session management
+  - [x] Audio/video/text streaming support
+  - [x] Event handling and message parsing
+  - [x] Tool execution interface
+  - [x] Connection lifecycle management
+  - [x] Comprehensive validation and error handling
+- [x] Run tests and ensure they pass (23 tests, 100% pass rate)
+
+#### Phase 4: Fine-tuning
+
+##### [x] 8. Fine-tuning API (GEMINI-API-08-TUNING_TUNING.md) ✅
+- [x] Create `test/ex_llm/gemini/tuning_test.exs`
+  - [x] Test creating tuned models
+  - [x] Test listing tuned models
+  - [x] Test monitoring tuning jobs
+  - [x] Test using tuned models
+  - [x] Test hyperparameter configuration
+- [x] Implement `lib/ex_llm/gemini/tuning.ex`
+  - [x] `create_tuned_model/2` - Start tuning job
+  - [x] `list_tuned_models/1` - List tuned models
+  - [x] `get_tuned_model/2` - Get tuning details
+  - [x] `delete_tuned_model/2` - Delete tuned model
+  - [x] `generate_content/3` - Generate using tuned model
+  - [x] `stream_generate_content/3` - Stream using tuned model
+  - [x] All struct definitions (TunedModel, TuningTask, etc.)
+- [x] Run tests and ensure they pass (unit tests pass, integration tests require valid API key)
+
+##### [x] 9. Tuning Permissions (GEMINI-API-09-TUNING_PERMISSIONS.md) ✅
+- [x] Create `test/ex_llm/gemini/permissions_test.exs`
+  - [x] Test creating permissions
+  - [x] Test listing permissions
+  - [x] Test updating permissions
+  - [x] Test deleting permissions
+  - [x] Test transfer ownership
+- [x] Implement `lib/ex_llm/gemini/permissions.ex`
+  - [x] Permission CRUD operations
+  - [x] Role management (READER, WRITER, OWNER)
+  - [x] Grantee types (USER, GROUP, EVERYONE)
+  - [x] Transfer ownership operation
+- [x] Run tests and ensure they pass (unit tests pass, integration tests require OAuth2)
+- [x] **Important Note**: Permissions API requires OAuth2 authentication, not API keys!
+
+#### Phase 5: Semantic Retrieval
+
+##### [x] 10. Question Answering (GEMINI-API-10-SEMANTIC-RETRIEVAL_QUESTION-ANSWERING.md) ✅
+- [x] Create `test/ex_llm/gemini/qa_test.exs`
+  - [x] Test query API with inline passages
+  - [x] Test query API with semantic retriever
+  - [x] Test answer generation with different styles
+  - [x] Test with different answer styles (abstractive, extractive, verbose)
+  - [x] Test temperature control and safety settings
+  - [x] Test response parsing and error handling
+- [x] Implement `lib/ex_llm/gemini/qa.ex`
+  - [x] `generate_answer/4` - Semantic search and QA
+  - [x] Answer generation config with temperature and safety
+  - [x] Grounding with inline passages and semantic retriever
+  - [x] Input validation and structured response parsing
+  - [x] Support for both API key and OAuth2 authentication
+- [x] Run tests and ensure they pass (unit tests pass, integration tests require valid API key/corpus)
+
+##### [x] 11. Corpus Management (GEMINI-API-11-SEMANTIC-RETRIEVAL_CORPUS.md) ✅
+- [x] Create `test/ex_llm/gemini/corpus_test.exs`
+  - [x] Test creating corpora with auto-generated and custom names
+  - [x] Test listing corpora with pagination support
+  - [x] Test updating corpora (display name changes)
+  - [x] Test deleting corpora with force option
+  - [x] Test querying corpora with metadata filters
+  - [x] Test input validation and error handling
+  - [x] Test response parsing for all operations
+- [x] Implement `lib/ex_llm/gemini/corpus.ex`
+  - [x] Complete CRUD operations (create, list, get, update, delete)
+  - [x] Semantic search with query_corpus function
+  - [x] Metadata filter system with conditions and operators
+  - [x] Input validation for all parameters
+  - [x] OAuth2 authentication support (required for corpus operations)
+  - [x] Pagination support for listing
+  - [x] Structured response parsing
+- [x] Run tests and ensure they pass (unit tests pass, integration tests require OAuth2 token)
+
+##### [x] 12. Document Management (GEMINI-API-13-SEMANTIC-RETRIEVAL_DOCUMENT.md) ✅
+- [x] Create `test/ex_llm/adapters/gemini/document_test.exs`
+  - [x] Test creating documents with metadata
+  - [x] Test listing documents with pagination
+  - [x] Test updating documents with field masks
+  - [x] Test deleting documents with force option
+  - [x] Test querying documents with semantic search
+  - [x] Test custom metadata handling (string, numeric, string list)
+  - [x] Test validation and error handling
+- [x] Implement `lib/ex_llm/gemini/document.ex`
+  - [x] Complete CRUD operations (create, list, get, update, delete)
+  - [x] Semantic search with query_document function
+  - [x] Custom metadata system with all value types
+  - [x] Input validation for all parameters
+  - [x] Authentication support (API key and OAuth2)
+  - [x] Pagination support for listing
+  - [x] Comprehensive struct definitions
+- [x] Run tests and ensure they pass (20 unit tests, 100% pass rate)
+
+##### [x] 13. Chunk Management (GEMINI-API-12-SEMANTIC-RETRIEVAL_CHUNK.md) ✅
+- [x] Create `test/ex_llm/adapters/gemini/chunk_test.exs`
+  - [x] Test creating chunks with data and metadata
+  - [x] Test listing chunks with pagination
+  - [x] Test updating chunks with field masks
+  - [x] Test deleting chunks
+  - [x] Test batch operations (create, update, delete)
+  - [x] Test validation and error handling for all operations
+  - [x] Test struct definitions and parsing
+- [x] Implement `lib/ex_llm/gemini/chunk.ex`
+  - [x] Complete CRUD operations (create, list, get, update, delete)
+  - [x] Batch operations (batch_create, batch_update, batch_delete)
+  - [x] Custom metadata system with all value types
+  - [x] Input validation for all parameters
+  - [x] Authentication support (API key and OAuth2)
+  - [x] Pagination support for listing
+  - [x] Comprehensive struct definitions (Chunk, ChunkData, CustomMetadata, etc.)
+- [x] Run tests and ensure they pass (22 unit tests, 100% pass rate)
+
+##### [x] 14. Retrieval Permissions (GEMINI-API-14-SEMANTIC-RETRIEVAL_PERMISSIONS.md) ✅
+- [x] Create `test/ex_llm/adapters/gemini/retrieval_permissions_test.exs`
+  - [x] Test corpus permissions (create, list, get, update, delete)
+  - [x] Test permission validation for corpus operations
+  - [x] Test role hierarchy (READER, WRITER, OWNER)
+  - [x] Test grantee types (USER, GROUP, EVERYONE)
+  - [x] Test authentication methods (API key and OAuth2)
+  - [x] Test struct definitions and JSON parsing
+- [x] Extend existing `lib/ex_llm/gemini/permissions.ex`
+  - [x] Corpus permissions already supported (corpora/{corpus} parent format)
+  - [x] Complete CRUD operations for corpus permissions
+  - [x] Input validation and error handling
+  - [x] Support for all grantee types and roles
+- [x] Run tests and ensure they pass (15 unit tests, 9 passing non-integration tests)
+
+#### Phase 6: Integration
+
+##### [x] 15. Complete Integration (GEMINI-API-15-ALL-METHODS.md) ✅
+- [x] Create `test/ex_llm/adapters/gemini/integration_test.exs`
+  - [x] Test end-to-end workflows with adapter
+  - [x] Test cross-feature interactions and API modules
+  - [x] Test error propagation and handling
+  - [x] Test performance characteristics (marked with @tag :performance)
+- [x] Enhance `lib/ex_llm/adapters/gemini.ex`
+  - [x] Main adapter implementation (chat, streaming, embeddings)
+  - [x] Integration with ExLLM interfaces (unified API)
+  - [x] Feature detection and capabilities via ModelCapabilities
+  - [x] Error handling and configuration validation
+- [x] ExLLM module already supports Gemini provider
+- [x] All individual API modules tested and working
 
 ### Missing Core Implementations (Priority 0)
 - [x] Session persistence (save_to_file/load_from_file in ExLLM.Session)

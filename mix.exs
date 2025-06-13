@@ -54,6 +54,9 @@ defmodule ExLLM.MixProject do
       # JSON encoding/decoding
       {:jason, "~> 1.4"},
 
+      # WebSocket client for Live API
+      {:gun, "~> 2.1"},
+
       # Configuration file parsing
       {:yaml_elixir, "~> 2.9"},
 
