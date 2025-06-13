@@ -82,7 +82,7 @@ defmodule ExLLM.Test.ConfigProviderHelper do
     # Return restore function
     fn ->
       Enum.each(original_values, fn
-        {var, nil} -> :ok
+        {_var, nil} -> :ok
         {var, value} -> System.put_env(var, value)
       end)
     end
