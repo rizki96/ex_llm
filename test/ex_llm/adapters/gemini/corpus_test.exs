@@ -12,7 +12,6 @@ defmodule ExLLM.Gemini.CorpusTest do
     QueryCorpusResponse,
     CorpusInfo,
     MetadataFilter,
-    Condition,
     RelevantChunk
   }
 

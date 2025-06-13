@@ -39,7 +39,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
     end
 
     @tag :skip
-    test "creates and manages permissions", %{oauth_token: token} do
+    test "creates and manages permissions", %{oauth_token: _token} do
       # This test requires an actual tuned model that you own
       # Uncomment and update model_name to test with a real model
 
@@ -88,7 +88,10 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
           oauth_token: invalid_token
         )
 
-      GeminiOAuth2Helper.assert_oauth_error(result)
+      case GeminiOAuth2Helper.assert_oauth_error(result) do
+        :ok -> :ok
+        {:error, message} -> flunk(message)
+      end
     end
 
     test "returns error when using API key instead of OAuth2" do

@@ -27,7 +27,7 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
           {:error, :no_token} ->
             :ok  # Skip OAuth tests
           {:error, reason} ->
-            raise "OAuth2 setup error: #{reason}"
+            raise "OAuth2 setup error: \#{reason}"
         end
       end
       
@@ -195,12 +195,16 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
   Test helper to assert OAuth2 authentication errors.
   """
   def assert_oauth_error({:error, %{status: 401} = error}) do
-    assert error.message =~ "API keys are not supported" or
-             error.message =~ "authentication" or
-             error.message =~ "unauthorized"
+    if error.message =~ "API keys are not supported" or
+       error.message =~ "authentication" or
+       error.message =~ "unauthorized" do
+      :ok
+    else
+      {:error, "Expected OAuth2 authentication message, got: #{error.message}"}
+    end
   end
 
   def assert_oauth_error(other) do
-    flunk("Expected OAuth2 authentication error (401), got: #{inspect(other)}")
+    {:error, "Expected OAuth2 authentication error (401), got: #{inspect(other)}"}
   end
 end

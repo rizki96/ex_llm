@@ -4,9 +4,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   alias ExLLM.Gemini.Permissions
 
   alias ExLLM.Gemini.Permissions.{
-    Permission,
-    ListPermissionsResponse,
-    TransferOwnershipRequest
+    ListPermissionsResponse
   }
 
   @api_key System.get_env("GEMINI_API_KEY") || "test-key"

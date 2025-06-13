@@ -197,13 +197,23 @@ defmodule ExLLM.Gemini.Models do
     )
   end
 
-  defp validate_list_params(opts) do
+  defp validate_list_params(opts) when is_list(opts) do
     case Keyword.get(opts, :page_size) do
       nil -> :ok
       size when is_integer(size) and size > 0 -> :ok
       _ -> {:error, %{reason: :invalid_params, message: "page_size must be positive"}}
     end
   end
+
+  defp validate_list_params(opts) when is_map(opts) do
+    case Map.get(opts, :page_size) do
+      nil -> :ok
+      size when is_integer(size) and size > 0 -> :ok
+      _ -> {:error, %{reason: :invalid_params, message: "page_size must be positive"}}
+    end
+  end
+
+  defp validate_list_params(_), do: :ok
 
   defp validate_api_key(nil),
     do: {:error, %{reason: :missing_api_key, message: "API key is required"}}
