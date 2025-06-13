@@ -38,6 +38,9 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
   describe "message formatting" do
     test "extracts system message from messages" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{role: "system", content: "You are a helpful assistant"},
         %{role: "user", content: "Hello"},
@@ -46,10 +49,13 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
       # Test that system messages are properly extracted
       # This would be tested through the chat function
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "handles alternating user/assistant messages" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi!"},
@@ -57,10 +63,13 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
       ]
 
       # Anthropic requires alternating messages
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "handles multimodal content with images" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{
           role: "user",
@@ -78,10 +87,13 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
       ]
 
       # Should format images correctly for Anthropic
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "handles image_url format conversion" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{
           role: "user",
@@ -98,18 +110,22 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
       ]
 
       # Should convert image_url to Anthropic's format
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
   end
 
   describe "parameter handling" do
     test "adds optional parameters to request body" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       opts = [
         temperature: 0.7,
         max_tokens: 100,
-        model: "claude-3-5-sonnet-20241022"
+        model: "claude-3-5-sonnet-20241022",
+        config_provider: provider
       ]
 
       # Parameters should be included in request
@@ -117,13 +133,19 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
     end
 
     test "uses default max_tokens when not specified" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       # Should use default of 4096
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "overrides model from options" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       # Model in options should override config
@@ -131,6 +153,7 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
                Anthropic.chat(
                  messages,
                  model: "claude-3-5-haiku-20241022",
+                 config_provider: provider,
                  timeout: 1
                )
     end
@@ -168,20 +191,26 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
   describe "headers" do
     test "includes required Anthropic headers" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       # Headers should include:
       # - x-api-key
       # - anthropic-version
       # This is tested indirectly through API calls
       messages = [%{role: "user", content: "Test"}]
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
   end
 
   describe "base URL handling" do
     test "uses default base URL when not configured" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
       # Should use https://api.anthropic.com/v1
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "uses custom base URL from config" do
@@ -309,11 +338,14 @@ defmodule ExLLM.Adapters.AnthropicUnitTest do
 
   describe "error handling" do
     test "handles API errors properly" do
+      config = %{anthropic: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       # Various error scenarios
       messages = [%{role: "user", content: "Test"}]
 
       # Connection timeout
-      assert {:error, _} = Anthropic.chat(messages, timeout: 1)
+      assert {:error, _} = Anthropic.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "validates API key format" do

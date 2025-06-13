@@ -51,25 +51,34 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
   describe "message formatting" do
     test "handles simple text messages" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi there!"}
       ]
 
       # Test that messages are properly formatted
-      assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "handles system messages" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{role: "system", content: "You are a helpful assistant"},
         %{role: "user", content: "Hello"}
       ]
 
-      assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "handles multimodal content with images" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{
           role: "user",
@@ -86,10 +95,13 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       ]
 
       # Should handle multimodal content
-      assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "handles OpenAI-style function calling format" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [
         %{role: "user", content: "Get weather"},
         %{
@@ -101,12 +113,15 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         }
       ]
 
-      assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
     end
   end
 
   describe "parameter handling" do
     test "builds correct request body" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       # Can't directly test build_request_body since it's private
       # But we can test that parameters are passed correctly
       messages = [%{role: "user", content: "Test"}]
@@ -116,7 +131,8 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         max_tokens: 100,
         top_p: 0.9,
         seed: 42,
-        model: "openai/gpt-4o"
+        model: "openai/gpt-4o",
+        config_provider: provider
       ]
 
       # These would be added to the request body
@@ -124,12 +140,16 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
     end
 
     test "supports OpenRouter-specific parameters" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       opts = [
         models: ["openai/gpt-4o", "anthropic/claude-3-5-sonnet"],
         transforms: ["middle-out"],
         provider: %{order: ["openai", "anthropic"]},
+        config_provider: provider,
         timeout: 1
       ]
 
@@ -155,10 +175,13 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
   describe "streaming setup" do
     test "stream_chat returns a Stream" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Hello"}]
 
-      # Even without API key, should return error not crash
-      case OpenRouter.stream_chat(messages) do
+      # With invalid API key, should return error
+      case OpenRouter.stream_chat(messages, config_provider: provider) do
         {:ok, stream} ->
           # Should be a stream if API key is available
           assert is_function(stream) or is_struct(stream, Stream)
@@ -174,10 +197,13 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
     end
 
     test "streaming adds stream: true to request" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test streaming"}]
 
       # The stream parameter should be added
-      case OpenRouter.stream_chat(messages) do
+      case OpenRouter.stream_chat(messages, config_provider: provider) do
         {:ok, _stream} ->
           :ok
 
@@ -230,9 +256,12 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
   describe "headers and base URL" do
     test "uses default base URL when not configured" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
       # Should use https://openrouter.ai/api/v1
-      assert {:error, _} = OpenRouter.chat(messages, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, timeout: 1)
     end
 
     test "uses custom base URL from config" do
@@ -378,6 +407,20 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
   end
 
   describe "error handling" do
+    setup do
+      # Temporarily disable environment API key
+      original_key = System.get_env("OPENROUTER_API_KEY")
+      System.delete_env("OPENROUTER_API_KEY")
+      
+      on_exit(fn ->
+        if original_key do
+          System.put_env("OPENROUTER_API_KEY", original_key)
+        end
+      end)
+      
+      :ok
+    end
+    
     test "validates API key format" do
       invalid_configs = [
         %{openrouter: %{api_key: nil}},
@@ -386,8 +429,8 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
       ]
 
       for config <- invalid_configs do
-        {:ok, _pid} = ExLLM.ConfigProvider.Static.start_link(config)
-        refute OpenRouter.configured?(config_provider: ExLLM.ConfigProvider.Static)
+        provider = ConfigProviderHelper.setup_static_provider(config)
+        refute OpenRouter.configured?(config_provider: provider)
       end
     end
 
@@ -404,21 +447,30 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
   describe "model routing features" do
     test "supports fallback model list" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       # OpenRouter supports fallback models
       models = ["openai/gpt-4o", "anthropic/claude-3-5-sonnet", "openai/gpt-3.5-turbo"]
-      assert {:error, _} = OpenRouter.chat(messages, models: models, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, models: models, timeout: 1)
     end
 
     test "supports auto-router model" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       # OpenRouter has an auto model
-      assert {:error, _} = OpenRouter.chat(messages, model: "openrouter/auto", timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, model: "openrouter/auto", timeout: 1)
     end
 
     test "supports provider preferences" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       provider_prefs = %{
@@ -426,7 +478,7 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
         allow_fallbacks: true
       }
 
-      assert {:error, _} = OpenRouter.chat(messages, provider: provider_prefs, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, provider: provider_prefs, timeout: 1)
     end
   end
 
@@ -484,21 +536,27 @@ defmodule ExLLM.Adapters.OpenRouterUnitTest do
 
   describe "transform handling" do
     test "supports OpenRouter transforms" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       # OpenRouter supports prompt transforms
       transforms = ["middle-out", "no-op"]
-      assert {:error, _} = OpenRouter.chat(messages, transforms: transforms, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, transforms: transforms, timeout: 1)
     end
   end
 
   describe "data collection policies" do
     test "supports data collection restrictions" do
+      config = %{openrouter: %{api_key: "invalid-test-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
       messages = [%{role: "user", content: "Test"}]
 
       # OpenRouter supports data collection policies
       data_collection = "deny"
-      assert {:error, _} = OpenRouter.chat(messages, data_collection: data_collection, timeout: 1)
+      assert {:error, _} = OpenRouter.chat(messages, config_provider: provider, data_collection: data_collection, timeout: 1)
     end
   end
 end

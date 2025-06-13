@@ -311,7 +311,7 @@ defmodule ExLLM.Adapters.Gemini do
     case config_provider do
       provider when is_atom(provider) ->
         provider.get_all(:gemini)
-      
+
       provider when is_pid(provider) ->
         ExLLM.ConfigProvider.Static.get_all(provider)
         |> Map.get(:gemini, %{})

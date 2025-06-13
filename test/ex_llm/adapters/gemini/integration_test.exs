@@ -264,18 +264,18 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
       messages = [%{role: "user", content: "Test"}]
 
       result = ExLLM.chat(:gemini, messages, config_provider: pid)
-      
+
       case result do
         {:error, error} ->
           # Without API key, should get an error
           assert String.contains?(to_string(error), "API key") or
-                 String.contains?(to_string(error), "Google API key")
-        
+                   String.contains?(to_string(error), "Google API key")
+
         {:ok, _} ->
           # If we have an API key in environment, the call might succeed
           # This is okay in development but would fail in CI
           assert System.get_env("GOOGLE_API_KEY") != nil or
-                 System.get_env("GEMINI_API_KEY") != nil,
+                   System.get_env("GEMINI_API_KEY") != nil,
                  "Expected error without API key, but got success"
       end
     end
