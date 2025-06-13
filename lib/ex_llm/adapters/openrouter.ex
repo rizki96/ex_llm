@@ -66,7 +66,7 @@ defmodule ExLLM.Adapters.OpenRouter do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Adapters.Shared.{ConfigHelper, ErrorHandler, HTTPClient}
   alias ExLLM.{ConfigProvider, Error, Logger, Types}
 
   @default_base_url "https://openrouter.ai/api/v1"
@@ -131,14 +131,50 @@ defmodule ExLLM.Adapters.OpenRouter do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
 
-      case Req.post(url, json: request_body, headers: headers, into: :self) do
-        {:ok, response} ->
-          stream = parse_stream_response(response.body, model)
-          {:ok, stream}
+      # Use HTTPClient for streaming like other adapters
+      parent = self()
+      ref = make_ref()
 
-        {:error, reason} ->
-          {:error, Error.connection_error(reason)}
-      end
+      # Start streaming task
+      Task.start(fn ->
+        HTTPClient.stream_request(
+          url,
+          request_body,
+          headers,
+          fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
+          on_error: fn status, body ->
+            send(
+              parent,
+              {ref, {:error, ErrorHandler.handle_provider_error(:openrouter, status, body)}}
+            )
+          end,
+          provider: :openrouter
+        )
+      end)
+
+      # Create a stream that receives chunks
+      stream =
+        Stream.resource(
+          fn -> {ref, :continue} end,
+          fn {ref, _state} ->
+            receive do
+              {^ref, {:chunk, chunk}} ->
+                {[chunk], {ref, :continue}}
+
+              {^ref, {:error, error}} ->
+                {:halt, {ref, {:error, error}}}
+
+              {^ref, :done} ->
+                {:halt, {ref, :done}}
+            after
+              5000 ->
+                {:halt, {ref, :timeout}}
+            end
+          end,
+          fn _ -> :ok end
+        )
+
+      {:ok, stream}
     end
   end
 
@@ -410,36 +446,6 @@ defmodule ExLLM.Adapters.OpenRouter do
 
       true ->
         []
-    end
-  end
-
-  defp parse_stream_response(body, model) do
-    body
-    |> String.split("\n")
-    |> Stream.filter(&String.starts_with?(&1, "data: "))
-    |> Stream.map(&String.slice(&1, 6..-1//-1))
-    |> Stream.filter(&(&1 != "[DONE]"))
-    |> Stream.map(&Jason.decode!/1)
-    |> Stream.map(&parse_stream_chunk(&1, model))
-    |> Stream.filter(& &1)
-  end
-
-  defp parse_stream_chunk(chunk, model) do
-    choice = List.first(chunk["choices"])
-
-    if choice do
-      delta = choice["delta"]
-      content = delta["content"] || ""
-      finish_reason = choice["finish_reason"]
-
-      %Types.StreamChunk{
-        content: content,
-        model: model,
-        finish_reason: finish_reason,
-        id: chunk["id"]
-      }
-    else
-      nil
     end
   end
 

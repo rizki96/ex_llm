@@ -138,27 +138,98 @@ defmodule ExLLM.Adapters.LMStudio do
     port = Keyword.get(opts, :port, @default_port)
     api_key = Keyword.get(opts, :api_key, @default_api_key)
     model = Keyword.get(opts, :model, @default_model)
-    timeout = Keyword.get(opts, :timeout, @timeout)
+    _timeout = Keyword.get(opts, :timeout, @timeout)
 
     url = build_url(host, port, "/v1/chat/completions")
     headers = build_headers(api_key)
     body = build_chat_request(messages, opts, model, stream: true)
 
-    # For unit tests with mock, simulate streaming with a simple stream
-    case http_client().post_json(url, body, headers, timeout: timeout, provider: :lmstudio) do
-      {:ok, response_data} ->
-        # Convert non-streaming response to a stream
-        chunk = %Types.StreamChunk{
-          content: get_in(response_data, ["choices", Access.at(0), "message", "content"]) || "",
-          finish_reason:
-            get_in(response_data, ["choices", Access.at(0), "finish_reason"]) || "stop"
-        }
+    # Use real streaming for both integration tests and unit tests
+    parent = self()
+    ref = make_ref()
 
-        stream = Stream.iterate(chunk, fn _ -> nil end) |> Stream.take(1)
-        {:ok, stream}
+    # Import HTTPClient
+    alias ExLLM.Adapters.Shared.HTTPClient
 
-      {:error, reason} ->
-        {:error, "LM Studio streaming failed: #{inspect(reason)}"}
+    # Start streaming task
+    Task.start(fn ->
+      HTTPClient.stream_request(
+        url,
+        body,
+        headers,
+        fn chunk ->
+          case parse_stream_chunk(chunk) do
+            {:ok, :done} ->
+              send(parent, {ref, :done})
+
+            {:ok, parsed_chunk} ->
+              send(parent, {ref, {:chunk, parsed_chunk}})
+
+            {:error, _reason} ->
+              # Skip invalid chunks
+              :ok
+          end
+        end,
+        on_error: fn status, body ->
+          send(
+            parent,
+            {ref, {:error, "LM Studio error: status=#{status}, body=#{inspect(body)}"}}
+          )
+        end,
+        provider: :lmstudio
+      )
+    end)
+
+    # Create a stream that receives chunks
+    stream =
+      Stream.resource(
+        fn -> {ref, :continue} end,
+        fn {ref, _state} ->
+          receive do
+            {^ref, {:chunk, chunk}} ->
+              {[chunk], {ref, :continue}}
+
+            {^ref, {:error, error}} ->
+              {:halt, {ref, {:error, error}}}
+
+            {^ref, :done} ->
+              {:halt, {ref, :done}}
+          after
+            5000 ->
+              {:halt, {ref, :timeout}}
+          end
+        end,
+        fn _ -> :ok end
+      )
+
+    {:ok, stream}
+  end
+
+  # Parse streaming chunk - LM Studio uses OpenAI-compatible format
+  defp parse_stream_chunk(data) do
+    case data do
+      "[DONE]" ->
+        {:ok, :done}
+
+      _ ->
+        case Jason.decode(data) do
+          {:ok, parsed} ->
+            choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
+            delta = choice["delta"] || %{}
+
+            # Handle both regular content and reasoning_content
+            content = delta["content"] || delta["reasoning_content"] || ""
+
+            chunk = %Types.StreamChunk{
+              content: content,
+              finish_reason: choice["finish_reason"]
+            }
+
+            {:ok, chunk}
+
+          {:error, _} ->
+            {:error, :invalid_json}
+        end
     end
   end
 

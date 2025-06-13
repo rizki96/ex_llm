@@ -44,7 +44,7 @@ defmodule ExLLM.Adapters.Gemini.ChunkIntegrationTest do
       assert updated.data.string_value == "Updated content for integration test."
 
       # List chunks
-      assert {:ok, list_result} = Chunk.list_chunks(parent, %{page_size: 10}, api_key: @api_key)
+      assert {:ok, list_result} = Chunk.list_chunks(parent, page_size: 10, api_key: @api_key)
       assert is_list(list_result.chunks)
 
       # Find our created chunk in the list

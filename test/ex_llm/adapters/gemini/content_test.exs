@@ -41,6 +41,7 @@ defmodule ExLLM.Gemini.ContentTest do
       assert candidate.finish_reason in [:stop, "STOP", nil]
     end
 
+    @tag :integration
     test "generates content with system instruction" do
       model = "gemini-2.0-flash"
 
@@ -67,6 +68,7 @@ defmodule ExLLM.Gemini.ContentTest do
              |> Map.get(:text) =~ ~r/4|four/i
     end
 
+    @tag :integration
     test "generates content with generation config" do
       model = "gemini-2.0-flash"
 
@@ -90,6 +92,7 @@ defmodule ExLLM.Gemini.ContentTest do
       assert response.usage_metadata.candidates_token_count <= 10
     end
 
+    @tag :integration
     test "generates content with safety settings" do
       model = "gemini-2.0-flash"
 
@@ -116,6 +119,7 @@ defmodule ExLLM.Gemini.ContentTest do
       assert response.candidates |> length() > 0
     end
 
+    @tag :integration
     test "handles multi-turn conversation" do
       model = "gemini-2.0-flash"
 
@@ -146,6 +150,7 @@ defmodule ExLLM.Gemini.ContentTest do
              |> Map.get(:text) =~ "Alice"
     end
 
+    @tag :integration
     test "generates JSON response with response_mime_type" do
       model = "gemini-2.0-flash"
 
@@ -174,6 +179,7 @@ defmodule ExLLM.Gemini.ContentTest do
       assert {:ok, _parsed} = Jason.decode(json_text)
     end
 
+    @tag :integration
     test "handles function calling" do
       model = "gemini-2.0-flash"
 
@@ -255,6 +261,7 @@ defmodule ExLLM.Gemini.ContentTest do
       end
     end
 
+    @tag :integration
     test "returns usage metadata" do
       model = "gemini-2.0-flash"
 
@@ -317,6 +324,7 @@ defmodule ExLLM.Gemini.ContentTest do
   end
 
   describe "stream_generate_content/3" do
+    @tag :integration
     test "streams content chunks" do
       model = "gemini-2.0-flash"
 
@@ -384,6 +392,7 @@ defmodule ExLLM.Gemini.ContentTest do
       end
     end
 
+    @tag :integration
     test "streams with function calling" do
       model = "gemini-2.0-flash"
 
@@ -432,6 +441,7 @@ defmodule ExLLM.Gemini.ContentTest do
   end
 
   describe "multimodal content" do
+    @tag :integration
     test "generates content with image input" do
       model = "gemini-2.0-flash"
 
@@ -470,6 +480,7 @@ defmodule ExLLM.Gemini.ContentTest do
       assert response_text =~ ~r/yellow|YELLOW|color/i
     end
 
+    @tag :integration
     test "handles multiple images" do
       model = "gemini-2.0-flash"
 
@@ -509,6 +520,7 @@ defmodule ExLLM.Gemini.ContentTest do
   end
 
   describe "structured output with response schema" do
+    @tag :integration
     test "generates JSON with schema validation" do
       model = "gemini-2.0-flash"
 
@@ -682,6 +694,7 @@ defmodule ExLLM.Gemini.ContentTest do
   end
 
   describe "integration with main ExLLM adapter" do
+    @tag :integration
     test "works through the main ExLLM.chat interface" do
       messages = [
         %{role: "user", content: "Hello, Gemini!"}
@@ -703,6 +716,7 @@ defmodule ExLLM.Gemini.ContentTest do
       end
     end
 
+    @tag :integration
     test "works with streaming through main interface" do
       messages = [
         %{role: "user", content: "Count to 3"}

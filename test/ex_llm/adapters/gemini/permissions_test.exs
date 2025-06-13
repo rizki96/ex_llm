@@ -10,7 +10,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   @api_key System.get_env("GEMINI_API_KEY") || "test-key"
 
   describe "create_permission/3" do
-    @describetag :integration
+    @describetag :oauth2
     test "creates a permission with email address" do
       permission = %{
         grantee_type: :USER,
@@ -81,7 +81,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   end
 
   describe "list_permissions/2" do
-    @describetag :integration
+    @describetag :oauth2
     test "lists permissions for a tuned model" do
       assert {:ok, %ListPermissionsResponse{} = response} =
                Permissions.list_permissions("tunedModels/non-existent", api_key: @api_key)
@@ -108,7 +108,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   end
 
   describe "get_permission/2" do
-    @describetag :integration
+    @describetag :oauth2
     test "returns error for non-existent permission" do
       assert {:error, %{status: status}} =
                Permissions.get_permission("tunedModels/non-existent/permissions/invalid",
@@ -129,7 +129,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   end
 
   describe "update_permission/3" do
-    @describetag :integration
+    @describetag :oauth2
     test "returns error for non-existent permission" do
       update = %{
         role: :WRITER
@@ -179,7 +179,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   end
 
   describe "delete_permission/2" do
-    @describetag :integration
+    @describetag :oauth2
     test "returns error for non-existent permission" do
       assert {:error, %{status: status}} =
                Permissions.delete_permission("tunedModels/non-existent/permissions/invalid",
@@ -202,7 +202,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   end
 
   describe "transfer_ownership/3" do
-    @describetag :integration
+    @describetag :oauth2
     test "returns error for non-existent model" do
       request = %{
         email_address: "newowner@example.com"

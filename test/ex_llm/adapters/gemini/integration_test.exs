@@ -148,7 +148,11 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
                Embeddings.embed_content("text-embedding-004", request, api_key: "invalid")
 
       # Test Semantic Retrieval APIs structure
-      assert {:error, _} = Corpus.list_corpora([], api_key: "invalid")
+      # Note: Corpus API requires OAuth2 token, not API key
+      assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
+        Corpus.list_corpora([], api_key: "invalid")
+      end
+
       assert {:error, _} = Document.list_documents("corpora/test", api_key: "invalid")
       assert {:error, _} = Chunk.list_chunks("corpora/test/documents/test", api_key: "invalid")
 
@@ -201,6 +205,7 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
   end
 
   describe "Feature detection and capabilities" do
+    @tag :integration
     test "model capabilities detection" do
       {:ok, models} = Gemini.list_models(config_provider: ExLLM.ConfigProvider.Env)
 
@@ -288,6 +293,7 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
 
   describe "Performance characteristics" do
     @tag :performance
+    @tag :integration
     test "response time benchmarks" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -308,6 +314,7 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
     end
 
     @tag :performance
+    @tag :integration
     test "streaming latency" do
       messages = [%{role: "user", content: "Count from 1 to 5"}]
 
@@ -331,6 +338,7 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
     end
 
     @tag :performance
+    @tag :integration
     test "concurrent request handling" do
       messages = [%{role: "user", content: "Hello #{:rand.uniform(1000)}"}]
 
@@ -403,15 +411,28 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
             # OAuth token without valid token should fail
             assert {:error, _} = Models.list_models(auth_opts)
             assert {:error, _} = Files.list_files(auth_opts)
-            assert {:error, _} = Corpus.list_corpora(auth_opts)
 
-          _ ->
-            # API key should work
-            assert {:ok, _} = Models.list_models(auth_opts)
-            # Files may have different response
-            _ = Files.list_files(auth_opts)
-            # Corpus may require specific setup
-            _ = Corpus.list_corpora(auth_opts)
+            assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
+              Corpus.list_corpora(auth_opts)
+            end
+
+          api_key ->
+            # With API key, check if it's valid
+            if api_key == "test-key" or !System.get_env("GEMINI_API_KEY") do
+              # Invalid/test API key should fail
+              assert {:error, _} = Models.list_models(auth_opts)
+              assert {:error, _} = Files.list_files(auth_opts)
+            else
+              # Valid API key should work
+              assert {:ok, _} = Models.list_models(auth_opts)
+              # Files may have different response
+              _ = Files.list_files(auth_opts)
+            end
+
+            # Corpus requires OAuth token, not API key
+            assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
+              Corpus.list_corpora(auth_opts)
+            end
         end
       end)
     end

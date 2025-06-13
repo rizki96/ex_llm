@@ -18,20 +18,23 @@ defmodule ExLLM.Gemini.Chunk do
       # Create a chunk
       {:ok, chunk} = Chunk.create_chunk(
         "corpora/my-corpus/documents/my-doc",
-        %{data: %{string_value: "This is chunk content."}}
+        %{data: %{string_value: "This is chunk content."}},
+        api_key: "your-api-key"
       )
       
       # List chunks with pagination
       {:ok, result} = Chunk.list_chunks(
         "corpora/my-corpus/documents/my-doc",
-        %{page_size: 20}
+        page_size: 20,
+        api_key: "your-api-key"
       )
       
       # Update chunk content
       {:ok, updated} = Chunk.update_chunk(
         "corpora/my-corpus/documents/my-doc/chunks/my-chunk",
         %{data: %{string_value: "Updated content"}},
-        %{update_mask: "data"}
+        "data",
+        api_key: "your-api-key"
       )
       
       # Batch create chunks
@@ -40,11 +43,15 @@ defmodule ExLLM.Gemini.Chunk do
         [
           %{chunk: %{data: %{string_value: "First chunk"}}},
           %{chunk: %{data: %{string_value: "Second chunk"}}}
-        ]
+        ],
+        api_key: "your-api-key"
       )
       
       # Delete chunk
-      :ok = Chunk.delete_chunk("corpora/my-corpus/documents/my-doc/chunks/my-chunk")
+      :ok = Chunk.delete_chunk(
+        "corpora/my-corpus/documents/my-doc/chunks/my-chunk",
+        api_key: "your-api-key"
+      )
   """
 
   alias ExLLM.Gemini.Base
@@ -143,7 +150,9 @@ defmodule ExLLM.Gemini.Chunk do
 
   - `parent` - The document name in format "corpora/{corpus_id}/documents/{document_id}"
   - `params` - Chunk creation parameters
-  - `auth` - Authentication (API key or OAuth2 token)
+  - `opts` - Keyword list of options:
+    - `:api_key` - API key for authentication
+    - `:oauth_token` - OAuth2 token for authentication
 
   ## Params
 
@@ -172,20 +181,23 @@ defmodule ExLLM.Gemini.Chunk do
         }
       )
   """
-  @spec create_chunk(String.t(), map(), map()) :: {:ok, t()} | {:error, map()}
-  def create_chunk(parent, params, auth \\ %{}) do
+  @spec create_chunk(String.t(), map(), Keyword.t()) :: {:ok, t()} | {:error, map()}
+  def create_chunk(parent, params, opts \\ []) do
     with :ok <- validate_document_name(parent),
          :ok <- validate_create_params(params) do
-      url = "#{parent}/chunks"
+      url = "/#{parent}/chunks"
       body = build_create_request(params)
 
-      case Base.request(
-             method: :post,
-             url: url,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :post,
+        url: url,
+        body: body,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
@@ -204,13 +216,11 @@ defmodule ExLLM.Gemini.Chunk do
   ## Parameters
 
   - `parent` - The document name in format "corpora/{corpus_id}/documents/{document_id}"
-  - `opts` - Optional listing parameters
-  - `auth` - Authentication (API key or OAuth2 token)
-
-  ## Options
-
-  - `:page_size` - Maximum chunks per page (1-100, default 10)
-  - `:page_token` - Token for pagination
+  - `opts` - Keyword list of options:
+    - `:page_size` - Maximum chunks per page (1-100, default 10)
+    - `:page_token` - Token for pagination
+    - `:api_key` - API key for authentication
+    - `:oauth_token` - OAuth2 token for authentication
 
   ## Examples
 
@@ -223,20 +233,25 @@ defmodule ExLLM.Gemini.Chunk do
         %{page_size: 50, page_token: "next-page-token"}
       )
   """
-  @spec list_chunks(String.t(), map(), map()) :: {:ok, ListResult.t()} | {:error, map()}
-  def list_chunks(parent, opts \\ %{}, auth \\ %{}) do
-    with :ok <- validate_document_name(parent),
-         :ok <- validate_list_opts(opts) do
-      query = build_list_query(opts)
-      url = "#{parent}/chunks"
+  @spec list_chunks(String.t(), Keyword.t()) :: {:ok, ListResult.t()} | {:error, map()}
+  def list_chunks(parent, opts \\ []) do
+    {list_opts, auth_opts} = Keyword.split(opts, [:page_size, :page_token])
 
-      case Base.request(
-             method: :get,
-             url: url,
-             query: query,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+    with :ok <- validate_document_name(parent),
+         :ok <- validate_list_opts(list_opts) do
+      query = build_list_query(list_opts)
+      url = "/#{parent}/chunks"
+
+      request_opts = [
+        method: :get,
+        url: url,
+        body: nil,
+        query: query
+      ]
+
+      request_opts = add_auth(request_opts, auth_opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_list_result(response)}
 
@@ -255,21 +270,27 @@ defmodule ExLLM.Gemini.Chunk do
   ## Parameters
 
   - `name` - The chunk name in format "corpora/{corpus_id}/documents/{document_id}/chunks/{chunk_id}"
-  - `auth` - Authentication (API key or OAuth2 token)
+  - `opts` - Keyword list of options:
+    - `:api_key` - API key for authentication
+    - `:oauth_token` - OAuth2 token for authentication
 
   ## Examples
 
       {:ok, chunk} = Chunk.get_chunk("corpora/my-corpus/documents/my-doc/chunks/my-chunk")
   """
-  @spec get_chunk(String.t(), map()) :: {:ok, t()} | {:error, map()}
-  def get_chunk(name, auth \\ %{}) do
+  @spec get_chunk(String.t(), Keyword.t()) :: {:ok, t()} | {:error, map()}
+  def get_chunk(name, opts \\ []) do
     with :ok <- validate_chunk_name(name) do
-      case Base.request(
-             method: :get,
-             url: name,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :get,
+        url: "/#{name}",
+        body: nil,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
@@ -289,17 +310,13 @@ defmodule ExLLM.Gemini.Chunk do
 
   - `name` - The chunk name in format "corpora/{corpus_id}/documents/{document_id}/chunks/{chunk_id}"
   - `updates` - Fields to update
-  - `opts` - Update options including update_mask
-  - `auth` - Authentication (API key or OAuth2 token)
+  - `update_mask` - Required. Fields to update ("data", "customMetadata")
+  - `opts` - Authentication options
 
   ## Updates
 
   - `:data` - New chunk content
   - `:custom_metadata` - New custom metadata
-
-  ## Options
-
-  - `:update_mask` - Required. Fields to update ("data", "customMetadata")
 
   ## Examples
 
@@ -307,31 +324,34 @@ defmodule ExLLM.Gemini.Chunk do
       {:ok, chunk} = Chunk.update_chunk(
         "corpora/my-corpus/documents/my-doc/chunks/my-chunk",
         %{data: %{string_value: "New content"}},
-        %{update_mask: "data"}
+        "data"
       )
       
       # Update metadata
       {:ok, chunk} = Chunk.update_chunk(
         "corpora/my-corpus/documents/my-doc/chunks/my-chunk",
         %{custom_metadata: [%{key: "status", string_value: "reviewed"}]},
-        %{update_mask: "customMetadata"}
+        "customMetadata"
       )
   """
-  @spec update_chunk(String.t(), map(), map(), map()) :: {:ok, t()} | {:error, map()}
-  def update_chunk(name, updates, opts \\ %{}, auth \\ %{}) do
+  @spec update_chunk(String.t(), map(), String.t() | [String.t()], Keyword.t()) ::
+          {:ok, t()} | {:error, map()}
+  def update_chunk(name, updates, update_mask, opts \\ []) do
     with :ok <- validate_chunk_name(name),
-         :ok <- validate_update_params(updates, opts) do
-      query = build_update_query(opts)
+         :ok <- validate_update_params(updates, update_mask) do
+      query = build_update_query(update_mask)
       body = build_update_request(updates)
 
-      case Base.request(
-             method: :patch,
-             url: name,
-             query: query,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :patch,
+        url: "/#{name}",
+        body: body,
+        query: query
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
@@ -350,21 +370,27 @@ defmodule ExLLM.Gemini.Chunk do
   ## Parameters
 
   - `name` - The chunk name in format "corpora/{corpus_id}/documents/{document_id}/chunks/{chunk_id}"
-  - `auth` - Authentication (API key or OAuth2 token)
+  - `opts` - Keyword list of options:
+    - `:api_key` - API key for authentication
+    - `:oauth_token` - OAuth2 token for authentication
 
   ## Examples
 
       :ok = Chunk.delete_chunk("corpora/my-corpus/documents/my-doc/chunks/my-chunk")
   """
-  @spec delete_chunk(String.t(), map()) :: :ok | {:error, map()}
-  def delete_chunk(name, auth \\ %{}) do
+  @spec delete_chunk(String.t(), Keyword.t()) :: :ok | {:error, map()}
+  def delete_chunk(name, opts \\ []) do
     with :ok <- validate_chunk_name(name) do
-      case Base.request(
-             method: :delete,
-             url: name,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :delete,
+        url: "/#{name}",
+        body: nil,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, _response} ->
           :ok
 
@@ -384,7 +410,9 @@ defmodule ExLLM.Gemini.Chunk do
 
   - `parent` - The document name in format "corpora/{corpus_id}/documents/{document_id}"
   - `chunk_requests` - List of chunk creation requests (max 100)
-  - `auth` - Authentication (API key or OAuth2 token)
+  - `opts` - Keyword list of options:
+    - `:api_key` - API key for authentication
+    - `:oauth_token` - OAuth2 token for authentication
 
   ## Chunk Request Format
 
@@ -412,21 +440,24 @@ defmodule ExLLM.Gemini.Chunk do
         ]
       )
   """
-  @spec batch_create_chunks(String.t(), [map()], map()) ::
+  @spec batch_create_chunks(String.t(), [map()], Keyword.t()) ::
           {:ok, BatchResult.t()} | {:error, map()}
-  def batch_create_chunks(parent, chunk_requests, auth \\ %{}) do
+  def batch_create_chunks(parent, chunk_requests, opts \\ []) do
     with :ok <- validate_document_name(parent),
          :ok <- validate_batch_create_params(chunk_requests) do
-      url = "#{parent}/chunks:batchCreate"
-      body = build_batch_create_request(chunk_requests)
+      url = "/#{parent}/chunks:batchCreate"
+      body = build_batch_create_request(parent, chunk_requests)
 
-      case Base.request(
-             method: :post,
-             url: url,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :post,
+        url: url,
+        body: body,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_batch_result(response)}
 
@@ -446,7 +477,9 @@ defmodule ExLLM.Gemini.Chunk do
 
   - `parent` - The document name in format "corpora/{corpus_id}/documents/{document_id}"
   - `update_requests` - List of chunk update requests (max 100)
-  - `auth` - Authentication (API key or OAuth2 token)
+  - `opts` - Keyword list of options:
+    - `:api_key` - API key for authentication
+    - `:oauth_token` - OAuth2 token for authentication
 
   ## Update Request Format
 
@@ -476,21 +509,24 @@ defmodule ExLLM.Gemini.Chunk do
         ]
       )
   """
-  @spec batch_update_chunks(String.t(), [map()], map()) ::
+  @spec batch_update_chunks(String.t(), [map()], Keyword.t()) ::
           {:ok, BatchResult.t()} | {:error, map()}
-  def batch_update_chunks(parent, update_requests, auth \\ %{}) do
+  def batch_update_chunks(parent, update_requests, opts \\ []) do
     with :ok <- validate_document_name(parent),
          :ok <- validate_batch_update_params(update_requests) do
-      url = "#{parent}/chunks:batchUpdate"
+      url = "/#{parent}/chunks:batchUpdate"
       body = build_batch_update_request(update_requests)
 
-      case Base.request(
-             method: :post,
-             url: url,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :post,
+        url: url,
+        body: body,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_batch_result(response)}
 
@@ -510,7 +546,9 @@ defmodule ExLLM.Gemini.Chunk do
 
   - `parent` - The document name in format "corpora/{corpus_id}/documents/{document_id}"
   - `delete_requests` - List of chunk names to delete
-  - `auth` - Authentication (API key or OAuth2 token)
+  - `opts` - Keyword list of options:
+    - `:api_key` - API key for authentication
+    - `:oauth_token` - OAuth2 token for authentication
 
   ## Delete Request Format
 
@@ -527,20 +565,23 @@ defmodule ExLLM.Gemini.Chunk do
         ]
       )
   """
-  @spec batch_delete_chunks(String.t(), [map()], map()) :: :ok | {:error, map()}
-  def batch_delete_chunks(parent, delete_requests, auth \\ %{}) do
+  @spec batch_delete_chunks(String.t(), [map()], Keyword.t()) :: :ok | {:error, map()}
+  def batch_delete_chunks(parent, delete_requests, opts \\ []) do
     with :ok <- validate_document_name(parent),
          :ok <- validate_batch_delete_params(delete_requests) do
-      url = "#{parent}/chunks:batchDelete"
+      url = "/#{parent}/chunks:batchDelete"
       body = build_batch_delete_request(delete_requests)
 
-      case Base.request(
-             method: :post,
-             url: url,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :post,
+        url: url,
+        body: body,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, _response} ->
           :ok
 
@@ -622,22 +663,24 @@ defmodule ExLLM.Gemini.Chunk do
   end
 
   @doc false
-  def validate_update_params(updates, opts) do
+  def validate_update_params(updates, update_mask) do
+    valid_fields = ["data", "customMetadata"]
+
     cond do
-      not Map.has_key?(opts, :update_mask) ->
+      is_nil(update_mask) || (is_list(update_mask) && Enum.empty?(update_mask)) ||
+          (is_map(update_mask) && map_size(update_mask) == 0) ->
         {:error, %{message: "updateMask is required"}}
 
-      opts[:update_mask] &&
-          not String.match?(
-            opts[:update_mask],
-            ~r/^(data|customMetadata)(,(data|customMetadata))*$/
-          ) ->
+      is_binary(update_mask) && update_mask not in valid_fields ->
+        {:error, %{message: "updateMask only supports updating data and customMetadata"}}
+
+      is_list(update_mask) && not Enum.all?(update_mask, &(&1 in valid_fields)) ->
         {:error, %{message: "updateMask only supports updating data and customMetadata"}}
 
       updates[:data] && updates[:data][:string_value] == "" ->
         {:error, %{message: "string_value cannot be empty when updating data"}}
 
-      updates[:custom_metadata] && length(updates[:custom_metadata]) > 20 ->
+      updates[:custom_metadata] && Enum.count(updates[:custom_metadata]) > 20 ->
         {:error, %{message: "maximum of 20 CustomMetadata allowed"}}
 
       true ->
@@ -651,7 +694,7 @@ defmodule ExLLM.Gemini.Chunk do
       chunks == [] ->
         {:error, %{message: "at least one chunk is required"}}
 
-      length(chunks) > 100 ->
+      Enum.count(chunks) > 100 ->
         {:error, %{message: "maximum of 100 chunks can be created in a batch"}}
 
       true ->
@@ -665,7 +708,7 @@ defmodule ExLLM.Gemini.Chunk do
       updates == [] ->
         {:error, %{message: "at least one update is required"}}
 
-      length(updates) > 100 ->
+      Enum.count(updates) > 100 ->
         {:error, %{message: "maximum of 100 chunks can be updated in a batch"}}
 
       true ->
@@ -679,7 +722,7 @@ defmodule ExLLM.Gemini.Chunk do
       deletes == [] ->
         {:error, %{message: "at least one chunk is required"}}
 
-      length(deletes) > 100 ->
+      Enum.count(deletes) > 100 ->
         {:error, %{message: "maximum of 100 chunks can be deleted in a batch"}}
 
       true ->
@@ -696,13 +739,17 @@ defmodule ExLLM.Gemini.Chunk do
     query
   end
 
-  defp build_update_query(opts) do
-    query = %{}
+  defp build_update_query(update_mask) do
+    cond do
+      is_binary(update_mask) ->
+        %{"updateMask" => update_mask}
 
-    query =
-      if opts[:update_mask], do: Map.put(query, "updateMask", opts[:update_mask]), else: query
+      is_list(update_mask) && not Enum.empty?(update_mask) ->
+        %{"updateMask" => Enum.join(update_mask, ",")}
 
-    query
+      true ->
+        %{}
+    end
   end
 
   @doc false
@@ -742,13 +789,24 @@ defmodule ExLLM.Gemini.Chunk do
   end
 
   @doc false
-  def build_batch_create_request(chunks) do
+  def build_batch_create_request(parent, chunks) do
     requests =
       Enum.map(chunks, fn chunk_req ->
-        %{
-          parent: chunk_req[:parent],
-          chunk: build_create_request(chunk_req[:chunk])
-        }
+        # Handle both formats:
+        # 1. Simple format: just chunk data
+        # 2. Full format: {parent: ..., chunk: ...}
+        if Map.has_key?(chunk_req, :parent) do
+          %{
+            parent: chunk_req[:parent],
+            chunk: build_create_request(chunk_req[:chunk])
+          }
+        else
+          # Simple format - chunk_req IS the chunk data, use the parent parameter
+          %{
+            parent: parent,
+            chunk: build_create_request(chunk_req)
+          }
+        end
       end)
 
     %{requests: requests}
@@ -778,7 +836,9 @@ defmodule ExLLM.Gemini.Chunk do
   def build_batch_delete_request(deletes) do
     requests =
       Enum.map(deletes, fn delete_req ->
-        %{name: delete_req[:name]}
+        # Handle both string names and map format
+        name = if is_binary(delete_req), do: delete_req, else: delete_req[:name]
+        %{name: name}
       end)
 
     %{requests: requests}
@@ -865,5 +925,18 @@ defmodule ExLLM.Gemini.Chunk do
     %BatchResult{
       chunks: Enum.map(response["chunks"] || [], &parse_chunk/1)
     }
+  end
+
+  defp add_auth(request_opts, opts) do
+    if oauth_token = opts[:oauth_token] do
+      Keyword.put(request_opts, :oauth_token, oauth_token)
+    else
+      if api_key = opts[:api_key] do
+        Keyword.put(request_opts, :api_key, api_key)
+      else
+        raise ArgumentError,
+              "Authentication required. Set :oauth_token or :api_key option"
+      end
+    end
   end
 end

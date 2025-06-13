@@ -4,6 +4,7 @@ defmodule ExLLM.Gemini.ModelsTest do
   alias ExLLM.Gemini.Models.Model
 
   describe "list_models/1" do
+    @tag :integration
     test "lists available models with default parameters" do
       # Test basic model listing
       assert {:ok, response} = Models.list_models()
@@ -31,6 +32,7 @@ defmodule ExLLM.Gemini.ModelsTest do
       assert is_integer(model.top_k) or is_nil(model.top_k)
     end
 
+    @tag :integration
     test "lists models with pagination parameters" do
       # Test with page size
       assert {:ok, response} = Models.list_models(page_size: 10)
@@ -48,6 +50,7 @@ defmodule ExLLM.Gemini.ModelsTest do
       end
     end
 
+    @tag :integration
     test "handles maximum page size correctly" do
       # Test that page_size is capped at 1000
       assert {:ok, response} = Models.list_models(page_size: 2000)
@@ -86,6 +89,7 @@ defmodule ExLLM.Gemini.ModelsTest do
   end
 
   describe "get_model/2" do
+    @tag :integration
     test "retrieves specific model information" do
       model_name = "gemini-2.0-flash"
 
@@ -102,6 +106,7 @@ defmodule ExLLM.Gemini.ModelsTest do
       assert "generateContent" in model.supported_generation_methods
     end
 
+    @tag :integration
     test "retrieves different model variants" do
       models_to_test = [
         "gemini-2.0-flash",
@@ -116,6 +121,7 @@ defmodule ExLLM.Gemini.ModelsTest do
       end
     end
 
+    @tag :integration
     test "returns specific error for non-existent model" do
       assert {:error, %{status: 404, message: message}} =
                Models.get_model("non-existent-model")
@@ -133,6 +139,7 @@ defmodule ExLLM.Gemini.ModelsTest do
       end
     end
 
+    @tag :integration
     test "handles full resource path correctly" do
       # Should work with both formats
       assert {:ok, model1} = Models.get_model("gemini-2.0-flash")

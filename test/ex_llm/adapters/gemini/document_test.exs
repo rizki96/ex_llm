@@ -281,26 +281,20 @@ defmodule ExLLM.Gemini.DocumentTest do
     test "validates update params" do
       # Valid params with update mask
       assert :ok ==
-               Document.validate_update_params(%{display_name: "New Name"}, %{
-                 update_mask: "displayName"
-               })
+               Document.validate_update_params(%{display_name: "New Name"}, ["displayName"])
 
       assert :ok ==
-               Document.validate_update_params(%{custom_metadata: []}, %{
-                 update_mask: "customMetadata"
-               })
+               Document.validate_update_params(%{custom_metadata: []}, ["customMetadata"])
 
       # Missing update mask
       assert {:error, %{message: message}} =
-               Document.validate_update_params(%{display_name: "New Name"}, %{})
+               Document.validate_update_params(%{display_name: "New Name"}, [])
 
       assert String.contains?(message, "updateMask is required")
 
       # Invalid update mask
       assert {:error, %{message: message}} =
-               Document.validate_update_params(%{display_name: "New Name"}, %{
-                 update_mask: "invalidField"
-               })
+               Document.validate_update_params(%{display_name: "New Name"}, ["invalidField"])
 
       assert String.contains?(message, "only supports updating displayName and customMetadata")
     end

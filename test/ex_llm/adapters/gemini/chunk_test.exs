@@ -133,7 +133,8 @@ defmodule ExLLM.Adapters.Gemini.ChunkTest do
         }
       ]
 
-      request = Chunk.build_batch_create_request(chunks)
+      parent = "corpora/test-corpus/documents/test-doc"
+      request = Chunk.build_batch_create_request(parent, chunks)
 
       assert %{requests: requests} = request
       assert length(requests) == 2
@@ -385,32 +386,26 @@ defmodule ExLLM.Adapters.Gemini.ChunkTest do
     test "validates update params" do
       # Valid params with update mask
       assert :ok ==
-               Chunk.validate_update_params(%{data: %{string_value: "New content"}}, %{
-                 update_mask: "data"
-               })
+               Chunk.validate_update_params(%{data: %{string_value: "New content"}}, "data")
 
       assert :ok ==
-               Chunk.validate_update_params(%{custom_metadata: []}, %{
-                 update_mask: "customMetadata"
-               })
+               Chunk.validate_update_params(%{custom_metadata: []}, "customMetadata")
 
       # Missing update mask
       assert {:error, %{message: message}} =
-               Chunk.validate_update_params(%{data: %{string_value: "New"}}, %{})
+               Chunk.validate_update_params(%{data: %{string_value: "New"}}, nil)
 
       assert String.contains?(message, "updateMask is required")
 
       # Invalid update mask
       assert {:error, %{message: message}} =
-               Chunk.validate_update_params(%{data: %{string_value: "New"}}, %{
-                 update_mask: "invalidField"
-               })
+               Chunk.validate_update_params(%{data: %{string_value: "New"}}, "invalidField")
 
       assert String.contains?(message, "only supports updating data and customMetadata")
 
       # Empty string value when updating data
       assert {:error, %{message: message}} =
-               Chunk.validate_update_params(%{data: %{string_value: ""}}, %{update_mask: "data"})
+               Chunk.validate_update_params(%{data: %{string_value: ""}}, "data")
 
       assert String.contains?(message, "string_value cannot be empty")
     end

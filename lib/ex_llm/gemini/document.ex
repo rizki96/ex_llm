@@ -202,20 +202,23 @@ defmodule ExLLM.Gemini.Document do
         }
       )
   """
-  @spec create_document(String.t(), map(), map()) :: {:ok, t()} | {:error, map()}
-  def create_document(parent, params, auth \\ %{}) do
+  @spec create_document(String.t(), map(), Keyword.t()) :: {:ok, t()} | {:error, map()}
+  def create_document(parent, params, opts \\ []) do
     with :ok <- validate_corpus_name(parent),
          :ok <- validate_create_params(params) do
-      url = "#{parent}/documents"
+      url = "/#{parent}/documents"
       body = build_create_request(params)
 
-      case Base.request(
-             method: :post,
-             url: url,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :post,
+        url: url,
+        body: body,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
@@ -253,20 +256,25 @@ defmodule ExLLM.Gemini.Document do
         %{page_size: 20, page_token: "next-page-token"}
       )
   """
-  @spec list_documents(String.t(), map(), map()) :: {:ok, ListResult.t()} | {:error, map()}
-  def list_documents(parent, opts \\ %{}, auth \\ %{}) do
-    with :ok <- validate_corpus_name(parent),
-         :ok <- validate_list_opts(opts) do
-      query = build_list_query(opts)
-      url = "#{parent}/documents"
+  @spec list_documents(String.t(), Keyword.t()) :: {:ok, ListResult.t()} | {:error, map()}
+  def list_documents(parent, opts \\ []) do
+    {list_opts, auth_opts} = Keyword.split(opts, [:page_size, :page_token])
 
-      case Base.request(
-             method: :get,
-             url: url,
-             query: query,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+    with :ok <- validate_corpus_name(parent),
+         :ok <- validate_list_opts(list_opts) do
+      query = build_list_query(list_opts)
+      url = "/#{parent}/documents"
+
+      request_opts = [
+        method: :get,
+        url: url,
+        body: nil,
+        query: query
+      ]
+
+      request_opts = add_auth(request_opts, auth_opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_list_result(response)}
 
@@ -291,15 +299,19 @@ defmodule ExLLM.Gemini.Document do
 
       {:ok, document} = Document.get_document("corpora/my-corpus/documents/my-doc")
   """
-  @spec get_document(String.t(), map()) :: {:ok, t()} | {:error, map()}
-  def get_document(name, auth \\ %{}) do
+  @spec get_document(String.t(), Keyword.t()) :: {:ok, t()} | {:error, map()}
+  def get_document(name, opts \\ []) do
     with :ok <- validate_document_name(name) do
-      case Base.request(
-             method: :get,
-             url: name,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :get,
+        url: "/#{name}",
+        body: nil,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
@@ -347,21 +359,24 @@ defmodule ExLLM.Gemini.Document do
         %{update_mask: "customMetadata"}
       )
   """
-  @spec update_document(String.t(), map(), map(), map()) :: {:ok, t()} | {:error, map()}
-  def update_document(name, updates, opts \\ %{}, auth \\ %{}) do
+  @spec update_document(String.t(), map(), [String.t()], Keyword.t()) ::
+          {:ok, t()} | {:error, map()}
+  def update_document(name, updates, update_mask, opts \\ []) do
     with :ok <- validate_document_name(name),
-         :ok <- validate_update_params(updates, opts) do
-      query = build_update_query(opts)
+         :ok <- validate_update_params(updates, update_mask) do
+      query = build_update_query(update_mask)
       body = build_update_request(updates)
 
-      case Base.request(
-             method: :patch,
-             url: name,
-             query: query,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :patch,
+        url: "/#{name}",
+        body: body,
+        query: query
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
@@ -398,18 +413,23 @@ defmodule ExLLM.Gemini.Document do
         %{force: true}
       )
   """
-  @spec delete_document(String.t(), map(), map()) :: :ok | {:error, map()}
-  def delete_document(name, opts \\ %{}, auth \\ %{}) do
-    with :ok <- validate_document_name(name) do
-      query = build_delete_query(opts)
+  @spec delete_document(String.t(), Keyword.t()) :: :ok | {:error, map()}
+  def delete_document(name, opts \\ []) do
+    {delete_opts, auth_opts} = Keyword.split(opts, [:force])
 
-      case Base.request(
-             method: :delete,
-             url: name,
-             query: query,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+    with :ok <- validate_document_name(name) do
+      query = build_delete_query(delete_opts)
+
+      request_opts = [
+        method: :delete,
+        url: "/#{name}",
+        body: nil,
+        query: query
+      ]
+
+      request_opts = add_auth(request_opts, auth_opts)
+
+      case Base.request(request_opts) do
         {:ok, _response} ->
           :ok
 
@@ -460,21 +480,24 @@ defmodule ExLLM.Gemini.Document do
         }
       )
   """
-  @spec query_document(String.t(), String.t(), map(), map()) ::
+  @spec query_document(String.t(), String.t(), map(), Keyword.t()) ::
           {:ok, QueryResult.t()} | {:error, map()}
-  def query_document(name, query, opts \\ %{}, auth \\ %{}) do
+  def query_document(name, query, query_opts \\ %{}, opts \\ []) do
     with :ok <- validate_document_name(name),
-         :ok <- validate_query_params(query, opts) do
-      url = "#{name}:query"
-      body = build_query_request(query, opts)
+         :ok <- validate_query_params(query, query_opts) do
+      url = "/#{name}:query"
+      body = build_query_request(query, query_opts)
 
-      case Base.request(
-             method: :post,
-             url: url,
-             body: body,
-             api_key: auth[:api_key],
-             oauth_token: auth[:oauth_token]
-           ) do
+      request_opts = [
+        method: :post,
+        url: url,
+        body: body,
+        query: %{}
+      ]
+
+      request_opts = add_auth(request_opts, opts)
+
+      case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_query_result(response)}
 
@@ -524,7 +547,7 @@ defmodule ExLLM.Gemini.Document do
       params[:display_name] && String.length(params[:display_name]) > 512 ->
         {:error, %{message: "display name must be no more than 512 characters"}}
 
-      params[:custom_metadata] && length(params[:custom_metadata]) > 20 ->
+      params[:custom_metadata] && Enum.count(params[:custom_metadata]) > 20 ->
         {:error, %{message: "maximum of 20 CustomMetadata allowed"}}
 
       true ->
@@ -544,22 +567,20 @@ defmodule ExLLM.Gemini.Document do
   end
 
   @doc false
-  def validate_update_params(updates, opts) do
+  def validate_update_params(updates, update_mask) do
+    valid_fields = ["displayName", "customMetadata"]
+
     cond do
-      not Map.has_key?(opts, :update_mask) ->
+      not is_list(update_mask) || Enum.empty?(update_mask) ->
         {:error, %{message: "updateMask is required"}}
 
-      opts[:update_mask] &&
-          not String.match?(
-            opts[:update_mask],
-            ~r/^(displayName|customMetadata)(,(displayName|customMetadata))*$/
-          ) ->
+      not Enum.all?(update_mask, &(&1 in valid_fields)) ->
         {:error, %{message: "updateMask only supports updating displayName and customMetadata"}}
 
       updates[:display_name] && String.length(updates[:display_name]) > 512 ->
         {:error, %{message: "display name must be no more than 512 characters"}}
 
-      updates[:custom_metadata] && length(updates[:custom_metadata]) > 20 ->
+      updates[:custom_metadata] && Enum.count(updates[:custom_metadata]) > 20 ->
         {:error, %{message: "maximum of 20 CustomMetadata allowed"}}
 
       true ->
@@ -590,13 +611,12 @@ defmodule ExLLM.Gemini.Document do
     query
   end
 
-  defp build_update_query(opts) do
-    query = %{}
-
-    query =
-      if opts[:update_mask], do: Map.put(query, "updateMask", opts[:update_mask]), else: query
-
-    query
+  defp build_update_query(update_mask) do
+    if update_mask && not Enum.empty?(update_mask) do
+      %{"updateMask" => Enum.join(update_mask, ",")}
+    else
+      %{}
+    end
   end
 
   defp build_delete_query(opts) do
@@ -752,5 +772,18 @@ defmodule ExLLM.Gemini.Document do
       chunk_relevance_score: chunk["chunkRelevanceScore"],
       chunk: chunk["chunk"]
     }
+  end
+
+  defp add_auth(request_opts, opts) do
+    if oauth_token = opts[:oauth_token] do
+      Keyword.put(request_opts, :oauth_token, oauth_token)
+    else
+      if api_key = opts[:api_key] do
+        Keyword.put(request_opts, :api_key, api_key)
+      else
+        raise ArgumentError,
+              "Authentication required. Set :oauth_token or :api_key option"
+      end
+    end
   end
 end

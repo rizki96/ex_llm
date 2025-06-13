@@ -248,7 +248,8 @@ defmodule ExLLM.Gemini.Corpus do
         page_token: "next_page_token"
       }, oauth_token: "your-oauth-token")
   """
-  @spec list_corpora(map(), Keyword.t()) :: {:ok, ListCorporaResponse.t()} | {:error, map()}
+  @spec list_corpora(keyword() | map(), Keyword.t()) ::
+          {:ok, ListCorporaResponse.t()} | {:error, map()}
   def list_corpora(list_options, opts \\ []) do
     request = build_list_corpora_request(list_options)
 
@@ -499,8 +500,15 @@ defmodule ExLLM.Gemini.Corpus do
   @doc """
   Builds a ListCorporaRequest struct from the given parameters.
   """
-  @spec build_list_corpora_request(map()) :: ListCorporaRequest.t()
-  def build_list_corpora_request(list_options) do
+  @spec build_list_corpora_request(keyword() | map()) :: ListCorporaRequest.t()
+  def build_list_corpora_request(list_options) when is_list(list_options) do
+    page_size = Keyword.get(list_options, :page_size)
+    page_token = Keyword.get(list_options, :page_token)
+
+    build_list_corpora_request(%{page_size: page_size, page_token: page_token})
+  end
+
+  def build_list_corpora_request(list_options) when is_map(list_options) do
     page_size = list_options[:page_size] || list_options["pageSize"]
     page_token = list_options[:page_token] || list_options["pageToken"]
 
