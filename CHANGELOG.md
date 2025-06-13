@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2025-06-13
+
+### Added
+- **Complete Google Gemini API Implementation** - All 15 Gemini APIs now fully implemented
+  - **Live API**: Real-time bidirectional communication with WebSocket support
+    - Text, audio, and video streaming capabilities
+    - Tool/function calling in live sessions
+    - Session resumption and context compression
+    - Activity detection and management
+    - Audio transcription for input/output
+  - **Models API**: List and get model information
+  - **Content Generation API**: Chat and streaming with multimodal support
+  - **Token Counting API**: Count tokens for any content
+  - **Files API**: Upload and manage media files
+  - **Context Caching API**: Cache content for reuse across requests
+  - **Embeddings API**: Generate text embeddings
+  - **Fine-tuning API**: Create and manage custom tuned models
+  - **Permissions API**: Manage access to tuned models and corpora
+  - **Question Answering API**: Semantic search and QA
+  - **Corpus Management API**: Create and manage knowledge corpora
+  - **Document Management API**: Manage documents within corpora
+  - **Chunk Management API**: Fine-grained document chunk management
+  - **Retrieval Permissions API**: Control access to retrieval resources
+- **Gun WebSocket Library**: Added Gun dependency for Live API WebSocket support
+- **OAuth2 Authentication**: Full OAuth2 support for Gemini APIs requiring user auth
+- **Comprehensive Test Suite**: 477 tests covering all Gemini functionality
+
+### Changed
+- Updated Gemini adapter to use new modular API implementation
+- Enhanced authentication to support both API keys and OAuth2 tokens
+- Improved error handling with Gemini-specific error messages
+- Updated documentation with complete Gemini API coverage
+
+### Fixed
+- Fixed unused variable warnings in Gemini auth module
+- Fixed Live API compilation errors with proper string escaping
+- Fixed content parsing to handle JSON response formats correctly
+
 ## [0.4.2] - 2025-06-08
 
 ### Changed
