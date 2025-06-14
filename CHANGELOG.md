@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2025-06-14
+
+### Added
+- **Advanced Test Response Caching System** - Complete caching infrastructure for integration tests
+  - Intelligent cache storage with JSON-based persistence
+  - TTL-based cache expiration and cleanup
+  - Request/response matching with fuzzy algorithms
+  - Cache statistics and performance monitoring
+  - Automatic cache key generation and indexing
+  - Smart fallback strategies for cache misses
+  - Configurable cache organization (by provider, test module, or tag)
+  - Environment-based cache configuration
+  - Mix task for cache management: `mix ex_llm.cache`
+
+### Enhanced
+- **Test Caching Performance** - 25x speed improvement for integration tests
+- **Cache Detection** - Automatic detection of destructive operations
+- **Response Interception** - Transparent request/response caching for HTTP calls
+- **Metadata Tracking** - Comprehensive test context and response metadata
+
 ## [0.6.0] - 2025-06-14
 
 ### Added
