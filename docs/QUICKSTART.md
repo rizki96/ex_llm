@@ -353,8 +353,7 @@ config :ex_llm,
 
 1. **Read the [User Guide](USER_GUIDE.md)** for comprehensive documentation
 2. **Check [Provider Capabilities](PROVIDER_CAPABILITIES.md)** to compare features
-3. **Review [Testing Guide](TESTING.md)** for advanced testing patterns
-4. **Explore [Test Caching](test_caching.md)** for development speedups
+3. **Review [Testing Guide](TESTING.md)** for advanced testing patterns and caching
 
 ## Common Issues
 

@@ -94,7 +94,27 @@ defmodule ExLLM.MixProject do
       main: "ExLLM",
       source_ref: "v#{@version}",
       source_url: "https://github.com/azmaveth/ex_llm",
-      extras: ["README.md"]
+      extras: [
+        "README.md",
+        "docs/QUICKSTART.md",
+        "docs/USER_GUIDE.md", 
+        "docs/TESTING.md",
+        "docs/LOGGER.md",
+        "docs/PROVIDER_CAPABILITIES.md",
+        "CHANGELOG.md",
+        "LICENSE"
+      ],
+      groups_for_extras: [
+        "Guides": [
+          "docs/QUICKSTART.md",
+          "docs/USER_GUIDE.md",
+          "docs/TESTING.md"
+        ],
+        "References": [
+          "docs/LOGGER.md", 
+          "docs/PROVIDER_CAPABILITIES.md"
+        ]
+      ]
     ]
   end
 
@@ -109,12 +129,36 @@ defmodule ExLLM.MixProject do
       # Integration tests (requires API keys)
       "test.integration": ["test --only integration"],
 
+      # External tests
+      "test.external": ["test --only external"],
+
+      # Live API tests
+      "test.live_api": ["test --only live_api"],
+
+      # Local-only tests (no API calls)
+      "test.local_only": ["test --exclude live_api --exclude external --exclude integration"],
+
       # Provider-specific tests
       "test.anthropic": ["test --only provider:anthropic"],
       "test.openai": ["test --only provider:openai"],
       "test.gemini": ["test --only provider:gemini"],
-      "test.ollama": ["test --only provider:ollama"],
+      "test.groq": ["test --only provider:groq"],
+      "test.mistral": ["test --only provider:mistral"],
       "test.openrouter": ["test --only provider:openrouter"],
+      "test.perplexity": ["test --only provider:perplexity"],
+      "test.ollama": ["test --only provider:ollama"],
+      "test.lmstudio": ["test --only provider:lmstudio"],
+      "test.bumblebee": ["test --only provider:bumblebee"],
+
+      # Capability-based tests
+      "test.streaming": ["test --only streaming"],
+      "test.vision": ["test --only vision"],
+      "test.multimodal": ["test --only multimodal"],
+      "test.function_calling": ["test --only function_calling"],
+      "test.embedding": ["test --only embedding"],
+
+      # Test type tests
+      "test.oauth2": ["test --only requires_oauth"],
 
       # CI configurations
       "test.ci": ["test --exclude wip --exclude flaky --exclude quota_sensitive"],
@@ -127,9 +171,6 @@ defmodule ExLLM.MixProject do
 
       # Experimental/beta features
       "test.experimental": ["test --only experimental --only beta"],
-
-      # OAuth2 tests
-      "test.oauth": ["test --only requires_oauth"],
 
       # Service-dependent tests
       "test.services": ["test --only requires_service"]

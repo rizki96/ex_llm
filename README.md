@@ -134,8 +134,7 @@ mix ex_llm.cache clean --older-than 7d
 📖 **[User Guide](docs/USER_GUIDE.md)** - Comprehensive documentation of all features  
 🔧 **[Logger Guide](docs/LOGGER.md)** - Debug logging and troubleshooting  
 ⚡ **[Provider Capabilities](docs/PROVIDER_CAPABILITIES.md)** - Feature comparison across providers  
-🧪 **[Test Tagging Strategy](docs/test_tagging_strategy.md)** - Semantic test organization guide  
-💾 **[Test Caching](docs/test_caching.md)** - Advanced caching system documentation
+🧪 **[Testing Guide](docs/TESTING.md)** - Comprehensive testing system with semantic tagging and caching
 
 ### Key Topics Covered in the User Guide
 
