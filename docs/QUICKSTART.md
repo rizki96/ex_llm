@@ -1,6 +1,6 @@
 # ExLLM Quick Start Guide
 
-This guide covers the most common ExLLM use cases to get you up and running quickly.
+Get up and running with ExLLM in 5 minutes! This guide covers installation, basic configuration, and common usage patterns.
 
 ## Installation
 
@@ -9,330 +9,379 @@ Add ExLLM to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.4.1"}
+    {:ex_llm, "~> 0.7.0"}
   ]
 end
 ```
 
-Run `mix deps.get` to install.
+Then run:
+
+```bash
+mix deps.get
+```
 
 ## Configuration
 
-### Using Environment Variables (Recommended)
+### Environment Variables
+
+Set API keys for the providers you want to use:
 
 ```bash
-export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="sk-ant-..."
-export GROQ_API_KEY="gsk_..."
-export MISTRAL_API_KEY="..."
-export PERPLEXITY_API_KEY="pplx-..."
-export XAI_API_KEY="xai-..."
+# Core providers
+export ANTHROPIC_API_KEY="sk-ant-your-key"
+export OPENAI_API_KEY="sk-your-key"
+export GROQ_API_KEY="gsk_your-key"
+
+# Additional providers (optional)
+export GEMINI_API_KEY="your-gemini-key"
+export MISTRAL_API_KEY="your-mistral-key"
+export OPENROUTER_API_KEY="sk-or-your-key"
+export PERPLEXITY_API_KEY="pplx-your-key"
 ```
 
-### Using Static Configuration
+### Application Configuration (Optional)
 
 ```elixir
-config = %{
-  openai: %{api_key: "sk-..."},
-  anthropic: %{api_key: "claude-..."}
-}
-
-{:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+# config/config.exs
+config :ex_llm,
+  # Default provider
+  default_provider: :anthropic,
+  
+  # Cost tracking
+  cost_tracking_enabled: true,
+  
+  # Test caching (speeds up tests 25x)
+  test_cache: [
+    enabled: true,
+    cache_dir: "test/cache",
+    ttl: 604_800_000  # 7 days in milliseconds
+  ]
 ```
 
-## Basic Chat
+## Basic Usage
 
-### Simple Question/Answer
+### Simple Chat Completion
 
 ```elixir
-# Using OpenAI
-{:ok, response} = ExLLM.chat(:openai, [
+# Start with a basic chat
+{:ok, response} = ExLLM.chat(:anthropic, [
   %{role: "user", content: "What is the capital of France?"}
 ])
 
 IO.puts(response.content)
 # => "The capital of France is Paris."
+
+# Access additional metadata
+IO.puts("Model: #{response.model}")
+IO.puts("Cost: $#{response.cost}")
+IO.puts("Tokens used: #{response.usage.total_tokens}")
 ```
 
-### Using Different Providers
+### Different Providers
 
 ```elixir
-# Anthropic Claude
-{:ok, response} = ExLLM.chat(:anthropic, messages)
+# Try different providers
+{:ok, response1} = ExLLM.chat(:openai, [
+  %{role: "user", content: "Explain quantum computing briefly"}
+])
 
-# Groq (fast inference)
-{:ok, response} = ExLLM.chat(:groq, messages)
+{:ok, response2} = ExLLM.chat(:groq, [
+  %{role: "user", content: "Write a haiku about coding"}
+])
 
-# Mistral AI
-{:ok, response} = ExLLM.chat(:mistral, messages)
-
-# Perplexity (search-enhanced)
-{:ok, response} = ExLLM.chat(:perplexity, messages)
-
-# Ollama (local)
-{:ok, response} = ExLLM.chat(:ollama, messages)
-
-# LM Studio (local)
-{:ok, response} = ExLLM.chat(:lmstudio, messages)
-
-# Using provider/model syntax
-{:ok, response} = ExLLM.chat("groq/llama-3.3-70b-versatile", messages)
+{:ok, response3} = ExLLM.chat(:gemini, [
+  %{role: "user", content: "What's 2+2?"}
+])
 ```
 
-## Common Options
-
-### Temperature and Max Tokens
+### Streaming Responses
 
 ```elixir
-{:ok, response} = ExLLM.chat(:openai, messages,
-  temperature: 0.7,      # 0.0 = deterministic, 1.0 = creative
-  max_tokens: 1000       # Maximum response length
-)
+# Stream responses in real-time
+ExLLM.chat_stream(:openai, [
+  %{role: "user", content: "Write a short story about a robot"}
+], fn chunk ->
+  IO.write(chunk.delta)
+end)
 ```
 
-### Choosing a Specific Model
+### Session Management
 
 ```elixir
-{:ok, response} = ExLLM.chat(:openai, messages,
-  model: "gpt-4o-mini"  # Use a specific model
-)
-```
-
-## Streaming Responses
-
-Get responses as they're generated:
-
-```elixir
-{:ok, stream} = ExLLM.stream_chat(:openai, messages)
-
-for chunk <- stream do
-  # Print each chunk as it arrives
-  if chunk.content, do: IO.write(chunk.content)
-end
-```
-
-## Multi-turn Conversations
-
-### Using Sessions
-
-```elixir
-# Create a session
-session = ExLLM.new_session(:openai)
+# Maintain conversation context
+{:ok, session} = ExLLM.Session.new(:anthropic)
 
 # First message
-{:ok, {response1, session}} = ExLLM.chat_with_session(
-  session, 
-  "What's the weather like in Paris?"
-)
+{:ok, session, response1} = ExLLM.Session.chat(session, "Hi, I'm learning Elixir")
+IO.puts(response1.content)
 
-# Follow-up (context is maintained)
-{:ok, {response2, session}} = ExLLM.chat_with_session(
-  session,
-  "What about London?"
-)
+# Continue the conversation
+{:ok, session, response2} = ExLLM.Session.chat(session, "What are GenServers?")
+IO.puts(response2.content)
 
-# Session tracks token usage
-total_tokens = ExLLM.session_token_usage(session)
+# Session automatically tracks conversation history
+IO.puts("Messages in session: #{length(session.messages)}")
+IO.puts("Total cost: $#{session.total_cost}")
 ```
 
-### Manual Message Management
+## Advanced Features
+
+### Multimodal (Vision)
 
 ```elixir
-messages = [
-  %{role: "system", content: "You are a helpful assistant."},
-  %{role: "user", content: "Hello!"},
-  %{role: "assistant", content: "Hi! How can I help you today?"},
-  %{role: "user", content: "What's the weather?"}
-]
+# Analyze images (with Gemini or OpenAI)
+image_data = File.read!("image.jpg") |> Base.encode64()
 
-{:ok, response} = ExLLM.chat(:openai, messages)
+{:ok, response} = ExLLM.chat(:gemini, [
+  %{role: "user", content: [
+    %{type: "text", text: "What's in this image?"},
+    %{type: "image", image: %{
+      data: image_data,
+      media_type: "image/jpeg"
+    }}
+  ]}
+])
+
+IO.puts(response.content)
 ```
 
-## Working with Images (Vision)
+### Function Calling
 
 ```elixir
-# Create a vision message
-{:ok, message} = ExLLM.vision_message(
-  "What's in this image?",
-  ["path/to/image.jpg"]
-)
-
-# Send to a vision-capable model
-{:ok, response} = ExLLM.chat(:openai, [message],
-  model: "gpt-4o"  # Vision-capable model
-)
-```
-
-## Function Calling
-
-Define tools the AI can use:
-
-```elixir
-functions = [
+# Define tools
+tools = [
   %{
-    name: "get_weather",
-    description: "Get current weather for a location",
-    parameters: %{
-      type: "object",
-      properties: %{
-        location: %{type: "string", description: "City name"},
-        unit: %{type: "string", enum: ["celsius", "fahrenheit"]}
-      },
-      required: ["location"]
+    type: "function",
+    function: %{
+      name: "get_weather",
+      description: "Get current weather for a location",
+      parameters: %{
+        type: "object",
+        properties: %{
+          location: %{type: "string", description: "City name"},
+          unit: %{type: "string", enum: ["celsius", "fahrenheit"]}
+        },
+        required: ["location"]
+      }
     }
   }
 ]
 
-messages = [
-  %{role: "user", content: "What's the weather in New York?"}
-]
+{:ok, response} = ExLLM.chat(:openai, [
+  %{role: "user", content: "What's the weather in Paris?"}
+], tools: tools)
 
-{:ok, response} = ExLLM.chat(:openai, messages,
-  functions: functions,
-  function_call: "auto"
-)
-
-# Check if the AI wants to call a function
-case ExLLM.parse_function_calls(response, :openai) do
-  {:ok, [function_call | _]} ->
-    # AI wants to call get_weather with location: "New York"
-    IO.inspect(function_call)
+# Handle function calls
+case response.function_calls do
+  [%{name: "get_weather", arguments: args}] ->
+    # Call your weather API here
+    weather_data = get_weather(args["location"])
     
-  {:ok, []} ->
-    # Regular response, no function call
+    # Continue conversation with function result
+    {:ok, final_response} = ExLLM.chat(:openai, [
+      %{role: "user", content: "What's the weather in Paris?"},
+      response.message,
+      %{role: "function", name: "get_weather", content: Jason.encode!(weather_data)}
+    ])
+    
+  _ ->
     IO.puts(response.content)
 end
 ```
 
-## Cost Tracking
-
-ExLLM automatically tracks costs for all API calls:
+### Model Discovery
 
 ```elixir
-{:ok, response} = ExLLM.chat(:openai, messages)
+# List available models
+{:ok, models} = ExLLM.list_models(:anthropic)
 
-# Cost information is included in the response
-IO.inspect(response.cost)
-# => %{
-#      total_cost: 0.000261,
-#      input_cost: 0.000036, 
-#      output_cost: 0.000225,
-#      currency: "USD"
-#    }
+Enum.each(models, fn model ->
+  IO.puts("#{model.id} - Context: #{model.context_window} tokens")
+end)
 
-# Format for display
-IO.puts(ExLLM.format_cost(response.cost.total_cost))
-# => "$0.026¢"
+# Get specific model info
+{:ok, model} = ExLLM.get_model(:openai, "gpt-4o")
+IO.puts("Supports streaming: #{model.capabilities.supports_streaming}")
+IO.puts("Supports vision: #{model.capabilities.supports_vision}")
+```
+
+## Testing
+
+### Fast Testing with Caching
+
+ExLLM includes intelligent test caching for 25x faster integration tests:
+
+```bash
+# Run tests with automatic caching
+mix test
+
+# Test specific providers
+mix test.anthropic
+mix test.openai --include live_api
+
+# Manage cache
+mix ex_llm.cache stats
+mix ex_llm.cache clean --older-than 7d
+```
+
+### Writing Tests
+
+```elixir
+defmodule MyAppTest do
+  use ExUnit.Case
+  
+  # Tag for automatic caching
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :anthropic
+  
+  test "chat completion works" do
+    {:ok, response} = ExLLM.chat(:anthropic, [
+      %{role: "user", content: "Say hello"}
+    ])
+    
+    assert response.content =~ "hello"
+    assert response.cost > 0
+  end
+end
+```
+
+## Local Models
+
+### Ollama
+
+```bash
+# Start Ollama
+ollama serve
+
+# Pull a model
+ollama pull llama3.2
+```
+
+```elixir
+# Use local Ollama models
+{:ok, response} = ExLLM.chat(:ollama, [
+  %{role: "user", content: "Hello!"}
+], model: "llama3.2")
+```
+
+### LM Studio
+
+```bash
+# Start LM Studio server on localhost:1234
+```
+
+```elixir
+# Use LM Studio models
+{:ok, response} = ExLLM.chat(:lmstudio, [
+  %{role: "user", content: "Hello!"}
+])
+```
+
+### Bumblebee (Elixir Native)
+
+```elixir
+# Add to deps for local inference
+{:exla, "~> 0.7"}  # For CPU/GPU acceleration
+
+# Use Bumblebee models
+{:ok, response} = ExLLM.chat(:bumblebee, [
+  %{role: "user", content: "Hello!"}
+], model: "microsoft/DialoGPT-medium")
 ```
 
 ## Error Handling
 
 ```elixir
-case ExLLM.chat(:openai, messages) do
+case ExLLM.chat(:anthropic, messages) do
   {:ok, response} ->
     IO.puts(response.content)
     
-  {:error, %{type: :rate_limit}} ->
-    IO.puts("Rate limit hit, please wait")
+  {:error, {:api_error, %{status: 401}}} ->
+    IO.puts("Invalid API key")
     
-  {:error, %{type: :invalid_api_key}} ->
-    IO.puts("Check your API key")
+  {:error, {:api_error, %{status: 429}}} ->
+    IO.puts("Rate limited - try again later")
     
-  {:error, error} ->
-    IO.inspect(error)
+  {:error, {:api_error, %{status: 400, body: body}}} ->
+    IO.puts("Bad request: #{inspect(body)}")
+    
+  {:error, {:network_error, reason}} ->
+    IO.puts("Network error: #{reason}")
+    
+  {:error, reason} ->
+    IO.puts("Other error: #{inspect(reason)}")
 end
 ```
 
-## Response Caching (New!)
+## Environment-Specific Configuration
 
-Cache provider responses for testing and development:
+### Development
 
 ```elixir
-# Enable response caching
-export EX_LLM_CACHE_RESPONSES=true
-
-# Make API calls - they'll be cached automatically
-{:ok, response} = ExLLM.chat(:openai, messages)
-
-# Later, use cached responses with mock adapter
-ExLLM.ResponseCache.configure_mock_provider("openai")
-{:ok, cached_response} = ExLLM.chat(:mock, messages)
-# Returns the same response without making an API call!
+# config/dev.exs
+config :ex_llm,
+  log_level: :debug,
+  log_components: [:http_client, :streaming],
+  test_cache: [enabled: true]
 ```
 
-## Finding the Right Model
-
-### Check Provider Capabilities
+### Test
 
 ```elixir
-# Check if a provider supports a feature
-if ExLLM.provider_supports?(:openai, :embeddings) do
-  # OpenAI supports embeddings
-end
-
-# Find providers with specific features
-providers = ExLLM.find_providers_with_features([:vision, :streaming])
-# => [:openai, :anthropic, :gemini]
+# config/test.exs
+config :ex_llm,
+  log_level: :warn,
+  test_cache: [
+    enabled: true,
+    cache_dir: "test/cache",
+    ttl: 604_800_000  # 7 days
+  ]
 ```
 
-### Get Model Recommendations
+### Production
 
 ```elixir
-# Find best models for your needs
-recommendations = ExLLM.recommend_models(
-  features: [:vision, :function_calling],
-  max_cost_per_1k_tokens: 1.0,
-  min_context_window: 100_000
-)
-
-# Returns models sorted by suitability
-for {provider, model, info} <- Enum.take(recommendations, 3) do
-  IO.puts("#{provider}: #{model} (score: #{info.score})")
-end
-```
-
-## Common Patterns
-
-### Retry on Error
-
-```elixir
-# Automatic retry is enabled by default
-{:ok, response} = ExLLM.chat(:openai, messages,
-  retry: true,
-  retry_count: 3,
-  retry_delay: 1000  # Start with 1 second delay
-)
-```
-
-### Using Local Models with Ollama
-
-```elixir
-# Make sure Ollama is running: ollama serve
-
-# List available models
-{:ok, models} = ExLLM.list_models(:ollama)
-
-# Use a local model
-{:ok, response} = ExLLM.chat(:ollama, messages,
-  model: "llama3.2:3b"
-)
-```
-
-### Working with JSON Responses
-
-```elixir
-{:ok, response} = ExLLM.chat(:openai, [
-  %{role: "system", content: "Always respond with valid JSON"},
-  %{role: "user", content: "List 3 colors with their hex codes"}
-], json_mode: true)
-
-# Parse the JSON response
-{:ok, data} = Jason.decode(response.content)
+# config/prod.exs
+config :ex_llm,
+  log_level: :info,
+  log_redaction: true,
+  cost_tracking_enabled: true
 ```
 
 ## Next Steps
 
-- Read the [User Guide](USER_GUIDE.md) for comprehensive documentation
-- Explore the [example app](../examples/example_app.exs) for interactive demos
-- Check the [API Reference](https://hexdocs.pm/ex_llm) for detailed function documentation
-- See [Provider Capabilities](PROVIDER_CAPABILITIES.md) for provider-specific features
+1. **Read the [User Guide](USER_GUIDE.md)** for comprehensive documentation
+2. **Check [Provider Capabilities](PROVIDER_CAPABILITIES.md)** to compare features
+3. **Review [Testing Guide](TESTING.md)** for advanced testing patterns
+4. **Explore [Test Caching](test_caching.md)** for development speedups
+
+## Common Issues
+
+### "API key not found"
+```bash
+# Make sure you've set the environment variable
+export ANTHROPIC_API_KEY="your-key"
+```
+
+### "Model not found"
+```elixir
+# Check available models
+{:ok, models} = ExLLM.list_models(:anthropic)
+```
+
+### "Rate limited"
+```elixir
+# Use different providers or implement backoff
+Process.sleep(1000)
+{:ok, response} = ExLLM.chat(:groq, messages)  # Try Groq for speed
+```
+
+### Tests running slowly
+```bash
+# Enable test caching
+export EX_LLM_TEST_CACHE_ENABLED=true
+mix test --include live_api
+```
+
+That's it! You're now ready to build amazing applications with ExLLM. 🚀

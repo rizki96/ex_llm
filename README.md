@@ -1,27 +1,40 @@
 # ExLLM
 
-A unified Elixir client for Large Language Models with integrated cost tracking, providing a consistent interface across multiple LLM providers.
+A unified Elixir client for Large Language Models with intelligent test caching, comprehensive provider support, and advanced developer tooling.
 
 > ⚠️ **Alpha Quality Software**: This library is in early development. APIs may change without notice until version 1.0.0 is released. Use in production at your own risk.
 
-## What's New in v0.4.2
+## What's New in v0.7.0
 
-- **Updated Default Model**: Changed default Bumblebee model to Qwen/Qwen3-0.6B
-- **Breaking Change**: Renamed `:local` provider atom to `:bumblebee` for clarity
-- **Enhanced Documentation**: Improved package structure and documentation references
+- **🚀 Advanced Test Caching System**: 25x faster integration tests with intelligent response caching
+- **🏷️ Comprehensive Test Tagging**: Semantic test organization with 138 skip tags replaced by meaningful tags
+- **⚡ Mix Test Aliases**: 24 new aliases for targeted testing (provider-specific, tag-based, capability-based)
+- **🤖 Smart Test Detection**: Automatic requirement checking with ExLLM.Case module
+- **📊 Cache Management**: Built-in cache analytics, TTL management, and cleanup tools
 
 ## Features
 
-- **Unified API**: Single interface for multiple LLM providers
+### 🔗 **Core API**
+- **Unified Interface**: Single API for 14+ LLM providers and 300+ models
 - **Streaming Support**: Real-time streaming responses with error recovery
-- **Cost Tracking**: Automatic cost calculation for all API calls
 - **Session Management**: Built-in conversation state tracking and persistence
+- **Function Calling**: Unified tool use interface across all providers
+- **Multimodal Support**: Vision, audio, and document processing capabilities
+
+### 📊 **Developer Experience**
+- **Intelligent Test Caching**: 25x faster integration tests with smart response caching
+- **Comprehensive Test Tagging**: Semantic organization with provider, capability, and requirement tags
+- **Mix Test Aliases**: 24 targeted testing commands (e.g., `mix test.anthropic`, `mix test.streaming`)
+- **Automatic Requirement Checking**: Dynamic test skipping with meaningful error messages
+- **Cost Tracking**: Automatic cost calculation and token usage monitoring
+
+### 🎯 **Advanced Features**
+- **Complete Gemini API**: All 15 Gemini APIs including Live API with WebSocket support
+- **OAuth2 Authentication**: Full OAuth2 support for provider APIs requiring user auth
 - **Structured Outputs**: Schema validation and retries via Instructor integration
-- **Function Calling**: Unified interface for tool use across providers
-- **Model Discovery**: Query and compare model capabilities across providers
-- **Response Caching**: Cache real provider responses for offline testing and cost reduction
-- **Type Safety**: Comprehensive typespecs and structured data
-- **Extensible**: Easy to add new LLM providers via adapter pattern
+- **Model Discovery**: Query and compare capabilities across all providers
+- **Response Caching**: Production-ready caching with TTL, fallback strategies, and analytics
+- **Type Safety**: Comprehensive typespecs and structured data throughout
 
 ## Supported Providers
 
@@ -48,7 +61,7 @@ Add `ex_llm` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.4.2"},
+    {:ex_llm, "~> 0.7.0"},
     
     # Optional hardware acceleration backends (choose one):
     {:exla, "~> 0.7", optional: true},
@@ -81,6 +94,7 @@ export GROQ_API_KEY="your-groq-key"
 ])
 
 IO.puts(response.content)
+# Cost automatically tracked: response.cost
 
 # Streaming response
 ExLLM.chat_stream(:openai, [
@@ -93,6 +107,25 @@ end)
 {:ok, session} = ExLLM.Session.new(:groq)
 {:ok, session, response} = ExLLM.Session.chat(session, "Hello!")
 {:ok, session, response} = ExLLM.Session.chat(session, "How are you?")
+
+# Multimodal with vision
+{:ok, response} = ExLLM.chat(:gemini, [
+  %{role: "user", content: [
+    %{type: "text", text: "What's in this image?"},
+    %{type: "image", image: %{data: base64_image, media_type: "image/jpeg"}}
+  ]}
+])
+```
+
+### 3. Testing with Caching
+
+```elixir
+# Run integration tests with automatic caching
+mix test.anthropic --include live_api
+
+# Manage test cache
+mix ex_llm.cache stats
+mix ex_llm.cache clean --older-than 7d
 ```
 
 ## Documentation
@@ -100,21 +133,24 @@ end)
 📚 **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes  
 📖 **[User Guide](docs/USER_GUIDE.md)** - Comprehensive documentation of all features  
 🔧 **[Logger Guide](docs/LOGGER.md)** - Debug logging and troubleshooting  
-⚡ **[Provider Capabilities](docs/PROVIDER_CAPABILITIES.md)** - Feature comparison across providers
+⚡ **[Provider Capabilities](docs/PROVIDER_CAPABILITIES.md)** - Feature comparison across providers  
+🧪 **[Test Tagging Strategy](docs/test_tagging_strategy.md)** - Semantic test organization guide  
+💾 **[Test Caching](docs/test_caching.md)** - Advanced caching system documentation
 
 ### Key Topics Covered in the User Guide
 
 - **Configuration**: Environment variables, config files, and provider setup
 - **Chat Completions**: Messages, parameters, and response handling
-- **Streaming**: Real-time responses with error recovery
+- **Streaming**: Real-time responses with error recovery and coordinator
 - **Session Management**: Conversation state and persistence
-- **Function Calling**: Tool use and structured interactions
-- **Vision & Multimodal**: Image processing and multimodal inputs
+- **Function Calling**: Tool use and structured interactions across providers
+- **Vision & Multimodal**: Image, audio, and document processing
 - **Cost Tracking**: Automatic cost calculation and token estimation
 - **Error Handling**: Retry logic and error recovery strategies
-- **Response Caching**: Cache real responses for testing and development
+- **Test Caching**: Intelligent response caching with 25x speed improvements
+- **Test Organization**: Semantic tagging and targeted test execution
 - **Model Discovery**: Query available models and capabilities
-- **Testing**: Mock adapter and testing strategies
+- **OAuth2 Integration**: Complete OAuth2 flow for Gemini and other providers
 
 ## License
 
