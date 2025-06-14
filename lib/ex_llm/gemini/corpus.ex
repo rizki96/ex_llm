@@ -687,7 +687,10 @@ defmodule ExLLM.Gemini.Corpus do
 
   defp add_auth(request_opts, opts) do
     if oauth_token = opts[:oauth_token] do
-      Keyword.put(request_opts, :oauth_token, oauth_token)
+      # Add oauth_token and pass through all other options
+      request_opts
+      |> Keyword.put(:oauth_token, oauth_token)
+      |> Keyword.put(:opts, opts)
     else
       raise ArgumentError,
             "OAuth2 token is required for corpus operations. Set :oauth_token option"

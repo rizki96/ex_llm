@@ -138,7 +138,7 @@ defmodule ExLLM.Adapters.Groq do
         {"Content-Type", "application/json"}
       ]
 
-      case Req.get("https://api.groq.com/openai/v1/models", headers: headers) do
+      case HTTPClient.get_json("https://api.groq.com/openai/v1/models", headers, provider: :groq) do
         {:ok, %{status: 200, body: %{"data" => models}}} ->
           # Return a list of transformed models directly
           parsed_models =

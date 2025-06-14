@@ -7,6 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2025-06-14
+
+### Added
+- **Comprehensive Test Tagging System** - Replaced all 138 generic `@tag :skip` with meaningful semantic tags
+  - `:live_api` - Tests that call live provider APIs
+  - `:requires_api_key` - Tests needing API keys with provider-specific checking
+  - `:requires_oauth` - Tests needing OAuth2 authentication
+  - `:requires_service` - Tests needing local services (Ollama, LM Studio)
+  - `:requires_resource` - Tests needing pre-existing resources (tuned models, corpora)
+  - `:integration` - Integration tests with external services
+  - `:external` - Tests making external network calls
+  - Provider-specific tags: `:anthropic`, `:openai`, `:gemini`, etc.
+- **Enhanced Test Caching System** - Intelligent caching based on test tags
+  - Uses `:live_api` tag to determine which tests to cache
+  - Automatic detection of destructive operations (create, delete, modify)
+  - Smart cache exclusion for corpus deletion and state-changing tests
+  - 25x speed improvement for cached integration tests (2.2s → 0.09s)
+- **Mix Test Aliases** - 24 new test aliases for targeted testing
+  - Provider-specific: `mix test.anthropic`, `mix test.openai`, etc.
+  - Tag-based: `mix test.integration`, `mix test.oauth2`, `mix test.live_api`
+  - Capability-based: `mix test.streaming`, `mix test.vision`
+- **ExLLM.Case Test Module** - Custom test case with automatic requirement checking
+  - Dynamic skipping with meaningful messages when requirements aren't met
+  - API key validation per provider
+  - OAuth2 token validation
+  - Service availability checking
+
+### Changed
+- **BREAKING:** Migrated from generic `:skip` tags to semantic tagging system
+- Enhanced OAuth2 test helper to use consistent `:requires_oauth` tag
+- Improved test cache detection to prevent caching destructive operations
+- Updated all provider integration tests with proper module-level tags
+
+### Fixed
+- Fixed undefined variable `service` in ExLLM.Case rescue clause
+- Fixed OpenRouter test compilation error with undefined function
+- Fixed OAuth2 tag inconsistency (now uses `:requires_oauth` everywhere)
+- Fixed test cache configuration for destructive operation detection
+
 ## [0.5.0] - 2025-06-13
 
 ### Added

@@ -50,7 +50,8 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
       usage: usage,
       finish_reason: finish_reason,
       cost: cost,
-      id: data["id"]
+      id: data["id"],
+      metadata: extract_metadata(data, opts)
     }
   end
 
@@ -68,7 +69,8 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
           content: content,
           finish_reason: finish_reason,
           model: Keyword.get(opts, :model),
-          id: data["id"]
+          id: data["id"],
+          metadata: extract_metadata(data, opts)
         }
     end
   end
@@ -277,7 +279,8 @@ defmodule ExLLM.Adapters.Shared.ResponseBuilder do
   """
   @spec extract_metadata(map(), keyword()) :: map()
   def extract_metadata(data, opts \\ []) do
-    metadata = %{}
+    # Start with any existing metadata from the data
+    metadata = Map.get(data, "metadata", %{})
 
     # Add timing information if available
     metadata =

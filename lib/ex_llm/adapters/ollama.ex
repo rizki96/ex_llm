@@ -67,7 +67,7 @@ defmodule ExLLM.Adapters.Ollama do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient}
   alias ExLLM.{Error, Logger, Types}
 
   @default_base_url "http://localhost:11434"
@@ -126,15 +126,7 @@ defmodule ExLLM.Adapters.Ollama do
     # Default to 2 minutes, but allow override
     timeout = Keyword.get(options, :timeout, 120_000)
 
-    req_options = [
-      json: body,
-      headers: headers,
-      receive_timeout: timeout,
-      # Let ExLLM handle retries
-      retry: false
-    ]
-
-    case Req.post(url, req_options) do
+    case HTTPClient.post_json(url, body, headers, provider: :ollama, timeout: timeout) do
       {:ok, %{status: 200, body: response}} ->
         {:ok, parse_response(response, model)}
 
@@ -210,49 +202,43 @@ defmodule ExLLM.Adapters.Ollama do
     # Get timeout from options with default
     timeout = Keyword.get(options, :timeout, 120_000)
 
-    # Start async request task
-    Task.start(fn ->
-      case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
-        {:ok, response} ->
-          if response.status == 200 do
-            handle_stream_response(response, parent, model)
-          else
-            Logger.error(
-              "Ollama API error - Status: #{response.status}, Body: #{inspect(response.body)}"
-            )
+    # Create callback for streaming chunks
+    stream_ref = make_ref()
 
-            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
-          end
+    callback = fn chunk_data ->
+      send(parent, {stream_ref, {:chunk, chunk_data}})
+    end
 
-        {:error, reason} ->
-          Logger.error("Ollama connection error: #{inspect(reason)}")
-          send(parent, {:stream_error, Error.connection_error(reason)})
-      end
-    end)
+    # Use HTTPClient for streaming
+    case HTTPClient.stream_request(url, body, headers, callback,
+           provider: :ollama,
+           timeout: timeout
+         ) do
+      {:ok, :streaming} ->
+        # Create stream that receives and parses messages
+        stream =
+          Stream.resource(
+            fn -> {stream_ref, model} end,
+            fn {ref, model} = state ->
+              receive do
+                {^ref, {:chunk, data}} ->
+                  case parse_stream_chunk(data, model) do
+                    nil -> {[], state}
+                    chunk -> {[chunk], state}
+                  end
+              after
+                100 -> {[], state}
+              end
+            end,
+            fn _ -> :ok end
+          )
 
-    # Create stream that receives messages
-    stream =
-      Stream.resource(
-        fn -> :ok end,
-        fn state ->
-          receive do
-            {:chunk, chunk} ->
-              {[chunk], state}
+        {:ok, stream}
 
-            :stream_done ->
-              {:halt, state}
-
-            {:stream_error, error} ->
-              Logger.error("Stream error: #{inspect(error)}")
-              throw(error)
-          after
-            100 -> {[], state}
-          end
-        end,
-        fn _ -> :ok end
-      )
-
-    {:ok, stream}
+      {:error, reason} ->
+        Logger.error("Ollama connection error: #{inspect(reason)}")
+        {:error, Error.connection_error(reason)}
+    end
   end
 
   @impl true
@@ -279,7 +265,7 @@ defmodule ExLLM.Adapters.Ollama do
   defp fetch_ollama_models(config) do
     url = "#{get_base_url(config)}/api/tags"
 
-    case Req.get(url, receive_timeout: 5_000) do
+    case HTTPClient.get_json(url, [], provider: :ollama, timeout: 5_000) do
       {:ok, %{status: 200, body: body}} ->
         models =
           body["models"]
@@ -769,78 +755,39 @@ defmodule ExLLM.Adapters.Ollama do
     end
   end
 
-  defp handle_stream_response(response, parent, model) do
-    %Req.Response.Async{ref: ref} = response.body
+  defp parse_stream_chunk(data, model) when is_binary(data) do
+    # Ollama uses NDJSON format
+    case Jason.decode(data) do
+      {:ok, chunk} ->
+        if chunk["done"] do
+          # Stream completed
+          finish_reason = chunk["finish_reason"]
 
-    receive do
-      {^ref, {:data, data}} ->
-        # Parse each line of the NDJSON response
-        lines = String.split(data, "\n", trim: true)
+          if finish_reason == "error" do
+            error_msg = chunk["error"] || "Unknown error"
+            Logger.warn("Ollama streaming error: #{error_msg}")
+          end
 
-        # Debug log raw response
-        if length(lines) == 1 and String.contains?(data, "done") do
-          Logger.debug("Ollama single-line response: #{inspect(data)}")
+          # Return nil to signal completion
+          nil
+        else
+          content = get_in(chunk, ["message", "content"]) || ""
+
+          # Log if we're getting chunks but no content
+          if content == "" do
+            Logger.debug("Ollama: Received chunk with empty content: #{inspect(chunk)}")
+          end
+
+          %Types.StreamChunk{
+            content: content,
+            finish_reason: nil,
+            model: model
+          }
         end
 
-        lines
-        |> Enum.each(fn line ->
-          case Jason.decode(line) do
-            {:ok, chunk} ->
-              if chunk["done"] do
-                # Check if we got a finish reason or error
-                finish_reason = chunk["finish_reason"]
-
-                if finish_reason == "error" do
-                  error_msg = chunk["error"] || "Unknown error"
-                  Logger.warn("Ollama streaming error: #{error_msg}")
-                end
-
-                # Log if we finished without generating any content
-                total_duration = chunk["total_duration"]
-                eval_count = chunk["eval_count"] || 0
-
-                if eval_count == 0 do
-                  Logger.warn(
-                    "Ollama finished without generating tokens. Total duration: #{total_duration / 1_000_000}ms"
-                  )
-                end
-
-                send(parent, :stream_done)
-              else
-                content = get_in(chunk, ["message", "content"]) || ""
-
-                # Log if we're getting chunks but no content
-                if content == "" do
-                  Logger.debug("Ollama: Received chunk with empty content: #{inspect(chunk)}")
-                end
-
-                stream_chunk = %Types.StreamChunk{
-                  content: content,
-                  finish_reason: nil
-                }
-
-                send(parent, {:chunk, stream_chunk})
-              end
-
-            {:error, _} ->
-              # Skip invalid JSON lines
-              :ok
-          end
-        end)
-
-        # Continue receiving more data
-        handle_stream_response(response, parent, model)
-
-      {^ref, :done} ->
-        Logger.debug("Ollama: Stream done")
-        send(parent, :stream_done)
-
-      {^ref, {:error, reason}} ->
-        send(parent, {:stream_error, {:error, reason}})
-    after
-      # Increase to 2 minutes for slower models
-      120_000 ->
-        send(parent, {:stream_error, {:error, :timeout}})
+      {:error, _} ->
+        # Skip invalid JSON
+        nil
     end
   end
 

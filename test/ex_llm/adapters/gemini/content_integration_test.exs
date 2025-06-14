@@ -9,9 +9,12 @@ defmodule ExLLM.Gemini.ContentIntegrationTest do
   alias ExLLM.Gemini.Content.Content, as: ContentStruct
 
   @moduletag :integration
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :gemini
 
   describe "generate_content/3 integration" do
-    @tag :skip
     test "successfully generates content with valid API key" do
       # This test requires a valid GOOGLE_API_KEY environment variable
       model = "gemini-2.0-flash"

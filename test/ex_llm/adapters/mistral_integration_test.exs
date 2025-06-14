@@ -4,24 +4,16 @@ defmodule ExLLM.MistralIntegrationTest do
   alias ExLLM.Types
 
   @moduletag :integration
-  @moduletag :mistral
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :mistral
 
   # These tests require a Mistral API key
-  # Run with: mix test --only mistral
-
-  setup_all do
-    case check_mistral_api() do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        IO.puts("\nSkipping Mistral integration tests: #{reason}")
-        :ok
-    end
-  end
+  # Run with: mix test --include integration --include external
+  # Or use the provider-specific alias: mix test.mistral
 
   describe "chat/2 with real API" do
-    @tag :skip
     test "generates response with default model" do
       messages = [%{role: "user", content: "What is 2+2?"}]
 
@@ -45,7 +37,6 @@ defmodule ExLLM.MistralIntegrationTest do
       end
     end
 
-    @tag :skip
     test "generates response with specific model" do
       messages = [%{role: "user", content: "Write a haiku about programming"}]
 
@@ -67,7 +58,6 @@ defmodule ExLLM.MistralIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles system prompts" do
       messages = [
         %{role: "system", content: "You are a helpful assistant that speaks like a pirate."},
@@ -89,7 +79,6 @@ defmodule ExLLM.MistralIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects max_tokens limit" do
       messages = [%{role: "user", content: "Count from 1 to 100"}]
 
@@ -106,7 +95,6 @@ defmodule ExLLM.MistralIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles safe_prompt option" do
       messages = [%{role: "user", content: "Tell me a story"}]
 
@@ -125,7 +113,6 @@ defmodule ExLLM.MistralIntegrationTest do
   end
 
   describe "stream_chat/2 with real API" do
-    @tag :skip
     test "streams response chunks" do
       messages = [%{role: "user", content: "Count from 1 to 5"}]
 
@@ -151,7 +138,6 @@ defmodule ExLLM.MistralIntegrationTest do
       end
     end
 
-    @tag :skip
     test "streaming respects temperature" do
       messages = [%{role: "user", content: "Give me a random number"}]
 
@@ -175,7 +161,6 @@ defmodule ExLLM.MistralIntegrationTest do
   end
 
   describe "function calling" do
-    @tag :skip
     test "executes function calls" do
       messages = [%{role: "user", content: "What's the weather in Paris?"}]
 
@@ -218,7 +203,6 @@ defmodule ExLLM.MistralIntegrationTest do
   end
 
   describe "embeddings/2" do
-    @tag :skip
     test "generates embeddings for single text" do
       result = Mistral.embeddings("Hello world", model: "mistral/mistral-embed")
 
@@ -238,7 +222,6 @@ defmodule ExLLM.MistralIntegrationTest do
       end
     end
 
-    @tag :skip
     test "generates embeddings for multiple texts" do
       texts = ["Hello", "World", "Mistral AI"]
 
@@ -261,7 +244,6 @@ defmodule ExLLM.MistralIntegrationTest do
   end
 
   describe "list_models/1 with API" do
-    @tag :skip
     test "returns available Mistral models" do
       case Mistral.list_models() do
         {:ok, models} ->
@@ -289,7 +271,6 @@ defmodule ExLLM.MistralIntegrationTest do
   end
 
   describe "error handling with real API" do
-    @tag :skip
     test "handles invalid model gracefully" do
       messages = [%{role: "user", content: "Test"}]
 
@@ -299,7 +280,6 @@ defmodule ExLLM.MistralIntegrationTest do
       assert is_binary(reason)
     end
 
-    @tag :skip
     test "handles API errors properly" do
       # Try with a very large prompt that might exceed limits
       large_content = String.duplicate("Test ", 10000)
@@ -320,7 +300,6 @@ defmodule ExLLM.MistralIntegrationTest do
   end
 
   describe "model-specific features" do
-    @tag :skip
     test "handles code generation with Codestral" do
       messages = [
         %{role: "user", content: "Write a Python function to calculate fibonacci numbers"}
@@ -340,7 +319,6 @@ defmodule ExLLM.MistralIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles multimodal with Pixtral" do
       # Note: This would require actual image data
       messages = [
@@ -367,15 +345,5 @@ defmodule ExLLM.MistralIntegrationTest do
     end
   end
 
-  # Helper functions
-
-  defp check_mistral_api do
-    config = %{mistral: %{api_key: System.get_env("MISTRAL_API_KEY") || ""}}
-
-    if config.mistral.api_key == "" do
-      {:error, "MISTRAL_API_KEY environment variable not set"}
-    else
-      :ok
-    end
-  end
+  # Helper functions removed - tests now use tag-based exclusion
 end

@@ -239,32 +239,50 @@ defmodule ExLLM.Cache do
   end
 
   @doc """
+  Check if test caching is enabled and should take precedence over regular caching.
+  """
+  @spec test_caching_enabled?() :: boolean()
+  defp test_caching_enabled?() do
+    # Check if test cache detector is available and test caching should be used
+    Code.ensure_loaded?(ExLLM.TestCacheDetector) and
+      ExLLM.TestCacheDetector.should_cache_responses?()
+  end
+
+  @doc """
   Wrap a cache-aware function execution.
 
   This is the main integration point for ExLLM modules.
   """
   @spec with_cache(String.t(), keyword(), fun()) :: any()
   def with_cache(cache_key, opts, fun) do
-    if should_cache?(opts) do
-      case get(cache_key) do
-        {:ok, cached_response} ->
-          # Return cached response wrapped in ok tuple
-          {:ok, cached_response}
-
-        :miss ->
-          # Execute function and cache result
-          case fun.() do
-            {:ok, response} = result ->
-              put(cache_key, response, opts)
-              result
-
-            error ->
-              error
-          end
-      end
-    else
-      # Caching disabled, just execute
+    # Check if test caching is enabled and should take precedence
+    if test_caching_enabled?() do
+      # Defer to test cache system by just executing the function
+      # The test cache system will handle caching at the HTTP client level
       fun.()
+    else
+      # Use regular caching system
+      if should_cache?(opts) do
+        case get(cache_key) do
+          {:ok, cached_response} ->
+            # Return cached response wrapped in ok tuple
+            {:ok, cached_response}
+
+          :miss ->
+            # Execute function and cache result
+            case fun.() do
+              {:ok, response} = result ->
+                put(cache_key, response, opts)
+                result
+
+              error ->
+                error
+            end
+        end
+      else
+        # Caching disabled, just execute
+        fun.()
+      end
     end
   end
 

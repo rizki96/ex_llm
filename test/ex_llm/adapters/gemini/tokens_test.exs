@@ -12,10 +12,15 @@ defmodule ExLLM.Gemini.TokensTest do
 
   use ExUnit.Case, async: true
   alias ExLLM.Gemini.Tokens
+
+  @moduletag provider: :gemini
   alias ExLLM.Gemini.Tokens.{CountTokensRequest, CountTokensResponse, ModalityTokenCount}
   alias ExLLM.Gemini.Content.{GenerateContentRequest, Content, Part}
 
   @moduletag :integration
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
 
   describe "count_tokens/3 with simple content" do
     test "successfully counts tokens for text content" do
@@ -295,7 +300,7 @@ defmodule ExLLM.Gemini.TokensTest do
       assert {:error, %{reason: :invalid_params}} = result
     end
 
-    @tag :skip
+    @tag :unit
     test "returns error for invalid API key" do
       # Note: This test is skipped because get_api_key falls back to environment variables
       # which override the mock config provider when running integration tests

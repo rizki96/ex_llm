@@ -173,4 +173,143 @@ defmodule ExLLM.TestHelpers do
       end
     end
   end
+
+  @doc """
+  Wait for an eventually consistent condition to become true.
+
+  This is useful for testing APIs that have eventual consistency, like Google's Gemini API
+  where resources may not immediately appear in list operations after creation.
+
+  ## Options
+
+  - `:timeout` - Maximum time to wait in milliseconds (default: 10_000)
+  - `:interval` - Time between retries in milliseconds (default: 500)
+  - `:description` - Description for better error messages (default: "condition")
+
+  ## Examples
+
+      # Wait for a document to appear in listings
+      assert_eventually(fn ->
+        {:ok, list_response} = Document.list_documents(corpus_id, oauth_token: token)
+        Enum.any?(list_response.documents, fn d -> d.name == document.name end)
+      end, timeout: 15_000, description: "document to appear in list")
+      
+      # Wait for a resource to be created and return it
+      {:ok, resource} = wait_for_resource(fn ->
+        case SomeAPI.get_resource(id) do
+          {:ok, resource} -> {:ok, resource}
+          {:error, :not_found} -> {:error, :not_found}
+          error -> error
+        end
+      end)
+  """
+  def assert_eventually(check_fn, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, 10_000)
+    interval = Keyword.get(opts, :interval, 500)
+    description = Keyword.get(opts, :description, "condition")
+    max_attempts = div(timeout, interval)
+
+    result =
+      Enum.reduce_while(1..max_attempts, false, fn attempt, _acc ->
+        case check_fn.() do
+          true ->
+            {:halt, true}
+
+          false ->
+            if attempt < max_attempts do
+              Process.sleep(interval)
+              {:cont, false}
+            else
+              {:halt, false}
+            end
+        end
+      end)
+
+    unless result do
+      flunk("Expected #{description} to become true within #{timeout}ms, but it didn't")
+    end
+
+    result
+  end
+
+  @doc """
+  Wait for a resource to become available with exponential backoff.
+
+  Similar to `assert_eventually/2` but for operations that return `{:ok, result}` or `{:error, reason}`.
+  Uses exponential backoff for more efficient waiting.
+
+  ## Options
+
+  - `:max_attempts` - Maximum number of attempts (default: 5)
+  - `:base_delay` - Base delay in milliseconds (default: 1000)
+  - `:max_delay` - Maximum delay between attempts (default: 8000)
+  - `:description` - Description for better error messages
+
+  ## Examples
+
+      # Wait for a document to be fully available
+      {:ok, document} = wait_for_resource(fn ->
+        case Document.get_document(document_name, oauth_token: token) do
+          {:ok, doc} when not is_nil(doc.display_name) -> {:ok, doc}
+          {:ok, _doc} -> {:error, :incomplete}
+          error -> error
+        end
+      end, description: "document to be fully loaded")
+  """
+  def wait_for_resource(check_fn, opts \\ []) do
+    max_attempts = Keyword.get(opts, :max_attempts, 5)
+    base_delay = Keyword.get(opts, :base_delay, 1000)
+    max_delay = Keyword.get(opts, :max_delay, 8000)
+    description = Keyword.get(opts, :description, "resource")
+
+    Enum.reduce_while(1..max_attempts, {:error, :not_found}, fn attempt, _acc ->
+      case check_fn.() do
+        {:ok, result} ->
+          {:halt, {:ok, result}}
+
+        {:error, _reason} ->
+          if attempt < max_attempts do
+            delay = min((base_delay * :math.pow(2, attempt - 1)) |> round(), max_delay)
+            Process.sleep(delay)
+            {:cont, {:error, :not_found}}
+          else
+            {:halt, {:error, :timeout}}
+          end
+      end
+    end)
+    |> case do
+      {:error, :timeout} ->
+        flunk(
+          "Expected #{description} to become available within #{max_attempts} attempts, but it didn't"
+        )
+
+      result ->
+        result
+    end
+  end
+
+  @doc """
+  Check if we're in a strict consistency testing mode.
+
+  When GEMINI_STRICT_CONSISTENCY=true, tests will use full retry logic.
+  When false or unset, tests will use faster, more permissive approaches.
+  """
+  def strict_consistency_mode?() do
+    System.get_env("GEMINI_STRICT_CONSISTENCY") == "true"
+  end
+
+  @doc """
+  Get timeout for eventual consistency tests based on environment.
+
+  - CI environments get longer timeouts
+  - Local development gets shorter timeouts  
+  - Strict mode gets the longest timeouts
+  """
+  def eventual_consistency_timeout() do
+    cond do
+      strict_consistency_mode?() -> 20_000
+      System.get_env("CI") -> 15_000
+      true -> 10_000
+    end
+  end
 end

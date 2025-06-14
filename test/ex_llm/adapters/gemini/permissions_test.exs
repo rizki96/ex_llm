@@ -1,6 +1,9 @@
 defmodule ExLLM.Adapters.Gemini.PermissionsTest do
   use ExUnit.Case, async: false
 
+  @moduletag provider: :gemini
+  @moduletag :requires_api_key
+
   alias ExLLM.Gemini.Permissions
 
   alias ExLLM.Gemini.Permissions.{
@@ -118,7 +121,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
       assert status in [400, 401, 403, 404]
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "gets permission details" do
       # This would require an existing permission
       # assert {:ok, %Permission{} = perm} = 
@@ -160,7 +163,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
                )
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "updates permission role" do
       # This would require an existing permission
       # update = %{
@@ -189,7 +192,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
       assert status in [400, 401, 403, 404]
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "deletes a permission" do
       # This would require creating and then deleting a permission
       # assert {:ok, %{}} = 
@@ -225,7 +228,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsTest do
                )
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "transfers ownership of a tuned model" do
       # This would require an existing tuned model that you own
       # request = %{

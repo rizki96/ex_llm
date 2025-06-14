@@ -57,6 +57,7 @@ defmodule ExLLM.Adapters.OpenAI do
     MessageFormatter,
     ModelUtils,
     StreamingBehavior,
+    StreamingCoordinator,
     Validation
   }
 
@@ -120,61 +121,53 @@ defmodule ExLLM.Adapters.OpenAI do
 
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
+
+      # Create stream with enhanced features
+      chunks_ref = make_ref()
       parent = self()
-      ref = make_ref()
 
-      # Start streaming task
-      Task.start(fn ->
-        HTTPClient.stream_request(
-          url,
-          body,
-          headers,
-          fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
-          on_error: fn status, body ->
-            send(
-              parent,
-              {ref, {:error, ErrorHandler.handle_provider_error(:openai, status, body)}}
-            )
-          end,
-          provider: :openai
-        )
+      # Setup callback that sends chunks to parent
+      callback = fn chunk ->
+        send(parent, {chunks_ref, {:chunk, chunk}})
+      end
 
-        # Wait for stream completion and forward the done signal
-        receive do
-          :stream_done -> send(parent, {ref, :done})
-          {:stream_error, error} -> send(parent, {ref, {:error, error}})
-        after
-          60_000 -> send(parent, {ref, {:error, :timeout}})
+      # Enhanced streaming options
+      stream_options = [
+        parse_chunk_fn: &parse_openai_chunk/1,
+        provider: :openai,
+        model: model,
+        stream_recovery: Keyword.get(options, :stream_recovery, false),
+        track_metrics: Keyword.get(options, :track_metrics, false),
+        on_metrics: Keyword.get(options, :on_metrics),
+        transform_chunk: create_openai_transformer(options),
+        validate_chunk: create_openai_validator(options),
+        buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
+        timeout: Keyword.get(options, :timeout, 300_000)
+      ]
+
+      Logger.with_context([provider: :openai, model: model], fn ->
+        case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+          {:ok, stream_id} ->
+            # Create Elixir stream that receives chunks
+            stream =
+              Stream.resource(
+                fn -> {chunks_ref, stream_id} end,
+                fn {ref, _id} = state ->
+                  receive do
+                    {^ref, {:chunk, chunk}} -> {[chunk], state}
+                  after
+                    100 -> {[], state}
+                  end
+                end,
+                fn _ -> :ok end
+              )
+
+            {:ok, stream}
+
+          {:error, reason} ->
+            {:error, reason}
         end
       end)
-
-      # Create stream that processes chunks
-      stream =
-        Stream.resource(
-          fn -> {ref, model} end,
-          fn {ref, _model} = state ->
-            receive do
-              {^ref, {:chunk, data}} ->
-                case parse_stream_chunk(data) do
-                  {:ok, :done} -> {:halt, state}
-                  {:ok, chunk} -> {[chunk], state}
-                  # Skip bad chunks
-                  {:error, _} -> {[], state}
-                end
-
-              {^ref, :done} ->
-                {:halt, state}
-
-              {^ref, {:error, error}} ->
-                throw(error)
-            after
-              100 -> {[], state}
-            end
-          end,
-          fn _ -> :ok end
-        )
-
-      {:ok, stream}
     end
   end
 
@@ -422,7 +415,8 @@ defmodule ExLLM.Adapters.OpenAI do
         ExLLM.Cost.calculate("openai", model, %{
           input_tokens: enhanced_usage.input_tokens,
           output_tokens: enhanced_usage.output_tokens
-        })
+        }),
+      metadata: response["metadata"] || %{}
     }
   end
 
@@ -1485,5 +1479,82 @@ defmodule ExLLM.Adapters.OpenAI do
       _ ->
         %{flagged: false, categories: %{}, category_scores: %{}}
     end
+  end
+
+  # Parse function for StreamingCoordinator (returns Types.StreamChunk directly)
+  defp parse_openai_chunk(data) do
+    case Jason.decode(data) do
+      {:ok, %{"choices" => [%{"delta" => delta, "finish_reason" => finish_reason} | _]}} ->
+        content = delta["content"]
+
+        if content || finish_reason do
+          %Types.StreamChunk{
+            content: content,
+            finish_reason: finish_reason
+          }
+        else
+          nil
+        end
+
+      {:ok, %{"choices" => [%{"delta" => delta} | _]}} ->
+        content = delta["content"]
+
+        if content do
+          %Types.StreamChunk{
+            content: content,
+            finish_reason: nil
+          }
+        else
+          nil
+        end
+
+      _ ->
+        nil
+    end
+  end
+
+  # StreamingCoordinator enhancement functions
+
+  defp create_openai_transformer(options) do
+    # Example: Add function call detection
+    if Keyword.get(options, :highlight_function_calls, false) do
+      fn chunk ->
+        if chunk.content && String.contains?(chunk.content, "function_call") do
+          # Highlight function calls
+          highlighted_content = "[FUNCTION] #{chunk.content}"
+          {:ok, %{chunk | content: highlighted_content}}
+        else
+          {:ok, chunk}
+        end
+      end
+    end
+  end
+
+  defp create_openai_validator(options) do
+    # Validate content for moderation if requested
+    if Keyword.get(options, :content_moderation, false) do
+      fn chunk ->
+        if chunk.content do
+          # Simple moderation check
+          if contains_flagged_content?(chunk.content) do
+            {:error, "Content flagged by moderation"}
+          else
+            :ok
+          end
+        else
+          :ok
+        end
+      end
+    end
+  end
+
+  defp contains_flagged_content?(content) do
+    # Placeholder for content moderation
+    # In production, this would use OpenAI's moderation API
+    flagged_patterns = ["violence", "hate", "self-harm"]
+
+    Enum.any?(flagged_patterns, fn pattern ->
+      String.contains?(String.downcase(content), pattern)
+    end)
   end
 end

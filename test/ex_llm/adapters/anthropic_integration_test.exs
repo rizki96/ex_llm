@@ -2,28 +2,34 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
   use ExUnit.Case
   alias ExLLM.Adapters.Anthropic
   alias ExLLM.Types
-
+  # Import test cache helpers
+  import ExLLM.TestCacheHelpers
   @moduletag :integration
-  @moduletag :anthropic
-  @moduletag :skip
-
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :anthropic
   # These tests require a valid ANTHROPIC_API_KEY
-  # Run with: mix test --only anthropic
-  # Remove @skip tag and set ANTHROPIC_API_KEY env var to run
-
+  # Run with: ANTHROPIC_API_KEY=sk-xxx mix test --include integration --include anthropic
+  # Or use the provider-specific alias: ANTHROPIC_API_KEY=sk-xxx mix test.anthropic
   setup_all do
-    case check_anthropic_api() do
-      :ok ->
-        :ok
+    # Enable cache debugging for integration tests
+    enable_cache_debug()
+    :ok
+  end
 
-      {:error, reason} ->
-        IO.puts("\nSkipping Anthropic integration tests: #{reason}")
-        :ok
-    end
+  setup context do
+    # Setup test caching context
+    setup_test_cache(context)
+    # Clear context on test exit
+    on_exit(fn ->
+      ExLLM.TestCacheDetector.clear_test_context()
+    end)
+
+    :ok
   end
 
   describe "chat/2" do
-    @tag :skip
     test "sends chat completion request" do
       messages = [
         %{role: "user", content: "Say hello in one word"}
@@ -44,7 +50,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles system messages" do
       messages = [
         %{role: "system", content: "You are a pirate. Respond in pirate speak."},
@@ -61,7 +66,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects temperature setting" do
       messages = [
         %{role: "user", content: "Generate a random number between 1 and 10"}
@@ -89,7 +93,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles multimodal content with images" do
       # This requires a valid base64 image
       # Using a small 1x1 red pixel PNG
@@ -126,7 +129,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
   end
 
   describe "stream_chat/2" do
-    @tag :skip
     test "streams chat responses" do
       messages = [
         %{role: "user", content: "Count from 1 to 5"}
@@ -135,9 +137,7 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       case Anthropic.stream_chat(messages, max_tokens: 50) do
         {:ok, stream} ->
           chunks = stream |> Enum.to_list()
-
           assert length(chunks) > 0
-
           # Collect all content
           full_content =
             chunks
@@ -146,7 +146,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
             |> Enum.join("")
 
           assert full_content =~ ~r/1.*2.*3.*4.*5/
-
           # Last chunk should have finish reason
           last_chunk = List.last(chunks)
           assert last_chunk.finish_reason in ["end_turn", "stop_sequence", "max_tokens"]
@@ -156,7 +155,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles streaming errors gracefully" do
       messages = [
         %{role: "user", content: "Test"}
@@ -178,20 +176,17 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
   end
 
   describe "list_models/1" do
-    @tag :skip
     test "fetches available models from API" do
       case Anthropic.list_models() do
         {:ok, models} ->
           assert is_list(models)
           assert length(models) > 0
-
           # Check model structure
           model = hd(models)
           assert %Types.Model{} = model
           assert String.contains?(model.id, "claude")
           assert model.context_window > 0
           assert is_map(model.capabilities)
-
           # Should have multiple Claude models
           claude_models = Enum.filter(models, &String.contains?(&1.id, "claude"))
           assert length(claude_models) >= 1
@@ -201,7 +196,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       end
     end
 
-    @tag :skip
     test "model capabilities are accurate" do
       case Anthropic.list_models() do
         {:ok, models} ->
@@ -210,7 +204,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
 
           if claude_3_model do
             assert claude_3_model.capabilities.supports_streaming == true
-
             # Check for vision support in newer models
             if String.contains?(claude_3_model.id, "claude-3-5") do
               assert claude_3_model.capabilities.supports_vision ||
@@ -225,10 +218,8 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
   end
 
   describe "error handling" do
-    @tag :skip
     test "handles rate limit errors" do
       messages = [%{role: "user", content: "Test"}]
-
       # Make multiple rapid requests to potentially trigger rate limit
       results =
         for _ <- 1..5 do
@@ -249,11 +240,9 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       assert is_boolean(rate_limited)
     end
 
-    @tag :skip
     test "handles invalid API key" do
       config = %{anthropic: %{api_key: "sk-ant-invalid-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
-
       messages = [%{role: "user", content: "Test"}]
 
       case Anthropic.chat(messages, config_provider: provider) do
@@ -270,7 +259,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles context length exceeded" do
       # Create a very long message
       long_content = String.duplicate("This is a test. ", 50_000)
@@ -292,7 +280,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
   end
 
   describe "advanced features" do
-    @tag :skip
     test "supports JSON mode output" do
       messages = [
         %{
@@ -331,7 +318,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles multiple system messages gracefully" do
       # Anthropic only supports one system message
       messages = [
@@ -353,7 +339,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
   end
 
   describe "cost calculation" do
-    @tag :skip
     test "calculates costs accurately" do
       messages = [
         %{role: "user", content: "Say hello"}
@@ -363,10 +348,8 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
         {:ok, response} ->
           assert response.cost > 0
           assert is_float(response.cost)
-
           # Cost should be reasonable (less than $0.01 for this simple request)
           assert response.cost < 0.01
-
           # Verify cost matches usage
           expected_cost =
             ExLLM.Cost.calculate(
@@ -385,7 +368,6 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
 
   # Beta features (would require beta headers)
   describe "beta features" do
-    @tag :skip
     @tag :beta
     test "message batches API" do
       # This would require implementing the batch API
@@ -393,27 +375,11 @@ defmodule ExLLM.Adapters.AnthropicIntegrationTest do
       :ok
     end
 
-    @tag :skip
     @tag :beta
     test "files API" do
       # This would require implementing the files API
       # Placeholder for future implementation
       :ok
-    end
-  end
-
-  # Helper to check if Anthropic API is accessible
-  defp check_anthropic_api do
-    case Anthropic.configured?() do
-      false ->
-        {:error, "ANTHROPIC_API_KEY not set"}
-
-      true ->
-        # Try a minimal API call
-        case Anthropic.list_models() do
-          {:ok, _} -> :ok
-          {:error, reason} -> {:error, inspect(reason)}
-        end
     end
   end
 end

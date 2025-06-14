@@ -7,6 +7,7 @@ defmodule ExLLM.Gemini.Models do
   """
 
   alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Gemini.Base
 
   defmodule Model do
     @moduledoc """
@@ -117,22 +118,19 @@ defmodule ExLLM.Gemini.Models do
       # Build query parameters
       query_params = build_list_query_params(opts)
 
-      # Make request
-      url = build_url("/v1beta/models", query_params, api_key)
-      headers = build_headers()
-
-      case Req.get(url, headers: headers) do
-        {:ok, %{status: 200, body: body}} ->
+      # Make request using Base module for caching support
+      case Base.request(
+             method: :get,
+             url: "/v1beta/models",
+             query: query_params,
+             api_key: api_key,
+             opts: opts
+           ) do
+        {:ok, body} ->
           {:ok, parse_list_response(body)}
 
-        {:ok, %{status: 401, body: body}} ->
-          {:error, %{status: 401, message: "API key not valid", body: body}}
-
-        {:ok, %{status: status, body: body}} ->
-          {:error, %{status: status, message: "API error", body: body}}
-
-        {:error, reason} ->
-          {:error, %{reason: :network_error, message: inspect(reason)}}
+        {:error, error} ->
+          {:error, error}
       end
     else
       {:error, _} = error -> error
@@ -162,25 +160,22 @@ defmodule ExLLM.Gemini.Models do
          config <- ConfigHelper.get_config(:gemini, config_provider),
          api_key <- get_api_key(config),
          {:ok, _} <- validate_api_key(api_key) do
-      # Build URL with model name
-      url = build_url("/v1beta/#{normalized_name}", %{}, api_key)
-      headers = build_headers()
-
-      case Req.get(url, headers: headers) do
-        {:ok, %{status: 200, body: body}} ->
+      # Make request using Base module for caching support
+      case Base.request(
+             method: :get,
+             url: "/v1beta/#{normalized_name}",
+             query: %{},
+             api_key: api_key,
+             opts: opts
+           ) do
+        {:ok, body} ->
           {:ok, Model.from_api(body)}
 
-        {:ok, %{status: 404, body: _body}} ->
+        {:error, %{status: 404}} ->
           {:error, %{status: 404, message: "Model not found: #{model_name}"}}
 
-        {:ok, %{status: 401, body: body}} ->
-          {:error, %{status: 401, message: "API key not valid", body: body}}
-
-        {:ok, %{status: status, body: body}} ->
-          {:error, %{status: status, message: "API error", body: body}}
-
-        {:error, reason} ->
-          {:error, %{reason: :network_error, message: inspect(reason)}}
+        {:error, error} ->
+          {:error, error}
       end
     else
       {:error, _} = error -> error
@@ -263,20 +258,6 @@ defmodule ExLLM.Gemini.Models do
       nil -> params
       token -> Map.put(params, "pageToken", token)
     end
-  end
-
-  defp build_url(path, query_params, api_key) do
-    base = "https://generativelanguage.googleapis.com"
-    query_params = Map.put(query_params, "key", api_key)
-    query_string = URI.encode_query(query_params)
-    "#{base}#{path}?#{query_string}"
-  end
-
-  defp build_headers do
-    [
-      {"Content-Type", "application/json"},
-      {"User-Agent", "ExLLM/0.4.2 (Elixir)"}
-    ]
   end
 
   defp parse_list_response(body) do

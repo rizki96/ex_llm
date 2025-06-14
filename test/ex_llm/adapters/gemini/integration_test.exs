@@ -1,6 +1,12 @@
 defmodule ExLLM.Adapters.Gemini.IntegrationTest do
   use ExUnit.Case, async: false
 
+  @moduletag :integration
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :gemini
+
   alias ExLLM
   alias ExLLM.Adapters.Gemini
 
@@ -93,7 +99,6 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
       assert is_binary(chunk.content) or is_nil(chunk.content)
     end
 
-    @tag :skip
     test "error handling integration" do
       # Test invalid API key
       messages = [%{role: "user", content: "Test"}]
@@ -116,9 +121,11 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
       # Test that the individual API modules are properly structured
       # and can be called without errors (validation tests)
 
-      # Test Models API structure
-      assert {:error, _} = Models.list_models(api_key: "invalid")
-      assert {:error, _} = Models.get_model("models/gemini-pro", api_key: "invalid")
+      # Test Models API structure - use definitely invalid key
+      assert {:error, _} = Models.list_models(api_key: "definitely-invalid-key")
+
+      assert {:error, _} =
+               Models.get_model("models/gemini-pro", api_key: "definitely-invalid-key")
 
       # Test Content API structure
       request = %ExLLM.Gemini.Content.GenerateContentRequest{
@@ -131,10 +138,12 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
       }
 
       assert {:error, _} =
-               Content.generate_content("models/gemini-pro", request, api_key: "invalid")
+               Content.generate_content("models/gemini-pro", request,
+                 api_key: "definitely-invalid-key"
+               )
 
       # Test Files API structure
-      assert {:error, _} = Files.list_files(api_key: "invalid")
+      assert {:error, _} = Files.list_files(api_key: "definitely-invalid-key")
 
       # Test Embeddings API structure  
       request = %Embeddings.EmbedContentRequest{
@@ -145,19 +154,25 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
       }
 
       assert {:error, _} =
-               Embeddings.embed_content("text-embedding-004", request, api_key: "invalid")
+               Embeddings.embed_content("text-embedding-004", request,
+                 api_key: "definitely-invalid-key"
+               )
 
       # Test Semantic Retrieval APIs structure
       # Note: Corpus API requires OAuth2 token, not API key
       assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
-        Corpus.list_corpora([], api_key: "invalid")
+        Corpus.list_corpora([], api_key: "definitely-invalid-key")
       end
 
-      assert {:error, _} = Document.list_documents("corpora/test", api_key: "invalid")
-      assert {:error, _} = Chunk.list_chunks("corpora/test/documents/test", api_key: "invalid")
+      assert {:error, _} =
+               Document.list_documents("corpora/test", api_key: "definitely-invalid-key")
+
+      assert {:error, _} =
+               Chunk.list_chunks("corpora/test/documents/test", api_key: "definitely-invalid-key")
 
       # Test Permissions API structure
-      assert {:error, _} = Permissions.list_permissions("corpora/test", api_key: "invalid")
+      assert {:error, _} =
+               Permissions.list_permissions("corpora/test", api_key: "definitely-invalid-key")
     end
 
     @tag :integration
@@ -398,43 +413,37 @@ defmodule ExLLM.Adapters.Gemini.IntegrationTest do
 
     test "API modules use consistent authentication" do
       # Test that all modules accept both api_key and oauth_token
-      auth_methods = [
-        [api_key: @api_key],
-        [oauth_token: "test-token"]
-      ]
 
-      Enum.each(auth_methods, fn auth_opts ->
-        # These should at least validate without throwing exceptions
-        # Note: We expect different types of responses/errors depending on auth method
-        case auth_opts[:api_key] do
-          nil ->
-            # OAuth token without valid token should fail
-            assert {:error, _} = Models.list_models(auth_opts)
-            assert {:error, _} = Files.list_files(auth_opts)
+      # Test with invalid OAuth token (should fail)
+      oauth_auth = [oauth_token: "invalid-oauth-token"]
+      assert {:error, _} = Models.list_models(oauth_auth)
+      assert {:error, _} = Files.list_files(oauth_auth)
 
-            assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
-              Corpus.list_corpora(auth_opts)
-            end
+      assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
+        Corpus.list_corpora(oauth_auth)
+      end
 
-          api_key ->
-            # With API key, check if it's valid
-            if api_key == "test-key" or !System.get_env("GEMINI_API_KEY") do
-              # Invalid/test API key should fail
-              assert {:error, _} = Models.list_models(auth_opts)
-              assert {:error, _} = Files.list_files(auth_opts)
-            else
-              # Valid API key should work
-              assert {:ok, _} = Models.list_models(auth_opts)
-              # Files may have different response
-              _ = Files.list_files(auth_opts)
-            end
+      # Test with valid API key (should work if we have one)
+      if System.get_env("GEMINI_API_KEY") do
+        api_auth = [api_key: System.get_env("GEMINI_API_KEY")]
+        assert {:ok, _} = Models.list_models(api_auth)
+        # Files may have different response but shouldn't crash
+        _ = Files.list_files(api_auth)
 
-            # Corpus requires OAuth token, not API key
-            assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
-              Corpus.list_corpora(auth_opts)
-            end
+        # Corpus requires OAuth token, not API key
+        assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
+          Corpus.list_corpora(api_auth)
         end
-      end)
+      else
+        # Test with invalid API key if no valid one available
+        api_auth = [api_key: "invalid-api-key"]
+        assert {:error, _} = Models.list_models(api_auth)
+        assert {:error, _} = Files.list_files(api_auth)
+
+        assert_raise ArgumentError, ~r/OAuth2 token is required/, fn ->
+          Corpus.list_corpora(api_auth)
+        end
+      end
     end
   end
 end

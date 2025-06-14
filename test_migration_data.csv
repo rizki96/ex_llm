@@ -1,0 +1,139 @@
+File,Line,Test Name,Provider,Comments,Suggested Tags
+test/ex_llm/adapters/anthropic_integration_test.exs,43,"sends chat completion request",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,64,"handles system messages",anthropic,"IO.puts(""Chat failed: #{inspect(reason)}"")",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,81,"respects temperature setting",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,109,"handles multimodal content with images",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,146,"streams chat responses",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,176,"handles streaming errors gracefully",anthropic,"IO.puts(""Stream failed: #{inspect(reason)}"")",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,198,"fetches available models from API",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,221,"model capabilities are accurate",anthropic,"IO.puts(""Model listing failed: #{inspect(reason)}"")",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,245,"handles rate limit errors",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,269,"handles invalid API key",anthropic,"# Note: might not actually hit rate limit in testing",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,290,"handles context length exceeded",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,312,"supports JSON mode output",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,351,"handles multiple system messages gracefully",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,373,"calculates costs accurately",anthropic,"",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,405,"message batches API",anthropic,"# Beta features (would require beta headers)",provider:anthropic
+test/ex_llm/adapters/anthropic_integration_test.exs,413,"files API",anthropic,"# This would require implementing the batch API # Placeholder for future implementation",provider:anthropic
+test/ex_llm/adapters/bumblebee_integration_test.exs,57,"generates response with specific model",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,74,"respects temperature setting",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,92,"respects max_tokens limit",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,108,"handles multi-turn conversations",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,128,"handles system prompts",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,151,"streams response chunks",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,184,"streaming respects max_tokens",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,259,"returns loaded models info when verbose",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,272,"returns true when Bumblebee and ModelLoader are available",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,286,"detects and uses available acceleration",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,295,"falls back to CPU when GPU not available",unknown,"# In real scenario, would check acceleration info # For now, just ensure it doesn't crash",
+test/ex_llm/adapters/bumblebee_integration_test.exs,311,"caches loaded models for reuse",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,331,"handles multiple models in memory",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,354,"handles invalid model names gracefully",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,364,"handles out of memory errors",unknown,"",
+test/ex_llm/adapters/bumblebee_integration_test.exs,387,"handles models with different token formats",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,12,"returns true when Bumblebee is available and ModelLoader is running",unknown,"# Skip ModelLoader for unit tests to avoid downloading models",
+test/ex_llm/adapters/bumblebee_unit_test.exs,26,"validates empty messages",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,32,"validates message format",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,47,"validates model availability",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,80,"attempts to load and generate with valid parameters",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,107,"validates streaming options",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,122,"returns available models with metadata",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,153,"returns models with verbose information",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,196,"detects available acceleration",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,231,"accepts standard LLM options",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,252,"accepts model-specific options",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,283,"implements all required callbacks",unknown,"",
+test/ex_llm/adapters/bumblebee_unit_test.exs,309,"list_models returns proper success tuple",unknown,"",
+test/ex_llm/adapters/gemini/chunk_integration_test.exs,10,"creates and manages a chunk with API key",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/chunk_integration_test.exs,62,"batch operations work correctly",gemini,"# Verify deletion",provider:gemini
+test/ex_llm/adapters/gemini/content_integration_test.exs,14,"successfully generates content with valid API key",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/content_test.exs,596,"generates content with thinking enabled",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/integration_test.exs,96,"error handling integration",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/integration_test.exs,115,"API modules validation and structure",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/integration_test.exs,410,"API modules use consistent authentication",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/models_test.exs,69,"returns error for network issues",gemini,"# Could be 400 or 404 depending on API state",provider:gemini
+test/ex_llm/adapters/gemini/permissions_oauth2_test.exs,62,"creates and manages permissions",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/permissions_test.exs,121,"gets permission details",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/permissions_test.exs,163,"updates permission role",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/permissions_test.exs,192,"deletes a permission",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/permissions_test.exs,228,"transfers ownership of a tuned model",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tokens_test.exs,298,"returns error for invalid API key",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,17,"creates a tuned model with basic configuration",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,48,"creates a tuned model with custom hyperparameters",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,82,"creates a tuned model with custom ID",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,172,"gets tuned model details",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,222,"updates tuned model metadata",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,249,"deletes a tuned model",gemini,"",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,269,"generates content using a tuned model",gemini,"#   Tuning.get_tuned_model(model_name, api_key: @api_key)",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,291,"streams content using a tuned model",gemini,"# assert response[""candidates""]",provider:gemini
+test/ex_llm/adapters/gemini/tuning_test.exs,315,"waits for tuning operation to complete",gemini,"# assert length(chunks) > 0",provider:gemini
+test/ex_llm/adapters/lmstudio_unit_test.exs,416,"returns streaming response",lmstudio,"",provider:lmstudio
+test/ex_llm/adapters/lmstudio_unit_test.exs,454,"includes finish_reason in final chunk",lmstudio,"# Connection errors are also valid",provider:lmstudio
+test/ex_llm/adapters/mistral_integration_test.exs,24,"generates response with default model",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,48,"generates response with specific model",mistral,"IO.puts(""Mistral API error: #{inspect(reason)}"")",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,70,"handles system prompts",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,92,"respects max_tokens limit",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,109,"handles safe_prompt option",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,128,"streams response chunks",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,154,"streaming respects temperature",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,178,"executes function calls",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,221,"generates embeddings for single text",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,241,"generates embeddings for multiple texts",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,264,"returns available Mistral models",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,292,"handles invalid model gracefully",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,302,"handles API errors properly",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,323,"handles code generation with Codestral",mistral,"",provider:mistral
+test/ex_llm/adapters/mistral_integration_test.exs,343,"handles multimodal with Pixtral",mistral,"",provider:mistral
+test/ex_llm/adapters/ollama_integration_test.exs,24,"generates completion without streaming",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,44,"generates with temperature option",ollama,"IO.puts(""Ollama error: #{inspect(reason)}"")",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,62,"respects max_tokens limit",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,83,"streams generation responses",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,106,"shows model information",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,127,"lists available models",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,147,"lists currently loaded models",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,162,"gets Ollama version",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,177,"copies model with new name",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,202,"pulls a small model",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,227,"generates embeddings for text",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,250,"generates embeddings for multiple inputs",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,266,"generates YAML configuration",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,280,"saves configuration to temporary file",ollama,"",provider:ollama
+test/ex_llm/adapters/ollama_integration_test.exs,303,"updates model configuration",ollama,"",provider:ollama
+test/ex_llm/adapters/openrouter_integration_test.exs,26,"sends chat completion request",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,46,"handles system messages",openrouter,"IO.puts(""Chat failed: #{inspect(reason)}"")",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,63,"respects temperature setting",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,91,"handles multimodal content with vision models",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,124,"uses fallback models",openrouter,"IO.puts(""Vision test failed: #{inspect(reason)}"")",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,146,"auto-router model selection",openrouter,"# Fallbacks might not work in all scenarios",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,168,"streams chat responses",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,198,"handles streaming with function calls",openrouter,"IO.puts(""Stream failed: #{inspect(reason)}"")",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,247,"fetches available models from API",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,275,"model capabilities are accurate",openrouter,"IO.puts(""Model listing failed: #{inspect(reason)}"")",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,306,"includes free models",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,334,"executes function calls",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,371,"supports modern tools API",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,407,"handles rate limit errors",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,431,"handles invalid API key",openrouter,"# Note: might not actually hit rate limit in testing",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,452,"handles insufficient credits",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,471,"handles model unavailable",openrouter,"# Success is also fine",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,490,"handles content moderation",openrouter,"# Might have fallback behavior",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,515,"provider preferences",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,536,"prompt transforms",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,553,"data collection policy",openrouter,"# Transforms might not be available",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,569,"usage tracking with include parameter",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,590,"calculates costs accurately for paid models",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,611,"free models have zero cost",openrouter,"",provider:openrouter
+test/ex_llm/adapters/openrouter_integration_test.exs,640,"can check account credits",openrouter,"",provider:openrouter
+test/ex_llm/adapters/perplexity_integration_test.exs,24,"generates response with sonar model",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,45,"handles web search with sonar-pro model",perplexity,"IO.puts(""Perplexity API error: #{inspect(reason)}"")",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,68,"handles academic search mode",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,90,"handles reasoning effort for deep research",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,113,"handles standard LLM model without search",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,135,"respects max_tokens limit",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,158,"streams response chunks",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,184,"streams with web search enabled",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,210,"returns available Perplexity models",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,238,"handles rate limiting gracefully",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,258,"handles invalid model gracefully",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,270,"returns images when requested",perplexity,"",provider:perplexity
+test/ex_llm/adapters/perplexity_integration_test.exs,291,"applies recency filter for recent information",perplexity,"",provider:perplexity

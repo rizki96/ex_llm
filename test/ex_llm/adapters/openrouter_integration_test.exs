@@ -2,28 +2,37 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   use ExUnit.Case
   alias ExLLM.Adapters.OpenRouter
   alias ExLLM.Types
+  # Import test cache helpers
+  import ExLLM.TestCacheHelpers
 
   @moduletag :integration
-  @moduletag :openrouter
-  @moduletag :skip
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :openrouter
 
   # These tests require a valid OPENROUTER_API_KEY
-  # Run with: mix test --only openrouter
-  # Remove @skip tag and set OPENROUTER_API_KEY env var to run
+  # Run with: OPENROUTER_API_KEY=or-xxx mix test --include integration --include openrouter
+  # Or use the provider-specific alias: OPENROUTER_API_KEY=or-xxx mix test.openrouter
 
   setup_all do
-    case check_openrouter_api() do
-      :ok ->
-        :ok
+    # Enable cache debugging for integration tests
+    enable_cache_debug()
+    :ok
+  end
 
-      {:error, reason} ->
-        IO.puts("\nSkipping OpenRouter integration tests: #{reason}")
-        :ok
-    end
+  setup context do
+    # Setup test caching context
+    setup_test_cache(context)
+    # Clear context on test exit
+    on_exit(fn ->
+      ExLLM.TestCacheDetector.clear_test_context()
+    end)
+
+    :ok
   end
 
   describe "chat/2" do
-    @tag :skip
     test "sends chat completion request" do
       messages = [
         %{role: "user", content: "Say hello in one word"}
@@ -43,7 +52,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles system messages" do
       messages = [
         %{role: "system", content: "You are a pirate. Respond in pirate speak."},
@@ -60,7 +68,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects temperature setting" do
       messages = [
         %{role: "user", content: "Generate a random word"}
@@ -88,7 +95,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles multimodal content with vision models" do
       # Small 1x1 red pixel PNG
       red_pixel =
@@ -121,7 +127,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "uses fallback models" do
       messages = [
         %{role: "user", content: "Say hi"}
@@ -143,7 +148,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "auto-router model selection" do
       messages = [
         %{role: "user", content: "Write a haiku about programming"}
@@ -165,7 +169,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   end
 
   describe "stream_chat/2" do
-    @tag :skip
     test "streams chat responses" do
       messages = [
         %{role: "user", content: "Count from 1 to 5"}
@@ -195,7 +198,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles streaming with function calls" do
       messages = [
         %{role: "user", content: "What's the weather in Boston?"}
@@ -244,7 +246,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   end
 
   describe "list_models/1" do
-    @tag :skip
     test "fetches available models from API" do
       case OpenRouter.list_models() do
         {:ok, models} ->
@@ -272,7 +273,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "model capabilities are accurate" do
       case OpenRouter.list_models() do
         {:ok, models} ->
@@ -303,7 +303,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "includes free models" do
       case OpenRouter.list_models() do
         {:ok, models} ->
@@ -331,7 +330,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   end
 
   describe "function/tool calling" do
-    @tag :skip
     test "executes function calls" do
       messages = [
         %{role: "user", content: "What's 25 * 4?"}
@@ -368,7 +366,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "supports modern tools API" do
       messages = [
         %{role: "user", content: "Get current time"}
@@ -404,7 +401,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   end
 
   describe "error handling" do
-    @tag :skip
     test "handles rate limit errors" do
       messages = [%{role: "user", content: "Test"}]
 
@@ -428,7 +424,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       assert is_boolean(rate_limited)
     end
 
-    @tag :skip
     test "handles invalid API key" do
       config = %{openrouter: %{api_key: "sk-or-invalid-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
@@ -449,7 +444,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles insufficient credits" do
       # This test might require a specific account state
       messages = [%{role: "user", content: "Test"}]
@@ -468,7 +462,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles model unavailable" do
       messages = [%{role: "user", content: "Test"}]
 
@@ -487,7 +480,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles content moderation" do
       # Test with potentially flagged content
       messages = [
@@ -512,7 +504,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   end
 
   describe "OpenRouter-specific features" do
-    @tag :skip
     test "provider preferences" do
       messages = [
         %{role: "user", content: "Hello"}
@@ -533,7 +524,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "prompt transforms" do
       messages = [
         %{role: "user", content: "Translate to French: Hello"}
@@ -550,7 +540,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "data collection policy" do
       messages = [
         %{role: "user", content: "Sensitive data test"}
@@ -566,7 +555,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "usage tracking with include parameter" do
       messages = [
         %{role: "user", content: "Test"}
@@ -587,7 +575,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   end
 
   describe "cost calculation" do
-    @tag :skip
     test "calculates costs accurately for paid models" do
       messages = [
         %{role: "user", content: "Say hello"}
@@ -608,7 +595,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
       end
     end
 
-    @tag :skip
     test "free models have zero cost" do
       # Find a free model and test it
       case OpenRouter.list_models() do
@@ -637,7 +623,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
   end
 
   describe "credits and account info" do
-    @tag :skip
     test "can check account credits" do
       # This would require implementing the credits endpoint
       # For now, just verify the API is accessible
@@ -649,21 +634,6 @@ defmodule ExLLM.Adapters.OpenRouterIntegrationTest do
         false ->
           :ok
       end
-    end
-  end
-
-  # Helper to check if OpenRouter API is accessible
-  defp check_openrouter_api do
-    case OpenRouter.configured?() do
-      false ->
-        {:error, "OPENROUTER_API_KEY not set"}
-
-      true ->
-        # Try a minimal API call
-        case OpenRouter.chat([%{role: "user", content: "Hi"}], max_tokens: 1) do
-          {:ok, _} -> :ok
-          {:error, reason} -> {:error, inspect(reason)}
-        end
     end
   end
 end

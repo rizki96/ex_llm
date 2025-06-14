@@ -14,6 +14,7 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   alias ExLLM.Error
   alias ExLLM.Logger
+  alias ExLLM.TestResponseInterceptor
 
   # 60 seconds
   @default_timeout 60_000
@@ -45,51 +46,65 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
     headers = prepare_headers(headers)
 
-    # Log request
-    Logger.log_request(provider, url, body, headers)
+    # Check test cache before making request
+    case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
+      {:cached, cached_response} ->
+        # Return cached response with metadata
+        if Application.get_env(:ex_llm, :debug_test_cache, false) do
+          IO.puts("HTTPClient received cached response: #{inspect(Map.keys(cached_response))}")
+        end
 
-    req_opts = [headers: headers, receive_timeout: timeout]
+        response_with_metadata = add_cache_metadata(cached_response)
 
-    start_time = System.monotonic_time(:millisecond)
+        if Application.get_env(:ex_llm, :debug_test_cache, false) do
+          IO.puts(
+            "HTTPClient response after add_cache_metadata: #{inspect(Map.get(response_with_metadata, "metadata"))}"
+          )
+        end
 
-    result =
-      case method do
-        :get -> Req.get(url, req_opts)
-        :post -> Req.post(url, [json: body] ++ req_opts)
-        :put -> Req.put(url, [json: body] ++ req_opts)
-        :patch -> Req.patch(url, [json: body] ++ req_opts)
-        :delete -> Req.delete(url, req_opts)
-      end
+        {:ok, response_with_metadata}
 
-    duration = System.monotonic_time(:millisecond) - start_time
+      {:proceed, request_metadata} ->
+        # Make real request
+        make_real_request(url, body, headers, method, timeout, provider, request_metadata)
 
-    case result do
-      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
-        # Log successful response
-        Logger.log_response(provider, %{status: status, body: response_body}, duration)
-        # Req already decodes JSON
-        {:ok, response_body}
+      {:error, _reason} ->
+        # Cache error, proceed with real request
+        make_real_request(url, body, headers, method, timeout, provider, %{})
+    end
+  end
 
-      {:ok, %{status: status, body: response_body}} ->
-        # Log error response
-        Logger.error("API error response",
-          provider: provider,
-          status: status,
-          body: response_body,
-          duration_ms: duration
-        )
+  @doc """
+  Make a GET request to an API endpoint with proper caching support.
 
-        handle_error_response(status, response_body)
+  ## Options
+  - `:timeout` - Request timeout in milliseconds (default: 60s)
+  - `:provider` - Provider name for logging and caching
 
-      {:error, reason} ->
-        # Log connection error
-        Logger.error("Connection error",
-          provider: provider,
-          error: reason,
-          duration_ms: duration
-        )
+  ## Examples
 
-        Error.connection_error(reason)
+      HTTPClient.get_json("https://api.example.com/v1/models", 
+        [{"Authorization", "Bearer sk-..."}],
+        provider: :openai
+      )
+  """
+  @spec get_json(String.t(), list({String.t(), String.t()}), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def get_json(url, headers, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    provider = Keyword.get(opts, :provider, :unknown)
+
+    headers = prepare_headers(headers)
+
+    # Check test cache before making request
+    case TestResponseInterceptor.intercept_request(url, %{}, headers, opts) do
+      {:cached, cached_response} ->
+        # Return cached response with metadata
+        {:ok, add_cache_metadata(cached_response)}
+
+      {:proceed, request_metadata} ->
+        # Make real GET request
+        make_real_get_request(url, headers, timeout, provider, request_metadata)
     end
   end
 
@@ -110,37 +125,19 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     headers = Keyword.get(opts, :headers, []) |> prepare_headers()
     provider = Keyword.get(opts, :provider, :unknown)
 
-    # Log streaming request
-    Logger.log_stream_event(provider, :request_start, %{
-      url: url,
-      body_preview: inspect(body, limit: 100)
-    })
+    # Check test cache for streaming requests
+    case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
+      {:cached, cached_response} ->
+        # For streaming, we need to simulate streaming behavior
+        simulate_cached_stream(cached_response, opts)
 
-    req_opts = [
-      json: body,
-      headers: headers,
-      receive_timeout: Keyword.get(opts, :receive_timeout, @stream_timeout)
-    ]
+      {:proceed, request_metadata} ->
+        # Make real streaming request
+        make_real_streaming_request(url, body, headers, provider, request_metadata, opts)
 
-    # Add the into option if provided
-    req_opts =
-      case Keyword.get(opts, :into) do
-        nil -> req_opts
-        collector -> Keyword.put(req_opts, :into, collector)
-      end
-
-    case Req.post(url, req_opts) do
-      {:ok, %{status: status} = response} when status in 200..299 ->
-        Logger.log_stream_event(provider, :response_ok, %{status: status})
-        {:ok, response}
-
-      {:ok, %{status: status, body: body}} ->
-        Logger.log_stream_event(provider, :response_error, %{status: status, body: body})
-        handle_error_response(status, body)
-
-      {:error, reason} ->
-        Logger.log_stream_event(provider, :connection_error, %{reason: inspect(reason)})
-        {:error, Error.connection_error(reason)}
+      {:error, _reason} ->
+        # Cache error, proceed with real request
+        make_real_streaming_request(url, body, headers, provider, %{}, opts)
     end
   end
 
@@ -164,13 +161,41 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
     headers = prepare_headers(headers) ++ [{"Accept", "text/event-stream"}]
 
-    # Start async task for streaming
-    Task.start(fn ->
-      start_streaming_request(url, body, headers, timeout, parent, callback, opts)
-    end)
+    # Check test cache for SSE streaming requests
+    case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
+      {:cached, cached_response} ->
+        # Simulate SSE streaming from cached response
+        Task.start(fn ->
+          simulate_sse_from_cache(cached_response, parent, callback)
+        end)
 
-    # Return immediately
-    {:ok, :streaming}
+        {:ok, :streaming}
+
+      {:proceed, request_metadata} ->
+        # Start async task for real streaming request
+        Task.start(fn ->
+          start_streaming_request_with_caching(
+            url,
+            body,
+            headers,
+            timeout,
+            parent,
+            callback,
+            request_metadata,
+            opts
+          )
+        end)
+
+        {:ok, :streaming}
+
+      {:error, _reason} ->
+        # Cache error, proceed with real request
+        Task.start(fn ->
+          start_streaming_request(url, body, headers, timeout, parent, callback, opts)
+        end)
+
+        {:ok, :streaming}
+    end
   end
 
   defp start_streaming_request(url, body, headers, timeout, parent, callback, opts) do
@@ -645,6 +670,496 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   defp build_provider_specific_headers(_provider, _opts), do: []
 
+  # Test caching private helper functions
+
+  defp make_real_request(url, body, headers, method, timeout, provider, request_metadata) do
+    # Log request
+    Logger.log_request(provider, url, body, headers)
+
+    req_opts = [headers: headers, receive_timeout: timeout]
+
+    start_time = System.monotonic_time(:millisecond)
+
+    result =
+      case method do
+        :get -> Req.get(url, req_opts)
+        :post -> Req.post(url, [json: body] ++ req_opts)
+        :put -> Req.put(url, [json: body] ++ req_opts)
+        :patch -> Req.patch(url, [json: body] ++ req_opts)
+        :delete -> Req.delete(url, req_opts)
+      end
+
+    duration = System.monotonic_time(:millisecond) - start_time
+
+    case result do
+      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
+        # Log successful response
+        Logger.log_response(provider, %{status: status, body: response_body}, duration)
+
+        # Save to test cache if enabled
+        response_info = %{
+          status_code: status,
+          headers: [],
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, response_body, response_info)
+
+        {:ok, response_body}
+
+      {:ok, %{status: status, body: response_body}} ->
+        # Log error response
+        Logger.error("API error response",
+          provider: provider,
+          status: status,
+          body: response_body,
+          duration_ms: duration
+        )
+
+        # Save error response to cache if enabled
+        error_response = %{error: response_body, status: status}
+
+        response_info = %{
+          status_code: status,
+          headers: [],
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration,
+          error: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        handle_error_response(status, response_body)
+
+      {:error, reason} ->
+        # Log connection error
+        Logger.error("Connection error",
+          provider: provider,
+          error: reason,
+          duration_ms: duration
+        )
+
+        # Save connection error to cache if enabled
+        error_response = %{error: reason, type: "connection_error"}
+
+        response_info = %{
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration,
+          error: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        Error.connection_error(reason)
+    end
+  end
+
+  defp make_real_get_request(url, headers, timeout, provider, request_metadata) do
+    # Log request
+    Logger.log_request(provider, url, nil, headers)
+
+    req_opts = [headers: headers, receive_timeout: timeout]
+
+    start_time = System.monotonic_time(:millisecond)
+
+    result = Req.get(url, req_opts)
+
+    duration = System.monotonic_time(:millisecond) - start_time
+
+    case result do
+      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
+        # Log successful response
+        Logger.log_response(provider, %{status: status, body: response_body}, duration)
+
+        # Save to test cache if enabled
+        response_info = %{
+          status_code: status,
+          headers: [],
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, response_body, response_info)
+
+        {:ok, %{status: status, body: add_cache_metadata(response_body)}}
+
+      {:ok, %{status: status, body: response_body}} ->
+        # Log error response
+        Logger.error("API error response",
+          provider: provider,
+          status: status,
+          duration_ms: duration
+        )
+
+        # Save error response to cache if enabled
+        error_response = %{error: response_body, status: status}
+
+        response_info = %{
+          status_code: status,
+          headers: [],
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration,
+          error: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        {:error, handle_error_response(status, response_body)}
+
+      {:error, reason} ->
+        # Log connection error
+        Logger.error("Connection error",
+          provider: provider,
+          error: reason,
+          duration_ms: duration
+        )
+
+        # Save connection error to cache
+        error_response = %{connection_error: reason}
+
+        response_info = %{
+          status_code: nil,
+          headers: [],
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration,
+          error: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        {:error, Error.connection_error(reason)}
+    end
+  end
+
+  defp make_real_streaming_request(url, body, headers, provider, request_metadata, opts) do
+    # Log streaming request
+    Logger.log_stream_event(provider, :request_start, %{
+      url: url,
+      body_preview: inspect(body, limit: 100)
+    })
+
+    req_opts = [
+      json: body,
+      headers: headers,
+      receive_timeout: Keyword.get(opts, :receive_timeout, @stream_timeout)
+    ]
+
+    # Add the into option if provided
+    req_opts =
+      case Keyword.get(opts, :into) do
+        nil -> req_opts
+        collector -> Keyword.put(req_opts, :into, collector)
+      end
+
+    start_time = System.monotonic_time(:millisecond)
+
+    case Req.post(url, req_opts) do
+      {:ok, %{status: status} = response} when status in 200..299 ->
+        Logger.log_stream_event(provider, :response_ok, %{status: status})
+
+        # For streaming, we would need to capture the complete response
+        # This is more complex and might be handled by the streaming coordinator
+        duration = System.monotonic_time(:millisecond) - start_time
+
+        response_info = %{
+          status_code: status,
+          headers: [],
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration,
+          streaming: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, response, response_info)
+
+        {:ok, response}
+
+      {:ok, %{status: status, body: body}} ->
+        Logger.log_stream_event(provider, :response_error, %{status: status, body: body})
+
+        # Save streaming error to cache
+        duration = System.monotonic_time(:millisecond) - start_time
+        error_response = %{error: body, status: status, type: "streaming_error"}
+
+        response_info = %{
+          status_code: status,
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration,
+          streaming: true,
+          error: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        handle_error_response(status, body)
+
+      {:error, reason} ->
+        Logger.log_stream_event(provider, :connection_error, %{reason: inspect(reason)})
+
+        # Save connection error to cache
+        duration = System.monotonic_time(:millisecond) - start_time
+        error_response = %{error: reason, type: "streaming_connection_error"}
+
+        response_info = %{
+          completed_at: DateTime.utc_now(),
+          response_time_ms: duration,
+          streaming: true,
+          error: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        {:error, Error.connection_error(reason)}
+    end
+  end
+
+  defp simulate_cached_stream(cached_response, opts) do
+    # Simulate streaming behavior from cached response
+    case Keyword.get(opts, :into) do
+      nil ->
+        # Return response directly if no collector
+        {:ok, cached_response}
+
+      collector when is_function(collector) ->
+        # Simulate streaming with collector function
+        case Map.get(cached_response, "chunks") do
+          chunks when is_list(chunks) ->
+            # Replay chunks through collector
+            Task.start(fn ->
+              Enum.each(chunks, fn chunk ->
+                collector.(chunk)
+                # Add small delay to simulate streaming
+                Process.sleep(10)
+              end)
+            end)
+
+            {:ok, cached_response}
+
+          _ ->
+            # No chunks available, return as single chunk
+            collector.(cached_response)
+            {:ok, cached_response}
+        end
+
+      _ ->
+        {:ok, cached_response}
+    end
+  end
+
+  defp start_streaming_request_with_caching(
+         url,
+         body,
+         headers,
+         timeout,
+         parent,
+         callback,
+         request_metadata,
+         opts
+       ) do
+    case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
+      {:ok, response} ->
+        handle_streaming_response_with_caching(response, parent, callback, request_metadata, opts)
+
+      {:error, reason} ->
+        # Save streaming error to cache
+        error_response = %{error: reason, type: "streaming_connection_error"}
+
+        response_info = %{
+          completed_at: DateTime.utc_now(),
+          streaming: true,
+          error: true
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        send(parent, {:stream_error, Error.connection_error(reason)})
+    end
+  end
+
+  defp handle_streaming_response_with_caching(response, parent, callback, request_metadata, opts) do
+    if response.status in 200..299 do
+      handle_req_stream_response_with_caching(
+        response,
+        parent,
+        callback,
+        "",
+        request_metadata,
+        opts
+      )
+    else
+      # Save streaming error to cache
+      error_response = %{error: response.body, status: response.status, type: "streaming_error"}
+
+      response_info = %{
+        status_code: response.status,
+        completed_at: DateTime.utc_now(),
+        streaming: true,
+        error: true
+      }
+
+      TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+      handle_streaming_error(response, parent, opts)
+    end
+  end
+
+  defp handle_req_stream_response_with_caching(
+         response,
+         parent,
+         callback,
+         buffer,
+         request_metadata,
+         opts
+       ) do
+    %Req.Response.Async{ref: ref} = response.body
+    provider = Keyword.get(opts, :provider, :unknown)
+
+    # Accumulate chunks for caching
+    accumulated_chunks = []
+
+    stream_loop(
+      ref,
+      parent,
+      callback,
+      buffer,
+      request_metadata,
+      provider,
+      accumulated_chunks,
+      opts
+    )
+  end
+
+  defp stream_loop(
+         ref,
+         parent,
+         callback,
+         buffer,
+         request_metadata,
+         provider,
+         accumulated_chunks,
+         opts
+       ) do
+    receive do
+      {^ref, {:data, data}} ->
+        {events, new_buffer} = parse_sse_chunks(data, buffer)
+
+        # Log chunk received if streaming logging is enabled
+        if length(events) > 0 do
+          Logger.log_stream_event(provider, :chunk_received, %{
+            event_count: length(events),
+            buffer_size: byte_size(new_buffer)
+          })
+        end
+
+        # Accumulate chunks for caching
+        new_accumulated = accumulated_chunks ++ events
+
+        Enum.each(events, fn event ->
+          if event.data != "[DONE]" do
+            callback.(event.data)
+          end
+        end)
+
+        stream_loop(
+          ref,
+          parent,
+          callback,
+          new_buffer,
+          request_metadata,
+          provider,
+          new_accumulated,
+          opts
+        )
+
+      {^ref, :done} ->
+        Logger.log_stream_event(provider, :stream_complete, %{})
+
+        # Save complete streaming response to cache
+        complete_response = %{
+          type: "streaming_complete",
+          chunks: accumulated_chunks,
+          chunk_count: length(accumulated_chunks)
+        }
+
+        response_info = %{
+          completed_at: DateTime.utc_now(),
+          streaming: true,
+          chunk_count: length(accumulated_chunks)
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, complete_response, response_info)
+
+        send(parent, :stream_done)
+
+      {^ref, {:error, reason}} ->
+        Logger.log_stream_event(provider, :stream_error, %{reason: inspect(reason)})
+
+        # Save partial streaming response with error
+        error_response = %{
+          error: reason,
+          type: "streaming_partial_error",
+          chunks: accumulated_chunks,
+          chunk_count: length(accumulated_chunks)
+        }
+
+        response_info = %{
+          completed_at: DateTime.utc_now(),
+          streaming: true,
+          error: true,
+          chunk_count: length(accumulated_chunks)
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
+
+        send(parent, {:stream_error, Error.connection_error(reason)})
+    after
+      Keyword.get(opts, :recv_timeout, @stream_timeout) ->
+        Logger.log_stream_event(provider, :stream_timeout, %{timeout_ms: @stream_timeout})
+
+        # Save timeout response
+        timeout_response = %{
+          error: :timeout,
+          type: "streaming_timeout",
+          chunks: accumulated_chunks,
+          chunk_count: length(accumulated_chunks)
+        }
+
+        response_info = %{
+          completed_at: DateTime.utc_now(),
+          streaming: true,
+          error: true,
+          chunk_count: length(accumulated_chunks)
+        }
+
+        TestResponseInterceptor.save_response(request_metadata, timeout_response, response_info)
+
+        send(parent, {:stream_error, {:error, :timeout}})
+    end
+  end
+
+  defp simulate_sse_from_cache(cached_response, parent, callback) do
+    # Simulate SSE streaming from cached response
+    case Map.get(cached_response, "chunks") do
+      chunks when is_list(chunks) ->
+        # Replay chunks with small delays to simulate streaming
+        Enum.each(chunks, fn chunk ->
+          if Map.get(chunk, "data") != "[DONE]" do
+            callback.(Map.get(chunk, "data", chunk))
+          end
+
+          # Small delay to simulate streaming
+          Process.sleep(10)
+        end)
+
+        send(parent, :stream_done)
+
+      _ ->
+        # No chunks available, simulate single response
+        callback.(Jason.encode!(cached_response))
+        send(parent, :stream_done)
+    end
+  end
+
   @doc """
   Add rate limit headers to the request.
 
@@ -811,4 +1326,20 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
       Logger.error("File read error: #{inspect(reason)} for path: #{path}")
       {:error, reason}
   end
+
+  @doc false
+  def add_cache_metadata(response) when is_map(response) do
+    # Add metadata indicating this response came from cache
+    case response do
+      %{"metadata" => metadata} when is_map(metadata) ->
+        # Preserve existing metadata and add from_cache flag
+        %{response | "metadata" => Map.put(metadata, :from_cache, true)}
+
+      _ ->
+        # Add new metadata map with from_cache flag
+        Map.put(response, "metadata", %{from_cache: true})
+    end
+  end
+
+  def add_cache_metadata(response), do: response
 end

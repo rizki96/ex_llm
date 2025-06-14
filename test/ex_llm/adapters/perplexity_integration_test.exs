@@ -4,24 +4,16 @@ defmodule ExLLM.PerplexityIntegrationTest do
   alias ExLLM.Types
 
   @moduletag :integration
-  @moduletag :perplexity
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :perplexity
 
   # These tests require a Perplexity API key
-  # Run with: mix test --only perplexity
-
-  setup_all do
-    case check_perplexity_api() do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        IO.puts("\nSkipping Perplexity integration tests: #{reason}")
-        :ok
-    end
-  end
+  # Run with: mix test --include integration --include external
+  # Or use the provider-specific alias: mix test.perplexity
 
   describe "chat/2 with real API" do
-    @tag :skip
     test "generates response with sonar model" do
       messages = [%{role: "user", content: "What is the capital of France?"}]
 
@@ -42,7 +34,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles web search with sonar-pro model" do
       messages = [%{role: "user", content: "What's the latest news in AI today?"}]
 
@@ -65,7 +56,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles academic search mode" do
       messages = [%{role: "user", content: "What are the latest findings on quantum computing?"}]
 
@@ -87,7 +77,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles reasoning effort for deep research" do
       messages = [
         %{role: "user", content: "Analyze the pros and cons of renewable energy adoption"}
@@ -110,7 +99,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles standard LLM model without search" do
       messages = [%{role: "user", content: "Write a haiku about programming"}]
 
@@ -132,7 +120,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects max_tokens limit" do
       messages = [%{role: "user", content: "Explain machine learning in detail"}]
 
@@ -155,7 +142,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
   end
 
   describe "stream_chat/2 with real API" do
-    @tag :skip
     test "streams response chunks" do
       messages = [%{role: "user", content: "Count from 1 to 5 slowly"}]
 
@@ -181,7 +167,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
       end
     end
 
-    @tag :skip
     test "streams with web search enabled" do
       messages = [%{role: "user", content: "What happened in tech news today?"}]
 
@@ -207,7 +192,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
   end
 
   describe "list_models/1 with API" do
-    @tag :skip
     test "returns available Perplexity models" do
       case Perplexity.list_models() do
         {:ok, models} ->
@@ -235,7 +219,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
   end
 
   describe "error handling with real API" do
-    @tag :skip
     test "handles rate limiting gracefully" do
       messages = [%{role: "user", content: "Test"}]
 
@@ -255,7 +238,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
              end)
     end
 
-    @tag :skip
     test "handles invalid model gracefully" do
       messages = [%{role: "user", content: "Test"}]
 
@@ -267,7 +249,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
   end
 
   describe "Perplexity-specific features" do
-    @tag :skip
     test "returns images when requested" do
       messages = [%{role: "user", content: "Show me pictures of the Eiffel Tower"}]
 
@@ -288,7 +269,6 @@ defmodule ExLLM.PerplexityIntegrationTest do
       end
     end
 
-    @tag :skip
     test "applies recency filter for recent information" do
       messages = [%{role: "user", content: "What happened in the last 24 hours?"}]
 
@@ -310,15 +290,5 @@ defmodule ExLLM.PerplexityIntegrationTest do
     end
   end
 
-  # Helper functions
-
-  defp check_perplexity_api do
-    config = %{perplexity: %{api_key: System.get_env("PERPLEXITY_API_KEY") || ""}}
-
-    if config.perplexity.api_key == "" do
-      {:error, "PERPLEXITY_API_KEY environment variable not set"}
-    else
-      :ok
-    end
-  end
+  # Helper functions removed - tests now use tag-based exclusion
 end

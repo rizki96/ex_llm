@@ -929,10 +929,16 @@ defmodule ExLLM.Gemini.Chunk do
 
   defp add_auth(request_opts, opts) do
     if oauth_token = opts[:oauth_token] do
-      Keyword.put(request_opts, :oauth_token, oauth_token)
+      # Add oauth_token and pass through all other options
+      request_opts
+      |> Keyword.put(:oauth_token, oauth_token)
+      |> Keyword.put(:opts, opts)
     else
       if api_key = opts[:api_key] do
-        Keyword.put(request_opts, :api_key, api_key)
+        # Add api_key and pass through all other options
+        request_opts
+        |> Keyword.put(:api_key, api_key)
+        |> Keyword.put(:opts, opts)
       else
         raise ArgumentError,
               "Authentication required. Set :oauth_token or :api_key option"

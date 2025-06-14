@@ -157,16 +157,50 @@ defmodule ExLLM.Adapters.Perplexity do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
 
+      # Create stream with enhanced features
+      chunks_ref = make_ref()
+      parent = self()
+
+      # Setup callback that sends chunks to parent
+      callback = fn chunk ->
+        send(parent, {chunks_ref, {:chunk, chunk}})
+      end
+
+      # Enhanced streaming options
+      stream_options = [
+        parse_chunk_fn: &parse_stream_chunk/1,
+        provider: :perplexity,
+        model: model,
+        stream_recovery: Keyword.get(options, :stream_recovery, false),
+        track_metrics: Keyword.get(options, :track_metrics, false),
+        on_metrics: Keyword.get(options, :on_metrics),
+        transform_chunk: create_perplexity_transformer(options),
+        validate_chunk: create_perplexity_validator(options),
+        buffer_chunks: Keyword.get(options, :buffer_chunks, 1)
+      ]
+
       Logger.with_context([provider: :perplexity, model: model], fn ->
-        StreamingCoordinator.start_stream(
-          url,
-          body,
-          headers,
-          fn chunk -> chunk end,
-          parse_chunk_fn: &parse_stream_chunk/1,
-          provider: :perplexity,
-          model: model
-        )
+        case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+          {:ok, stream_id} ->
+            # Create Elixir stream that receives chunks
+            stream =
+              Stream.resource(
+                fn -> {chunks_ref, stream_id} end,
+                fn {ref, _id} = state ->
+                  receive do
+                    {^ref, {:chunk, chunk}} -> {[chunk], state}
+                  after
+                    100 -> {[], state}
+                  end
+                end,
+                fn _ -> :ok end
+              )
+
+            {:ok, stream}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
       end)
     end
   end
@@ -317,6 +351,57 @@ defmodule ExLLM.Adapters.Perplexity do
   def validate_image_filters(_), do: {:error, "Image filters must be a list of strings"}
 
   # Private helper functions
+
+  defp create_perplexity_transformer(options) do
+    # Example: Add citations inline if requested
+    if Keyword.get(options, :inline_citations, false) do
+      fn chunk ->
+        # Transform citations into inline format
+        if chunk.content && String.contains?(chunk.content, "[") do
+          transformed_content = transform_citations(chunk.content)
+          {:ok, %{chunk | content: transformed_content}}
+        else
+          {:ok, chunk}
+        end
+      end
+    end
+  end
+
+  defp create_perplexity_validator(options) do
+    # Validate search results if using search mode
+    if Keyword.get(options, :validate_sources, false) do
+      fn chunk ->
+        # Simple validation example
+        if chunk.metadata && chunk.metadata["sources"] do
+          validate_sources(chunk.metadata["sources"])
+        else
+          :ok
+        end
+      end
+    end
+  end
+
+  defp transform_citations(content) do
+    # Simple example: Transform [1] to (Source 1)
+    Regex.replace(~r/\[(\d+)\]/, content, "(Source \\1)")
+  end
+
+  defp validate_sources(sources) when is_list(sources) do
+    # Check if sources are from reputable domains
+    untrusted =
+      Enum.filter(sources, fn source ->
+        url = source["url"] || ""
+        String.contains?(url, ["spam", "fake", "untrusted"])
+      end)
+
+    if length(untrusted) > 0 do
+      {:error, "Contains untrusted sources"}
+    else
+      :ok
+    end
+  end
+
+  defp validate_sources(_), do: :ok
 
   defp build_request_body(messages, model, _config, options) do
     body = %{

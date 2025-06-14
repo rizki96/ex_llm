@@ -415,6 +415,10 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
 
   describe "error handling" do
     test "validates API key format" do
+      # Disable test cache for this test
+      original_enabled = Application.get_env(:ex_llm, :test_cache_enabled)
+      Application.put_env(:ex_llm, :test_cache_enabled, false)
+
       invalid_configs = [
         %{openai: %{api_key: nil}},
         %{openai: %{api_key: ""}},
@@ -425,6 +429,9 @@ defmodule ExLLM.Adapters.OpenAIUnitTest do
         provider = ConfigProviderHelper.setup_static_provider(config)
         refute OpenAI.configured?(config_provider: provider)
       end
+
+      # Restore original setting
+      Application.put_env(:ex_llm, :test_cache_enabled, original_enabled)
     end
   end
 

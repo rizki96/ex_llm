@@ -55,6 +55,7 @@ defmodule ExLLM.Adapters.Anthropic do
     HTTPClient,
     MessageFormatter,
     StreamingBehavior,
+    StreamingCoordinator,
     Validation
   }
 
@@ -115,52 +116,51 @@ defmodule ExLLM.Adapters.Anthropic do
 
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages"
+
+      # Create stream with enhanced features
+      chunks_ref = make_ref()
       parent = self()
-      ref = make_ref()
 
-      # Start streaming task
-      Task.start(fn ->
-        HTTPClient.stream_request(
-          url,
-          body,
-          headers,
-          fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
-          on_error: fn status, body ->
-            send(
-              parent,
-              {ref, {:error, ErrorHandler.handle_provider_error(:anthropic, status, body)}}
-            )
-          end
-        )
-      end)
+      # Setup callback that sends chunks to parent
+      callback = fn chunk ->
+        send(parent, {chunks_ref, {:chunk, chunk}})
+      end
 
-      # Create stream that processes chunks
-      stream =
-        Stream.resource(
-          fn -> ref end,
-          fn ref ->
-            receive do
-              {^ref, {:chunk, data}} ->
-                case parse_stream_chunk(data) do
-                  {:ok, :done} -> {:halt, ref}
-                  {:ok, chunk} -> {[chunk], ref}
-                  # Skip bad chunks
-                  {:error, _} -> {[], ref}
+      # Enhanced streaming options
+      stream_options = [
+        parse_chunk_fn: &parse_anthropic_chunk/1,
+        provider: :anthropic,
+        model: model,
+        stream_recovery: Keyword.get(options, :stream_recovery, false),
+        track_metrics: Keyword.get(options, :track_metrics, false),
+        on_metrics: Keyword.get(options, :on_metrics),
+        transform_chunk: create_anthropic_transformer(options),
+        validate_chunk: create_anthropic_validator(options),
+        buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
+        timeout: Keyword.get(options, :timeout, 300_000)
+      ]
+
+      case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+        {:ok, stream_id} ->
+          # Create Elixir stream that receives chunks
+          stream =
+            Stream.resource(
+              fn -> {chunks_ref, stream_id} end,
+              fn {ref, _id} = state ->
+                receive do
+                  {^ref, {:chunk, chunk}} -> {[chunk], state}
+                after
+                  100 -> {[], state}
                 end
+              end,
+              fn _ -> :ok end
+            )
 
-              {^ref, :done} ->
-                {:halt, ref}
+          {:ok, stream}
 
-              {^ref, {:error, error}} ->
-                throw(error)
-            after
-              100 -> {[], ref}
-            end
-          end,
-          fn _ -> :ok end
-        )
-
-      {:ok, stream}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -202,7 +202,9 @@ defmodule ExLLM.Adapters.Anthropic do
       {:ok, _} ->
         headers = build_headers(api_key)
 
-        case Req.get("https://api.anthropic.com/v1/models", headers: headers) do
+        case HTTPClient.get_json("https://api.anthropic.com/v1/models", headers,
+               provider: :anthropic
+             ) do
           {:ok, %{status: 200, body: %{"data" => models}}} ->
             parsed_models =
               models
@@ -296,6 +298,70 @@ defmodule ExLLM.Adapters.Anthropic do
 
       {:error, _} ->
         {:error, :invalid_json}
+    end
+  end
+
+  # Parse function for StreamingCoordinator (returns Types.StreamChunk directly)
+  defp parse_anthropic_chunk(data) do
+    case Jason.decode(data) do
+      {:ok, %{"type" => "message_stop"}} ->
+        # StreamingCoordinator handles completion
+        nil
+
+      {:ok, %{"type" => "content_block_delta", "delta" => %{"text" => text}}} ->
+        %Types.StreamChunk{
+          content: text,
+          finish_reason: nil
+        }
+
+      {:ok, %{"type" => "message_delta", "delta" => %{"stop_reason" => reason}}} ->
+        %Types.StreamChunk{
+          content: "",
+          finish_reason: reason
+        }
+
+      {:ok, _} ->
+        # Other event types we don't need to handle
+        nil
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  # StreamingCoordinator enhancement functions
+
+  defp create_anthropic_transformer(options) do
+    # Example: Add thinking annotations for reasoning chains
+    if Keyword.get(options, :annotate_reasoning, false) do
+      fn chunk ->
+        if chunk.content && String.contains?(chunk.content, "thinking") do
+          # Add reasoning markers
+          annotated_content = "[Reasoning] #{chunk.content}"
+          {:ok, %{chunk | content: annotated_content}}
+        else
+          {:ok, chunk}
+        end
+      end
+    end
+  end
+
+  defp create_anthropic_validator(options) do
+    # Validate response quality for Claude models
+    if Keyword.get(options, :validate_quality, false) do
+      fn chunk ->
+        if chunk.content do
+          # Simple quality check
+          if String.length(chunk.content) > 0 &&
+               not String.match?(chunk.content, ~r/^\s*$/) do
+            :ok
+          else
+            {:error, "Low quality content detected"}
+          end
+        else
+          :ok
+        end
+      end
     end
   end
 

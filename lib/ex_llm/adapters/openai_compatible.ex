@@ -97,6 +97,9 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         Validation
       }
 
+      # Store provider name for HTTPClient
+      @provider_name unquote(provider)
+
       @provider unquote(provider)
       @default_base_url unquote(default_base_url)
       @supported_models unquote(supported_models)
@@ -188,12 +191,20 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         url = "#{get_base_url(config)}/chat/completions"
 
         stream_id = generate_stream_id()
+        provider_name = get_provider_name()
 
-        Task.async(fn ->
-          send_stream_request(url, request, headers, callback, stream_id)
-        end)
+        # Use HTTPClient's stream_request which returns immediately
+        case HTTPClient.stream_request(url, request, headers, callback,
+               provider: provider_name,
+               timeout: 60_000,
+               stream_id: stream_id
+             ) do
+          {:ok, :streaming} ->
+            {:ok, stream_id}
 
-        {:ok, stream_id}
+          {:error, reason} ->
+            {:error, reason}
+        end
       end
 
       defp build_chat_request(messages, model, options) do
@@ -249,18 +260,17 @@ defmodule ExLLM.Adapters.OpenAICompatible do
         end
       end
 
+      defp get_provider_name, do: @provider_name
+
       defp send_request(url, body, headers, method \\ :post) do
-        opts = [
-          headers: headers,
-          receive_timeout: 60_000
-        ]
+        provider_name = get_provider_name()
 
         case method do
           :get ->
-            Req.get(url, opts)
+            HTTPClient.get_json(url, headers, provider: provider_name, timeout: 60_000)
 
           :post ->
-            Req.post(url, [json: body] ++ opts)
+            HTTPClient.post_json(url, body, headers, provider: provider_name, timeout: 60_000)
         end
         |> case do
           {:ok, %{status: status, body: body}} when status in 200..299 ->
@@ -272,54 +282,6 @@ defmodule ExLLM.Adapters.OpenAICompatible do
           {:error, reason} ->
             {:error, %{network_error: reason}}
         end
-      end
-
-      defp send_stream_request(url, body, headers, callback, stream_id) do
-        parent = self()
-
-        Req.post(url,
-          json: body,
-          headers: headers,
-          receive_timeout: 60_000,
-          into: fn {:data, data}, acc ->
-            process_stream_chunk(data, callback, acc)
-          end
-        )
-        |> case do
-          {:ok, _} ->
-            callback.(%Types.StreamChunk{
-              content: "",
-              finish_reason: "stop"
-            })
-
-          {:error, reason} ->
-            Logger.error("Stream error: #{inspect(reason)}")
-
-            callback.(%Types.StreamChunk{
-              content: "Stream error: #{inspect(reason)}",
-              finish_reason: "error"
-            })
-        end
-      end
-
-      defp process_stream_chunk(data, callback, buffer) do
-        lines = String.split(buffer <> data, "\n")
-        {complete_lines, [last_line]} = Enum.split(lines, -1)
-
-        Enum.each(complete_lines, fn line ->
-          case parse_sse_line(line) do
-            {:ok, chunk_data} ->
-              case parse_stream_chunk(chunk_data) do
-                {:ok, chunk} -> callback.(chunk)
-                _ -> :ok
-              end
-
-            _ ->
-              :ok
-          end
-        end)
-
-        {:cont, last_line}
       end
 
       defp parse_sse_line(line) do

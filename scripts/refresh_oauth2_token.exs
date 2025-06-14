@@ -23,6 +23,34 @@ defmodule OAuth2Refresh do
   @token_endpoint "https://oauth2.googleapis.com/token"
   @token_file ".gemini_tokens"
 
+  # Load environment variables from .env file if present
+  defp load_env_file do
+    env_file = ".env"
+    
+    if File.exists?(env_file) do
+      IO.puts("✓ Loading environment variables from .env file")
+      
+      env_file
+      |> File.read!()
+      |> String.split("\n")
+      |> Enum.each(fn line ->
+        line = String.trim(line)
+        
+        # Skip empty lines and comments
+        unless line == "" or String.starts_with?(line, "#") do
+          case String.split(line, "=", parts: 2) do
+            [key, value] ->
+              # Remove quotes if present
+              value = String.trim(value, "\"")
+              System.put_env(key, value)
+            _ ->
+              :ignore
+          end
+        end
+      end)
+    end
+  end
+
   def run do
     IO.puts("\n🔄 OAuth2 Token Refresh")
     IO.puts("=" <> String.duplicate("=", 40))
@@ -39,6 +67,9 @@ defmodule OAuth2Refresh do
   end
 
   defp refresh_tokens do
+    # Load environment variables from .env file if present
+    load_env_file()
+    
     with {:ok, stored_tokens} <- load_stored_tokens(),
          {:ok, config} <- get_oauth_config(),
          {:ok, new_tokens} <- refresh_token(stored_tokens["refresh_token"], config),

@@ -1,7 +1,7 @@
 defmodule ExLLM.MixProject do
   use Mix.Project
 
-  @version "0.5.0"
+  @version "0.6.0"
   @description "Unified Elixir client library for Large Language Models (LLMs)"
 
   def project do
@@ -21,8 +21,14 @@ defmodule ExLLM.MixProject do
         "coveralls.detail": :test,
         "coveralls.post": :test,
         "coveralls.html": :test,
-        "coveralls.github": :test
-      ]
+        "coveralls.github": :test,
+        "test.fast": :test,
+        "test.unit": :test,
+        "test.integration": :test,
+        "test.ci": :test,
+        "test.all": :test
+      ],
+      aliases: aliases()
     ]
   end
 
@@ -89,6 +95,44 @@ defmodule ExLLM.MixProject do
       source_ref: "v#{@version}",
       source_url: "https://github.com/azmaveth/ex_llm",
       extras: ["README.md"]
+    ]
+  end
+
+  defp aliases do
+    [
+      # Fast local development tests (excludes integration, external, slow tests)
+      "test.fast": ["test --exclude integration --exclude external --exclude slow"],
+
+      # Unit tests only
+      "test.unit": ["test --only unit"],
+
+      # Integration tests (requires API keys)
+      "test.integration": ["test --only integration"],
+
+      # Provider-specific tests
+      "test.anthropic": ["test --only provider:anthropic"],
+      "test.openai": ["test --only provider:openai"],
+      "test.gemini": ["test --only provider:gemini"],
+      "test.ollama": ["test --only provider:ollama"],
+      "test.openrouter": ["test --only provider:openrouter"],
+
+      # CI configurations
+      "test.ci": ["test --exclude wip --exclude flaky --exclude quota_sensitive"],
+      "test.ci.full": ["test --exclude wip --exclude flaky"],
+
+      # All tests including slow ones
+      "test.all": [
+        "test --include slow --include very_slow --include integration --include external"
+      ],
+
+      # Experimental/beta features
+      "test.experimental": ["test --only experimental --only beta"],
+
+      # OAuth2 tests
+      "test.oauth": ["test --only requires_oauth"],
+
+      # Service-dependent tests
+      "test.services": ["test --only requires_service"]
     ]
   end
 end

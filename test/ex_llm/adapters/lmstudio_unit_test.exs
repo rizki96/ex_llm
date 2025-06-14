@@ -1,5 +1,8 @@
 defmodule ExLLM.LMStudioUnitTest do
   use ExUnit.Case, async: true
+
+  @moduletag :unit
+  @moduletag provider: :lmstudio
   alias ExLLM.Adapters.LMStudio
   alias ExLLM.Types
 
@@ -421,7 +424,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert is_function(stream) or is_struct(stream, Stream)
 
       chunks = Enum.to_list(stream)
-      
+
       # In unit tests without real LM Studio, stream may be empty
       if length(chunks) > 0 do
         # Check chunk structure if chunks exist

@@ -49,7 +49,7 @@ defmodule ExLLM.Adapters.LMStudio do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.Adapters.Shared.{MessageFormatter, ResponseBuilder}
+  alias ExLLM.Adapters.Shared.{MessageFormatter, ResponseBuilder, StreamingCoordinator}
   alias ExLLM.Types
 
   @default_host "localhost"
@@ -144,65 +144,50 @@ defmodule ExLLM.Adapters.LMStudio do
     headers = build_headers(api_key)
     body = build_chat_request(messages, opts, model, stream: true)
 
-    # Use real streaming for both integration tests and unit tests
+    # Create stream with enhanced features
+    chunks_ref = make_ref()
     parent = self()
-    ref = make_ref()
 
-    # Import HTTPClient
-    alias ExLLM.Adapters.Shared.HTTPClient
+    # Setup callback that sends chunks to parent
+    callback = fn chunk ->
+      send(parent, {chunks_ref, {:chunk, chunk}})
+    end
 
-    # Start streaming task
-    Task.start(fn ->
-      HTTPClient.stream_request(
-        url,
-        body,
-        headers,
-        fn chunk ->
-          case parse_stream_chunk(chunk) do
-            {:ok, :done} ->
-              send(parent, {ref, :done})
+    # Enhanced streaming options
+    stream_options = [
+      parse_chunk_fn: &parse_lmstudio_chunk/1,
+      provider: :lmstudio,
+      model: model,
+      stream_recovery: Keyword.get(opts, :stream_recovery, false),
+      track_metrics: Keyword.get(opts, :track_metrics, false),
+      on_metrics: Keyword.get(opts, :on_metrics),
+      transform_chunk: create_lmstudio_transformer(opts),
+      validate_chunk: create_lmstudio_validator(opts),
+      buffer_chunks: Keyword.get(opts, :buffer_chunks, 1),
+      timeout: Keyword.get(opts, :timeout, 300_000)
+    ]
 
-            {:ok, parsed_chunk} ->
-              send(parent, {ref, {:chunk, parsed_chunk}})
-
-            {:error, _reason} ->
-              # Skip invalid chunks
-              :ok
-          end
-        end,
-        on_error: fn status, body ->
-          send(
-            parent,
-            {ref, {:error, "LM Studio error: status=#{status}, body=#{inspect(body)}"}}
+    case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+      {:ok, stream_id} ->
+        # Create Elixir stream that receives chunks
+        stream =
+          Stream.resource(
+            fn -> {chunks_ref, stream_id} end,
+            fn {ref, _id} = state ->
+              receive do
+                {^ref, {:chunk, chunk}} -> {[chunk], state}
+              after
+                100 -> {[], state}
+              end
+            end,
+            fn _ -> :ok end
           )
-        end,
-        provider: :lmstudio
-      )
-    end)
 
-    # Create a stream that receives chunks
-    stream =
-      Stream.resource(
-        fn -> {ref, :continue} end,
-        fn {ref, _state} ->
-          receive do
-            {^ref, {:chunk, chunk}} ->
-              {[chunk], {ref, :continue}}
+        {:ok, stream}
 
-            {^ref, {:error, error}} ->
-              {:halt, {ref, {:error, error}}}
-
-            {^ref, :done} ->
-              {:halt, {ref, :done}}
-          after
-            5000 ->
-              {:halt, {ref, :timeout}}
-          end
-        end,
-        fn _ -> :ok end
-      )
-
-    {:ok, stream}
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   # Parse streaming chunk - LM Studio uses OpenAI-compatible format
@@ -230,6 +215,66 @@ defmodule ExLLM.Adapters.LMStudio do
           {:error, _} ->
             {:error, :invalid_json}
         end
+    end
+  end
+
+  # Parse function for StreamingCoordinator (returns Types.StreamChunk directly)
+  defp parse_lmstudio_chunk(data) do
+    case Jason.decode(data) do
+      {:ok, parsed} ->
+        choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
+        delta = choice["delta"] || %{}
+
+        # Handle both regular content and reasoning_content
+        content = delta["content"] || delta["reasoning_content"]
+        finish_reason = choice["finish_reason"]
+
+        if content || finish_reason do
+          %Types.StreamChunk{
+            content: content,
+            finish_reason: finish_reason
+          }
+        else
+          nil
+        end
+
+      {:error, _} ->
+        nil
+    end
+  end
+
+  # StreamingCoordinator enhancement functions
+
+  defp create_lmstudio_transformer(opts) do
+    # Example: Add model performance annotations
+    if Keyword.get(opts, :show_performance, false) do
+      fn chunk ->
+        if chunk.content && String.length(chunk.content) > 50 do
+          # Annotate longer responses
+          annotated_content = "[LM Studio] #{chunk.content}"
+          {:ok, %{chunk | content: annotated_content}}
+        else
+          {:ok, chunk}
+        end
+      end
+    end
+  end
+
+  defp create_lmstudio_validator(opts) do
+    # Validate local model responses
+    if Keyword.get(opts, :validate_local, false) do
+      fn chunk ->
+        if chunk.content do
+          # Simple validation for local model quality
+          if String.length(String.trim(chunk.content)) > 0 do
+            :ok
+          else
+            {:error, "Empty content from local model"}
+          end
+        else
+          :ok
+        end
+      end
     end
   end
 

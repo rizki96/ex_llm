@@ -93,7 +93,7 @@ defmodule ExLLM.Adapters.OpenRouter do
 
       url = "#{get_base_url(config)}/chat/completions"
 
-      case Req.post(url, json: request_body, headers: headers) do
+      case HTTPClient.post_json(url, request_body, headers, provider: :openrouter) do
         {:ok, %{status: 200, body: body}} ->
           parse_response(body, model)
 
@@ -230,7 +230,7 @@ defmodule ExLLM.Adapters.OpenRouter do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/models"
 
-      case Req.get(url, headers: headers) do
+      case HTTPClient.get_json(url, headers, provider: :openrouter) do
         {:ok, %{status: 200, body: body}} ->
           models =
             body["data"]

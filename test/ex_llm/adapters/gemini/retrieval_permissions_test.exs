@@ -223,9 +223,12 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
         role: :READER
       }
 
-      # Should work with api_key option
-      assert {:error, %{status: _}} =
-               Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
+      # API key auth should fail with 401 for permissions API
+      result = Permissions.create_permission("corpora/test-corpus", permission, api_key: @api_key)
+      assert {:error, error} = result
+
+      assert error.message =~ "API keys are not supported" or
+               error.message =~ "CREDENTIALS_MISSING"
     end
 
     test "supports OAuth2 authentication for corpus permissions" do
@@ -234,11 +237,16 @@ defmodule ExLLM.Adapters.Gemini.RetrievalPermissionsTest do
         role: :READER
       }
 
-      # Should work with oauth_token option (even with invalid token)
-      assert {:error, %{status: _}} =
-               Permissions.create_permission("corpora/test-corpus", permission,
-                 oauth_token: "invalid-token"
-               )
+      # Invalid OAuth token should fail with 401
+      result =
+        Permissions.create_permission("corpora/test-corpus", permission,
+          oauth_token: "invalid-token"
+        )
+
+      assert {:error, error} = result
+
+      assert error.message =~ "invalid authentication credentials" or
+               error.message =~ "UNAUTHENTICATED"
     end
   end
 end

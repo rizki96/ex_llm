@@ -12,9 +12,13 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
 
   @api_key System.get_env("GEMINI_API_KEY") || "test-key"
   @moduletag :integration
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag :expensive
+  @moduletag provider: :gemini
 
   describe "create_tuned_model/2" do
-    @tag :skip
     test "creates a tuned model with basic configuration" do
       examples = %TuningExamples{
         examples: [
@@ -45,7 +49,6 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       assert operation["metadata"]
     end
 
-    @tag :skip
     test "creates a tuned model with custom hyperparameters" do
       examples = %TuningExamples{
         examples: [
@@ -79,7 +82,6 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       assert operation["name"]
     end
 
-    @tag :skip
     test "creates a tuned model with custom ID" do
       examples = %TuningExamples{
         examples: [
@@ -169,7 +171,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       assert status in [400, 403, 404]
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "gets tuned model details" do
       # This test requires an existing tuned model
       # First create a model, then retrieve it
@@ -219,7 +221,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       assert status in [400, 403, 404]
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "updates tuned model metadata" do
       # This test requires an existing tuned model
       _update = %{
@@ -246,7 +248,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
       assert status in [400, 403, 404]
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "deletes a tuned model" do
       # This test requires creating and then deleting a model
       # In practice, this would be an expensive operation
@@ -266,7 +268,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
   end
 
   describe "generate_content/3" do
-    @tag :skip
+    @tag :requires_resource
     test "generates content using a tuned model" do
       # This requires an active tuned model
       _request = %{
@@ -288,7 +290,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
   end
 
   describe "stream_generate_content/3" do
-    @tag :skip
+    @tag :requires_resource
     test "streams content using a tuned model" do
       # This requires an active tuned model
       _request = %{
@@ -312,7 +314,7 @@ defmodule ExLLM.Adapters.Gemini.TuningTest do
   end
 
   describe "wait_for_tuning/3" do
-    @tag :skip
+    @tag :requires_resource
     test "waits for tuning operation to complete" do
       # This test would create a model and wait for it
       examples = %TuningExamples{

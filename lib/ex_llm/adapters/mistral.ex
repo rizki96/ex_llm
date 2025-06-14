@@ -139,16 +139,51 @@ defmodule ExLLM.Adapters.Mistral do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
 
+      # Create stream with enhanced features
+      chunks_ref = make_ref()
+      parent = self()
+
+      # Setup callback that sends chunks to parent
+      callback = fn chunk ->
+        send(parent, {chunks_ref, {:chunk, chunk}})
+      end
+
+      # Enhanced streaming options
+      stream_options = [
+        parse_chunk_fn: &parse_stream_chunk/1,
+        provider: :mistral,
+        model: model,
+        stream_recovery: Keyword.get(options, :stream_recovery, false),
+        track_metrics: Keyword.get(options, :track_metrics, false),
+        on_metrics: Keyword.get(options, :on_metrics),
+        transform_chunk: create_mistral_transformer(options),
+        validate_chunk: create_mistral_validator(options),
+        buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
+        timeout: Keyword.get(options, :timeout, 300_000)
+      ]
+
       Logger.with_context([provider: :mistral, model: model], fn ->
-        StreamingCoordinator.start_stream(
-          url,
-          body,
-          headers,
-          fn chunk -> chunk end,
-          parse_chunk_fn: &parse_stream_chunk/1,
-          provider: :mistral,
-          model: model
-        )
+        case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+          {:ok, stream_id} ->
+            # Create Elixir stream that receives chunks
+            stream =
+              Stream.resource(
+                fn -> {chunks_ref, stream_id} end,
+                fn {ref, _id} = state ->
+                  receive do
+                    {^ref, {:chunk, chunk}} -> {[chunk], state}
+                  after
+                    100 -> {[], state}
+                  end
+                end,
+                fn _ -> :ok end
+              )
+
+            {:ok, stream}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
       end)
     end
   end
@@ -414,5 +449,58 @@ defmodule ExLLM.Adapters.Mistral do
       nil -> :ok
       param -> {:error, "Parameter #{param} is not supported by Mistral API"}
     end
+  end
+
+  # StreamingCoordinator enhancement functions
+
+  defp create_mistral_transformer(options) do
+    # Example: Format code blocks if code generation is detected
+    if Keyword.get(options, :format_code_blocks, false) do
+      fn chunk ->
+        if chunk.content && String.contains?(chunk.content, "```") do
+          # Add syntax highlighting hints
+          formatted_content = format_code_blocks(chunk.content)
+          {:ok, %{chunk | content: formatted_content}}
+        else
+          {:ok, chunk}
+        end
+      end
+    end
+  end
+
+  defp create_mistral_validator(options) do
+    # Validate safe content if safe_prompt is enabled
+    if Keyword.get(options, :safe_prompt, false) do
+      fn chunk ->
+        if chunk.content do
+          # Simple content validation
+          if contains_unsafe_content?(chunk.content) do
+            {:error, "Content violates safety guidelines"}
+          else
+            :ok
+          end
+        else
+          :ok
+        end
+      end
+    end
+  end
+
+  defp format_code_blocks(content) do
+    # Simple formatter that adds language hints
+    content
+    |> String.replace(~r/```python/, "```python\n# Python code")
+    |> String.replace(~r/```javascript/, "```javascript\n// JavaScript code")
+    |> String.replace(~r/```elixir/, "```elixir\n# Elixir code")
+  end
+
+  defp contains_unsafe_content?(content) do
+    # Placeholder for content safety check
+    # In production, this would use a proper content filter
+    unsafe_patterns = ["harmful", "dangerous", "malicious"]
+
+    Enum.any?(unsafe_patterns, fn pattern ->
+      String.contains?(String.downcase(content), pattern)
+    end)
   end
 end

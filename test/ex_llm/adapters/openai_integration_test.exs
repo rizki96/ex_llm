@@ -2,28 +2,37 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   use ExUnit.Case
   alias ExLLM.Adapters.OpenAI
   alias ExLLM.Types
+  # Import test cache helpers
+  import ExLLM.TestCacheHelpers
 
   @moduletag :integration
-  @moduletag :openai
-  @moduletag :skip
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :openai
 
   # These tests require a valid OPENAI_API_KEY
-  # Run with: mix test --only openai
-  # Remove @skip tag and set OPENAI_API_KEY env var to run
+  # Run with: OPENAI_API_KEY=sk-xxx mix test --include integration --include openai
+  # Or use the provider-specific alias: OPENAI_API_KEY=sk-xxx mix test.openai
 
   setup_all do
-    case check_openai_api() do
-      :ok ->
-        :ok
+    # Enable cache debugging for integration tests
+    enable_cache_debug()
+    :ok
+  end
 
-      {:error, reason} ->
-        IO.puts("\nSkipping OpenAI integration tests: #{reason}")
-        :ok
-    end
+  setup context do
+    # Setup test caching context
+    setup_test_cache(context)
+    # Clear context on test exit
+    on_exit(fn ->
+      ExLLM.TestCacheDetector.clear_test_context()
+    end)
+
+    :ok
   end
 
   describe "chat/2" do
-    @tag :skip
     test "sends chat completion request" do
       messages = [
         %{role: "user", content: "Say hello in one word"}
@@ -44,7 +53,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles system messages" do
       messages = [
         %{role: "system", content: "You are a pirate. Respond in pirate speak."},
@@ -61,7 +69,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects temperature setting" do
       messages = [
         %{role: "user", content: "Generate a random number between 1 and 10"}
@@ -89,7 +96,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles JSON mode" do
       messages = [
         %{
@@ -110,7 +116,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles multimodal content with vision models" do
       # Small 1x1 red pixel PNG
       red_pixel =
@@ -145,7 +150,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   end
 
   describe "stream_chat/2" do
-    @tag :skip
     test "streams chat responses" do
       messages = [
         %{role: "user", content: "Count from 1 to 5"}
@@ -175,7 +179,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles streaming with tools" do
       messages = [
         %{role: "user", content: "What's the weather in Boston?"}
@@ -217,7 +220,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   end
 
   describe "embeddings/2" do
-    @tag :skip
     test "generates embeddings for single text" do
       case OpenAI.embeddings("Hello world") do
         {:ok, response} ->
@@ -235,7 +237,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "generates embeddings for multiple texts" do
       texts = ["Hello", "World", "Testing"]
 
@@ -252,7 +253,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects model parameter for embeddings" do
       case OpenAI.embeddings("Test", model: "text-embedding-3-small") do
         {:ok, response} ->
@@ -269,7 +269,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   end
 
   describe "tool/function calling" do
-    @tag :skip
     test "executes function calls" do
       messages = [
         %{role: "user", content: "What's 25 * 4?"}
@@ -311,7 +310,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "supports parallel tool calls" do
       messages = [
         %{role: "user", content: "What's the weather in Boston and New York?"}
@@ -348,7 +346,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   end
 
   describe "advanced features" do
-    @tag :skip
     test "structured output with JSON schema" do
       messages = [
         %{role: "user", content: "Generate a person with name John Doe, age 30"}
@@ -380,7 +377,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "audio generation with gpt-4o-audio" do
       messages = [
         %{role: "user", content: "Say 'Hello, world!'"}
@@ -404,7 +400,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "reasoning with o1 models" do
       messages = [
         %{role: "user", content: "Solve: If 2x + 3 = 7, what is x?"}
@@ -426,7 +421,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   end
 
   describe "error handling" do
-    @tag :skip
     test "handles rate limit errors" do
       messages = [%{role: "user", content: "Test"}]
 
@@ -450,7 +444,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       assert is_boolean(rate_limited)
     end
 
-    @tag :skip
     test "handles invalid API key" do
       config = %{openai: %{api_key: "sk-invalid-key"}}
       {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
@@ -471,7 +464,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles context length exceeded" do
       # Create a very long message
       long_content = String.duplicate("This is a test. ", 10_000)
@@ -494,7 +486,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   end
 
   describe "cost calculation" do
-    @tag :skip
     test "calculates costs accurately" do
       messages = [
         %{role: "user", content: "Say hello"}
@@ -527,7 +518,6 @@ defmodule ExLLM.Adapters.OpenAIIntegrationTest do
   end
 
   describe "model management" do
-    @tag :skip
     test "lists available models from API" do
       # This would require implementing API model fetching
       case OpenAI.list_models(force_refresh: true) do

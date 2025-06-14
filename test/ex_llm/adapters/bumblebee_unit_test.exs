@@ -1,5 +1,8 @@
 defmodule ExLLM.Adapters.BumblebeeUnitTest do
   use ExUnit.Case, async: false
+
+  @moduletag :unit
+  @moduletag provider: :bumblebee
   alias ExLLM.Adapters.Bumblebee
   alias ExLLM.Types
 
@@ -9,9 +12,10 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "configured?/1" do
-    @tag :skip
+    @tag :requires_deps
+    @tag :model_loading
     test "returns true when Bumblebee is available and ModelLoader is running" do
-      # Skipped to avoid starting ModelLoader which triggers model downloads
+      # Requires Bumblebee dependency and triggers model downloads
       assert Bumblebee.configured?()
     end
   end
@@ -23,13 +27,13 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "chat/2 with Bumblebee available" do
-    @tag :skip
+    @tag :requires_deps
     test "validates empty messages" do
       assert {:error, message} = Bumblebee.chat([])
       assert message =~ "Messages cannot be empty"
     end
 
-    @tag :skip
+    @tag :requires_deps
     test "validates message format" do
       invalid_messages = [
         [%{content: "missing role"}],
@@ -44,7 +48,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       end
     end
 
-    @tag :skip
+    @tag :requires_deps
     test "validates model availability" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -77,7 +81,8 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       assert msg =~ "Max tokens must be a positive integer"
     end
 
-    @tag :skip
+    @tag :requires_deps
+    @tag :slow
     test "attempts to load and generate with valid parameters" do
       # This test would require actual model loading which is slow
       # Skip it for unit tests
@@ -104,7 +109,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       assert message =~ "Messages cannot be empty"
     end
 
-    @tag :skip
+    @tag :requires_deps
     test "validates streaming options" do
       messages = [%{role: "user", content: "Stream test"}]
 
@@ -119,7 +124,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "list_models/1" do
-    @tag :skip
+    @tag :requires_deps
     test "returns available models with metadata" do
       assert {:ok, models} = Bumblebee.list_models()
 
@@ -150,7 +155,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       assert model.pricing == %{input: 0.0, output: 0.0}
     end
 
-    @tag :skip
+    @tag :requires_deps
     test "returns models with verbose information" do
       assert {:ok, models} = Bumblebee.list_models(verbose: true)
       assert is_list(models)
@@ -193,7 +198,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "hardware acceleration" do
-    @tag :skip
+    @tag :requires_deps
     test "detects available acceleration" do
       {:ok, models} = Bumblebee.list_models()
 
@@ -228,7 +233,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "option validation" do
-    @tag :skip
+    @tag :requires_deps
     test "accepts standard LLM options" do
       messages = [%{role: "user", content: "test"}]
 
@@ -249,7 +254,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       end
     end
 
-    @tag :skip
+    @tag :requires_deps
     test "accepts model-specific options" do
       messages = [%{role: "user", content: "test"}]
 
@@ -280,7 +285,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
   end
 
   describe "adapter behavior compliance" do
-    @tag :skip
+    @tag :requires_deps
     test "implements all required callbacks" do
       callbacks = [
         {:chat, 2},
@@ -306,7 +311,7 @@ defmodule ExLLM.Adapters.BumblebeeUnitTest do
       assert {:error, _message} = result
     end
 
-    @tag :skip
+    @tag :requires_deps
     test "list_models returns proper success tuple" do
       result = Bumblebee.list_models()
       assert {:ok, models} = result

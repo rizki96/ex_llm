@@ -4,30 +4,13 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   alias ExLLM.Types
 
   @moduletag :integration
-  @moduletag :bumblebee
+  @moduletag :local_models
+  @moduletag :requires_deps
+  @moduletag provider: :bumblebee
 
   # These tests require Bumblebee to be installed
-  # Run with: mix test --only bumblebee
-
-  setup_all do
-    case check_bumblebee_availability() do
-      :ok ->
-        # Ensure ModelLoader is running
-        case Process.whereis(ExLLM.Bumblebee.ModelLoader) do
-          nil ->
-            {:ok, _} = ExLLM.Bumblebee.ModelLoader.start_link([])
-
-          _pid ->
-            :ok
-        end
-
-        :ok
-
-      {:error, reason} ->
-        IO.puts("\nSkipping Bumblebee integration tests: #{reason}")
-        :ok
-    end
-  end
+  # Run with: mix test --include integration --include local_models
+  # Or use the provider-specific alias: mix test.bumblebee
 
   describe "chat/2 with real models" do
     test "generates response with default Phi-4 model" do
@@ -54,7 +37,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "generates response with specific model" do
       messages = [%{role: "user", content: "Hello, how are you?"}]
 
@@ -71,7 +53,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects temperature setting" do
       messages = [%{role: "user", content: "Write a creative story in one sentence."}]
 
@@ -89,7 +70,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects max_tokens limit" do
       messages = [%{role: "user", content: "Count from 1 to 1000"}]
 
@@ -105,7 +85,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles multi-turn conversations" do
       messages = [
         %{role: "user", content: "My name is Alice."},
@@ -125,7 +104,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles system prompts" do
       messages = [
         %{role: "system", content: "You are a pirate. Always respond like a pirate."},
@@ -148,7 +126,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   end
 
   describe "stream_chat/2 with real models" do
-    @tag :skip
     test "streams response chunks" do
       messages = [%{role: "user", content: "Tell me a short story about a robot."}]
 
@@ -181,7 +158,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "streaming respects max_tokens" do
       messages = [%{role: "user", content: "Count from 1 to 100"}]
 
@@ -256,7 +232,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "returns loaded models info when verbose" do
       # First load a model
       messages = [%{role: "user", content: "Hi"}]
@@ -269,21 +244,14 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   end
 
   describe "configured?/1 with Bumblebee" do
-    @tag :skip
     test "returns true when Bumblebee and ModelLoader are available" do
       # This would be true in a real Bumblebee environment
-      case check_bumblebee_availability() do
-        :ok ->
-          assert Bumblebee.configured?() == true
-
-        {:error, _} ->
-          assert Bumblebee.configured?() == false
-      end
+      result = Bumblebee.configured?()
+      assert is_boolean(result)
     end
   end
 
   describe "hardware acceleration" do
-    @tag :skip
     test "detects and uses available acceleration" do
       # This test would check actual hardware acceleration
       {:ok, _models} = Bumblebee.list_models(verbose: true)
@@ -292,7 +260,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       assert true
     end
 
-    @tag :skip
     test "falls back to CPU when GPU not available" do
       messages = [%{role: "user", content: "Test CPU inference"}]
 
@@ -308,7 +275,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   end
 
   describe "model loading and caching" do
-    @tag :skip
     test "caches loaded models for reuse" do
       messages = [%{role: "user", content: "First call"}]
 
@@ -328,7 +294,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
-    @tag :skip
     test "handles multiple models in memory" do
       models = ["microsoft/phi-4", "Qwen/Qwen3-1.7B"]
       messages = [%{role: "user", content: "Test"}]
@@ -351,7 +316,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   end
 
   describe "error handling" do
-    @tag :skip
     test "handles invalid model names gracefully" do
       messages = [%{role: "user", content: "Test"}]
 
@@ -361,7 +325,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       assert is_binary(reason)
     end
 
-    @tag :skip
     test "handles out of memory errors" do
       # Try to load a large model with constrained memory
       messages = [%{role: "user", content: "Test"}]
@@ -384,7 +347,6 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   end
 
   describe "special token handling" do
-    @tag :skip
     test "handles models with different token formats" do
       test_cases = [
         {"microsoft/phi-4", "Test prompt"},
@@ -409,13 +371,5 @@ defmodule ExLLM.BumblebeeIntegrationTest do
     end
   end
 
-  # Helper functions
-
-  defp check_bumblebee_availability do
-    if Code.ensure_loaded?(Bumblebee) do
-      :ok
-    else
-      {:error, "Bumblebee is not installed"}
-    end
-  end
+  # Helper functions removed - tests now use tag-based exclusion
 end

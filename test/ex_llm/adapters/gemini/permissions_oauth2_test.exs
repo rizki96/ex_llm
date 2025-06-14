@@ -1,15 +1,41 @@
 defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
   use ExUnit.Case, async: false
-  @moduletag :oauth2
 
   alias ExLLM.Gemini.Permissions
   alias ExLLM.Test.GeminiOAuth2Helper
 
-  # Skip all tests if OAuth2 is not available
-  setup :skip_without_oauth
+  # Import test cache helpers
+  import ExLLM.TestCacheHelpers
 
-  defp skip_without_oauth(_context) do
-    GeminiOAuth2Helper.skip_without_oauth(%{})
+  # Skip entire module if OAuth2 is not available
+  if not GeminiOAuth2Helper.oauth_available?() do
+    @moduletag :skip
+  else
+    @moduletag :integration
+    @moduletag :external
+    @moduletag :oauth2
+    @moduletag :requires_oauth
+    @moduletag provider: :gemini
+  end
+
+  setup context do
+    # Setup test caching context
+    setup_test_cache(context)
+
+    # Clear context on test exit
+    on_exit(fn ->
+      ExLLM.TestCacheDetector.clear_test_context()
+    end)
+
+    # Get OAuth token if available
+    case GeminiOAuth2Helper.get_valid_token() do
+      {:ok, token} ->
+        {:ok, oauth_token: token}
+
+      _ ->
+        # This shouldn't happen if module is tagged to skip
+        {:ok, oauth_token: nil}
+    end
   end
 
   describe "with valid OAuth2 token" do
@@ -48,7 +74,7 @@ defmodule ExLLM.Adapters.Gemini.PermissionsOAuth2Test do
       assert status in [403, 404]
     end
 
-    @tag :skip
+    @tag :manual_only
     test "creates and manages permissions", %{oauth_token: _token} do
       # This test requires an actual tuned model that you own
       # Uncomment and update model_name to test with a real model

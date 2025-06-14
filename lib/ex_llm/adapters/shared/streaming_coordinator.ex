@@ -15,6 +15,13 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   alias ExLLM.Adapters.Shared.HTTPClient
   alias ExLLM.{Logger, Types}
 
+  require Logger
+
+  @default_timeout :timer.minutes(5)
+  @default_chunk_size 1024
+  # Log metrics every 1 second during streaming
+  @metrics_interval 1000
+
   @doc """
   Start a streaming request with unified handling.
 
@@ -23,13 +30,28 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   - `:recovery_id` - Optional ID for stream recovery
   - `:timeout` - Stream timeout in milliseconds (default: 5 minutes)
   - `:on_error` - Error callback function
+  - `:on_metrics` - Metrics callback function (receives streaming metrics)
+  - `:transform_chunk` - Optional function to transform chunks before callback
+  - `:buffer_chunks` - Buffer size for chunk batching (default: 1)
+  - `:validate_chunk` - Optional function to validate chunks
+  - `:track_metrics` - Enable detailed metrics tracking (default: false)
   """
   def start_stream(url, request, headers, callback, options \\ []) do
     parse_chunk_fn = Keyword.fetch!(options, :parse_chunk_fn)
     recovery_id = Keyword.get(options, :recovery_id, generate_stream_id())
 
+    # Initialize stream context
+    stream_context = %{
+      recovery_id: recovery_id,
+      start_time: System.monotonic_time(:millisecond),
+      chunk_count: 0,
+      byte_count: 0,
+      error_count: 0,
+      provider: Keyword.get(options, :provider, :unknown)
+    }
+
     Task.async(fn ->
-      execute_stream(url, request, headers, callback, parse_chunk_fn, recovery_id, options)
+      execute_stream(url, request, headers, callback, parse_chunk_fn, stream_context, options)
     end)
 
     {:ok, recovery_id}
@@ -38,109 +60,157 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
   @doc """
   Execute the actual streaming request with unified SSE handling.
   """
-  def execute_stream(url, request, headers, callback, parse_chunk_fn, recovery_id, options) do
+  def execute_stream(url, request, headers, callback, parse_chunk_fn, stream_context, options) do
+    recovery_id = stream_context.recovery_id
+
     # Save stream state for potential recovery
     if Keyword.get(options, :stream_recovery, false) do
       save_stream_state(recovery_id, url, request, headers, options)
     end
 
+    # Setup metrics tracking
+    metrics_pid =
+      if Keyword.get(options, :track_metrics, false) do
+        start_metrics_tracker(stream_context, options)
+      end
+
+    # Create enhanced callback with transformations
+    enhanced_callback = create_enhanced_callback(callback, stream_context, options)
+
     # Use HTTPClient for consistent request handling
     stream_opts = [
       headers: headers,
-      receive_timeout: Keyword.get(options, :timeout, 300_000),
-      into: create_stream_collector(callback, parse_chunk_fn, recovery_id, options)
+      receive_timeout: Keyword.get(options, :timeout, @default_timeout),
+      into: create_stream_collector(enhanced_callback, parse_chunk_fn, stream_context, options)
     ]
 
-    case HTTPClient.post_stream(url, request, stream_opts) do
-      {:ok, _response} ->
-        # Send completion chunk
-        callback.(%Types.StreamChunk{
-          content: "",
-          finish_reason: "stop"
-        })
+    result =
+      case HTTPClient.post_stream(url, request, stream_opts) do
+        {:ok, _response} ->
+          # Send completion chunk
+          enhanced_callback.(%Types.StreamChunk{
+            content: "",
+            finish_reason: "stop"
+          })
 
-        # Clean up recovery state
-        cleanup_stream_state(recovery_id)
-        :ok
+          # Report final metrics
+          report_final_metrics(stream_context, metrics_pid, options)
 
-      {:error, reason} ->
-        Logger.error("Stream error for #{recovery_id}: #{inspect(reason)}")
+          # Clean up recovery state
+          cleanup_stream_state(recovery_id)
+          :ok
 
-        # Handle error with optional recovery
-        handle_stream_error(reason, callback, recovery_id, options)
-    end
+        {:error, reason} ->
+          Logger.error("Stream error for #{recovery_id}: #{inspect(reason)}")
+
+          # Handle error with optional recovery
+          handle_stream_error(reason, enhanced_callback, stream_context, options)
+      end
+
+    # Stop metrics tracker if running
+    if metrics_pid, do: Process.exit(metrics_pid, :normal)
+
+    result
   end
 
   @doc """
   Create a stream collector function for Req's into option.
   """
-  def create_stream_collector(callback, parse_chunk_fn, recovery_id, options) do
+  def create_stream_collector(callback, parse_chunk_fn, stream_context, options) do
+    # Initialize chunk buffer for batching
+    buffer_size = Keyword.get(options, :buffer_chunks, 1)
+
     # Return a function that initializes the accumulator
     fn
       {:data, data}, acc ->
         # Initialize accumulator if needed
-        {buffer, chunk_count} =
+        {text_buffer, chunk_buffer, stats} =
           case acc do
-            {_, _} = state -> state
-            _ -> {"", 0}
+            {_, _, _} = state -> state
+            _ -> {"", [], Map.merge(stream_context, %{chunks_buffered: 0})}
           end
 
-        {new_buffer, new_count} =
+        {new_text_buffer, new_chunk_buffer, new_stats} =
           process_stream_data(
             data,
-            buffer,
+            text_buffer,
+            chunk_buffer,
             callback,
             parse_chunk_fn,
-            recovery_id,
-            chunk_count,
+            stats,
+            buffer_size,
             options
           )
 
-        {:cont, {new_buffer, new_count}}
+        {:cont, {new_text_buffer, new_chunk_buffer, new_stats}}
 
-      {:error, reason}, _acc ->
+      {:error, reason}, {_, _, stats} ->
         Logger.error("Stream collector error: #{inspect(reason)}")
+        update_stream_stats(stats, :error_count, 1)
         {:halt, {:error, reason}}
     end
   end
 
   @doc """
-  Process streaming data with unified SSE parsing.
+  Process streaming data with unified SSE parsing and buffering.
   """
   def process_stream_data(
         data,
-        buffer,
+        text_buffer,
+        chunk_buffer,
         callback,
         parse_chunk_fn,
-        recovery_id,
-        chunk_count,
+        stats,
+        buffer_size,
         options
       ) do
-    full_data = buffer <> data
+    full_data = text_buffer <> data
+    recovery_id = stats.recovery_id
+
+    # Update byte count
+    stats = update_stream_stats(stats, :byte_count, byte_size(data))
 
     # Split by newlines for SSE processing
     lines = String.split(full_data, "\n")
     {complete_lines, [last_line]} = Enum.split(lines, -1)
 
-    # Track chunks for recovery
-    chunks_received =
-      Enum.reduce(complete_lines, chunk_count, fn line, count ->
+    # Process lines and accumulate chunks
+    {new_chunk_buffer, new_stats} =
+      Enum.reduce(complete_lines, {chunk_buffer, stats}, fn line, {chunks, st} ->
         case parse_sse_line(line) do
           {:data, event_data} ->
-            handle_event_data(event_data, callback, parse_chunk_fn, recovery_id, count, options)
-            count + 1
+            case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
+              {:ok, chunk} ->
+                # Add to buffer
+                new_chunks = chunks ++ [chunk]
+
+                # Flush buffer if it reaches the size limit
+                if length(new_chunks) >= buffer_size do
+                  flush_chunk_buffer(new_chunks, callback, st)
+                  {[], update_stream_stats(st, :chunk_count, length(new_chunks))}
+                else
+                  {new_chunks, st}
+                end
+
+              :skip ->
+                {chunks, st}
+            end
 
           :done ->
-            # Stream completed
-            Logger.debug("Stream #{recovery_id} completed after #{count} chunks")
-            count
+            # Flush any remaining chunks
+            if chunks != [] do
+              flush_chunk_buffer(chunks, callback, st)
+            end
+
+            Logger.debug("Stream #{recovery_id} completed after #{st.chunk_count} chunks")
+            {[], st}
 
           :skip ->
-            count
+            {chunks, st}
         end
       end)
 
-    {last_line, chunks_received}
+    {last_line, new_chunk_buffer, new_stats}
   end
 
   @doc """
@@ -173,26 +243,66 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
     end
   end
 
-  defp handle_event_data(data, callback, parse_chunk_fn, recovery_id, chunk_count, options) do
+  defp handle_event_data(data, parse_chunk_fn, recovery_id, stats, options) do
     case parse_chunk_fn.(data) do
       {:ok, :done} ->
         Logger.debug("Stream #{recovery_id} signaled done")
+        :skip
 
       {:ok, chunk} when is_struct(chunk, Types.StreamChunk) ->
-        # Track chunk for recovery if enabled
-        if Keyword.get(options, :stream_recovery, false) do
-          save_stream_chunk(recovery_id, chunk, chunk_count)
+        # Validate chunk if validator provided
+        if validator = Keyword.get(options, :validate_chunk) do
+          case validator.(chunk) do
+            :ok ->
+              save_chunk_if_recovery_enabled(recovery_id, chunk, stats.chunk_count, options)
+              {:ok, chunk}
+
+            {:error, reason} ->
+              Logger.warn("Invalid chunk rejected: #{inspect(reason)}")
+              :skip
+          end
+        else
+          save_chunk_if_recovery_enabled(recovery_id, chunk, stats.chunk_count, options)
+          {:ok, chunk}
         end
 
-        callback.(chunk)
+      # Handle direct StreamChunk return (new parse functions)
+      %Types.StreamChunk{} = chunk ->
+        # Validate chunk if validator provided
+        if validator = Keyword.get(options, :validate_chunk) do
+          case validator.(chunk) do
+            :ok ->
+              save_chunk_if_recovery_enabled(recovery_id, chunk, stats.chunk_count, options)
+              {:ok, chunk}
+
+            {:error, reason} ->
+              Logger.warn("Invalid chunk rejected: #{inspect(reason)}")
+              :skip
+          end
+        else
+          save_chunk_if_recovery_enabled(recovery_id, chunk, stats.chunk_count, options)
+          {:ok, chunk}
+        end
+
+      # Handle nil return (skip chunk)
+      nil ->
+        :skip
 
       {:error, reason} ->
         Logger.debug("Failed to parse chunk in stream #{recovery_id}: #{inspect(reason)}")
-        # Continue processing other chunks
+        :skip
     end
   end
 
-  defp handle_stream_error(reason, callback, recovery_id, options) do
+  defp save_chunk_if_recovery_enabled(recovery_id, chunk, chunk_count, options) do
+    if Keyword.get(options, :stream_recovery, false) do
+      save_stream_chunk(recovery_id, chunk, chunk_count)
+    end
+  end
+
+  defp handle_stream_error(reason, callback, stream_context, options) do
+    recovery_id = stream_context.recovery_id
+
     # Create an error chunk without the error field
     error_chunk = %Types.StreamChunk{
       content: "Error: #{inspect(reason)}",
@@ -221,29 +331,243 @@ defmodule ExLLM.Adapters.Shared.StreamingCoordinator do
 
   # Stream recovery state management
 
-  defp save_stream_state(recovery_id, _url, _request, _headers, _options) do
-    # This would integrate with ExLLM.StreamRecovery
-    # For now, we'll just log
-    Logger.debug("Saving stream state for recovery: #{recovery_id}")
+  defp save_stream_state(recovery_id, url, request, headers, options) do
+    if stream_recovery_enabled?() do
+      provider = Keyword.get(options, :provider, :unknown)
+      messages = extract_messages_from_request(request, provider)
+
+      # Initialize recovery with StreamRecovery module
+      case ExLLM.StreamRecovery.init_recovery(provider, messages, options) do
+        {:ok, _} ->
+          Logger.debug("Stream recovery initialized for #{recovery_id}")
+
+          # Store additional context for recovery
+          recovery_context = %{
+            url: url,
+            headers: sanitize_headers(headers),
+            request_template: sanitize_request(request),
+            original_options: options
+          }
+
+          ExLLM.StreamRecovery.update_context(recovery_id, recovery_context)
+
+        {:error, reason} ->
+          Logger.warn("Failed to initialize stream recovery: #{inspect(reason)}")
+      end
+    end
   end
 
-  defp save_stream_chunk(recovery_id, _chunk, chunk_count) do
-    # This would integrate with ExLLM.StreamRecovery
-    Logger.debug("Saving chunk #{chunk_count} for stream #{recovery_id}")
+  defp save_stream_chunk(recovery_id, chunk, chunk_count) do
+    if stream_recovery_enabled?() do
+      case ExLLM.StreamRecovery.add_chunk(recovery_id, chunk) do
+        :ok ->
+          Logger.debug("Saved chunk #{chunk_count} for stream #{recovery_id}")
+
+        {:error, reason} ->
+          Logger.debug("Failed to save chunk: #{inspect(reason)}")
+      end
+    end
   end
 
   defp mark_stream_recoverable(recovery_id, reason) do
-    # This would integrate with ExLLM.StreamRecovery
-    Logger.info("Stream #{recovery_id} marked as recoverable: #{inspect(reason)}")
+    if stream_recovery_enabled?() do
+      case ExLLM.StreamRecovery.mark_error(recovery_id, reason) do
+        :ok ->
+          Logger.info("Stream #{recovery_id} marked as recoverable: #{inspect(reason)}")
+
+        {:error, error} ->
+          Logger.warn("Failed to mark stream as recoverable: #{inspect(error)}")
+      end
+    end
   end
 
   defp cleanup_stream_state(recovery_id) do
-    # This would integrate with ExLLM.StreamRecovery
-    Logger.debug("Cleaning up stream state: #{recovery_id}")
+    if stream_recovery_enabled?() do
+      case ExLLM.StreamRecovery.complete_stream(recovery_id) do
+        :ok ->
+          Logger.debug("Stream recovery state cleaned up: #{recovery_id}")
+
+        {:error, reason} ->
+          Logger.debug("Failed to cleanup stream state: #{inspect(reason)}")
+      end
+    end
   end
+
+  # Helper functions for stream recovery
+
+  defp stream_recovery_enabled? do
+    # Check if StreamRecovery process is running
+    Process.whereis(ExLLM.StreamRecovery) != nil
+  end
+
+  defp extract_messages_from_request(request, :openai) when is_map(request) do
+    Map.get(request, "messages", [])
+  end
+
+  defp extract_messages_from_request(request, :anthropic) when is_map(request) do
+    Map.get(request, "messages", [])
+  end
+
+  defp extract_messages_from_request(request, :gemini) when is_map(request) do
+    case Map.get(request, "contents", []) do
+      contents when is_list(contents) ->
+        Enum.map(contents, fn content ->
+          %{
+            role: Map.get(content, "role", "user"),
+            content: extract_gemini_content(content)
+          }
+        end)
+
+      _ ->
+        []
+    end
+  end
+
+  defp extract_messages_from_request(_request, _provider), do: []
+
+  defp extract_gemini_content(%{"parts" => parts}) when is_list(parts) do
+    parts
+    |> Enum.map(fn
+      %{"text" => text} -> text
+      _ -> ""
+    end)
+    |> Enum.join(" ")
+  end
+
+  defp extract_gemini_content(_), do: ""
+
+  defp sanitize_headers(headers) do
+    # Remove sensitive headers like API keys
+    headers
+    |> Enum.reject(fn {key, _value} ->
+      key_lower = String.downcase(key)
+      String.contains?(key_lower, ["authorization", "api-key", "x-api-key"])
+    end)
+    |> Enum.into(%{})
+  end
+
+  defp sanitize_request(request) when is_map(request) do
+    # Remove actual message content but keep structure
+    request
+    |> Map.delete("messages")
+    |> Map.delete("contents")
+    |> Map.put("_structure", %{
+      messages_count: length(Map.get(request, "messages", [])),
+      has_system: has_system_message?(request)
+    })
+  end
+
+  defp sanitize_request(request), do: request
+
+  defp has_system_message?(%{"messages" => messages}) when is_list(messages) do
+    Enum.any?(messages, fn msg -> Map.get(msg, "role") == "system" end)
+  end
+
+  defp has_system_message?(_), do: false
 
   defp generate_stream_id do
     "stream_#{:erlang.unique_integer([:positive])}_#{System.system_time(:millisecond)}"
+  end
+
+  # New helper functions for enhanced streaming
+
+  defp create_enhanced_callback(callback, stream_context, options) do
+    transform_fn = Keyword.get(options, :transform_chunk)
+
+    fn chunk ->
+      # Apply transformation if provided
+      transformed_chunk =
+        if transform_fn do
+          case transform_fn.(chunk) do
+            {:ok, new_chunk} -> new_chunk
+            :skip -> nil
+            chunk -> chunk
+          end
+        else
+          chunk
+        end
+
+      # Call original callback if chunk wasn't skipped
+      if transformed_chunk do
+        callback.(transformed_chunk)
+      end
+    end
+  end
+
+  defp flush_chunk_buffer(chunks, callback, stats) do
+    # For buffered chunks, we can aggregate or process them together
+    Enum.each(chunks, fn chunk ->
+      callback.(chunk)
+    end)
+  end
+
+  defp update_stream_stats(stats, key, increment) do
+    Map.update(stats, key, increment, &(&1 + increment))
+  end
+
+  defp start_metrics_tracker(stream_context, options) do
+    parent = self()
+    on_metrics = Keyword.get(options, :on_metrics)
+
+    spawn(fn ->
+      track_metrics_loop(parent, stream_context, on_metrics)
+    end)
+  end
+
+  defp track_metrics_loop(parent, initial_context, on_metrics) do
+    receive do
+      {:update_metrics, updates} ->
+        new_context =
+          Enum.reduce(updates, initial_context, fn {k, v}, ctx ->
+            Map.put(ctx, k, v)
+          end)
+
+        track_metrics_loop(parent, new_context, on_metrics)
+
+      :stop ->
+        :ok
+    after
+      @metrics_interval ->
+        if on_metrics && Process.alive?(parent) do
+          metrics = calculate_current_metrics(initial_context)
+          on_metrics.(metrics)
+        end
+
+        track_metrics_loop(parent, initial_context, on_metrics)
+    end
+  end
+
+  defp calculate_current_metrics(context) do
+    current_time = System.monotonic_time(:millisecond)
+    duration_ms = current_time - context.start_time
+
+    %{
+      stream_id: context.recovery_id,
+      provider: context.provider,
+      duration_ms: duration_ms,
+      chunks_received: context.chunk_count,
+      bytes_received: context.byte_count,
+      errors: context.error_count,
+      chunks_per_second: calculate_rate(context.chunk_count, duration_ms),
+      bytes_per_second: calculate_rate(context.byte_count, duration_ms)
+    }
+  end
+
+  defp calculate_rate(count, duration_ms) when duration_ms > 0 do
+    Float.round(count * 1000 / duration_ms, 2)
+  end
+
+  defp calculate_rate(_, _), do: 0.0
+
+  defp report_final_metrics(stream_context, metrics_pid, options) do
+    if metrics_pid do
+      send(metrics_pid, :stop)
+    end
+
+    if on_metrics = Keyword.get(options, :on_metrics) do
+      final_metrics = calculate_current_metrics(stream_context)
+      on_metrics.(Map.put(final_metrics, :status, :completed))
+    end
   end
 
   @doc """

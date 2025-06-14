@@ -6,8 +6,7 @@ defmodule ExLLM.Gemini.Content do
   text generation, streaming, multimodal inputs, function calling, and structured outputs.
   """
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
-  alias ExLLM.Error
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient}
 
   defmodule Part do
     @moduledoc """
@@ -450,8 +449,12 @@ defmodule ExLLM.Gemini.Content do
       url = build_url(normalized_model, "generateContent", api_key)
       headers = build_headers()
 
-      case Req.post(url, json: body, headers: headers) do
+      case HTTPClient.post_json(url, body, headers, provider: :gemini) do
         {:ok, %{status: 200, body: response_body}} ->
+          {:ok, parse_response(response_body)}
+
+        {:ok, response_body} when is_map(response_body) ->
+          # Handle raw response format (e.g., from cache)
           {:ok, parse_response(response_body)}
 
         {:ok, %{status: 400, body: body}} ->
@@ -501,46 +504,55 @@ defmodule ExLLM.Gemini.Content do
       # Build request body
       body = build_request_body(request)
 
-      # Make streaming API request
+      # Use HTTPClient directly for streaming
+      chunks_ref = make_ref()
+      parent = self()
+
+      # Create a callback that accumulates chunks
+      callback = fn chunk_data ->
+        # Parse chunk immediately
+        case parse_streaming_chunk(chunk_data) do
+          # Skip empty chunks
+          nil -> :ok
+          chunk -> send(parent, {chunks_ref, {:chunk, chunk}})
+        end
+      end
+
+      # Build URL with SSE support
       url = build_url(normalized_model, "streamGenerateContent", api_key) <> "&alt=sse"
       headers = build_headers() ++ [{"Accept", "text/event-stream"}]
 
-      parent = self()
-
-      # Start async request task
+      # Start async streaming request
       Task.start(fn ->
-        case Req.post(url,
-               json: body,
-               headers: headers,
-               receive_timeout: 60_000,
-               into: :self
+        case HTTPClient.stream_request(url, body, headers, callback,
+               provider: :gemini,
+               timeout: 60_000
              ) do
-          {:ok, response} ->
-            if response.status == 200 do
-              handle_stream_response(response, parent, "")
-            else
-              send(parent, {:stream_error, Error.api_error(response.status, response.body)})
-            end
+          {:ok, :streaming} ->
+            # Stream completed
+            send(parent, {chunks_ref, :done})
 
           {:error, reason} ->
-            send(
-              parent,
-              {:stream_error, {:error, %{reason: :network_error, message: inspect(reason)}}}
-            )
+            send(parent, {chunks_ref, {:error, reason}})
         end
       end)
 
-      # Create stream that receives messages
+      # Create stream that receives parsed chunks
       stream =
         Stream.resource(
-          fn -> :ok end,
-          fn state ->
+          fn -> chunks_ref end,
+          fn ref ->
             receive do
-              {:chunk, chunk} -> {[chunk], state}
-              :stream_done -> {:halt, state}
-              {:stream_error, error} -> throw(error)
+              {^ref, {:chunk, chunk}} ->
+                {[chunk], ref}
+
+              {^ref, :done} ->
+                {:halt, ref}
+
+              {^ref, {:error, error}} ->
+                throw(error)
             after
-              100 -> {[], state}
+              100 -> {[], ref}
             end
           end,
           fn _ -> :ok end
@@ -836,49 +848,6 @@ defmodule ExLLM.Gemini.Content do
       cached_content_token_count: data["cachedContentTokenCount"],
       thoughts_token_count: data["thoughtsTokenCount"]
     }
-  end
-
-  defp handle_stream_response(response, parent, buffer) do
-    %Req.Response.Async{ref: ref} = response.body
-
-    receive do
-      {^ref, {:data, data}} ->
-        {new_buffer, chunks} = parse_sse_data(buffer <> data)
-        Enum.each(chunks, &send(parent, {:chunk, &1}))
-        handle_stream_response(response, parent, new_buffer)
-
-      {^ref, :done} ->
-        send(parent, :stream_done)
-
-      {^ref, {:error, reason}} ->
-        send(
-          parent,
-          {:stream_error, {:error, %{reason: :stream_error, message: inspect(reason)}}}
-        )
-    after
-      30_000 ->
-        send(parent, {:stream_error, {:error, %{reason: :timeout, message: "Stream timeout"}}})
-    end
-  end
-
-  defp parse_sse_data(data) do
-    lines = String.split(data, "\n")
-
-    {complete_lines, rest} =
-      case List.last(lines) do
-        "" -> {lines, ""}
-        last_line -> {Enum.drop(lines, -1), last_line}
-      end
-
-    chunks =
-      complete_lines
-      |> Enum.filter(&String.starts_with?(&1, "data: "))
-      |> Enum.map(&String.replace_prefix(&1, "data: ", ""))
-      |> Enum.reject(&(&1 == "[DONE]"))
-      |> Enum.map(&parse_streaming_chunk/1)
-      |> Enum.reject(&is_nil/1)
-
-    {rest, chunks}
   end
 
   defp parse_streaming_chunk(json_data) do

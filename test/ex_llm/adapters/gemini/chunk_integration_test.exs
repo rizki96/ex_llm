@@ -5,9 +5,13 @@ defmodule ExLLM.Adapters.Gemini.ChunkIntegrationTest do
 
   @api_key System.get_env("GEMINI_API_KEY") || "test-key"
   @moduletag :integration
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag provider: :gemini
 
   describe "Chunk API integration" do
-    @tag :skip
+    @tag :requires_resource
     test "creates and manages a chunk with API key" do
       # Test requires a valid corpus and document to exist
       parent = "corpora/test-corpus/documents/test-doc"
@@ -59,7 +63,7 @@ defmodule ExLLM.Adapters.Gemini.ChunkIntegrationTest do
       assert status in [404, 403]
     end
 
-    @tag :skip
+    @tag :requires_resource
     test "batch operations work correctly" do
       # Test requires a valid corpus and document to exist
       parent = "corpora/test-corpus/documents/test-doc"

@@ -4,24 +4,15 @@ defmodule ExLLM.OllamaIntegrationTest do
   alias ExLLM.Types
 
   @moduletag :integration
-  @moduletag :ollama
+  @moduletag :requires_service
+  @moduletag :local_models
+  @moduletag provider: :ollama
 
   # These tests require a running Ollama server
-  # Run with: mix test --only ollama
-
-  setup_all do
-    case check_ollama_server() do
-      :ok ->
-        :ok
-
-      {:error, reason} ->
-        IO.puts("\nSkipping Ollama integration tests: #{reason}")
-        :ok
-    end
-  end
+  # Run with: mix test --include integration --include requires_service
+  # Or use the provider-specific alias: mix test.ollama
 
   describe "generate/2" do
-    @tag :skip
     test "generates completion without streaming" do
       result = Ollama.generate("The capital of France is", model: "llama2")
 
@@ -41,7 +32,6 @@ defmodule ExLLM.OllamaIntegrationTest do
       end
     end
 
-    @tag :skip
     test "generates with temperature option" do
       result =
         Ollama.generate(
@@ -59,7 +49,6 @@ defmodule ExLLM.OllamaIntegrationTest do
       end
     end
 
-    @tag :skip
     test "respects max_tokens limit" do
       result =
         Ollama.generate(
@@ -80,7 +69,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "stream_generate/2" do
-    @tag :skip
     test "streams generation responses" do
       {:ok, stream} = Ollama.stream_generate("Tell me a short story", model: "llama2")
 
@@ -103,7 +91,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "show_model/2" do
-    @tag :skip
     test "shows model information" do
       # Try with a commonly available model
       result = Ollama.show_model("llama2")
@@ -124,7 +111,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "list_models/1" do
-    @tag :skip
     test "lists available models" do
       case Ollama.list_models() do
         {:ok, models} ->
@@ -144,7 +130,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "list_running_models/1" do
-    @tag :skip
     test "lists currently loaded models" do
       case Ollama.list_running_models() do
         {:ok, models} ->
@@ -159,7 +144,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "version/1" do
-    @tag :skip
     test "gets Ollama version" do
       case Ollama.version() do
         {:ok, version_info} ->
@@ -174,7 +158,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "copy_model/3" do
-    @tag :skip
     test "copies model with new name" do
       # This test requires an existing model
       case Ollama.list_models() do
@@ -199,7 +182,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "pull_model/2" do
-    @tag :skip
     @tag timeout: :infinity
     test "pulls a small model" do
       # Only test if explicitly enabled
@@ -224,7 +206,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "embeddings/2" do
-    @tag :skip
     test "generates embeddings for text" do
       result = Ollama.embeddings("Hello world", model: "nomic-embed-text")
 
@@ -247,7 +228,6 @@ defmodule ExLLM.OllamaIntegrationTest do
       end
     end
 
-    @tag :skip
     test "generates embeddings for multiple inputs" do
       inputs = ["Hello", "World", "Testing"]
       result = Ollama.embeddings(inputs, model: "nomic-embed-text")
@@ -263,7 +243,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "generate_config/1" do
-    @tag :skip
     test "generates YAML configuration" do
       case Ollama.generate_config() do
         {:ok, yaml} ->
@@ -277,7 +256,6 @@ defmodule ExLLM.OllamaIntegrationTest do
       end
     end
 
-    @tag :skip
     test "saves configuration to temporary file" do
       temp_path = Path.join(System.tmp_dir!(), "ollama_test_#{:rand.uniform(10000)}.yml")
 
@@ -300,7 +278,6 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "update_model_config/2" do
-    @tag :skip
     test "updates model configuration" do
       # First, create a temporary config file
       temp_path = Path.join(System.tmp_dir!(), "ollama_update_test_#{:rand.uniform(10000)}.yml")
@@ -341,12 +318,5 @@ defmodule ExLLM.OllamaIntegrationTest do
     end
   end
 
-  # Helper to check if Ollama server is running
-  defp check_ollama_server do
-    case Ollama.version() do
-      {:ok, _} -> :ok
-      {:error, {:connection_error, _}} -> {:error, "Ollama server not running"}
-      {:error, reason} -> {:error, inspect(reason)}
-    end
-  end
+  # Helper functions removed - tests now use tag-based exclusion
 end
