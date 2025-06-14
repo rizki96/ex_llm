@@ -1,7 +1,7 @@
 defmodule ExLLM.MixProject do
   use Mix.Project
 
-  @version "0.7.0"
+  @version "0.7.1"
   @description "Unified Elixir client library for Large Language Models (LLMs)"
 
   def project do
@@ -97,7 +97,7 @@ defmodule ExLLM.MixProject do
       extras: [
         "README.md",
         "docs/QUICKSTART.md",
-        "docs/USER_GUIDE.md", 
+        "docs/USER_GUIDE.md",
         "docs/TESTING.md",
         "docs/LOGGER.md",
         "docs/PROVIDER_CAPABILITIES.md",
@@ -105,13 +105,13 @@ defmodule ExLLM.MixProject do
         "LICENSE"
       ],
       groups_for_extras: [
-        "Guides": [
+        Guides: [
           "docs/QUICKSTART.md",
           "docs/USER_GUIDE.md",
           "docs/TESTING.md"
         ],
-        "References": [
-          "docs/LOGGER.md", 
+        References: [
+          "docs/LOGGER.md",
           "docs/PROVIDER_CAPABILITIES.md"
         ]
       ]

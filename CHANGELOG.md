@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] - 2025-06-14
+
+### Added
+- **Comprehensive Documentation System** - Complete ExDoc configuration with organized structure
+  - 24 Mix test aliases for targeted testing (provider, capability, and type-based)
+  - Organized documentation into logical groups: Guides, References
+  - Complete test documentation covering semantic tagging and caching system
+
+### Changed
+- Updated ExDoc configuration to include all public documentation files
+- Streamlined documentation structure by removing internal development docs
+- Enhanced README with current feature set and improved examples
+
+### Fixed
+- Resolved all ExDoc file reference warnings
+- Fixed documentation generation for publication-ready docs
+
 ## [0.7.0] - 2025-06-14
 
 ### Added
