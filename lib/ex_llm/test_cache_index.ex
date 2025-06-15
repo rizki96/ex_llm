@@ -195,7 +195,7 @@ defmodule ExLLM.TestCacheIndex do
         ]
   def get_entries_by_status(index, :any) do
     # If index seems empty but we have a cache_key, try loading from disk
-    if length(index.entries) == 0 and index.cache_key != nil do
+    if Enum.empty?(index.entries) and index.cache_key != nil do
       cache_dir = rebuild_cache_dir_from_key(index.cache_key)
 
       if File.exists?(Path.join(cache_dir, "index.json")) do

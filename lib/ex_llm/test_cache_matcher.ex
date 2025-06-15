@@ -323,11 +323,11 @@ defmodule ExLLM.TestCacheMatcher do
     norm1 = normalize_headers(headers1)
     norm2 = normalize_headers(headers2)
 
-    if length(norm1) == 0 and length(norm2) == 0 do
+    if Enum.empty?(norm1) and Enum.empty?(norm2) do
       1.0
     else
       matching = Enum.count(norm1, fn h1 -> h1 in norm2 end)
-      total = max(length(norm1), length(norm2))
+      total = max(Enum.count(norm1), Enum.count(norm2))
       matching / total
     end
   end
