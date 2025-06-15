@@ -194,7 +194,7 @@ defmodule ExLLM.Streaming.ChunkBatcher do
 
     # Call the callback if configured
     if state.config.on_batch_ready && length(state.current_batch) > 0 do
-      state.config.on_batch_ready.(Enum.reverse(state.current_batch))
+      _result = state.config.on_batch_ready.(Enum.reverse(state.current_batch))
     end
 
     {:noreply, new_state}
