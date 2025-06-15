@@ -33,6 +33,7 @@ config/dev.secret.exs
 .env
 .envrc
 .gemini_tokens
+.gemini_tokens.backup
 client_secret*.json
 service_account*.json
 *.pem

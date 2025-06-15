@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Advanced Streaming Infrastructure** - Production-ready streaming enhancements
+  - `StreamBuffer` - Memory-efficient circular buffer with overflow protection
+  - `FlowController` - Advanced flow control with backpressure handling
+  - `ChunkBatcher` - Intelligent chunk batching for optimized I/O
+  - Configurable consumer types: `:direct`, `:buffered`, `:managed`
+  - Comprehensive streaming metrics and monitoring
+  - Adaptive batching based on chunk characteristics
+  - Graceful degradation for slow consumers
+
+### Enhanced
+- **Streaming Performance** - Reduced system calls through intelligent batching
+- **Memory Safety** - Fixed-size buffers prevent unbounded memory growth
+- **User Experience** - Smooth output even with fast providers (Groq, Claude)
+
 ## [0.7.1] - 2025-06-14
 
 ### Added
