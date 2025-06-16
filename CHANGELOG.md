@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2025-06-16
+
 ### Added
 - **Advanced Streaming Infrastructure** - Production-ready streaming enhancements
   - `StreamBuffer` - Memory-efficient circular buffer with overflow protection
@@ -16,11 +18,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Comprehensive streaming metrics and monitoring
   - Adaptive batching based on chunk characteristics
   - Graceful degradation for slow consumers
+- **Comprehensive Telemetry System** - Complete observability and instrumentation
+  - Telemetry events for all major operations (chat, streaming, cache, session, context)
+  - Optional telemetry_metrics and OpenTelemetry integration
+  - Context and session management instrumentation
+  - Cache operation tracking with hit/miss/put events
+  - Cost calculation and threshold monitoring
+  - Default logging handlers with configurable levels
 
 ### Enhanced
 - **Streaming Performance** - Reduced system calls through intelligent batching
 - **Memory Safety** - Fixed-size buffers prevent unbounded memory growth
 - **User Experience** - Smooth output even with fast providers (Groq, Claude)
+
+### Fixed
+- **Test Infrastructure** - Comprehensive test tagging and organization improvements
+  - Fixed 11 failing unit tests by properly categorizing integration vs unit tests
+  - Improved test tagging strategy with `:unit`, `:integration`, `:model_loading`, `:requires_service` tags
+  - Fixed MockConfigProvider implementation in Gemini tokens tests
+  - Separated unit tests from integration tests requiring external dependencies
 
 ## [0.7.1] - 2025-06-14
 

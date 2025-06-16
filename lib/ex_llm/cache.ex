@@ -101,10 +101,15 @@ defmodule ExLLM.Cache do
   def get(key) do
     result = GenServer.call(__MODULE__, {:get, key})
 
-    # Log cache access
+    # Log cache access and emit telemetry
     case result do
-      {:ok, _} -> Logger.log_cache_event(:hit, key)
-      :miss -> Logger.log_cache_event(:miss, key)
+      {:ok, _} ->
+        Logger.log_cache_event(:hit, key)
+        ExLLM.Telemetry.emit_cache_hit(key)
+
+      :miss ->
+        Logger.log_cache_event(:miss, key)
+        ExLLM.Telemetry.emit_cache_miss(key)
     end
 
     result
@@ -123,6 +128,10 @@ defmodule ExLLM.Cache do
     Logger.log_cache_event(:put, key, %{
       ttl: Keyword.get(opts, :ttl, @default_ttl)
     })
+
+    # Emit telemetry for cache put
+    size_bytes = :erlang.external_size(value)
+    ExLLM.Telemetry.emit_cache_put(key, size_bytes)
 
     GenServer.cast(__MODULE__, {:put, key, value, opts})
   catch
@@ -238,9 +247,7 @@ defmodule ExLLM.Cache do
     end
   end
 
-  @doc """
-  Check if test caching is enabled and should take precedence over regular caching.
-  """
+  # Check if test caching is enabled and should take precedence over regular caching.
   @spec test_caching_enabled?() :: boolean()
   defp test_caching_enabled?() do
     # Check if test cache detector is available and test caching should be used

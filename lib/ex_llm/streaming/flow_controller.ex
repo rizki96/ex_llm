@@ -100,6 +100,11 @@ defmodule ExLLM.Streaming.FlowController do
   """
   @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts) do
+    # Validate consumer is provided before starting GenServer
+    unless Keyword.has_key?(opts, :consumer) do
+      raise KeyError, key: :consumer, term: opts
+    end
+
     GenServer.start_link(__MODULE__, opts)
   end
 
@@ -159,26 +164,40 @@ defmodule ExLLM.Streaming.FlowController do
       if config.batch_config do
         {:ok, batcher_pid} = ChunkBatcher.start_link(config.batch_config)
         batcher_pid
+      else
+        nil
       end
 
     metrics_timer =
       if config.on_metrics do
         Process.send_after(self(), :report_metrics, @metrics_report_interval)
+      else
+        nil
       end
+
+    now = System.monotonic_time(:millisecond)
 
     state = %State{
       consumer: consumer,
       buffer: buffer,
       batcher: batcher,
       config: config,
-      metrics: %Metrics{start_time: System.monotonic_time(:millisecond)},
+      metrics: %Metrics{start_time: now},
       status: :running,
-      last_push_time: 0,
-      metrics_timer: metrics_timer
+      last_push_time: now,
+      metrics_timer: metrics_timer,
+      consumer_task: nil
     }
 
-    # Start consumer task
-    state = start_consumer_task(state)
+    # Start consumer task for async processing (except when using batcher)
+    state =
+      if batcher do
+        # Batcher handles async processing, so no consumer task needed
+        state
+      else
+        # Start consumer task for backpressure support
+        start_consumer_task(state)
+      end
 
     {:ok, state}
   end
@@ -204,10 +223,25 @@ defmodule ExLLM.Streaming.FlowController do
           state = %{state | buffer: new_buffer, last_push_time: now}
           state = update_chunk_metrics(state, chunk, :received)
 
-          # Notify consumer task
-          if state.consumer_task do
-            send(state.consumer_task, :chunks_available)
-          end
+          # When batcher is configured, process chunks immediately to ensure batches can complete
+          # Otherwise, let the consumer task handle processing to enable backpressure
+          state =
+            if state.batcher do
+              fill_ratio = StreamBuffer.fill_percentage(new_buffer) / 100.0
+
+              if fill_ratio < state.config.backpressure_threshold do
+                process_all_chunks(state)
+              else
+                state
+              end
+            else
+              # Notify consumer task of new chunks
+              if state.consumer_task do
+                send(state.consumer_task, :chunks_available)
+              end
+
+              state
+            end
 
           {:reply, :ok, state}
 
@@ -226,20 +260,8 @@ defmodule ExLLM.Streaming.FlowController do
     # Mark as completing
     state = %{state | status: :completing}
 
-    # Wait for buffer to drain
-    state = drain_buffer(state)
-
-    # Stop consumer task
-    if state.consumer_task do
-      send(state.consumer_task, :stop)
-      Process.monitor(state.consumer_task)
-
-      receive do
-        {:DOWN, _, :process, _, _} -> :ok
-      after
-        5_000 -> :ok
-      end
-    end
+    # Process any remaining chunks in buffer
+    state = process_buffer_sync(state)
 
     # Stop batcher if present
     if state.batcher do
@@ -261,7 +283,8 @@ defmodule ExLLM.Streaming.FlowController do
       status: state.status,
       buffer_size: StreamBuffer.size(state.buffer),
       buffer_fill_percentage: StreamBuffer.fill_percentage(state.buffer),
-      consumer_active: state.consumer_task != nil && Process.alive?(state.consumer_task),
+      # Consumer is always active in sync mode
+      consumer_active: state.status == :running,
       metrics: calculate_current_metrics(state)
     }
 
@@ -282,14 +305,31 @@ defmodule ExLLM.Streaming.FlowController do
   end
 
   @impl true
-  def handle_info(:consumer_task_done, state) do
-    # Restart consumer if still running
-    if state.status == :running do
-      state = start_consumer_task(state)
-      {:noreply, state}
-    else
-      {:noreply, %{state | consumer_task: nil}}
+  def handle_info({:pop_chunk_request, consumer_pid}, state) do
+    case StreamBuffer.pop(state.buffer) do
+      {:ok, chunk, new_buffer} ->
+        state = %{state | buffer: new_buffer}
+        state = update_chunk_metrics(state, chunk, :delivered)
+        send(consumer_pid, {:pop_chunk_response, {:ok, chunk}})
+        {:noreply, state}
+
+      {:empty, _} ->
+        send(consumer_pid, {:pop_chunk_response, :empty})
+        {:noreply, state}
     end
+  end
+
+  @impl true
+  def handle_info(:consumer_error, state) do
+    # Consumer task reported an error
+    state = update_metrics(state, :consumer_errors, 1)
+    {:noreply, state}
+  end
+
+  @impl true
+  def handle_info(:consumer_task_done, state) do
+    # Consumer task finished
+    {:noreply, %{state | consumer_task: nil}}
   end
 
   @impl true
@@ -358,26 +398,132 @@ defmodule ExLLM.Streaming.FlowController do
   end
 
   defp process_available_chunks(parent, consumer, batcher) do
-    case GenServer.call(parent, :pop_chunk, 5_000) do
-      {:ok, chunk} ->
-        deliver_chunk(chunk, consumer, batcher)
-        # Continue processing
-        process_available_chunks(parent, consumer, batcher)
+    # Process chunks in a loop to avoid stack overflow
+    process_chunks_loop(parent, consumer, batcher)
+  end
 
-      :empty ->
+  defp process_chunks_loop(parent, consumer, batcher) do
+    send(parent, {:pop_chunk_request, self()})
+
+    receive do
+      {:pop_chunk_response, {:ok, chunk}} ->
+        case deliver_chunk(chunk, consumer, batcher) do
+          :ok ->
+            :ok
+
+          {:error, _} ->
+            send(parent, :consumer_error)
+        end
+
+        # Continue processing in tail-recursive manner
+        process_chunks_loop(parent, consumer, batcher)
+
+      {:pop_chunk_response, :empty} ->
         :ok
+    after
+      50 -> :ok
     end
   catch
     :exit, _ -> :ok
+  end
+
+  defp process_buffer_sync(state) do
+    case StreamBuffer.pop(state.buffer) do
+      {:ok, chunk, new_buffer} ->
+        state = %{state | buffer: new_buffer}
+
+        # Deliver chunk and handle errors
+        error_count = deliver_chunk_sync(chunk, state.consumer, state.batcher)
+        state = update_chunk_metrics(state, chunk, :delivered)
+        state = update_metrics(state, :consumer_errors, error_count)
+
+        # Continue processing remaining chunks
+        process_buffer_sync(state)
+
+      {:empty, _} ->
+        state
+    end
+  end
+
+  defp process_one_chunk(state) do
+    case StreamBuffer.pop(state.buffer) do
+      {:ok, chunk, new_buffer} ->
+        state = %{state | buffer: new_buffer}
+
+        # Deliver chunk and handle errors
+        error_count = deliver_chunk_sync(chunk, state.consumer, state.batcher)
+        state = update_chunk_metrics(state, chunk, :delivered)
+        state = update_metrics(state, :consumer_errors, error_count)
+
+        state
+
+      {:empty, _} ->
+        state
+    end
+  end
+
+  defp process_all_chunks(state) do
+    case StreamBuffer.pop(state.buffer) do
+      {:ok, chunk, new_buffer} ->
+        state = %{state | buffer: new_buffer}
+
+        # Deliver chunk and handle errors
+        error_count = deliver_chunk_sync(chunk, state.consumer, state.batcher)
+        state = update_chunk_metrics(state, chunk, :delivered)
+        state = update_metrics(state, :consumer_errors, error_count)
+
+        # Continue processing remaining chunks
+        process_all_chunks(state)
+
+      {:empty, _} ->
+        state
+    end
+  end
+
+  defp deliver_chunk_sync(chunk, consumer, nil) do
+    # Direct delivery
+    try do
+      consumer.(chunk)
+      # No errors
+      0
+    catch
+      kind, reason ->
+        Logger.error("Consumer callback error: #{kind} #{inspect(reason)}")
+        # One error
+        1
+    end
+  end
+
+  defp deliver_chunk_sync(chunk, consumer, batcher) do
+    # Deliver through batcher
+    case ChunkBatcher.add_chunk(batcher, chunk) do
+      {:batch_ready, chunks} ->
+        try do
+          Enum.each(chunks, consumer)
+          # No errors
+          0
+        catch
+          kind, reason ->
+            Logger.error("Consumer callback error: #{kind} #{inspect(reason)}")
+            # One error
+            1
+        end
+
+      :ok ->
+        # No errors
+        0
+    end
   end
 
   defp deliver_chunk(chunk, consumer, nil) do
     # Direct delivery
     try do
       consumer.(chunk)
+      :ok
     catch
       kind, reason ->
         Logger.error("Consumer callback error: #{kind} #{inspect(reason)}")
+        {:error, {kind, reason}}
     end
   end
 
@@ -387,9 +533,11 @@ defmodule ExLLM.Streaming.FlowController do
       {:batch_ready, chunks} ->
         try do
           Enum.each(chunks, consumer)
+          :ok
         catch
           kind, reason ->
             Logger.error("Consumer callback error: #{kind} #{inspect(reason)}")
+            {:error, {kind, reason}}
         end
 
       :ok ->

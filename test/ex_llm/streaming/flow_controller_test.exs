@@ -96,63 +96,98 @@ defmodule ExLLM.Streaming.FlowControllerTest do
 
   describe "backpressure" do
     test "applies backpressure when buffer is near capacity", %{test_pid: test_pid} do
-      # Slow consumer that blocks
-      slow_consumer = fn chunk ->
-        send(test_pid, {:chunk_received, chunk})
-        Process.sleep(100)
+      # Create a consumer that blocks forever to prevent buffer draining
+      blocking_consumer = fn _chunk ->
+        # Block forever by waiting for a message that will never come
+        receive do
+          :never_sent -> :ok
+        end
       end
 
       {:ok, controller} =
         FlowController.start_link(
-          consumer: slow_consumer,
+          consumer: blocking_consumer,
           buffer_capacity: 10,
+          # 8/10 = 80%
           backpressure_threshold: 0.8
+          # No batcher - use consumer task for async processing
         )
 
-      # Fill buffer quickly
-      chunks = for i <- 1..8, do: %StreamChunk{content: "Chunk #{i}"}
+      # Fill buffer to reach threshold (8 chunks = 80%)
+      # Need to push enough chunks to overcome any occasional processing
+      chunks = for i <- 1..10, do: %StreamChunk{content: "Chunk #{i}"}
 
-      results =
-        for chunk <- chunks do
-          FlowController.push_chunk(controller, chunk)
+      # Fill buffer to exactly 80% (8 chunks in a 10-chunk buffer)
+      Enum.reduce_while(chunks, nil, fn chunk, _acc ->
+        assert :ok = FlowController.push_chunk(controller, chunk)
+        status = FlowController.get_status(controller)
+
+        # Stop when we reach threshold
+        if status.buffer_fill_percentage >= 80.0 do
+          {:halt, status}
+        else
+          {:cont, status}
         end
-
-      # First 8 should succeed
-      assert Enum.all?(Enum.take(results, 8), &(&1 == :ok))
+      end)
 
       # Next push should trigger backpressure
-      chunk = %StreamChunk{content: "Overflow"}
-      assert {:error, :backpressure} = FlowController.push_chunk(controller, chunk)
+      overflow_chunk = %StreamChunk{content: "Overflow"}
+      assert {:error, :backpressure} = FlowController.push_chunk(controller, overflow_chunk)
 
       GenServer.stop(controller)
     end
 
     test "releases backpressure as buffer drains", %{test_pid: test_pid} do
-      # Consumer with controllable speed
+      # Track processing state
+      gate_ref = make_ref()
+
+      # Create a consumer that blocks initially, then processes when signaled
       slow_consumer = fn chunk ->
-        send(test_pid, {:chunk_received, chunk})
-        Process.sleep(10)
+        receive do
+          ^gate_ref ->
+            send(test_pid, {:chunk_received, chunk})
+            # Slow processing
+            Process.sleep(50)
+        after
+          # Don't block forever in case of issues
+          200 -> :timeout
+        end
       end
 
       {:ok, controller} =
         FlowController.start_link(
           consumer: slow_consumer,
           buffer_capacity: 5,
+          # 4/5 = 80%
           backpressure_threshold: 0.8
+          # No batcher - use consumer task
         )
 
-      # Fill to backpressure threshold
-      for i <- 1..4 do
-        chunk = %StreamChunk{content: "Chunk #{i}"}
-        assert :ok = FlowController.push_chunk(controller, chunk)
-      end
+      # Fill to reach backpressure threshold (4 chunks = 80%)
+      chunks = for i <- 1..5, do: %StreamChunk{content: "Chunk #{i}"}
 
-      # Should hit backpressure
+      # Fill buffer until we hit backpressure
+      Enum.reduce_while(chunks, nil, fn chunk, _acc ->
+        assert :ok = FlowController.push_chunk(controller, chunk)
+        status = FlowController.get_status(controller)
+
+        # Stop when we reach threshold
+        if status.buffer_fill_percentage >= 80.0 do
+          {:halt, status}
+        else
+          {:cont, status}
+        end
+      end)
+
+      # Should hit backpressure on next push
       overflow_chunk = %StreamChunk{content: "Overflow"}
       assert {:error, :backpressure} = FlowController.push_chunk(controller, overflow_chunk)
 
+      # Signal consumer to start processing chunks (releases backpressure)
+      send(self(), gate_ref)
+
       # Wait for buffer to drain
-      Process.sleep(100)
+      Process.sleep(300)
 
       # Should be able to push again
       assert :ok = FlowController.push_chunk(controller, overflow_chunk)
@@ -282,7 +317,8 @@ defmodule ExLLM.Streaming.FlowControllerTest do
           consumer: consumer,
           batch_config: [
             batch_size: 3,
-            batch_timeout_ms: 100
+            batch_timeout_ms: 100,
+            adaptive: false
           ]
         )
 

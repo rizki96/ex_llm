@@ -1,7 +1,6 @@
 defmodule ExLLM.LMStudioUnitTest do
   use ExUnit.Case, async: true
 
-  @moduletag :unit
   @moduletag provider: :lmstudio
   alias ExLLM.Adapters.LMStudio
   alias ExLLM.Types
@@ -205,6 +204,7 @@ defmodule ExLLM.LMStudioUnitTest do
   end
 
   describe "default_model/0" do
+    @tag :unit
     test "returns the default model identifier" do
       assert is_binary(LMStudio.default_model())
       assert String.length(LMStudio.default_model()) > 0
@@ -270,6 +270,7 @@ defmodule ExLLM.LMStudioUnitTest do
   end
 
   describe "chat/2 message validation" do
+    @tag :unit
     test "validates message format" do
       valid_messages = [
         %{role: "user", content: "Hello"}
@@ -287,6 +288,7 @@ defmodule ExLLM.LMStudioUnitTest do
       end
     end
 
+    @tag :unit
     test "rejects empty messages list" do
       assert {:error, reason} = LMStudio.chat([])
       assert reason =~ "cannot be empty"
@@ -329,6 +331,7 @@ defmodule ExLLM.LMStudioUnitTest do
   end
 
   describe "chat/2 options validation" do
+    @tag :unit
     test "validates temperature parameter" do
       messages = [%{role: "user", content: "test"}]
 
@@ -344,6 +347,7 @@ defmodule ExLLM.LMStudioUnitTest do
       end
     end
 
+    @tag :unit
     test "validates max_tokens parameter" do
       messages = [%{role: "user", content: "test"}]
 
@@ -359,6 +363,7 @@ defmodule ExLLM.LMStudioUnitTest do
       # end
     end
 
+    @tag :unit
     test "validates model parameter" do
       messages = [%{role: "user", content: "test"}]
 
@@ -371,6 +376,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert reason =~ "Model 'invalid-model' not found"
     end
 
+    @tag :unit
     test "validates custom endpoint options" do
       messages = [%{role: "user", content: "test"}]
 
@@ -385,6 +391,7 @@ defmodule ExLLM.LMStudioUnitTest do
   end
 
   describe "chat/2 response handling" do
+    @tag :unit
     test "returns proper LLMResponse structure" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -400,6 +407,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert response.finish_reason in ["stop", "length", "tool_calls"]
     end
 
+    @tag :unit
     test "handles server errors gracefully" do
       messages = [%{role: "user", content: "trigger error"}]
 
@@ -407,6 +415,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert reason =~ "LM Studio request failed"
     end
 
+    @tag :unit
     test "includes request metadata" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -416,6 +425,8 @@ defmodule ExLLM.LMStudioUnitTest do
   end
 
   describe "stream_chat/2" do
+    @tag :integration
+    @tag :requires_service
     test "returns streaming response" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -437,6 +448,7 @@ defmodule ExLLM.LMStudioUnitTest do
       end
     end
 
+    @tag :unit
     test "handles streaming errors gracefully" do
       messages = [%{role: "user", content: "trigger error"}]
 
@@ -453,6 +465,8 @@ defmodule ExLLM.LMStudioUnitTest do
       end
     end
 
+    @tag :integration
+    @tag :requires_service
     test "includes finish_reason in final chunk" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -502,6 +516,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert model.description =~ "Q4_K_M" or model.description =~ "quantization"
     end
 
+    @tag :unit
     test "supports TTL parameter for model management" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -510,6 +525,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert %Types.LLMResponse{} = response
     end
 
+    @tag :unit
     test "supports custom API keys" do
       messages = [%{role: "user", content: "Hello"}]
 
@@ -520,6 +536,7 @@ defmodule ExLLM.LMStudioUnitTest do
   end
 
   describe "error handling and edge cases" do
+    @tag :unit
     test "handles malformed JSON responses" do
       # This would be tested with a mock that returns invalid JSON
       # For now, assume the implementation handles it
@@ -559,6 +576,7 @@ defmodule ExLLM.LMStudioUnitTest do
       assert {:error, _} = LMStudio.chat(messages, host: "localhost", port: 0)
     end
 
+    @tag :unit
     test "handles empty response content gracefully" do
       # This tests robustness against edge cases
       messages = [%{role: "user", content: "Hello"}]

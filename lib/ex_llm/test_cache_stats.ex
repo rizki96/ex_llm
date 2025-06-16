@@ -604,13 +604,13 @@ defmodule ExLLM.TestCacheStats do
       ms_int < 1000 ->
         "#{ms_int}ms"
 
-      ms_int < 60000 ->
+      ms_int < 60_000 ->
         seconds = ms_int / 1000
         "#{:erlang.float_to_binary(seconds, decimals: 1)}s"
 
       ms_int < 3_600_000 ->
-        minutes = div(ms_int, 60000)
-        remaining_seconds = div(rem(ms_int, 60000), 1000)
+        minutes = div(ms_int, 60_000)
+        remaining_seconds = div(rem(ms_int, 60_000), 1000)
 
         if remaining_seconds > 0 do
           "#{minutes}m #{remaining_seconds}s"
@@ -620,8 +620,8 @@ defmodule ExLLM.TestCacheStats do
 
       true ->
         hours = div(ms_int, 3_600_000)
-        remaining_minutes = div(rem(ms_int, 3_600_000), 60000)
-        remaining_seconds = div(rem(ms_int, 60000), 1000)
+        remaining_minutes = div(rem(ms_int, 3_600_000), 60_000)
+        remaining_seconds = div(rem(ms_int, 60_000), 1000)
 
         parts = ["#{hours}h"]
         parts = if remaining_minutes > 0, do: parts ++ ["#{remaining_minutes}m"], else: parts

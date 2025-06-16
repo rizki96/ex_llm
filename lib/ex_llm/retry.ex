@@ -64,32 +64,8 @@ defmodule ExLLM.Retry do
           }
   end
 
-  defmodule CircuitBreaker do
-    @moduledoc """
-    Circuit breaker to prevent cascading failures.
-    """
-    defstruct [
-      :failure_threshold,
-      :reset_timeout,
-      :half_open_requests,
-      :state,
-      :failure_count,
-      :last_failure_time,
-      :success_count
-    ]
-
-    @type state :: :closed | :open | :half_open
-
-    @type t :: %__MODULE__{
-            failure_threshold: non_neg_integer(),
-            reset_timeout: non_neg_integer(),
-            half_open_requests: non_neg_integer(),
-            state: state(),
-            failure_count: non_neg_integer(),
-            last_failure_time: DateTime.t() | nil,
-            success_count: non_neg_integer()
-          }
-  end
+  # Note: The CircuitBreaker struct was previously defined here but is now
+  # replaced by the full ExLLM.CircuitBreaker module implementation
 
   @doc """
   Executes a function with retry logic.
@@ -107,6 +83,90 @@ defmodule ExLLM.Retry do
     policy = build_policy(opts)
     provider = Keyword.get(opts, :provider, :unknown)
     execute_with_retry(fun, policy, 1, provider)
+  end
+
+  @doc """
+  Execute function with combined circuit breaker and retry protection.
+
+  This function integrates circuit breaker protection with ExLLM's existing
+  retry logic, providing comprehensive fault tolerance.
+
+  ## Options
+    * `:circuit_breaker` - Circuit breaker options (see ExLLM.CircuitBreaker.call/3)
+    * `:retry` - Retry options (see with_retry/2)
+    * `:circuit_name` - Custom circuit name (default: auto-generated)
+  """
+  def with_circuit_breaker_retry(fun, opts \\ []) when is_function(fun, 0) do
+    {circuit_opts, retry_opts} = split_options(opts)
+    circuit_name = Keyword.get(opts, :circuit_name) || generate_circuit_name()
+
+    ExLLM.CircuitBreaker.call(
+      circuit_name,
+      fn ->
+        with_retry(fun, retry_opts)
+      end,
+      circuit_opts
+    )
+  end
+
+  @doc """
+  Provider-specific retry with circuit breaker protection.
+
+  Uses provider-specific configurations for both retry and circuit breaker behavior.
+  """
+  def with_provider_circuit_breaker(provider, fun, opts \\ []) do
+    circuit_name = :"#{provider}_circuit"
+    provider_config = get_provider_circuit_config(provider)
+
+    # Merge provider defaults with user options
+    circuit_opts =
+      Keyword.merge(
+        provider_config.circuit_breaker,
+        Keyword.get(opts, :circuit_breaker, [])
+      )
+
+    retry_opts =
+      Keyword.merge(
+        provider_config.retry,
+        Keyword.get(opts, :retry, [])
+      )
+
+    ExLLM.CircuitBreaker.call(
+      circuit_name,
+      fn ->
+        with_retry(fun, retry_opts)
+      end,
+      circuit_opts
+    )
+  end
+
+  @doc """
+  Enhanced chat function with circuit breaker protection.
+  """
+  def chat_with_circuit_breaker(provider, messages, opts \\ []) do
+    with_provider_circuit_breaker(
+      provider,
+      fn ->
+        ExLLM.chat(provider, messages, opts)
+      end,
+      opts
+    )
+  end
+
+  @doc """
+  Enhanced streaming with circuit breaker protection.
+  """
+  def stream_with_circuit_breaker(provider, messages, opts \\ []) do
+    # Longer timeout for streams
+    circuit_opts = Keyword.put(opts, :timeout, 120_000)
+
+    with_provider_circuit_breaker(
+      provider,
+      fn ->
+        ExLLM.stream_chat(provider, messages, opts)
+      end,
+      circuit_breaker: circuit_opts
+    )
   end
 
   @doc """
@@ -349,5 +409,103 @@ defmodule ExLLM.Retry do
       attempts: attempt,
       reason: inspect(reason)
     )
+  end
+
+  # Provider-specific circuit breaker configurations
+  defp get_provider_circuit_config(provider) do
+    base_config = %{
+      circuit_breaker: [
+        failure_threshold: 5,
+        success_threshold: 3,
+        reset_timeout: 30_000,
+        timeout: 30_000
+      ],
+      retry: [
+        max_attempts: 3,
+        base_delay: 1000,
+        max_delay: 30_000,
+        jitter: true
+      ]
+    }
+
+    provider_overrides =
+      case provider do
+        :openai ->
+          %{
+            circuit_breaker: [failure_threshold: 3, reset_timeout: 60_000],
+            retry: [max_delay: 60_000]
+          }
+
+        :anthropic ->
+          %{
+            circuit_breaker: [failure_threshold: 5, reset_timeout: 30_000],
+            retry: [base_delay: 2000]
+          }
+
+        :bedrock ->
+          %{
+            circuit_breaker: [failure_threshold: 7, reset_timeout: 45_000],
+            retry: [max_attempts: 5, max_delay: 20_000]
+          }
+
+        :gemini ->
+          %{
+            circuit_breaker: [failure_threshold: 4, reset_timeout: 40_000],
+            retry: [base_delay: 1500]
+          }
+
+        :groq ->
+          %{
+            circuit_breaker: [failure_threshold: 3, reset_timeout: 20_000],
+            retry: [max_attempts: 2, max_delay: 10_000]
+          }
+
+        :ollama ->
+          %{
+            circuit_breaker: [failure_threshold: 10, reset_timeout: 5_000],
+            retry: [max_attempts: 2, base_delay: 500]
+          }
+
+        :lmstudio ->
+          %{
+            circuit_breaker: [failure_threshold: 10, reset_timeout: 5_000],
+            retry: [max_attempts: 2, base_delay: 500]
+          }
+
+        _ ->
+          %{}
+      end
+
+    deep_merge(base_config, provider_overrides)
+  end
+
+  defp split_options(opts) do
+    circuit_breaker_opts = Keyword.get(opts, :circuit_breaker, [])
+    retry_opts = Keyword.get(opts, :retry, [])
+
+    # Add any top-level options to retry_opts for backward compatibility
+    retry_opts =
+      opts
+      |> Keyword.drop([:circuit_breaker, :circuit_name])
+      |> Keyword.merge(retry_opts)
+
+    {circuit_breaker_opts, retry_opts}
+  end
+
+  defp generate_circuit_name do
+    "circuit_#{System.unique_integer([:positive])}"
+  end
+
+  defp deep_merge(left, right) do
+    Map.merge(left, right, fn
+      _key, left_val, right_val when is_map(left_val) and is_map(right_val) ->
+        deep_merge(left_val, right_val)
+
+      _key, left_val, right_val when is_list(left_val) and is_list(right_val) ->
+        Keyword.merge(left_val, right_val)
+
+      _key, _left_val, right_val ->
+        right_val
+    end)
   end
 end

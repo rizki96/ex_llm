@@ -278,12 +278,25 @@ defmodule ExLLM do
     # Detect provider from model string if needed
     {provider, options} = detect_provider(provider_or_model, options)
 
-    # Check if structured output is requested
-    if Keyword.has_key?(options, :response_model) do
-      handle_structured_output(provider, messages, options)
-    else
-      handle_regular_chat(provider, messages, options)
-    end
+    # Build telemetry metadata
+    metadata = %{
+      provider: provider,
+      model: Keyword.get(options, :model, provider_or_model),
+      structured_output: Keyword.has_key?(options, :response_model),
+      stream: false,
+      retry_enabled: Keyword.get(options, :retry, true),
+      cache_enabled: Keyword.get(options, :cache, false)
+    }
+
+    # Instrument with telemetry
+    ExLLM.Telemetry.span([:ex_llm, :chat], metadata, fn ->
+      # Check if structured output is requested
+      if Keyword.has_key?(options, :response_model) do
+        handle_structured_output(provider, messages, options)
+      else
+        handle_regular_chat(provider, messages, options)
+      end
+    end)
   end
 
   defp handle_structured_output(provider, messages, options) do
@@ -370,6 +383,18 @@ defmodule ExLLM do
     # Detect provider from model string if needed
     {provider, options} = detect_provider(provider_or_model, options)
 
+    # Build telemetry metadata
+    metadata = %{
+      provider: provider,
+      model: Keyword.get(options, :model, provider_or_model),
+      stream: true,
+      recovery_enabled: get_in(options, [:recovery, :enabled]) || false
+    }
+
+    # Emit stream start event
+    ExLLM.Telemetry.emit_stream_start(provider, metadata.model)
+    start_time = System.monotonic_time()
+
     case get_adapter(provider) do
       {:ok, adapter} ->
         # Apply context management if enabled
@@ -378,10 +403,23 @@ defmodule ExLLM do
         # Check if recovery is enabled
         recovery_opts = Keyword.get(options, :recovery, [])
 
-        if recovery_opts[:enabled] do
-          execute_stream_with_recovery(adapter, provider, prepared_messages, options)
-        else
-          adapter.stream_chat(prepared_messages, options)
+        result =
+          if recovery_opts[:enabled] do
+            execute_stream_with_recovery(adapter, provider, prepared_messages, options)
+          else
+            adapter.stream_chat(prepared_messages, options)
+          end
+
+        # Wrap stream to track chunks
+        case result do
+          {:ok, stream} ->
+            wrapped_stream =
+              wrap_stream_with_telemetry(stream, provider, metadata.model, start_time)
+
+            {:ok, wrapped_stream}
+
+          error ->
+            error
         end
 
       {:error, reason} ->
@@ -963,6 +1001,29 @@ defmodule ExLLM do
     end
   end
 
+  defp wrap_stream_with_telemetry(stream, provider, model, start_time) do
+    chunk_count = :counters.new(1, [])
+
+    Stream.transform(stream, nil, fn chunk, _acc ->
+      # Increment chunk counter
+      :counters.add(chunk_count, 1, 1)
+
+      # Emit chunk telemetry
+      chunk_size = byte_size(chunk.content || "")
+      ExLLM.Telemetry.emit_stream_chunk(provider, model, chunk_size)
+
+      # Check if stream is complete
+      if chunk.finish_reason == "stop" do
+        # Emit completion telemetry
+        duration = System.monotonic_time() - start_time
+        total_chunks = :counters.get(chunk_count, 1)
+        ExLLM.Telemetry.emit_stream_complete(provider, model, total_chunks, duration)
+      end
+
+      {[chunk], nil}
+    end)
+  end
+
   defp track_response_cost(provider, response, options) do
     # Extract usage info if available
     case Map.get(response, :usage) do
@@ -976,6 +1037,14 @@ defmodule ExLLM do
             if function_exported?(Logger, :info, 1) do
               Logger.info("LLM cost: #{format_cost(total_cost)} for #{provider}/#{model}")
             end
+
+            # Emit cost telemetry
+            ExLLM.Telemetry.emit_cost_calculated(
+              provider,
+              model,
+              # Convert to cents
+              round(total_cost * 100)
+            )
 
             cost_info
 

@@ -49,6 +49,9 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     # Check test cache before making request
     case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
       {:cached, cached_response} ->
+        # Emit cache hit telemetry
+        ExLLM.Telemetry.emit_cache_hit(cache_key_from_request(url, body))
+
         # Return cached response with metadata
         if Application.get_env(:ex_llm, :debug_test_cache, false) do
           IO.puts("HTTPClient received cached response: #{inspect(Map.keys(cached_response))}")
@@ -65,12 +68,23 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
         {:ok, response_with_metadata}
 
       {:proceed, request_metadata} ->
-        # Make real request
-        make_real_request(url, body, headers, method, timeout, provider, request_metadata)
+        # Emit cache miss telemetry
+        ExLLM.Telemetry.emit_cache_miss(cache_key_from_request(url, body))
+
+        # Make real request with telemetry
+        make_real_request_with_telemetry(
+          url,
+          body,
+          headers,
+          method,
+          timeout,
+          provider,
+          request_metadata
+        )
 
       {:error, _reason} ->
         # Cache error, proceed with real request
-        make_real_request(url, body, headers, method, timeout, provider, %{})
+        make_real_request_with_telemetry(url, body, headers, method, timeout, provider, %{})
     end
   end
 
@@ -99,12 +113,20 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
     # Check test cache before making request
     case TestResponseInterceptor.intercept_request(url, %{}, headers, opts) do
       {:cached, cached_response} ->
+        # Emit cache hit telemetry
+        ExLLM.Telemetry.emit_cache_hit(cache_key_from_request(url, %{}))
         # Return cached response with metadata
         {:ok, add_cache_metadata(cached_response)}
 
       {:proceed, request_metadata} ->
-        # Make real GET request
-        make_real_get_request(url, headers, timeout, provider, request_metadata)
+        # Emit cache miss telemetry
+        ExLLM.Telemetry.emit_cache_miss(cache_key_from_request(url, %{}))
+        # Make real GET request with telemetry
+        make_real_get_request_with_telemetry(url, headers, timeout, provider, request_metadata)
+
+      {:error, _reason} ->
+        # Cache error, proceed with real request
+        make_real_get_request_with_telemetry(url, headers, timeout, provider, %{})
     end
   end
 
@@ -670,7 +692,35 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
   defp build_provider_specific_headers(_provider, _opts), do: []
 
+  defp cache_key_from_request(url, body) do
+    # Generate a simple cache key from URL and body
+    :crypto.hash(:md5, "#{url}:#{Jason.encode!(body)}") |> Base.encode16()
+  end
+
   # Test caching private helper functions
+
+  defp make_real_request_with_telemetry(
+         url,
+         body,
+         headers,
+         method,
+         timeout,
+         provider,
+         request_metadata
+       ) do
+    # Build telemetry metadata
+    metadata = %{
+      provider: provider,
+      method: method,
+      url: url,
+      timeout: timeout
+    }
+
+    # Instrument with telemetry
+    ExLLM.Telemetry.span([:ex_llm, :http, :request], metadata, fn ->
+      make_real_request(url, body, headers, method, timeout, provider, request_metadata)
+    end)
+  end
 
   defp make_real_request(url, body, headers, method, timeout, provider, request_metadata) do
     # Log request
@@ -753,6 +803,21 @@ defmodule ExLLM.Adapters.Shared.HTTPClient do
 
         Error.connection_error(reason)
     end
+  end
+
+  defp make_real_get_request_with_telemetry(url, headers, timeout, provider, request_metadata) do
+    # Build telemetry metadata
+    metadata = %{
+      provider: provider,
+      method: :get,
+      url: url,
+      timeout: timeout
+    }
+
+    # Instrument with telemetry
+    ExLLM.Telemetry.span([:ex_llm, :http, :request], metadata, fn ->
+      make_real_get_request(url, headers, timeout, provider, request_metadata)
+    end)
   end
 
   defp make_real_get_request(url, headers, timeout, provider, request_metadata) do

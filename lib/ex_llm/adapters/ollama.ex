@@ -67,7 +67,7 @@ defmodule ExLLM.Adapters.Ollama do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient}
+  alias ExLLM.Adapters.Shared.{ConfigHelper, HTTPClient, EnhancedStreamingCoordinator}
   alias ExLLM.{Error, Logger, Types}
 
   @default_base_url "http://localhost:11434"
@@ -194,51 +194,55 @@ defmodule ExLLM.Adapters.Ollama do
 
     headers = [{"content-type", "application/json"}]
     url = "#{get_base_url(config)}/api/chat"
+
+    # Create stream with enhanced coordinator
+    chunks_ref = make_ref()
     parent = self()
 
-    # Clear any stale messages from mailbox
-    flush_mailbox()
-
-    # Get timeout from options with default
-    timeout = Keyword.get(options, :timeout, 120_000)
-
-    # Create callback for streaming chunks
-    stream_ref = make_ref()
-
-    callback = fn chunk_data ->
-      send(parent, {stream_ref, {:chunk, chunk_data}})
+    # Setup callback that sends chunks to parent
+    callback = fn chunk ->
+      send(parent, {chunks_ref, {:chunk, chunk}})
     end
 
-    # Use HTTPClient for streaming
-    case HTTPClient.stream_request(url, body, headers, callback,
-           provider: :ollama,
-           timeout: timeout
-         ) do
-      {:ok, :streaming} ->
-        # Create stream that receives and parses messages
-        stream =
-          Stream.resource(
-            fn -> {stream_ref, model} end,
-            fn {ref, model} = state ->
-              receive do
-                {^ref, {:chunk, data}} ->
-                  case parse_stream_chunk(data, model) do
-                    nil -> {[], state}
-                    chunk -> {[chunk], state}
-                  end
-              after
-                100 -> {[], state}
-              end
-            end,
-            fn _ -> :ok end
-          )
+    # Enhanced streaming options with Ollama-specific features
+    stream_options = [
+      parse_chunk_fn: &parse_ollama_chunk/1,
+      provider: :ollama,
+      model: model,
+      stream_recovery: Keyword.get(options, :stream_recovery, false),
+      track_metrics: Keyword.get(options, :track_metrics, false),
+      on_metrics: Keyword.get(options, :on_metrics),
+      buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
+      timeout: Keyword.get(options, :timeout, 120_000),
+      # Enable enhanced features if requested
+      enable_flow_control: Keyword.get(options, :enable_flow_control, false),
+      enable_batching: Keyword.get(options, :enable_batching, false),
+      track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
+    ]
 
-        {:ok, stream}
+    Logger.with_context([provider: :ollama, model: model], fn ->
+      case EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+        {:ok, stream_id} ->
+          # Create Elixir stream that receives chunks
+          stream =
+            Stream.resource(
+              fn -> {chunks_ref, stream_id} end,
+              fn {ref, _id} = state ->
+                receive do
+                  {^ref, {:chunk, chunk}} -> {[chunk], state}
+                after
+                  100 -> {[], state}
+                end
+              end,
+              fn _ -> :ok end
+            )
 
-      {:error, reason} ->
-        Logger.error("Ollama connection error: #{inspect(reason)}")
-        {:error, Error.connection_error(reason)}
-    end
+          {:ok, stream}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end)
   end
 
   @impl true
@@ -1968,4 +1972,21 @@ defmodule ExLLM.Adapters.Ollama do
 
   defp maybe_add_metadata(metadata, _key, nil), do: metadata
   defp maybe_add_metadata(metadata, key, value), do: Map.put(metadata, key, value)
+
+  @doc """
+  Parse streaming chunk for EnhancedStreamingCoordinator.
+  This wraps the existing parse_stream_chunk function to work with the coordinator.
+  """
+  defp parse_ollama_chunk(data) do
+    # The coordinator doesn't provide model context, so we'll extract it from the chunk
+    case Jason.decode(data) do
+      {:ok, chunk} ->
+        model = chunk["model"] || "unknown"
+        parse_stream_chunk(data, model)
+
+      {:error, _} ->
+        # Skip invalid JSON chunks
+        nil
+    end
+  end
 end

@@ -316,7 +316,7 @@ defmodule ExLLM.Gemini.TokensTest do
       }
 
       # Force invalid API key by passing custom config
-      opts = [config_provider: MockConfigProvider]
+      opts = [config_provider: ExLLM.Gemini.TokensTest.MockConfigProvider]
 
       case Tokens.count_tokens(model, request, opts) do
         {:error, %{status: 400, message: "API key not valid" <> _}} ->
@@ -447,13 +447,16 @@ defmodule ExLLM.Gemini.TokensTest do
       end
     end
   end
-end
 
-defmodule MockConfigProvider do
-  @behaviour ExLLM.ConfigProvider
+  defmodule MockConfigProvider do
+    @behaviour ExLLM.ConfigProvider
 
-  def get_all(:gemini), do: [api_key: "invalid-api-key"]
-  def get_all(_provider), do: []
-  def get(_provider, _key, default), do: default
-  def get(_provider, _key), do: nil
+    @impl true
+    def get_all(:gemini), do: %{api_key: "invalid-api-key"}
+    def get_all(_provider), do: %{}
+
+    @impl true
+    def get(:gemini, :api_key), do: "invalid-api-key"
+    def get(_provider, _key), do: nil
+  end
 end

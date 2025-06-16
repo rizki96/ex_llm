@@ -57,7 +57,7 @@ defmodule ExLLM.Adapters.OpenAI do
     MessageFormatter,
     ModelUtils,
     StreamingBehavior,
-    StreamingCoordinator,
+    EnhancedStreamingCoordinator,
     Validation
   }
 
@@ -80,20 +80,44 @@ defmodule ExLLM.Adapters.OpenAI do
           Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai)
         )
 
-      body = build_request_body(messages, model, config, options)
-      headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/chat/completions"
+      # Build telemetry metadata
+      metadata = %{
+        provider: :openai,
+        model: model,
+        message_count: length(messages),
+        temperature: Keyword.get(options, :temperature, @default_temperature)
+      }
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
-        {:ok, response} ->
-          {:ok, parse_response(response, model)}
+      # Instrument with telemetry
+      ExLLM.Telemetry.span([:ex_llm, :provider, :request], metadata, fn ->
+        body = build_request_body(messages, model, config, options)
+        headers = build_headers(api_key, config)
+        url = "#{get_base_url(config)}/chat/completions"
 
-        {:error, {:api_error, %{status: status, body: body}}} ->
-          ErrorHandler.handle_provider_error(:openai, status, body)
+        case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+          {:ok, response} ->
+            result = parse_response(response, model)
 
-        {:error, reason} ->
-          {:error, reason}
-      end
+            # Emit rate limit telemetry if headers present
+            if rate_limit_remaining = get_in(response, ["headers", "x-ratelimit-remaining"]) do
+              if String.to_integer(rate_limit_remaining) < 10 do
+                :telemetry.execute(
+                  [:ex_llm, :provider, :rate_limit],
+                  %{remaining: rate_limit_remaining},
+                  metadata
+                )
+              end
+            end
+
+            {:ok, result}
+
+          {:error, {:api_error, %{status: status, body: body}}} ->
+            ErrorHandler.handle_provider_error(:openai, status, body)
+
+          {:error, reason} ->
+            {:error, reason}
+        end
+      end)
     end
   end
 
@@ -131,7 +155,7 @@ defmodule ExLLM.Adapters.OpenAI do
         send(parent, {chunks_ref, {:chunk, chunk}})
       end
 
-      # Enhanced streaming options
+      # Enhanced streaming options with OpenAI-specific features
       stream_options = [
         parse_chunk_fn: &parse_openai_chunk/1,
         provider: :openai,
@@ -142,11 +166,21 @@ defmodule ExLLM.Adapters.OpenAI do
         transform_chunk: create_openai_transformer(options),
         validate_chunk: create_openai_validator(options),
         buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
-        timeout: Keyword.get(options, :timeout, 300_000)
+        timeout: Keyword.get(options, :timeout, 300_000),
+        # Enable enhanced features if requested
+        enable_flow_control: Keyword.get(options, :enable_flow_control, false),
+        enable_batching: Keyword.get(options, :enable_batching, false),
+        track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
       ]
 
       Logger.with_context([provider: :openai, model: model], fn ->
-        case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+        case EnhancedStreamingCoordinator.start_stream(
+               url,
+               body,
+               headers,
+               callback,
+               stream_options
+             ) do
           {:ok, stream_id} ->
             # Create Elixir stream that receives chunks
             stream =

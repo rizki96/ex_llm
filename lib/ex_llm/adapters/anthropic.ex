@@ -55,7 +55,7 @@ defmodule ExLLM.Adapters.Anthropic do
     HTTPClient,
     MessageFormatter,
     StreamingBehavior,
-    StreamingCoordinator,
+    EnhancedStreamingCoordinator,
     Validation
   }
 
@@ -126,7 +126,7 @@ defmodule ExLLM.Adapters.Anthropic do
         send(parent, {chunks_ref, {:chunk, chunk}})
       end
 
-      # Enhanced streaming options
+      # Enhanced streaming options with Anthropic-specific features
       stream_options = [
         parse_chunk_fn: &parse_anthropic_chunk/1,
         provider: :anthropic,
@@ -137,10 +137,14 @@ defmodule ExLLM.Adapters.Anthropic do
         transform_chunk: create_anthropic_transformer(options),
         validate_chunk: create_anthropic_validator(options),
         buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
-        timeout: Keyword.get(options, :timeout, 300_000)
+        timeout: Keyword.get(options, :timeout, 300_000),
+        # Enable enhanced features if requested
+        enable_flow_control: Keyword.get(options, :enable_flow_control, false),
+        enable_batching: Keyword.get(options, :enable_batching, false),
+        track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
       ]
 
-      case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+      case EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
         {:ok, stream_id} ->
           # Create Elixir stream that receives chunks
           stream =

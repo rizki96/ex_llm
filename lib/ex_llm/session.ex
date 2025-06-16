@@ -62,9 +62,10 @@ defmodule ExLLM.Session do
   @spec new(String.t() | nil, keyword()) :: Types.Session.t()
   def new(backend \\ nil, opts \\ []) do
     name = Keyword.get(opts, :name)
+    session_id = generate_session_id()
 
-    %Types.Session{
-      id: generate_session_id(),
+    session = %Types.Session{
+      id: session_id,
       llm_backend: backend,
       messages: [],
       context: %{},
@@ -73,6 +74,19 @@ defmodule ExLLM.Session do
       token_usage: %{input_tokens: 0, output_tokens: 0},
       name: name
     }
+
+    # Emit telemetry for session creation
+    :telemetry.execute(
+      [:ex_llm, :session, :created],
+      %{},
+      %{
+        session_id: session_id,
+        backend: backend,
+        name: name
+      }
+    )
+
+    session
   end
 
   @doc """
@@ -95,6 +109,17 @@ defmodule ExLLM.Session do
   @spec add_message(Types.Session.t(), String.t(), String.t(), keyword()) :: Types.Session.t()
   def add_message(session, role, content, opts \\ []) do
     timestamp = Keyword.get(opts, :timestamp, DateTime.utc_now())
+
+    # Emit telemetry for message addition
+    :telemetry.execute(
+      [:ex_llm, :session, :message_added],
+      %{content_length: String.length(content)},
+      %{
+        session_id: session.id,
+        role: role,
+        message_count: length(session.messages) + 1
+      }
+    )
 
     message =
       %{
@@ -158,10 +183,27 @@ defmodule ExLLM.Session do
   def update_token_usage(session, usage) do
     current_usage = session.token_usage || %{input_tokens: 0, output_tokens: 0}
 
+    input_delta = Map.get(usage, :input_tokens, 0)
+    output_delta = Map.get(usage, :output_tokens, 0)
+
     new_usage = %{
-      input_tokens: current_usage.input_tokens + Map.get(usage, :input_tokens, 0),
-      output_tokens: current_usage.output_tokens + Map.get(usage, :output_tokens, 0)
+      input_tokens: current_usage.input_tokens + input_delta,
+      output_tokens: current_usage.output_tokens + output_delta
     }
+
+    # Emit telemetry for token usage update
+    :telemetry.execute(
+      [:ex_llm, :session, :token_usage_updated],
+      %{
+        input_tokens_delta: input_delta,
+        output_tokens_delta: output_delta,
+        total_input_tokens: new_usage.input_tokens,
+        total_output_tokens: new_usage.output_tokens
+      },
+      %{
+        session_id: session.id
+      }
+    )
 
     %{session | token_usage: new_usage, updated_at: DateTime.utc_now()}
   end
@@ -200,6 +242,13 @@ defmodule ExLLM.Session do
   """
   @spec clear_messages(Types.Session.t()) :: Types.Session.t()
   def clear_messages(session) do
+    # Emit telemetry for clearing messages
+    :telemetry.execute(
+      [:ex_llm, :session, :cleared],
+      %{message_count: length(session.messages)},
+      %{session_id: session.id}
+    )
+
     %{session | messages: [], updated_at: DateTime.utc_now()}
   end
 

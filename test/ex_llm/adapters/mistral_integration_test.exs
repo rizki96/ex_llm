@@ -282,7 +282,7 @@ defmodule ExLLM.MistralIntegrationTest do
 
     test "handles API errors properly" do
       # Try with a very large prompt that might exceed limits
-      large_content = String.duplicate("Test ", 10000)
+      large_content = String.duplicate("Test ", 10_000)
       messages = [%{role: "user", content: large_content}]
 
       result = Mistral.chat(messages)

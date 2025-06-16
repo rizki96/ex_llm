@@ -27,7 +27,14 @@ defmodule ExLLM.Streaming.ChunkBatcherTest do
 
   describe "add_chunk/2" do
     test "accumulates chunks until batch size reached" do
-      {:ok, batcher} = ChunkBatcher.start_link(batch_size: 3)
+      {:ok, batcher} =
+        ChunkBatcher.start_link(
+          batch_size: 3,
+          # Very long timeout
+          batch_timeout_ms: 60_000,
+          # Disable adaptive behavior
+          adaptive: false
+        )
 
       # First two chunks should return :ok
       chunk1 = %StreamChunk{content: "First"}
@@ -228,6 +235,9 @@ defmodule ExLLM.Streaming.ChunkBatcherTest do
       # Force flush remaining
       ChunkBatcher.flush(batcher)
 
+      # Add small delay to ensure duration_ms > 0
+      Process.sleep(1)
+
       metrics = ChunkBatcher.get_metrics(batcher)
 
       assert metrics.chunks_batched == 7
@@ -244,22 +254,35 @@ defmodule ExLLM.Streaming.ChunkBatcherTest do
     end
 
     test "tracks min/max batch sizes" do
-      {:ok, batcher} = ChunkBatcher.start_link(batch_size: 5)
+      {:ok, batcher} =
+        ChunkBatcher.start_link(
+          batch_size: 5,
+          batch_timeout_ms: 60_000,
+          adaptive: false
+        )
 
-      # Create batches of different sizes
-      # Batch 1: 5 chunks (full)
+      # Create batch 1: 5 chunks (full batch)
       for i <- 1..5 do
         chunk = %StreamChunk{content: "#{i}"}
-        ChunkBatcher.add_chunk(batcher, chunk)
+        result = ChunkBatcher.add_chunk(batcher, chunk)
+        # The 5th chunk should trigger a batch
+        if i == 5 do
+          assert {:batch_ready, batch} = result
+          assert length(batch) == 5
+        else
+          assert result == :ok
+        end
       end
 
-      # Batch 2: 2 chunks (forced flush)
+      # Create batch 2: 2 chunks (forced flush)
       for i <- 6..7 do
         chunk = %StreamChunk{content: "#{i}"}
-        ChunkBatcher.add_chunk(batcher, chunk)
+        assert :ok = ChunkBatcher.add_chunk(batcher, chunk)
       end
 
-      ChunkBatcher.flush(batcher)
+      # Force flush the remaining 2 chunks
+      remaining = ChunkBatcher.flush(batcher)
+      assert length(remaining) == 2
 
       metrics = ChunkBatcher.get_metrics(batcher)
       assert metrics.min_batch_size == 2
@@ -309,13 +332,20 @@ defmodule ExLLM.Streaming.ChunkBatcherTest do
       remaining = ChunkBatcher.stop(batcher)
       assert remaining == chunks
 
+      # Give process time to terminate
+      Process.sleep(10)
       refute Process.alive?(batcher)
     end
   end
 
   describe "edge cases" do
     test "handles empty chunks" do
-      {:ok, batcher} = ChunkBatcher.start_link(batch_size: 3)
+      {:ok, batcher} =
+        ChunkBatcher.start_link(
+          batch_size: 3,
+          batch_timeout_ms: 60_000,
+          adaptive: false
+        )
 
       chunks = [
         %StreamChunk{content: "Normal"},

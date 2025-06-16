@@ -71,6 +71,21 @@ defmodule ExLLM.Context do
     if estimated_tokens <= available_tokens do
       {:ok, estimated_tokens}
     else
+      # Emit telemetry when context window is exceeded
+      :telemetry.execute(
+        [:ex_llm, :context, :window_exceeded],
+        %{
+          estimated_tokens: estimated_tokens,
+          available_tokens: available_tokens,
+          excess_tokens: estimated_tokens - available_tokens
+        },
+        %{
+          provider: provider,
+          model: model,
+          message_count: length(messages)
+        }
+      )
+
       {:error,
        "Messages exceed context window: #{estimated_tokens} tokens > #{available_tokens} available"}
     end
@@ -136,12 +151,40 @@ defmodule ExLLM.Context do
 
   # Private functions
 
-  defp apply_truncation_strategy(messages, available_tokens, :sliding_window) do
-    truncate_sliding_window(messages, available_tokens)
-  end
+  defp apply_truncation_strategy(messages, available_tokens, strategy) do
+    start_time = System.monotonic_time()
+    initial_message_count = length(messages)
+    initial_tokens = Cost.estimate_tokens(messages)
 
-  defp apply_truncation_strategy(messages, available_tokens, :smart) do
-    truncate_smart(messages, available_tokens)
+    # Execute the truncation strategy
+    truncated_messages =
+      case strategy do
+        :sliding_window -> truncate_sliding_window(messages, available_tokens)
+        :smart -> truncate_smart(messages, available_tokens)
+      end
+
+    # Calculate metrics
+    final_message_count = length(truncated_messages)
+    final_tokens = Cost.estimate_tokens(truncated_messages)
+    duration = System.monotonic_time() - start_time
+
+    # Emit telemetry for truncation
+    :telemetry.execute(
+      [:ex_llm, :context, :truncation, :stop],
+      %{
+        duration: duration,
+        messages_removed: initial_message_count - final_message_count,
+        tokens_removed: initial_tokens - final_tokens,
+        final_tokens: final_tokens
+      },
+      %{
+        strategy: strategy,
+        initial_message_count: initial_message_count,
+        final_message_count: final_message_count
+      }
+    )
+
+    truncated_messages
   end
 
   defp truncate_sliding_window(messages, available_tokens) do

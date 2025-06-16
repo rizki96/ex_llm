@@ -5,12 +5,22 @@ defmodule ExLLM.Application do
 
   @impl true
   def start(_type, _args) do
+    # Initialize circuit breaker ETS table
+    ExLLM.CircuitBreaker.init()
+
+    # Initialize metrics system
+    ExLLM.CircuitBreaker.Metrics.setup()
+
     children =
       [
         # Start StreamRecovery for all adapters
         ExLLM.StreamRecovery,
         # Start Cache if enabled
-        cache_child_spec()
+        cache_child_spec(),
+        # Start Circuit Breaker Configuration Manager
+        ExLLM.CircuitBreaker.ConfigManager,
+        # Start Circuit Breaker Metrics system if enabled
+        metrics_child_spec()
       ]
       |> Enum.filter(& &1)
 
@@ -32,6 +42,16 @@ defmodule ExLLM.Application do
   defp cache_child_spec do
     if Application.get_env(:ex_llm, :cache_enabled, false) do
       ExLLM.Cache
+    else
+      nil
+    end
+  end
+
+  defp metrics_child_spec do
+    config = Application.get_env(:ex_llm, :circuit_breaker_metrics, [])
+
+    if Keyword.get(config, :enabled, false) and :statsd in Keyword.get(config, :backends, []) do
+      ExLLM.CircuitBreaker.Metrics.StatsDReporter
     else
       nil
     end

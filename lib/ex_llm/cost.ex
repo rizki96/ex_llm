@@ -86,18 +86,41 @@ defmodule ExLLM.Cost do
 
   @doc """
   Format cost for human-readable display.
+
+  ## Options
+
+  - `:style` - Formatting style (`:auto`, `:detailed`, `:compact`) (default: `:auto`)
+  - `:precision` - Fixed precision or `:auto` for dynamic precision (default: `:auto`)
+
+  ## Examples
+
+      iex> ExLLM.Cost.format(0.0045)
+      "4.500¢"
+
+      iex> ExLLM.Cost.format(0.0045, style: :detailed)
+      "$0.0045 (4.50¢)"
+
+      iex> ExLLM.Cost.format(1234.56, style: :auto)
+      "$1,234.56"
+
+      iex> ExLLM.Cost.format(0.1234, precision: 3)
+      "$0.123"
   """
-  @spec format(float()) :: String.t()
-  def format(cost_in_dollars) do
-    cond do
-      cost_in_dollars < 0.01 ->
-        "$#{:erlang.float_to_binary(cost_in_dollars, decimals: 6)}"
+  @spec format(float(), keyword()) :: String.t()
+  def format(cost_in_dollars, opts \\ [])
 
-      cost_in_dollars < 1.0 ->
-        "$#{:erlang.float_to_binary(cost_in_dollars, decimals: 4)}"
+  def format(cost_in_dollars, opts)
+      when is_float(cost_in_dollars) or is_integer(cost_in_dollars) do
+    cost = if is_integer(cost_in_dollars), do: cost_in_dollars / 1.0, else: cost_in_dollars
+    style = Keyword.get(opts, :style, :auto)
+    precision = Keyword.get(opts, :precision, :auto)
 
-      true ->
-        "$#{:erlang.float_to_binary(cost_in_dollars, decimals: 2)}"
+    case {style, precision} do
+      {:auto, :auto} -> auto_format(cost)
+      {:detailed, _} -> detailed_format(cost)
+      {:compact, _} -> compact_format(cost)
+      {_, precision} when is_integer(precision) -> fixed_precision_format(cost, precision)
+      _ -> auto_format(cost)
     end
   end
 
@@ -142,6 +165,90 @@ defmodule ExLLM.Cost do
   end
 
   # Private functions
+
+  # Intelligent context-aware formatting
+  defp auto_format(cost) when cost < 0.01 do
+    cents = cost * 100
+    "#{:erlang.float_to_binary(cents, decimals: 3)}¢"
+  end
+
+  defp auto_format(cost) when cost < 1.0 do
+    "$#{:erlang.float_to_binary(cost, decimals: 4)}"
+  end
+
+  defp auto_format(cost) when cost < 100.0 do
+    "$#{:erlang.float_to_binary(cost, decimals: 2)}"
+  end
+
+  defp auto_format(cost) do
+    formatted = :erlang.float_to_binary(cost, decimals: 2)
+    "$#{add_thousands_separator(formatted)}"
+  end
+
+  # Detailed formatting with additional context
+  defp detailed_format(cost) when cost < 0.01 do
+    cents = cost * 100
+
+    "$#{:erlang.float_to_binary(cost, decimals: 4)} (#{:erlang.float_to_binary(cents, decimals: 2)}¢)"
+  end
+
+  defp detailed_format(cost) when cost < 1.0 do
+    cents = cost * 100
+
+    "$#{:erlang.float_to_binary(cost, decimals: 4)} (#{:erlang.float_to_binary(cents, decimals: 1)}¢)"
+  end
+
+  defp detailed_format(cost) do
+    "$#{add_thousands_separator(:erlang.float_to_binary(cost, decimals: 2))}"
+  end
+
+  # Compact formatting for space-constrained displays
+  defp compact_format(cost) when cost < 0.01 do
+    cents = cost * 100
+    "#{:erlang.float_to_binary(cents, decimals: 1)}¢"
+  end
+
+  defp compact_format(cost) when cost < 1.0 do
+    "$#{:erlang.float_to_binary(cost, decimals: 3)}"
+  end
+
+  defp compact_format(cost) when cost < 1000.0 do
+    "$#{:erlang.float_to_binary(cost, decimals: 1)}"
+  end
+
+  defp compact_format(cost) do
+    if cost >= 1_000_000 do
+      millions = cost / 1_000_000
+      "#{:erlang.float_to_binary(millions, decimals: 1)}M"
+    else
+      thousands = cost / 1000
+      "#{:erlang.float_to_binary(thousands, decimals: 1)}K"
+    end
+  end
+
+  # Fixed precision formatting
+  defp fixed_precision_format(cost, precision) do
+    "$#{:erlang.float_to_binary(cost, decimals: precision)}"
+  end
+
+  # Add thousands separators for readability
+  defp add_thousands_separator(number_string) do
+    [integer_part | decimal_part] = String.split(number_string, ".")
+
+    integer_with_separators =
+      integer_part
+      |> String.reverse()
+      |> String.codepoints()
+      |> Enum.chunk_every(3)
+      |> Enum.map(&Enum.join/1)
+      |> Enum.join(",")
+      |> String.reverse()
+
+    case decimal_part do
+      [] -> integer_with_separators
+      [decimals] -> "#{integer_with_separators}.#{decimals}"
+    end
+  end
 
   defp calculate_token_cost(tokens, price_per_million) do
     tokens / 1_000_000 * price_per_million

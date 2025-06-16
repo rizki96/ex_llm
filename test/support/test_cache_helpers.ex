@@ -6,12 +6,12 @@ defmodule ExLLM.TestCacheHelpers do
   the caching system, including cache warming, clearing, and debugging.
   """
 
-  alias ExLLM.TestCacheConfig
-  alias ExLLM.TestCacheStrategy
-  alias ExLLM.TestCacheStats
-  alias ExLLM.TestCacheDetector
   alias ExLLM.Cache.Storage.TestCache
+  alias ExLLM.TestCacheConfig
+  alias ExLLM.TestCacheDetector
   alias ExLLM.TestCacheIndex
+  alias ExLLM.TestCacheStats
+  alias ExLLM.TestCacheStrategy
   alias ExLLM.TestCacheTimestamp
 
   @doc """

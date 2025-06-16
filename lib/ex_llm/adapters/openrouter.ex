@@ -66,7 +66,13 @@ defmodule ExLLM.Adapters.OpenRouter do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.Adapters.Shared.{ConfigHelper, ErrorHandler, HTTPClient}
+  alias ExLLM.Adapters.Shared.{
+    ConfigHelper,
+    ErrorHandler,
+    HTTPClient,
+    EnhancedStreamingCoordinator
+  }
+
   alias ExLLM.{ConfigProvider, Error, Logger, Types}
 
   @default_base_url "https://openrouter.ai/api/v1"
@@ -131,50 +137,60 @@ defmodule ExLLM.Adapters.OpenRouter do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
 
-      # Use HTTPClient for streaming like other adapters
+      # Create stream with enhanced coordinator
+      chunks_ref = make_ref()
       parent = self()
-      ref = make_ref()
 
-      # Start streaming task
-      Task.start(fn ->
-        HTTPClient.stream_request(
-          url,
-          request_body,
-          headers,
-          fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
-          on_error: fn status, body ->
-            send(
-              parent,
-              {ref, {:error, ErrorHandler.handle_provider_error(:openrouter, status, body)}}
-            )
-          end,
-          provider: :openrouter
-        )
+      # Setup callback that sends chunks to parent
+      callback = fn chunk ->
+        send(parent, {chunks_ref, {:chunk, chunk}})
+      end
+
+      # Enhanced streaming options with OpenRouter-specific features
+      stream_options = [
+        parse_chunk_fn: &parse_openrouter_chunk/1,
+        provider: :openrouter,
+        model: model,
+        stream_recovery: Keyword.get(options, :stream_recovery, false),
+        track_metrics: Keyword.get(options, :track_metrics, false),
+        on_metrics: Keyword.get(options, :on_metrics),
+        buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
+        timeout: Keyword.get(options, :timeout, 300_000),
+        # Enable enhanced features if requested
+        enable_flow_control: Keyword.get(options, :enable_flow_control, false),
+        enable_batching: Keyword.get(options, :enable_batching, false),
+        track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
+      ]
+
+      Logger.with_context([provider: :openrouter, model: model], fn ->
+        case EnhancedStreamingCoordinator.start_stream(
+               url,
+               request_body,
+               headers,
+               callback,
+               stream_options
+             ) do
+          {:ok, stream_id} ->
+            # Create Elixir stream that receives chunks
+            stream =
+              Stream.resource(
+                fn -> {chunks_ref, stream_id} end,
+                fn {ref, _id} = state ->
+                  receive do
+                    {^ref, {:chunk, chunk}} -> {[chunk], state}
+                  after
+                    100 -> {[], state}
+                  end
+                end,
+                fn _ -> :ok end
+              )
+
+            {:ok, stream}
+
+          {:error, reason} ->
+            {:error, reason}
+        end
       end)
-
-      # Create a stream that receives chunks
-      stream =
-        Stream.resource(
-          fn -> {ref, :continue} end,
-          fn {ref, _state} ->
-            receive do
-              {^ref, {:chunk, chunk}} ->
-                {[chunk], {ref, :continue}}
-
-              {^ref, {:error, error}} ->
-                {:halt, {ref, {:error, error}}}
-
-              {^ref, :done} ->
-                {:halt, {ref, :done}}
-            after
-              5000 ->
-                {:halt, {ref, :timeout}}
-            end
-          end,
-          fn _ -> :ok end
-        )
-
-      {:ok, stream}
     end
   end
 
@@ -482,5 +498,37 @@ defmodule ExLLM.Adapters.OpenRouter do
       supports_vision: model["supports_vision"] || false,
       features: features
     }
+  end
+
+  @doc """
+  Parse streaming chunk from OpenRouter.
+  OpenRouter uses OpenAI-compatible streaming format.
+  """
+  defp parse_openrouter_chunk(data) do
+    case Jason.decode(data) do
+      {:ok, %{"choices" => choices} = chunk} ->
+        choice = List.first(choices)
+
+        if choice do
+          content = get_in(choice, ["delta", "content"])
+          finish_reason = choice["finish_reason"]
+
+          %Types.StreamChunk{
+            content: content,
+            finish_reason: finish_reason,
+            model: chunk["model"]
+          }
+        else
+          nil
+        end
+
+      {:ok, _other} ->
+        # Handle other chunk types like usage information
+        nil
+
+      {:error, _} ->
+        # Skip invalid JSON chunks
+        nil
+    end
   end
 end

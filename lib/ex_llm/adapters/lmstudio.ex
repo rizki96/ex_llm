@@ -49,7 +49,7 @@ defmodule ExLLM.Adapters.LMStudio do
 
   @behaviour ExLLM.Adapter
 
-  alias ExLLM.Adapters.Shared.{MessageFormatter, ResponseBuilder, StreamingCoordinator}
+  alias ExLLM.Adapters.Shared.{MessageFormatter, ResponseBuilder, EnhancedStreamingCoordinator}
   alias ExLLM.Types
 
   @default_host "localhost"
@@ -153,7 +153,7 @@ defmodule ExLLM.Adapters.LMStudio do
       send(parent, {chunks_ref, {:chunk, chunk}})
     end
 
-    # Enhanced streaming options
+    # Enhanced streaming options with LMStudio-specific features
     stream_options = [
       parse_chunk_fn: &parse_lmstudio_chunk/1,
       provider: :lmstudio,
@@ -164,10 +164,14 @@ defmodule ExLLM.Adapters.LMStudio do
       transform_chunk: create_lmstudio_transformer(opts),
       validate_chunk: create_lmstudio_validator(opts),
       buffer_chunks: Keyword.get(opts, :buffer_chunks, 1),
-      timeout: Keyword.get(opts, :timeout, 300_000)
+      timeout: Keyword.get(opts, :timeout, 300_000),
+      # Enable enhanced features if requested
+      enable_flow_control: Keyword.get(opts, :enable_flow_control, false),
+      enable_batching: Keyword.get(opts, :enable_batching, false),
+      track_detailed_metrics: Keyword.get(opts, :track_detailed_metrics, false)
     ]
 
-    case StreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
+    case EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
       {:ok, stream_id} ->
         # Create Elixir stream that receives chunks
         stream =
@@ -406,8 +410,8 @@ defmodule ExLLM.Adapters.LMStudio do
   defp validate_host(_), do: {:error, "Host must be a non-empty string"}
 
   defp validate_port(nil), do: :ok
-  defp validate_port(port) when is_integer(port) and port > 0 and port <= 65535, do: :ok
-  defp validate_port(_), do: {:error, "Port must be an integer between 1 and 65535"}
+  defp validate_port(port) when is_integer(port) and port > 0 and port <= 65_535, do: :ok
+  defp validate_port(_), do: {:error, "Port must be an integer between 1 and 65_535"}
 
   defp build_url(host, port, path) do
     "http://#{host}:#{port}#{path}"

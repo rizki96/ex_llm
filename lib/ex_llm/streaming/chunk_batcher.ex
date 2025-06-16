@@ -185,7 +185,7 @@ defmodule ExLLM.Streaming.ChunkBatcher do
   @impl true
   def handle_call(:stop, _from, state) do
     {batch, _} = flush_batch(state, :stop)
-    {:reply, batch, state}
+    {:stop, :normal, batch, state}
   end
 
   @impl true

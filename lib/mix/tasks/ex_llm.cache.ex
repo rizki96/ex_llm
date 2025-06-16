@@ -248,8 +248,8 @@ defmodule Mix.Tasks.ExLlm.Cache do
   defp format_duration(ms) when is_number(ms) do
     cond do
       ms < 1000 -> "#{round(ms)}ms"
-      ms < 60000 -> "#{Float.round(ms / 1000, 1)}s"
-      ms < 3_600_000 -> "#{Float.round(ms / 60000, 1)}m"
+      ms < 60_000 -> "#{Float.round(ms / 1000, 1)}s"
+      ms < 3_600_000 -> "#{Float.round(ms / 60_000, 1)}m"
       true -> "#{Float.round(ms / 3_600_000, 1)}h"
     end
   end
