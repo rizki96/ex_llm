@@ -6,7 +6,7 @@ defmodule ExLLM.Gemini.Files do
   with Gemini models for multimodal generation.
   """
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Providers.Shared.ConfigHelper
 
   defmodule Status do
     @moduledoc """

@@ -20,7 +20,7 @@ defmodule ExLLM.CachingInterceptor do
 
       # Wrap a specific call to cache its response
       {:ok, response} = ExLLM.CachingInterceptor.with_caching(:openai, fn ->
-        ExLLM.Adapters.OpenAI.chat(messages)
+        ExLLM.Providers.OpenAI.chat(messages)
       end)
 
   ### Batch Response Collection
@@ -216,12 +216,12 @@ defmodule ExLLM.CachingInterceptor do
 
   defp get_adapter_module(provider) do
     case provider do
-      :openai -> ExLLM.Adapters.OpenAI
-      :anthropic -> ExLLM.Adapters.Anthropic
-      :openrouter -> ExLLM.Adapters.OpenRouter
-      :ollama -> ExLLM.Adapters.Ollama
-      :groq -> ExLLM.Adapters.Groq
-      :mock -> ExLLM.Adapters.Mock
+      :openai -> ExLLM.Providers.OpenAI
+      :anthropic -> ExLLM.Providers.Anthropic
+      :openrouter -> ExLLM.Providers.OpenRouter
+      :ollama -> ExLLM.Providers.Ollama
+      :groq -> ExLLM.Providers.Groq
+      :mock -> ExLLM.Providers.Mock
       provider when is_binary(provider) -> get_adapter_module(String.to_existing_atom(provider))
       _ -> raise ArgumentError, "Unknown provider: #{provider}"
     end

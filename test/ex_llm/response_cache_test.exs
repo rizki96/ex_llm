@@ -1,6 +1,6 @@
 defmodule ExLLM.ResponseCacheTest do
   use ExUnit.Case, async: false
-  alias ExLLM.Adapters.Mock
+  alias ExLLM.Providers.Mock
   alias ExLLM.CachingInterceptor
   alias ExLLM.ResponseCache
 

@@ -1,10 +1,5 @@
 defmodule ExLLM.TestCacheTimestamp do
-  @moduledoc """
-  Manage timestamped cache entries and cleanup policies.
-
-  This module handles timestamp generation, parsing, cleanup operations,
-  and content deduplication for the timestamp-based caching system.
-  """
+  @moduledoc false
 
   @type cleanup_report :: %{
           deleted_files: non_neg_integer(),

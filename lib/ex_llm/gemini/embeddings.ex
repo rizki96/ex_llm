@@ -7,7 +7,7 @@ defmodule ExLLM.Gemini.Embeddings do
   and configuration options.
   """
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Providers.Shared.ConfigHelper
   alias ExLLM.Gemini.Content.{Content, Part}
 
   defmodule ContentEmbedding do

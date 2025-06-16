@@ -1,26 +1,5 @@
 defmodule ExLLM.Bumblebee.EXLAConfig do
-  @moduledoc """
-  Configuration module for EXLA/EMLX backend optimization.
-
-  Provides optimal settings for CPU and GPU inference, including Apple Silicon support.
-  This module automatically detects available hardware acceleration and configures
-  the appropriate backend for best performance.
-
-  ## Supported Backends
-
-  - **EMLX** - Apple Silicon (Metal) acceleration
-  - **CUDA** - NVIDIA GPU acceleration
-  - **ROCm** - AMD GPU acceleration  
-  - **CPU** - Optimized CPU inference
-
-  ## Features
-
-  - Automatic hardware detection
-  - Mixed precision support
-  - Memory optimization
-  - Dynamic batch sizing
-  - Parallel execution configuration
-  """
+  @moduledoc false
 
   alias ExLLM.Logger
 

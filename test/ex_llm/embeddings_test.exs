@@ -143,7 +143,7 @@ defmodule ExLLM.EmbeddingsTest do
   describe "embeddings/3 integration" do
     setup do
       # Ensure Mock adapter is started
-      case ExLLM.Adapters.Mock.start_link() do
+      case ExLLM.Providers.Mock.start_link() do
         {:ok, _pid} -> :ok
         {:error, {:already_started, _pid}} -> :ok
       end

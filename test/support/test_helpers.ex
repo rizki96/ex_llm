@@ -21,16 +21,16 @@ defmodule ExLLM.TestHelpers do
       setup_mock_response(%{content: "Hello!", model: "test"})
   """
   def setup_mock_response(response, opts \\ []) do
-    ExLLM.Adapters.Mock.start_link(opts)
-    ExLLM.Adapters.Mock.set_response(response)
+    ExLLM.Providers.Mock.start_link(opts)
+    ExLLM.Providers.Mock.set_response(response)
   end
 
   @doc """
   Set up a mock adapter with an error response.
   """
   def setup_mock_error(error, opts \\ []) do
-    ExLLM.Adapters.Mock.start_link(opts)
-    ExLLM.Adapters.Mock.set_error(error)
+    ExLLM.Providers.Mock.start_link(opts)
+    ExLLM.Providers.Mock.set_error(error)
   end
 
   @doc """

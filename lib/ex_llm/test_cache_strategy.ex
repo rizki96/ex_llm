@@ -1,11 +1,5 @@
 defmodule ExLLM.TestCacheStrategy do
-  @moduledoc """
-  Implement cache-first strategy for test requests with timestamp selection.
-
-  This module orchestrates the complete cache-first request flow including
-  cache checking, timestamp selection, fallback handling, and cache warming
-  for the automatic test response caching system.
-  """
+  @moduledoc false
 
   alias ExLLM.TestCacheConfig
   alias ExLLM.TestCacheDetector

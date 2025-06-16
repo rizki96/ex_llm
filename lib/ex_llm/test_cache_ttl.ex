@@ -1,11 +1,5 @@
 defmodule ExLLM.TestCacheTTL do
-  @moduledoc """
-  Handle cache selection and TTL logic for timestamp-based caching.
-
-  This module implements cache expiration checking, smart cache selection
-  based on fallback strategies, and TTL management for different test
-  scenarios in the automatic test response caching system.
-  """
+  @moduledoc false
 
   alias ExLLM.TestCacheConfig
   alias ExLLM.TestCacheIndex

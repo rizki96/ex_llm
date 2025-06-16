@@ -220,9 +220,9 @@ defmodule ExLLM.ProviderCapabilitiesTest do
 
   describe "get_adapter_module/1" do
     test "returns correct adapter modules" do
-      assert ExLLM.Adapters.OpenAI = ProviderCapabilities.get_adapter_module(:openai)
-      assert ExLLM.Adapters.Anthropic = ProviderCapabilities.get_adapter_module(:anthropic)
-      assert ExLLM.Adapters.Ollama = ProviderCapabilities.get_adapter_module(:ollama)
+      assert ExLLM.Providers.OpenAI = ProviderCapabilities.get_adapter_module(:openai)
+      assert ExLLM.Providers.Anthropic = ProviderCapabilities.get_adapter_module(:anthropic)
+      assert ExLLM.Providers.Ollama = ProviderCapabilities.get_adapter_module(:ollama)
     end
 
     test "returns nil for unknown provider" do

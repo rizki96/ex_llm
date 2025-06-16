@@ -1,11 +1,5 @@
 defmodule ExLLM.TestCacheConfig do
-  @moduledoc """
-  Centralized configuration system for automatic test response caching.
-
-  This module provides configuration management for timestamp-based test caching,
-  including automatic test environment detection and hierarchical configuration
-  loading from environment variables, application config, and defaults.
-  """
+  @moduledoc false
 
   @type fallback_strategy :: :latest_success | :latest_any | :best_match
   @type timestamp_format :: :iso8601 | :unix | :compact

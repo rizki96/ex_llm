@@ -1,6 +1,6 @@
 defmodule ExLLM.CacheMetadataTest do
   use ExUnit.Case, async: false
-  alias ExLLM.Adapters.Shared.HTTPClient
+  alias ExLLM.Providers.Shared.HTTPClient
   alias ExLLM.Cache.Storage.TestCache
 
   setup do

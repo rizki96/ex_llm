@@ -1,7 +1,7 @@
 defmodule ExLLM.MockTest do
   use ExUnit.Case, async: false
 
-  alias ExLLM.Adapters.Mock
+  alias ExLLM.Providers.Mock
 
   setup do
     # Using TestHelpers would reset the mock, but we need direct control

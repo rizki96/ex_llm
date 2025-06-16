@@ -7,7 +7,7 @@ defmodule ExLLM.Gemini.Caching do
   on the same content.
   """
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Providers.Shared.ConfigHelper
   alias ExLLM.Gemini.Content.{Content, Part, Tool, ToolConfig}
 
   defmodule UsageMetadata do

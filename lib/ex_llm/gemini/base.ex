@@ -3,7 +3,7 @@ defmodule ExLLM.Gemini.Base do
   Base HTTP request functionality for Gemini API modules.
   """
 
-  alias ExLLM.Adapters.Shared.HTTPClient
+  alias ExLLM.Providers.Shared.HTTPClient
 
   @base_url "https://generativelanguage.googleapis.com/v1beta"
 

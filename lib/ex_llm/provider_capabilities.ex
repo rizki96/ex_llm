@@ -791,20 +791,20 @@ defmodule ExLLM.ProviderCapabilities do
   ## Examples
 
       ExLLM.ProviderCapabilities.get_adapter_module(:openai)
-      # => ExLLM.Adapters.OpenAI
+      # => ExLLM.Providers.OpenAI
   """
   @spec get_adapter_module(atom()) :: module() | nil
   def get_adapter_module(provider) do
     case provider do
-      :anthropic -> ExLLM.Adapters.Anthropic
-      :openai -> ExLLM.Adapters.OpenAI
-      :ollama -> ExLLM.Adapters.Ollama
-      :bedrock -> ExLLM.Adapters.Bedrock
-      :gemini -> ExLLM.Adapters.Gemini
-      :groq -> ExLLM.Adapters.Groq
-      :openrouter -> ExLLM.Adapters.OpenRouter
-      :bumblebee -> ExLLM.Adapters.Bumblebee
-      :mock -> ExLLM.Adapters.Mock
+      :anthropic -> ExLLM.Providers.Anthropic
+      :openai -> ExLLM.Providers.OpenAI
+      :ollama -> ExLLM.Providers.Ollama
+      :bedrock -> ExLLM.Providers.Bedrock
+      :gemini -> ExLLM.Providers.Gemini
+      :groq -> ExLLM.Providers.Groq
+      :openrouter -> ExLLM.Providers.OpenRouter
+      :bumblebee -> ExLLM.Providers.Bumblebee
+      :mock -> ExLLM.Providers.Mock
       _ -> nil
     end
   end

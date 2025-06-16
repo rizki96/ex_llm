@@ -6,7 +6,7 @@ defmodule ExLLM.Gemini.Models do
   including token limits, supported features, and generation parameters.
   """
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Providers.Shared.ConfigHelper
   alias ExLLM.Gemini.Base
 
   defmodule Model do

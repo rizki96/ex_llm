@@ -1,11 +1,5 @@
 defmodule ExLLM.TestResponseMetadata do
-  @moduledoc """
-  Capture comprehensive metadata for cached responses.
-
-  This module provides structured metadata capture for test response caching,
-  including request information, response data, test context, timing, and
-  usage tracking for comprehensive cache management.
-  """
+  @moduledoc false
 
   @type response_metadata :: %{
           # Request Information
@@ -411,7 +405,7 @@ defmodule ExLLM.TestResponseMetadata do
     |> Map.new()
   end
 
-  defp sanitize_headers(headers), do: %{}
+  defp sanitize_headers(_headers), do: %{}
 
   defp sanitize_request_data(metadata) do
     %{

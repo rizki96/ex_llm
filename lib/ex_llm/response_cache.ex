@@ -261,7 +261,7 @@ defmodule ExLLM.ResponseCache do
         end
       end
 
-      ExLLM.Adapters.Mock.set_response_handler(handler)
+      ExLLM.Providers.Mock.set_response_handler(handler)
 
       Logger.info(
         "Configured Mock adapter with #{length(responses)} cached responses from #{provider}"

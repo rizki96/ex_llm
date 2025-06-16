@@ -7,7 +7,7 @@ defmodule ExLLM.Gemini.Tokens do
   fit within model limits.
   """
 
-  alias ExLLM.Adapters.Shared.ConfigHelper
+  alias ExLLM.Providers.Shared.ConfigHelper
   alias ExLLM.Gemini.Content.{Content, GenerateContentRequest}
 
   defmodule CountTokensRequest do

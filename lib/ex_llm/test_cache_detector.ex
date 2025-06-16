@@ -1,10 +1,5 @@
 defmodule ExLLM.TestCacheDetector do
-  @moduledoc """
-  Intelligent detection of test scenarios requiring automatic caching.
-
-  This module provides runtime detection of integration tests, OAuth2 tests,
-  and other scenarios that should trigger automatic response caching.
-  """
+  @moduledoc false
 
   @type test_context :: %{
           module: atom(),

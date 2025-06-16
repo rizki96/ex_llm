@@ -1,10 +1,5 @@
 defmodule ExLLM.Bumblebee.TokenCounter do
-  @moduledoc """
-  Token counting utilities for local models.
-
-  Provides accurate token counting when Bumblebee is available,
-  with fallback to heuristic estimation.
-  """
+  @moduledoc false
 
   alias ExLLM.Cost
   alias ExLLM.Bumblebee.ModelLoader

@@ -1,254 +1,351 @@
 provider: anthropic
 default_model: claude-3-5-sonnet-latest
+
+# Provider-level capabilities and features
+provider_capabilities:
+  endpoints:
+    - chat
+    - messages
+  features:
+    - tool_use
+    - structured_outputs
+    - system_messages
+    - multiple_images
+    - computer_use
+    - document_understanding
+    - context_caching
+    - streaming
+    - json_mode
+    - prompt_caching
+    - xml_mode
+    - batch_processing
+    - usage_tracking
+    - rate_limiting_headers
+    - latex_rendering
+    - code_execution
+    - long_context
+    - cost_tracking
+    - vision
+    - function_calling
+
+# Model definitions with capabilities, pricing, and metadata
 models:
+  # Latest Claude 4 models
   claude-opus-4-20250514:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
+      - streaming
+      - system_messages
+      - json_mode
+      - function_calling
+      - xml_mode
     pricing:
       input: 15.0
       output: 75.0
+
   claude-sonnet-4-20250514:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
+      - streaming
+      - system_messages
+      - json_mode
+      - function_calling
+      - xml_mode
     pricing:
       input: 3.0
       output: 15.0
+
+  # Claude 3.7 models
   claude-3-7-sonnet-20250219:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-    - json_mode
-    - xml_mode
-    - structured_outputs
+      - streaming
+      - system_messages
+      - json_mode
+      - xml_mode
+      - structured_outputs
+      - long_context
+      - vision
+      - function_calling
     pricing:
       input: 3.0
       output: 15.0
     deprecation_date: '2026-02-01'
+
+  claude-3-7-sonnet-latest:
+    context_window: 200000
+    max_output_tokens: 128000
+    capabilities:
+      - streaming
+      - function_calling
+      - vision
+      - prompt_caching
+      - structured_output
+      - reasoning
+      - pdf_input
+      - tool_choice
+    pricing:
+      input: 3.0
+      output: 15.0
+    deprecation_date: '2025-06-01'
+
+  # Claude 3.5 models
   claude-3-5-sonnet-20241022:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-    - json_mode
-    - xml_mode
-    - structured_outputs
-    - document_understanding
-    - latex_rendering
+      - streaming
+      - system_messages
+      - json_mode
+      - xml_mode
+      - structured_outputs
+      - document_understanding
+      - latex_rendering
+      - long_context
+      - vision
+      - function_calling
+      - computer_use
     pricing:
       input: 3.0
       output: 15.0
     deprecation_date: '2025-10-01'
+
   claude-3-5-haiku-20241022:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-    - json_mode
-    - xml_mode
-    - structured_outputs
-    - document_understanding
-    - latex_rendering
+      - streaming
+      - system_messages
+      - json_mode
+      - xml_mode
+      - structured_outputs
+      - document_understanding
+      - latex_rendering
+      - long_context
+      - vision
+      - function_calling
+      - computer_use
     pricing:
       input: 0.8
       output: 4.0
     deprecation_date: '2025-10-01'
+
   claude-3-5-sonnet-20240620:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-    - json_mode
-    - xml_mode
-    - structured_outputs
-    - document_understanding
-    - latex_rendering
+      - streaming
+      - system_messages
+      - json_mode
+      - xml_mode
+      - structured_outputs
+      - document_understanding
+      - latex_rendering
+      - long_context
+      - vision
+      - function_calling
+      - computer_use
     pricing:
       input: 3.0
       output: 15.0
     deprecation_date: '2025-06-01'
+
+  claude-3-5-haiku-latest:
+    context_window: 200000
+    max_output_tokens: 8192
+    capabilities:
+      - streaming
+      - function_calling
+      - vision
+      - prompt_caching
+      - structured_output
+      - web_search
+      - pdf_input
+      - tool_choice
+    pricing:
+      input: 1.0
+      output: 5.0
+    deprecation_date: '2025-10-01'
+
+  claude-3-5-sonnet-latest:
+    context_window: 200000
+    max_output_tokens: 8192
+    capabilities:
+      - streaming
+      - function_calling
+      - vision
+      - prompt_caching
+      - structured_output
+      - web_search
+      - pdf_input
+      - tool_choice
+    pricing:
+      input: 3.0
+      output: 15.0
+    deprecation_date: '2025-06-01'
+
+  # Claude 3 models
   claude-3-haiku-20240307:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-    - json_mode
-    - xml_mode
-    - structured_outputs
+      - streaming
+      - system_messages
+      - json_mode
+      - xml_mode
+      - structured_outputs
+      - long_context
+      - vision
+      - function_calling
     pricing:
       input: 0.25
       output: 1.25
     deprecation_date: '2025-03-01'
+
   claude-3-opus-20240229:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-    - vision
-    - json_mode
-    - xml_mode
-    - structured_outputs
+      - streaming
+      - system_messages
+      - vision
+      - json_mode
+      - xml_mode
+      - structured_outputs
+      - long_context
+      - function_calling
     pricing:
       input: 15.0
       output: 75.0
     deprecation_date: '2025-03-01'
+
+  claude-3-opus-latest:
+    context_window: 200000
+    max_output_tokens: 4096
+    capabilities:
+      - streaming
+      - function_calling
+      - vision
+      - prompt_caching
+      - structured_output
+      - tool_choice
+    pricing:
+      input: 15.0
+      output: 75.0
+    deprecation_date: '2025-03-01'
+
   claude-3-sonnet-20240229:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-    - json_mode
-    - xml_mode
-    - structured_outputs
+      - streaming
+      - system_messages
+      - json_mode
+      - xml_mode
+      - structured_outputs
+      - long_context
+      - vision
+      - function_calling
     pricing:
       input: 3.0
       output: 15.0
     deprecation_date: '2025-07-21'
+
+  # Claude 2 models
   claude-2.1:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
+      - streaming
+      - system_messages
+      - json_mode
+      - function_calling
+      - xml_mode
     pricing:
       input: 8.0
       output: 24.0
+
   claude-2.0:
     context_window: 200000
     max_output_tokens: 4096
     capabilities:
-    - streaming
-    - system_messages
-  claude-instant-1:
-    context_window: 100000
-    max_output_tokens: 8191
-    pricing:
-      input: 1.63
-      output: 5.51
-    capabilities:
-    - streaming
-  claude-instant-1.2:
-    context_window: 100000
-    max_output_tokens: 8191
-    pricing:
-      input: 0.163
-      output: 0.551
-    capabilities:
-    - streaming
-    - tool_choice
-  claude-2:
-    context_window: 100000
-    max_output_tokens: 8191
+      - streaming
+      - system_messages
+      - json_mode
+      - function_calling
+      - xml_mode
     pricing:
       input: 8.0
       output: 24.0
+
+  claude-2:
+    context_window: 100000
+    max_output_tokens: 8191
     capabilities:
-    - streaming
-  claude-3-5-haiku-latest:
-    context_window: 200000
-    max_output_tokens: 8192
+      - streaming
     pricing:
-      input: 1.0
-      output: 5.0
+      input: 8.0
+      output: 24.0
+
+  # Claude Instant models
+  claude-instant-1:
+    context_window: 100000
+    max_output_tokens: 8191
     capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - prompt_caching
-    - structured_output
-    - web_search
-    - pdf_input
-    - tool_choice
-    deprecation_date: '2025-10-01'
-  claude-3-opus-latest:
-    context_window: 200000
-    max_output_tokens: 4096
+      - streaming
     pricing:
-      input: 15.0
-      output: 75.0
+      input: 1.63
+      output: 5.51
+
+  claude-instant-1.2:
+    context_window: 100000
+    max_output_tokens: 8191
     capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - prompt_caching
-    - structured_output
-    - tool_choice
-    deprecation_date: '2025-03-01'
-  claude-3-5-sonnet-latest:
-    context_window: 200000
-    max_output_tokens: 8192
+      - streaming
+      - tool_choice
     pricing:
-      input: 3.0
-      output: 15.0
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - prompt_caching
-    - structured_output
-    - web_search
-    - pdf_input
-    - tool_choice
-    deprecation_date: '2025-06-01'
+      input: 0.163
+      output: 0.551
+
+  # Latest Claude 4 models (newest generation)
   claude-4-opus-20250514:
     context_window: 200000
     max_output_tokens: 32000
+    capabilities:
+      - streaming
+      - function_calling
+      - vision
+      - prompt_caching
+      - structured_output
+      - reasoning
+      - pdf_input
+      - tool_choice
     pricing:
       input: 15.0
       output: 75.0
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - prompt_caching
-    - structured_output
-    - reasoning
-    - pdf_input
-    - tool_choice
+
   claude-4-sonnet-20250514:
     context_window: 200000
     max_output_tokens: 64000
+    capabilities:
+      - streaming
+      - function_calling
+      - vision
+      - prompt_caching
+      - structured_output
+      - reasoning
+      - pdf_input
+      - tool_choice
     pricing:
       input: 3.0
       output: 15.0
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - prompt_caching
-    - structured_output
-    - reasoning
-    - pdf_input
-    - tool_choice
-  claude-3-7-sonnet-latest:
-    context_window: 200000
-    max_output_tokens: 128000
-    pricing:
-      input: 3.0
-      output: 15.0
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - prompt_caching
-    - structured_output
-    - reasoning
-    - pdf_input
-    - tool_choice
-    deprecation_date: '2025-06-01'
+
+# Metadata
 metadata:
   updated_at: '2025-06-06T14:30:53.235392'
   source: anthropic_api
+  capabilities_discovered_at: '2025-06-06T14:31:23.083862'
+  consolidated_at: '2025-06-16T00:00:00.000000'

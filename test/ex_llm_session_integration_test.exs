@@ -60,9 +60,9 @@ defmodule ExLLM.SessionIntegrationTest do
 
     setup do
       # Set up mock responses for session tests
-      ExLLM.Adapters.Mock.start_link()
+      ExLLM.Providers.Mock.start_link()
 
-      ExLLM.Adapters.Mock.set_response_handler(fn messages, _options ->
+      ExLLM.Providers.Mock.set_response_handler(fn messages, _options ->
         last_message = List.last(messages)
         content = last_message.content || last_message[:content] || last_message["content"]
 

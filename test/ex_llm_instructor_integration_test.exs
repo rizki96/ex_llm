@@ -25,18 +25,18 @@ defmodule ExLLM.InstructorIntegrationTest do
   setup do
     # Since these are integration tests, we'll use the mock adapter
     # to test the Instructor functionality without requiring API keys
-    case ExLLM.Adapters.Mock.start_link() do
+    case ExLLM.Providers.Mock.start_link() do
       {:ok, _pid} ->
         :ok
 
       {:error, {:already_started, _pid}} ->
         # Reset if already started
-        ExLLM.Adapters.Mock.reset()
+        ExLLM.Providers.Mock.reset()
         :ok
     end
 
     # Set up a mock response handler that returns structured JSON
-    ExLLM.Adapters.Mock.set_response_handler(fn messages, _options ->
+    ExLLM.Providers.Mock.set_response_handler(fn messages, _options ->
       last_message = List.last(messages)
       content = last_message.content || last_message[:content] || last_message["content"]
 
