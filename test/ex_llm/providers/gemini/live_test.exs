@@ -1,6 +1,6 @@
 defmodule ExLLM.Providers.Gemini.LiveTest do
   use ExUnit.Case, async: true
-  alias ExLLM.Gemini.Live
+  alias ExLLM.Providers.Gemini.Live
 
   @moduletag :gemini_live
 

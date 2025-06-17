@@ -78,7 +78,7 @@ defmodule ExLLM.Providers.Shared.StreamingBehavior do
   """
   @spec create_text_chunk(String.t(), keyword()) :: Types.StreamChunk.t()
   def create_text_chunk(text, opts \\ []) do
-    %Types.StreamChunk{
+    %ExLLM.Types.StreamChunk{
       content: text,
       finish_reason: Keyword.get(opts, :finish_reason),
       model: Keyword.get(opts, :model),
@@ -92,7 +92,7 @@ defmodule ExLLM.Providers.Shared.StreamingBehavior do
   @spec create_function_chunk(String.t(), String.t(), keyword()) :: Types.StreamChunk.t()
   def create_function_chunk(name, arguments, opts \\ []) do
     # StreamChunk doesn't have function_call field, so we put it in content
-    %Types.StreamChunk{
+    %ExLLM.Types.StreamChunk{
       content: Jason.encode!(%{function_call: %{name: name, arguments: arguments}}),
       finish_reason: Keyword.get(opts, :finish_reason),
       model: Keyword.get(opts, :model),

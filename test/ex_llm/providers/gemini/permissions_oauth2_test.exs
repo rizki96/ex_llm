@@ -1,11 +1,11 @@
 defmodule ExLLM.Providers.Gemini.PermissionsOAuth2Test do
   use ExUnit.Case, async: false
 
-  alias ExLLM.Gemini.Permissions
-  alias ExLLM.Test.GeminiOAuth2Helper
+  alias ExLLM.Providers.Gemini.Permissions
+  alias ExLLM.Testing.GeminiOAuth2Helper
 
   # Import test cache helpers
-  import ExLLM.TestCacheHelpers
+  import ExLLM.Testing.TestCacheHelpers
 
   # Skip entire module if OAuth2 is not available
   if not GeminiOAuth2Helper.oauth_available?() do
@@ -24,7 +24,7 @@ defmodule ExLLM.Providers.Gemini.PermissionsOAuth2Test do
 
     # Clear context on test exit
     on_exit(fn ->
-      ExLLM.TestCacheDetector.clear_test_context()
+      ExLLM.Testing.TestCacheDetector.clear_test_context()
     end)
 
     # Get OAuth token if available

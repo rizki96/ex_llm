@@ -47,10 +47,10 @@ defmodule ExLLM.Providers.Bedrock do
   - "palmyra-x5" - Writer Palmyra X5
   - "deepseek-r1" - DeepSeek R1
   """
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
   alias ExLLM.Providers.Shared.ModelUtils
-  alias ExLLM.{Logger, ModelConfig, Types}
+  alias ExLLM.{Infrastructure.Logger, Infrastructure.Config.ModelConfig, Types}
 
   @default_region "us-east-1"
 
@@ -83,7 +83,7 @@ defmodule ExLLM.Providers.Bedrock do
 
   @impl true
   def default_model() do
-    case ExLLM.ModelConfig.get_default_model(:bedrock) do
+    case ModelConfig.get_default_model(:bedrock) do
       nil ->
         raise "Missing configuration: No default model found for Bedrock. " <>
                 "Please ensure config/models/bedrock.yml exists and contains a 'default_model' field."
@@ -96,7 +96,7 @@ defmodule ExLLM.Providers.Bedrock do
   @impl true
   def list_models(options \\ []) do
     # Use ModelLoader with API fetching from Bedrock
-    ExLLM.ModelLoader.load_models(
+    ExLLM.Infrastructure.Config.ModelLoader.load_models(
       :bedrock,
       Keyword.merge(options,
         api_fetcher: fn opts -> fetch_bedrock_models(opts) end,
@@ -594,5 +594,17 @@ defmodule ExLLM.Providers.Bedrock do
   defp create_aws_client(_access_key, _secret_key, _session_token, _region) do
     # Stub implementation - returns a dummy client
     %{stub: true, provider: "bedrock"}
+  end
+
+  @doc """
+  Generate embeddings for text (requires specific Bedrock model).
+
+  This function is a placeholder for Bedrock embeddings support.
+  Bedrock supports embeddings through specific models like Amazon Titan.
+  """
+  @impl ExLLM.Provider
+  @spec embeddings(list(String.t()), keyword()) :: {:error, term()}
+  def embeddings(_inputs, _options \\ []) do
+    {:error, {:not_implemented, :bedrock_embeddings}}
   end
 end

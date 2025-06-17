@@ -275,3 +275,7 @@ The `ExLLM.Application` module starts the supervision tree, including the option
 6. **Automatic Cost Tracking**: Usage and costs are calculated transparently
 7. **Context Window Management**: Automatic message truncation based on model limits
 8. **Streaming Support**: Real-time responses with advanced coordinator and error recovery
+
+## Provider Testing and API Keys
+
+- Anytime you run live API tests, use the `scripts/run_with_env.sh` script to set the api keys

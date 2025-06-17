@@ -31,7 +31,7 @@ defmodule ExLLM.Providers.Perplexity do
       export PERPLEXITY_API_BASE="https://api.perplexity.ai"  # optional
 
       # Use with default environment provider
-      ExLLM.Providers.Perplexity.chat(messages, config_provider: ExLLM.ConfigProvider.Env)
+      ExLLM.Providers.Perplexity.chat(messages, config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
   ### Using Static Configuration
 
@@ -42,7 +42,7 @@ defmodule ExLLM.Providers.Perplexity do
           base_url: "https://api.perplexity.ai"  # optional
         }
       }
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       ExLLM.Providers.Perplexity.chat(messages, config_provider: provider)
 
   ## Example Usage
@@ -78,10 +78,10 @@ defmodule ExLLM.Providers.Perplexity do
       end
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
   @behaviour ExLLM.Providers.Shared.StreamingBehavior
 
-  alias ExLLM.{Logger, ModelConfig, Types}
+  alias ExLLM.{Infrastructure.Logger, Infrastructure.Config.ModelConfig, Types}
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,

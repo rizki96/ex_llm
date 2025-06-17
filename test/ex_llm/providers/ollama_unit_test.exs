@@ -1,7 +1,6 @@
 defmodule ExLLM.Providers.OllamaUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Providers.Ollama
-  # alias ExLLM.Types
 
   describe "configured?/1" do
     test "returns true when base_url is available" do

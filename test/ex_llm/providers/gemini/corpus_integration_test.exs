@@ -1,7 +1,7 @@
 defmodule ExLLM.Gemini.CorpusIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias ExLLM.Gemini.Corpus
+  alias ExLLM.Providers.Gemini.Corpus
 
   @moduletag :integration
   @moduletag :gemini_corpus_integration

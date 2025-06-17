@@ -10,7 +10,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
   - Embeddings
   """
 
-  alias ExLLM.{Cost, Types}
+  alias ExLLM.{Core.Cost, Types}
 
   @doc """
   Build a standard chat response from provider-specific data.
@@ -44,7 +44,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
         nil
       end
 
-    %Types.LLMResponse{
+    %ExLLM.Types.LLMResponse{
       content: content,
       model: model,
       usage: usage,
@@ -65,7 +65,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
         nil
 
       {content, finish_reason} ->
-        %Types.StreamChunk{
+        %ExLLM.Types.StreamChunk{
           content: content,
           finish_reason: finish_reason,
           model: Keyword.get(opts, :model),
@@ -92,7 +92,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
         nil
       end
 
-    %Types.EmbeddingResponse{
+    %ExLLM.Types.EmbeddingResponse{
       embeddings: embeddings,
       model: model,
       usage: usage,
@@ -119,7 +119,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
         nil
       end
 
-    %Types.LLMResponse{
+    %ExLLM.Types.LLMResponse{
       content: nil,
       model: model,
       usage: usage,
@@ -154,7 +154,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
         categorize_error_by_status(status, detail)
 
       _ ->
-        {:error, ExLLM.Error.api_error(status, data)}
+        {:error, ExLLM.Infrastructure.Error.api_error(status, data)}
     end
   end
 
@@ -180,7 +180,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
         nil
       end
 
-    %Types.LLMResponse{
+    %ExLLM.Types.LLMResponse{
       content: content,
       model: model,
       usage: usage,
@@ -475,43 +475,43 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
   defp normalize_error_data(data), do: %{"error" => inspect(data)}
 
   defp categorize_structured_error("authentication_error", message) do
-    {:error, ExLLM.Error.authentication_error(message)}
+    {:error, ExLLM.Infrastructure.Error.authentication_error(message)}
   end
 
   defp categorize_structured_error("rate_limit_error", message) do
-    {:error, ExLLM.Error.rate_limit_error(message)}
+    {:error, ExLLM.Infrastructure.Error.rate_limit_error(message)}
   end
 
   defp categorize_structured_error("invalid_request_error", message) do
-    {:error, ExLLM.Error.validation_error(:request, message)}
+    {:error, ExLLM.Infrastructure.Error.validation_error(:request, message)}
   end
 
   defp categorize_structured_error("insufficient_quota", message) do
-    {:error, ExLLM.Error.rate_limit_error(message)}
+    {:error, ExLLM.Infrastructure.Error.rate_limit_error(message)}
   end
 
   defp categorize_structured_error(_, message) do
-    {:error, ExLLM.Error.api_error(nil, message)}
+    {:error, ExLLM.Infrastructure.Error.api_error(nil, message)}
   end
 
   defp categorize_error_by_status(401, message) do
-    {:error, ExLLM.Error.authentication_error(message)}
+    {:error, ExLLM.Infrastructure.Error.authentication_error(message)}
   end
 
   defp categorize_error_by_status(403, message) do
-    {:error, ExLLM.Error.authentication_error(message)}
+    {:error, ExLLM.Infrastructure.Error.authentication_error(message)}
   end
 
   defp categorize_error_by_status(429, message) do
-    {:error, ExLLM.Error.rate_limit_error(message)}
+    {:error, ExLLM.Infrastructure.Error.rate_limit_error(message)}
   end
 
   defp categorize_error_by_status(503, message) do
-    {:error, ExLLM.Error.service_unavailable(message)}
+    {:error, ExLLM.Infrastructure.Error.service_unavailable(message)}
   end
 
   defp categorize_error_by_status(status, message) do
-    {:error, ExLLM.Error.api_error(status, message)}
+    {:error, ExLLM.Infrastructure.Error.api_error(status, message)}
   end
 
   # New extraction functions for different response formats

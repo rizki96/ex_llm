@@ -77,7 +77,7 @@ defmodule StreamingComparisonExample do
   end
 
   defp simulate_enhanced_streaming do
-    alias ExLLM.Streaming.{FlowController, StreamBuffer}
+    alias ExLLM.Infrastructure.Streaming.{FlowController, StreamBuffer}
     
     chunks = generate_sample_chunks()
     delivered = 0

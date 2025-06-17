@@ -12,7 +12,7 @@ Mix.install([
 ])
 
 defmodule CleanupTestData do
-  alias ExLLM.Gemini.Corpus
+  alias ExLLM.Providers.Gemini.Corpus
   
   def run do
     IO.puts("\n🧹 OAuth2 Test Data Cleanup")

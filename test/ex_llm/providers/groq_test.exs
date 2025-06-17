@@ -1,7 +1,7 @@
 defmodule ExLLM.Providers.GroqTest do
   use ExUnit.Case
   alias ExLLM.Providers.Groq
-  alias ExLLM.Test.ConfigProviderHelper
+  alias ExLLM.Testing.ConfigProviderHelper
 
   describe "Groq adapter" do
     test "configured?/1 returns false when no API key" do

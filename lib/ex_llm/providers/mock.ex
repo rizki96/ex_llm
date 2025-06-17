@@ -33,7 +33,7 @@ defmodule ExLLM.Providers.Mock do
   - Test streaming behavior
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
   alias ExLLM.Types
   use Agent
@@ -149,7 +149,7 @@ defmodule ExLLM.Providers.Mock do
   def use_cached_responses(provider) when is_atom(provider) do
     ensure_started()
 
-    case ExLLM.ResponseCache.configure_mock_provider(provider) do
+    case ExLLM.Testing.ResponseCache.configure_mock_provider(provider) do
       :ok ->
         Agent.update(__MODULE__, fn state ->
           %{state | response_mode: :cached, cached_provider: provider}
@@ -169,7 +169,7 @@ defmodule ExLLM.Providers.Mock do
   Lists available cached providers.
   """
   def list_cached_providers do
-    ExLLM.ResponseCache.list_cached_providers()
+    ExLLM.Testing.ResponseCache.list_cached_providers()
   end
 
   @doc """
@@ -353,7 +353,7 @@ defmodule ExLLM.Providers.Mock do
       # Include function call in stream
       state.stream_chunks ++
         [
-          %Types.StreamChunk{
+          %ExLLM.Types.StreamChunk{
             content: nil,
             finish_reason: "function_call"
           }
@@ -393,12 +393,12 @@ defmodule ExLLM.Providers.Mock do
 
     {:ok,
      [
-       %Types.Model{
+       %ExLLM.Types.Model{
          id: "mock-model-small",
          name: "Mock Model Small",
          context_window: 4_096
        },
-       %Types.Model{
+       %ExLLM.Types.Model{
          id: "mock-model-large",
          name: "Mock Model Large",
          context_window: 32_768
@@ -472,7 +472,7 @@ defmodule ExLLM.Providers.Mock do
   end
 
   defp build_embedding_response(embeddings, inputs, options) do
-    base_response = %Types.EmbeddingResponse{
+    base_response = %ExLLM.Types.EmbeddingResponse{
       embeddings: embeddings,
       model: Keyword.get(options, :model, "mock-embedding-model"),
       usage: %{
@@ -504,7 +504,7 @@ defmodule ExLLM.Providers.Mock do
       nil ->
         # Default models
         models = [
-          %Types.EmbeddingModel{
+          %ExLLM.Types.EmbeddingModel{
             name: "mock-embedding-small",
             dimensions: 384,
             max_inputs: 100,
@@ -516,7 +516,7 @@ defmodule ExLLM.Providers.Mock do
               currency: "USD"
             }
           },
-          %Types.EmbeddingModel{
+          %ExLLM.Types.EmbeddingModel{
             name: "mock-embedding-large",
             dimensions: 1536,
             max_inputs: 100,
@@ -573,10 +573,10 @@ defmodule ExLLM.Providers.Mock do
     end)
   end
 
-  defp normalize_response(%Types.LLMResponse{} = response), do: response
+  defp normalize_response(%ExLLM.Types.LLMResponse{} = response), do: response
 
   defp normalize_response(response) when is_map(response) do
-    %Types.LLMResponse{
+    %ExLLM.Types.LLMResponse{
       content: extract_content(response),
       model: get_field(response, :model, "mock-model"),
       usage: normalize_usage(get_field(response, :usage)),
@@ -589,7 +589,7 @@ defmodule ExLLM.Providers.Mock do
   end
 
   defp normalize_response(content) when is_binary(content) do
-    %Types.LLMResponse{
+    %ExLLM.Types.LLMResponse{
       content: content,
       model: "mock-model",
       usage: %{input_tokens: 10, output_tokens: 20},
@@ -629,7 +629,7 @@ defmodule ExLLM.Providers.Mock do
   end
 
   defp default_response do
-    %Types.LLMResponse{
+    %ExLLM.Types.LLMResponse{
       content: "This is a mock response",
       model: "mock-model",
       usage: %{input_tokens: 10, output_tokens: 20, total_tokens: 30},
@@ -640,13 +640,13 @@ defmodule ExLLM.Providers.Mock do
 
   defp default_stream_chunks do
     [
-      %Types.StreamChunk{content: "This ", finish_reason: nil},
-      %Types.StreamChunk{content: "is ", finish_reason: nil},
-      %Types.StreamChunk{content: "a ", finish_reason: nil},
-      %Types.StreamChunk{content: "mock ", finish_reason: nil},
-      %Types.StreamChunk{content: "stream ", finish_reason: nil},
-      %Types.StreamChunk{content: "response", finish_reason: nil},
-      %Types.StreamChunk{content: "", finish_reason: "stop"}
+      %ExLLM.Types.StreamChunk{content: "This ", finish_reason: nil},
+      %ExLLM.Types.StreamChunk{content: "is ", finish_reason: nil},
+      %ExLLM.Types.StreamChunk{content: "a ", finish_reason: nil},
+      %ExLLM.Types.StreamChunk{content: "mock ", finish_reason: nil},
+      %ExLLM.Types.StreamChunk{content: "stream ", finish_reason: nil},
+      %ExLLM.Types.StreamChunk{content: "response", finish_reason: nil},
+      %ExLLM.Types.StreamChunk{content: "", finish_reason: "stop"}
     ]
   end
 
@@ -660,7 +660,7 @@ defmodule ExLLM.Providers.Mock do
   end
 
   defp handle_embeddings_response(embeddings, inputs, options) when is_list(embeddings) do
-    response = %Types.EmbeddingResponse{
+    response = %ExLLM.Types.EmbeddingResponse{
       embeddings: embeddings,
       model: Keyword.get(options, :model, "mock-embedding-model"),
       usage: %{

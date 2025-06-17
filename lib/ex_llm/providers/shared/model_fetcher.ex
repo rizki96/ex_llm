@@ -15,7 +15,7 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
   to reduce code duplication.
   """
 
-  alias ExLLM.{Logger, Types}
+  alias ExLLM.{Infrastructure.Logger, Types}
   alias ExLLM.Providers.Shared.{ConfigHelper, HTTPClient, ModelUtils}
 
   @doc """
@@ -65,7 +65,7 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(provider, config_provider)
 
-    ExLLM.ModelLoader.load_models(
+    ExLLM.Infrastructure.Config.ModelLoader.load_models(
       provider,
       Keyword.merge(options,
         api_fetcher: fn _opts -> adapter_module.fetch_models(config) end,
@@ -99,7 +99,7 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
         {:ok, models}
 
       {:ok, response} ->
-        Logger.warn("Unexpected models API response format: #{inspect(response)}")
+        Logger.warning("Unexpected models API response format: #{inspect(response)}")
         {:error, "Unexpected response format"}
 
       {:error, reason} ->
@@ -147,7 +147,7 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
   def parse_standard_model(model, provider, options \\ []) do
     model_id = model["id"] || ""
 
-    %Types.Model{
+    %ExLLM.Types.Model{
       id: model_id,
       name: ModelUtils.format_model_name(model_id),
       description: model["description"] || ModelUtils.generate_description(model_id, provider),
@@ -163,7 +163,7 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
   """
   @spec transform_standard_config(atom() | String.t(), map(), atom()) :: Types.Model.t()
   def transform_standard_config(model_id, config, provider) do
-    %Types.Model{
+    %ExLLM.Types.Model{
       id: to_string(model_id),
       name: Map.get(config, :name, ModelUtils.format_model_name(to_string(model_id))),
       description:

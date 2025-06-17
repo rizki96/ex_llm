@@ -1,14 +1,14 @@
 defmodule ExLLM.Providers.Shared.ConfigHelper do
   @moduledoc false
 
-  alias ExLLM.{ConfigProvider, ModelConfig}
+  alias ExLLM.{Infrastructure.ConfigProvider, Infrastructure.Config.ModelConfig}
 
   @doc """
   Get configuration for a specific adapter from the config provider.
 
   ## Examples
 
-      iex> ConfigHelper.get_config(:anthropic, ExLLM.ConfigProvider.Env)
+      iex> ConfigHelper.get_config(:anthropic, ExLLM.Infrastructure.ConfigProvider.Env)
       %{api_key: "sk-...", model: "claude-3-5-sonnet", ...}
   """
   def get_config(adapter_name, config_provider) do
@@ -18,7 +18,9 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
 
       provider when is_pid(provider) ->
         # Static provider
-        adapter_config = ConfigProvider.Static.get(provider, adapter_name) || %{}
+        adapter_config =
+          ExLLM.Infrastructure.ConfigProvider.Static.get(provider, adapter_name) || %{}
+
         normalize_config(adapter_config)
 
       provider ->

@@ -1,7 +1,7 @@
 defmodule ExLLM.Providers.Shared.ErrorHandler do
   @moduledoc false
 
-  alias ExLLM.Error
+  alias ExLLM.Infrastructure.Error, as: Error
 
   @doc """
   Handle provider-specific errors and convert to standard ExLLM errors.

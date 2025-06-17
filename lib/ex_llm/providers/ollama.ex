@@ -13,7 +13,7 @@ defmodule ExLLM.Providers.Ollama do
       export OLLAMA_MODEL="llama2"  # optional
 
       # Use with default environment provider
-      ExLLM.Providers.Ollama.chat(messages, config_provider: ExLLM.ConfigProvider.Env)
+      ExLLM.Providers.Ollama.chat(messages, config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
   ### Using Static Configuration
 
@@ -23,7 +23,7 @@ defmodule ExLLM.Providers.Ollama do
           model: "llama2"
         }
       }
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       ExLLM.Providers.Ollama.chat(messages, config_provider: provider)
 
   ## Example Usage
@@ -65,10 +65,10 @@ defmodule ExLLM.Providers.Ollama do
   locally installed models and their actual capabilities.
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
   alias ExLLM.Providers.Shared.{ConfigHelper, HTTPClient, EnhancedStreamingCoordinator}
-  alias ExLLM.{Error, Logger, Types}
+  alias ExLLM.{Infrastructure.Logger, Types}
 
   @default_base_url "http://localhost:11434"
 
@@ -78,7 +78,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -131,10 +135,10 @@ defmodule ExLLM.Providers.Ollama do
         {:ok, parse_response(response, model)}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -144,7 +148,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -251,13 +259,17 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
 
     # Use ModelLoader with API fetching from Ollama server
-    ExLLM.ModelLoader.load_models(
+    ExLLM.Infrastructure.Config.ModelLoader.load_models(
       :ollama,
       Keyword.merge(options,
         api_fetcher: fn _opts -> fetch_ollama_models(config) end,
@@ -456,7 +468,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -606,7 +622,7 @@ defmodule ExLLM.Providers.Ollama do
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
       tool_calls: parse_tool_calls(tool_calls),
-      cost: ExLLM.Cost.calculate("ollama", model, usage)
+      cost: ExLLM.Core.Cost.calculate("ollama", model, usage)
     }
   end
 
@@ -769,7 +785,7 @@ defmodule ExLLM.Providers.Ollama do
 
           if finish_reason == "error" do
             error_msg = chunk["error"] || "Unknown error"
-            Logger.warn("Ollama streaming error: #{error_msg}")
+            Logger.warning("Ollama streaming error: #{error_msg}")
           end
 
           # Return nil to signal completion
@@ -801,7 +817,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -847,10 +867,10 @@ defmodule ExLLM.Providers.Ollama do
          }}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -894,7 +914,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -937,10 +961,10 @@ defmodule ExLLM.Providers.Ollama do
         {:ok, parse_generate_response(response, model)}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -954,7 +978,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1000,12 +1028,16 @@ defmodule ExLLM.Providers.Ollama do
               "Ollama API error - Status: #{response.status}, Body: #{inspect(response.body)}"
             )
 
-            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+            send(
+              parent,
+              {:stream_error,
+               ExLLM.Infrastructure.Error.api_error(response.status, response.body)}
+            )
           end
 
         {:error, reason} ->
           Logger.error("Ollama connection error: #{inspect(reason)}")
-          send(parent, {:stream_error, Error.connection_error(reason)})
+          send(parent, {:stream_error, ExLLM.Infrastructure.Error.connection_error(reason)})
       end
     end)
 
@@ -1053,7 +1085,7 @@ defmodule ExLLM.Providers.Ollama do
       usage: usage,
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
-      cost: ExLLM.Cost.calculate("ollama", model, usage),
+      cost: ExLLM.Core.Cost.calculate("ollama", model, usage),
       metadata: metadata
     }
   end
@@ -1127,7 +1159,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1142,10 +1178,10 @@ defmodule ExLLM.Providers.Ollama do
         {:ok, response}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -1164,7 +1200,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1182,10 +1222,10 @@ defmodule ExLLM.Providers.Ollama do
         {:ok, %{message: "Model copied successfully"}}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -1204,7 +1244,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1219,10 +1263,10 @@ defmodule ExLLM.Providers.Ollama do
         {:ok, %{message: "Model deleted successfully"}}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -1244,7 +1288,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1276,11 +1324,15 @@ defmodule ExLLM.Providers.Ollama do
           if response.status == 200 do
             handle_pull_stream_response(response, parent)
           else
-            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+            send(
+              parent,
+              {:stream_error,
+               ExLLM.Infrastructure.Error.api_error(response.status, response.body)}
+            )
           end
 
         {:error, reason} ->
-          send(parent, {:stream_error, Error.connection_error(reason)})
+          send(parent, {:stream_error, ExLLM.Infrastructure.Error.connection_error(reason)})
       end
     end)
 
@@ -1322,7 +1374,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1354,11 +1410,15 @@ defmodule ExLLM.Providers.Ollama do
           if response.status == 200 do
             handle_push_stream_response(response, parent)
           else
-            send(parent, {:stream_error, Error.api_error(response.status, response.body)})
+            send(
+              parent,
+              {:stream_error,
+               ExLLM.Infrastructure.Error.api_error(response.status, response.body)}
+            )
           end
 
         {:error, reason} ->
-          send(parent, {:stream_error, Error.connection_error(reason)})
+          send(parent, {:stream_error, ExLLM.Infrastructure.Error.connection_error(reason)})
       end
     end)
 
@@ -1401,7 +1461,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1412,10 +1476,10 @@ defmodule ExLLM.Providers.Ollama do
         {:ok, response["models"] || []}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -1431,7 +1495,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1442,10 +1510,10 @@ defmodule ExLLM.Providers.Ollama do
         {:ok, response}
 
       {:ok, %{status: status, body: body}} ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
 
       {:error, reason} ->
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -1483,7 +1551,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -1555,7 +1627,11 @@ defmodule ExLLM.Providers.Ollama do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     model = strip_provider_prefix(model_name)
@@ -1973,10 +2049,8 @@ defmodule ExLLM.Providers.Ollama do
   defp maybe_add_metadata(metadata, _key, nil), do: metadata
   defp maybe_add_metadata(metadata, key, value), do: Map.put(metadata, key, value)
 
-  @doc """
-  Parse streaming chunk for EnhancedStreamingCoordinator.
-  This wraps the existing parse_stream_chunk function to work with the coordinator.
-  """
+  # Parse streaming chunk for EnhancedStreamingCoordinator.
+  # This wraps the existing parse_stream_chunk function to work with the coordinator.
   defp parse_ollama_chunk(data) do
     # The coordinator doesn't provide model context, so we'll extract it from the chunk
     case Jason.decode(data) do

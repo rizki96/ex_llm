@@ -356,7 +356,7 @@ defmodule MyApp.Telemetry do
   
   def handle_llm_event([:ex_llm, :cost, :threshold, :exceeded], measurements, metadata, _config) do
     # Alert on cost overruns
-    Logger.warning("LLM cost threshold exceeded! Cost: $#{measurements.cost / 100}")
+    Logger.warn("LLM cost threshold exceeded! Cost: $#{measurements.cost / 100}")
     
     # Could send alerts via email/Slack/PagerDuty
     AlertManager.send_cost_alert(measurements.cost, metadata.threshold)

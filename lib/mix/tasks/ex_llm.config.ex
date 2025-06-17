@@ -43,7 +43,7 @@ defmodule Mix.Tasks.ExLlm.Config do
 
   use Mix.Task
 
-  alias ExLLM.CircuitBreaker.ConfigManager
+  alias ExLLM.Infrastructure.CircuitBreaker.ConfigManager
 
   @shortdoc "Manage circuit breaker configurations"
 
@@ -90,15 +90,9 @@ defmodule Mix.Tasks.ExLlm.Config do
   def run(["show", circuit_name]) do
     ensure_app_started()
 
-    case ConfigManager.get_config(circuit_name) do
-      {:ok, config} ->
-        Mix.shell().info("Configuration for circuit '#{circuit_name}':")
-        print_config(config)
-
-      {:error, :not_found} ->
-        Mix.shell().error("Circuit '#{circuit_name}' not found.")
-        exit({:shutdown, 1})
-    end
+    {:ok, config} = ConfigManager.get_config(circuit_name)
+    Mix.shell().info("Configuration for circuit '#{circuit_name}':")
+    print_config(config)
   end
 
   def run(["update", circuit_name | config_pairs]) do
@@ -201,26 +195,22 @@ defmodule Mix.Tasks.ExLlm.Config do
   def run(["history", circuit_name]) do
     ensure_app_started()
 
-    case ConfigManager.get_history(circuit_name, limit: 20) do
-      {:ok, []} ->
-        Mix.shell().info("No configuration history found for circuit '#{circuit_name}'.")
+    {:ok, history} = ConfigManager.get_history(circuit_name, limit: 20)
 
-      {:ok, history} ->
-        Mix.shell().info("Configuration history for circuit '#{circuit_name}':")
+    if Enum.empty?(history) do
+      Mix.shell().info("No configuration history found for circuit '#{circuit_name}'.")
+    else
+      Mix.shell().info("Configuration history for circuit '#{circuit_name}':")
+      Mix.shell().info("")
+
+      Enum.with_index(history, 1)
+      |> Enum.each(fn {entry, index} ->
+        Mix.shell().info("#{index}. Version #{entry.version} (#{entry.profile || "custom"})")
+        Mix.shell().info("   Saved: #{format_datetime(entry.saved_at)}")
+        Mix.shell().info("   Failure Threshold: #{entry.config.failure_threshold}")
+        Mix.shell().info("   Reset Timeout: #{entry.config.reset_timeout}ms")
         Mix.shell().info("")
-
-        Enum.with_index(history, 1)
-        |> Enum.each(fn {entry, index} ->
-          Mix.shell().info("#{index}. Version #{entry.version} (#{entry.profile || "custom"})")
-          Mix.shell().info("   Saved: #{format_datetime(entry.saved_at)}")
-          Mix.shell().info("   Failure Threshold: #{entry.config.failure_threshold}")
-          Mix.shell().info("   Reset Timeout: #{entry.config.reset_timeout}ms")
-          Mix.shell().info("")
-        end)
-
-      {:error, reason} ->
-        Mix.shell().error("Failed to get history: #{inspect(reason)}")
-        exit({:shutdown, 1})
+      end)
     end
   end
 

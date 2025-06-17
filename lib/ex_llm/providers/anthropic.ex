@@ -13,7 +13,7 @@ defmodule ExLLM.Providers.Anthropic do
       export ANTHROPIC_MODEL="claude-3-5-sonnet-20241022"  # optional
 
       # Use with default environment provider
-      ExLLM.Providers.Anthropic.chat(messages, config_provider: ExLLM.ConfigProvider.Env)
+      ExLLM.Providers.Anthropic.chat(messages, config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
   ### Using Static Configuration
 
@@ -24,7 +24,7 @@ defmodule ExLLM.Providers.Anthropic do
           base_url: "https://api.anthropic.com/v1"  # optional
         }
       }
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       ExLLM.Providers.Anthropic.chat(messages, config_provider: provider)
 
   ## Example Usage
@@ -44,7 +44,7 @@ defmodule ExLLM.Providers.Anthropic do
       end
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
   @behaviour ExLLM.Providers.Shared.StreamingBehavior
 
   alias ExLLM.Types
@@ -187,7 +187,7 @@ defmodule ExLLM.Providers.Anthropic do
     config = ConfigHelper.get_config(:anthropic, config_provider)
 
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(
+    ExLLM.Infrastructure.Config.ModelLoader.load_models(
       :anthropic,
       Keyword.merge(options,
         api_fetcher: fn _opts -> fetch_anthropic_models(config) end,
@@ -509,7 +509,7 @@ defmodule ExLLM.Providers.Anthropic do
     # Calculate cost if we have usage data
     cost =
       if usage && response["model"] do
-        ExLLM.Cost.calculate("anthropic", response["model"], usage)
+        ExLLM.Core.Cost.calculate("anthropic", response["model"], usage)
       else
         nil
       end
@@ -522,5 +522,17 @@ defmodule ExLLM.Providers.Anthropic do
       id: response["id"],
       cost: cost
     }
+  end
+
+  @doc """
+  Generate embeddings for text (not yet supported by Anthropic).
+
+  This function is a placeholder as Anthropic doesn't currently offer
+  an embeddings API. It will return an error indicating lack of support.
+  """
+  @impl ExLLM.Provider
+  @spec embeddings(list(String.t()), keyword()) :: {:error, term()}
+  def embeddings(_inputs, _options \\ []) do
+    {:error, {:embeddings_not_supported, :anthropic}}
   end
 end

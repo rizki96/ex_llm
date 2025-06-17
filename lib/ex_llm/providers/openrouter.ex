@@ -19,7 +19,7 @@ defmodule ExLLM.Providers.OpenRouter do
       export OPENROUTER_APP_URL="https://myapp.com"  # optional
 
       # Use with default environment provider
-      ExLLM.Providers.OpenRouter.chat(messages, config_provider: ExLLM.ConfigProvider.Env)
+      ExLLM.Providers.OpenRouter.chat(messages, config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
   ### Using Static Configuration
 
@@ -32,7 +32,7 @@ defmodule ExLLM.Providers.OpenRouter do
           base_url: "https://openrouter.ai/api/v1"  # optional
         }
       }
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       ExLLM.Providers.OpenRouter.chat(messages, config_provider: provider)
 
   ## Example Usage
@@ -64,16 +64,15 @@ defmodule ExLLM.Providers.OpenRouter do
   - **Multimodal**: Image and PDF input support for compatible models
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
-    ErrorHandler,
     HTTPClient,
     EnhancedStreamingCoordinator
   }
 
-  alias ExLLM.{ConfigProvider, Error, Logger, Types}
+  alias ExLLM.{Infrastructure.Logger, Types}
 
   @default_base_url "https://openrouter.ai/api/v1"
 
@@ -83,7 +82,11 @@ defmodule ExLLM.Providers.OpenRouter do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -104,10 +107,10 @@ defmodule ExLLM.Providers.OpenRouter do
           parse_response(body, model)
 
         {:ok, %{status: status, body: body}} ->
-          {:error, Error.api_error(status, body)}
+          {:error, ExLLM.Infrastructure.Error.api_error(status, body)}
 
         {:error, reason} ->
-          {:error, Error.connection_error(reason)}
+          {:error, ExLLM.Infrastructure.Error.connection_error(reason)}
       end
     end
   end
@@ -118,7 +121,11 @@ defmodule ExLLM.Providers.OpenRouter do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -200,7 +207,11 @@ defmodule ExLLM.Providers.OpenRouter do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -222,13 +233,17 @@ defmodule ExLLM.Providers.OpenRouter do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
 
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(
+    ExLLM.Infrastructure.Config.ModelLoader.load_models(
       :openrouter,
       Keyword.merge(options,
         api_fetcher: fn _opts -> fetch_openrouter_models(config) end,
@@ -298,7 +313,7 @@ defmodule ExLLM.Providers.OpenRouter do
     case config_provider do
       provider when is_pid(provider) ->
         # Static provider - get the full config and extract openrouter section
-        full_config = ConfigProvider.Static.get_all(provider)
+        full_config = ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider)
         Map.get(full_config, :openrouter, %{})
 
       provider when is_atom(provider) ->
@@ -500,10 +515,8 @@ defmodule ExLLM.Providers.OpenRouter do
     }
   end
 
-  @doc """
-  Parse streaming chunk from OpenRouter.
-  OpenRouter uses OpenAI-compatible streaming format.
-  """
+  # Parse streaming chunk from OpenRouter.
+  # OpenRouter uses OpenAI-compatible streaming format.
   defp parse_openrouter_chunk(data) do
     case Jason.decode(data) do
       {:ok, %{"choices" => choices} = chunk} ->
@@ -530,5 +543,17 @@ defmodule ExLLM.Providers.OpenRouter do
         # Skip invalid JSON chunks
         nil
     end
+  end
+
+  @doc """
+  Generate embeddings for text through OpenRouter.
+
+  This function is a placeholder. While OpenRouter provides access to
+  models with embedding capabilities, embeddings API is not yet implemented.
+  """
+  @impl ExLLM.Provider
+  @spec embeddings(list(String.t()), keyword()) :: {:error, term()}
+  def embeddings(_inputs, _options \\ []) do
+    {:error, {:not_implemented, :openrouter_embeddings}}
   end
 end

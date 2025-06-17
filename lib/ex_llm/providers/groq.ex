@@ -33,7 +33,7 @@ defmodule ExLLM.Providers.Groq do
       {:ok, response} = ExLLM.Providers.Groq.chat(messages, model: "llama3-70b-8192")
   """
 
-  alias ExLLM.{Error, ModelConfig}
+  alias ExLLM.Infrastructure.Config.ModelConfig
   alias ExLLM.Providers.Shared.{ConfigHelper, ErrorHandler, ModelUtils}
   import ExLLM.Providers.Shared.ModelUtils, only: [format_model_name: 1]
 
@@ -46,18 +46,18 @@ defmodule ExLLM.Providers.Groq do
   # Override list_models to use dynamic loading
   defoverridable list_models: 0
 
-  @impl ExLLM.Adapter
+  @impl ExLLM.Provider
   def default_model do
     ModelConfig.get_default_model(:groq)
   end
 
-  @impl ExLLM.Adapter
+  @impl ExLLM.Provider
   def list_models(options \\ []) do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:groq, config_provider)
 
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(
+    ExLLM.Infrastructure.Config.ModelLoader.load_models(
       :groq,
       Keyword.merge(options,
         api_fetcher: fn _opts -> fetch_groq_models(config) end,
@@ -189,4 +189,16 @@ defmodule ExLLM.Providers.Groq do
   # Model name formatting moved to shared ModelUtils module
 
   # Model description generation moved to shared ModelUtils module
+
+  @doc """
+  Generate embeddings for text (not yet supported by Groq).
+
+  This function is a placeholder as Groq doesn't currently offer
+  an embeddings API. It will return an error indicating lack of support.
+  """
+  @impl ExLLM.Provider
+  @spec embeddings(list(String.t()), keyword()) :: {:error, term()}
+  def embeddings(_inputs, _options \\ []) do
+    {:error, {:embeddings_not_supported, :groq}}
+  end
 end

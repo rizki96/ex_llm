@@ -1,4 +1,4 @@
-defmodule ExLLM.TestCacheHelpers do
+defmodule ExLLM.Testing.TestCacheHelpers do
   @moduledoc """
   Test helper functions for managing and working with the automatic test cache.
 
@@ -6,13 +6,13 @@ defmodule ExLLM.TestCacheHelpers do
   the caching system, including cache warming, clearing, and debugging.
   """
 
-  alias ExLLM.Cache.Storage.TestCache
-  alias ExLLM.TestCacheConfig
-  alias ExLLM.TestCacheDetector
-  alias ExLLM.TestCacheIndex
-  alias ExLLM.TestCacheStats
-  alias ExLLM.TestCacheStrategy
-  alias ExLLM.TestCacheTimestamp
+  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.TestCacheConfig
+  alias ExLLM.Testing.TestCacheDetector
+  alias ExLLM.Testing.TestCacheIndex
+  alias ExLLM.Testing.TestCacheStats
+  alias ExLLM.Testing.TestCacheStrategy
+  alias ExLLM.Testing.TestCacheTimestamp
 
   @doc """
   Run a test with specific cache configuration.
@@ -305,7 +305,7 @@ defmodule ExLLM.TestCacheHelpers do
   ## Usage in test module:
 
       setup do
-        ExLLM.TestCacheHelpers.setup_test_cache()
+        ExLLM.Testing.TestCacheHelpers.setup_test_cache()
       end
   """
   def setup_test_cache(context \\ %{}) do

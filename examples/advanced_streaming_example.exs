@@ -7,7 +7,7 @@ Mix.install([
 ])
 
 defmodule AdvancedStreamingExample do
-  alias ExLLM.Adapters.Shared.StreamingCoordinator
+  alias ExLLM.Providers.Shared.StreamingCoordinator
   
   @doc """
   Example of using StreamingCoordinator with advanced features

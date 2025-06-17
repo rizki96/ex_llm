@@ -2,7 +2,7 @@ defmodule ExLLM.Providers.OpenRouterUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Providers.OpenRouter
   alias ExLLM.Types
-  alias ExLLM.Test.ConfigProviderHelper
+  alias ExLLM.Testing.ConfigProviderHelper
 
   describe "configured?/1" do
     test "returns true when API key is available" do
@@ -30,7 +30,7 @@ defmodule ExLLM.Providers.OpenRouterUnitTest do
       original = System.get_env("OPENROUTER_API_KEY")
       System.put_env("OPENROUTER_API_KEY", "sk-or-test")
 
-      assert OpenRouter.configured?(config_provider: ExLLM.ConfigProvider.Env)
+      assert OpenRouter.configured?(config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
       if original do
         System.put_env("OPENROUTER_API_KEY", original)

@@ -47,7 +47,7 @@ defmodule ExLLM.Providers.LMStudio do
   quantization details, architecture information, and performance metrics.
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
   alias ExLLM.Providers.Shared.{MessageFormatter, ResponseBuilder, EnhancedStreamingCoordinator}
   alias ExLLM.Types
@@ -195,32 +195,33 @@ defmodule ExLLM.Providers.LMStudio do
   end
 
   # Parse streaming chunk - LM Studio uses OpenAI-compatible format
-  defp parse_stream_chunk(data) do
-    case data do
-      "[DONE]" ->
-        {:ok, :done}
+  # Currently unused as we use the shared streaming coordinator
+  # defp parse_stream_chunk(data) do
+  #   case data do
+  #     "[DONE]" ->
+  #       {:ok, :done}
 
-      _ ->
-        case Jason.decode(data) do
-          {:ok, parsed} ->
-            choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
-            delta = choice["delta"] || %{}
+  #     _ ->
+  #       case Jason.decode(data) do
+  #         {:ok, parsed} ->
+  #           choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
+  #           delta = choice["delta"] || %{}
 
-            # Handle both regular content and reasoning_content
-            content = delta["content"] || delta["reasoning_content"] || ""
+  #           # Handle both regular content and reasoning_content
+  #           content = delta["content"] || delta["reasoning_content"] || ""
 
-            chunk = %Types.StreamChunk{
-              content: content,
-              finish_reason: choice["finish_reason"]
-            }
+  #           chunk = %Types.StreamChunk{
+  #             content: content,
+  #             finish_reason: choice["finish_reason"]
+  #           }
 
-            {:ok, chunk}
+  #           {:ok, chunk}
 
-          {:error, _} ->
-            {:error, :invalid_json}
-        end
-    end
-  end
+  #         {:error, _} ->
+  #           {:error, :invalid_json}
+  #       end
+  #   end
+  # end
 
   # Parse function for StreamingCoordinator (returns Types.StreamChunk directly)
   defp parse_lmstudio_chunk(data) do

@@ -1,5 +1,6 @@
 defmodule ExLLM.Providers.OpenAICompatible do
-  alias ExLLM.{ModelConfig, Types}
+  alias ExLLM.Infrastructure.Config.ModelConfig
+  alias ExLLM.Types
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
@@ -18,7 +19,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
   ## Usage
 
-  Create a new adapter by using this module:
+  Create a new provider by using this module:
 
       defmodule ExLLM.Providers.MyProvider do
         use ExLLM.Providers.OpenAICompatible,
@@ -35,7 +36,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
   """
 
   @doc """
-  Defines callbacks for OpenAI-compatible adapters.
+  Defines callbacks for OpenAI-compatible providers.
   """
   @callback get_base_url(config :: map()) :: String.t()
   @callback get_api_key(config :: map()) :: String.t() | nil
@@ -62,7 +63,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
   Default model transformer for configuration data.
   """
   def default_model_transformer(model_id, config) do
-    %Types.Model{
+    %ExLLM.Types.Model{
       id: to_string(model_id),
       name: format_model_name(to_string(model_id)),
       description: "Model: #{to_string(model_id)}",
@@ -82,11 +83,12 @@ defmodule ExLLM.Providers.OpenAICompatible do
     supported_models = Keyword.get(opts, :models, [])
 
     quote do
-      @behaviour ExLLM.Adapter
+      @behaviour ExLLM.Provider
       @behaviour ExLLM.Providers.OpenAICompatible
       @behaviour ExLLM.Providers.Shared.StreamingBehavior
 
-      alias ExLLM.{Error, Logger, Types}
+      alias ExLLM.Infrastructure.{Error, Logger}
+      alias Types
 
       alias ExLLM.Providers.Shared.{
         ConfigHelper,
@@ -106,7 +108,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       # Default implementations
 
-      @impl ExLLM.Adapter
+      @impl ExLLM.Provider
       def chat(messages, options \\ []) do
         with :ok <- MessageFormatter.validate_messages(messages),
              config_provider <- ConfigHelper.get_config_provider(options),
@@ -119,7 +121,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       # API key validation moved to shared Validation module
 
-      @impl ExLLM.Adapter
+      @impl ExLLM.Provider
       def stream_chat(messages, options \\ [], callback) when is_function(callback, 1) do
         config_provider = get_config_provider(options)
         config = get_config(config_provider)
@@ -132,7 +134,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
         end
       end
 
-      @impl ExLLM.Adapter
+      @impl ExLLM.Provider
       def configured?(options \\ []) do
         config_provider = get_config_provider(options)
         config = get_config(config_provider)
@@ -144,13 +146,13 @@ defmodule ExLLM.Providers.OpenAICompatible do
         end
       end
 
-      @impl ExLLM.Adapter
+      @impl ExLLM.Provider
       def list_models(options \\ []) do
         config_provider = get_config_provider(options)
         config = get_config(config_provider)
 
         # Use ModelLoader with API fetching by default
-        ExLLM.ModelLoader.load_models(
+        ExLLM.Infrastructure.Config.ModelLoader.load_models(
           provider_atom(),
           Keyword.merge(options,
             api_fetcher: fn _opts -> fetch_models_from_api(config) end,
@@ -194,17 +196,14 @@ defmodule ExLLM.Providers.OpenAICompatible do
         provider_name = get_provider_name()
 
         # Use HTTPClient's stream_request which returns immediately
-        case HTTPClient.stream_request(url, request, headers, callback,
+        # HTTPClient.stream_request always returns {:ok, :streaming}
+        {:ok, :streaming} = HTTPClient.stream_request(url, request, headers, callback,
                provider: provider_name,
                timeout: 60_000,
                stream_id: stream_id
-             ) do
-          {:ok, :streaming} ->
-            {:ok, stream_id}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+             )
+        
+        {:ok, stream_id}
       end
 
       defp build_chat_request(messages, model, options) do
@@ -340,7 +339,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
             function_call = get_in(choice, ["message", "function_call"])
             tool_calls = get_in(choice, ["message", "tool_calls"])
 
-            response_struct = %Types.LLMResponse{
+            response_struct = %ExLLM.Types.LLMResponse{
               content: content,
               model: model,
               finish_reason: finish_reason,
@@ -358,7 +357,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
             {:ok, response_struct}
 
           _ ->
-            {:error, Error.json_parse_error("Invalid response format")}
+            {:error, ExLLM.Infrastructure.Error.json_parse_error("Invalid response format")}
         end
       end
 
@@ -377,7 +376,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       defp add_cost_tracking(response, options) do
         if Keyword.get(options, :track_cost, true) && response.usage do
-          cost = ExLLM.Cost.calculate(@provider, response.model, response.usage)
+          cost = ExLLM.Core.Cost.calculate(@provider, response.model, response.usage)
 
           if Map.has_key?(cost, :error) do
             response
@@ -394,11 +393,11 @@ defmodule ExLLM.Providers.OpenAICompatible do
       end
 
       defp handle_error(%{network_error: reason}) do
-        {:error, Error.connection_error(reason)}
+        {:error, ExLLM.Infrastructure.Error.connection_error(reason)}
       end
 
       defp handle_error(error) do
-        {:error, Error.unknown_error(error)}
+        {:error, ExLLM.Infrastructure.Error.unknown_error(error)}
       end
 
       defp generate_stream_id do
@@ -409,7 +408,11 @@ defmodule ExLLM.Providers.OpenAICompatible do
         Keyword.get(
           options,
           :config_provider,
-          Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+          Application.get_env(
+            :ex_llm,
+            :config_provider,
+            ExLLM.Infrastructure.ConfigProvider.Default
+          )
         )
       end
 
@@ -419,7 +422,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
             provider.get_all(@provider)
 
           provider when is_pid(provider) ->
-            ExLLM.ConfigProvider.Static.get_all(provider)
+            ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider)
             |> Map.get(@provider, %{})
         end
       end
@@ -476,19 +479,19 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       @impl ExLLM.Providers.OpenAICompatible
       def parse_error(%{status: 401}) do
-        {:error, Error.authentication_error("Invalid API key")}
+        {:error, ExLLM.Infrastructure.Error.authentication_error("Invalid API key")}
       end
 
       def parse_error(%{status: 429, body: body}) do
-        {:error, Error.rate_limit_error(inspect(body))}
+        {:error, ExLLM.Infrastructure.Error.rate_limit_error(inspect(body))}
       end
 
       def parse_error(%{status: status, body: body}) when status >= 500 do
-        {:error, Error.api_error(status, body)}
+        {:error, ExLLM.Infrastructure.Error.api_error(status, body)}
       end
 
       def parse_error(%{status: status, body: body}) do
-        {:error, Error.api_error(status, body)}
+        {:error, ExLLM.Infrastructure.Error.api_error(status, body)}
       end
 
       # Common helper functions for model management
@@ -524,7 +527,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
       defp parse_api_model(model) do
         model_id = model["id"]
 
-        %Types.Model{
+        %ExLLM.Types.Model{
           id: model_id,
           name: format_model_name(model_id),
           description: generate_model_description(model_id),

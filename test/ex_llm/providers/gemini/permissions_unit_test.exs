@@ -1,9 +1,9 @@
 defmodule ExLLM.Providers.Gemini.PermissionsUnitTest do
   use ExUnit.Case
 
-  alias ExLLM.Gemini.Permissions
+  alias ExLLM.Providers.Gemini.Permissions
 
-  alias ExLLM.Gemini.Permissions.{
+  alias ExLLM.Providers.Gemini.Permissions.{
     Permission,
     ListPermissionsResponse,
     TransferOwnershipRequest

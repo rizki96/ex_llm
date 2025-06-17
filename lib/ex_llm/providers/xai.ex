@@ -60,9 +60,9 @@ defmodule ExLLM.Providers.XAI do
       )
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
-  alias ExLLM.{ConfigProvider, Types}
+  alias ExLLM.{Infrastructure.ConfigProvider, Types}
 
   alias ExLLM.Providers.Shared.{
     ErrorHandler,
@@ -165,7 +165,7 @@ defmodule ExLLM.Providers.XAI do
   @impl true
   def list_models(_options \\ []) do
     # X.AI doesn't provide a models endpoint, so we return our configured models
-    models = ExLLM.ModelConfig.get_all_models(:xai)
+    models = ExLLM.Infrastructure.Config.ModelConfig.get_all_models(:xai)
 
     formatted_models =
       Enum.map(models, fn {id, model_data} ->
@@ -242,7 +242,7 @@ defmodule ExLLM.Providers.XAI do
         config_provider.get(:xai, :api_key)
       else
         # It's a pid (Static provider)
-        ExLLM.ConfigProvider.Static.get(config_provider, [:xai, :api_key])
+        ExLLM.Infrastructure.ConfigProvider.Static.get(config_provider, [:xai, :api_key])
       end
 
     not is_nil(api_key) and api_key != ""
@@ -250,7 +250,7 @@ defmodule ExLLM.Providers.XAI do
 
   @impl true
   def default_model(_options \\ []) do
-    ExLLM.ModelConfig.get_default_model(:xai) || "xai/grok-beta"
+    ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:xai) || "xai/grok-beta"
   end
 
   # Private functions
@@ -451,7 +451,7 @@ defmodule ExLLM.Providers.XAI do
   end
 
   defp calculate_cost(usage, model) do
-    model_config = ExLLM.ModelConfig.get_model_config(:xai, model)
+    model_config = ExLLM.Infrastructure.Config.ModelConfig.get_model_config(:xai, model)
 
     if model_config && model_config.pricing do
       input_tokens = Map.get(usage, "prompt_tokens", 0)

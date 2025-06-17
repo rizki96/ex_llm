@@ -15,7 +15,7 @@ defmodule EnhancedStreamingExample do
   Examples of using ExLLM's enhanced streaming capabilities.
   """
 
-  alias ExLLM.Streaming.{StreamBuffer, FlowController, ChunkBatcher}
+  alias ExLLM.Infrastructure.Streaming.{StreamBuffer, FlowController, ChunkBatcher}
 
   def run do
     IO.puts("\n🚀 ExLLM Enhanced Streaming Examples\n")

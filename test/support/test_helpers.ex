@@ -1,4 +1,4 @@
-defmodule ExLLM.TestHelpers do
+defmodule ExLLM.Testing.TestHelpers do
   @moduledoc """
   Common test helper functions for ExLLM test suite.
 
@@ -12,6 +12,8 @@ defmodule ExLLM.TestHelpers do
 
   import ExUnit.Assertions
   import ExUnit.Callbacks
+
+  alias ExLLM.Types
 
   @doc """
   Set up a mock adapter with a predefined response.
@@ -38,17 +40,17 @@ defmodule ExLLM.TestHelpers do
   """
   def setup_cache_test(context \\ %{}) do
     # Start cache if not already started
-    case Process.whereis(ExLLM.Cache) do
+    case Process.whereis(ExLLM.Infrastructure.Cache) do
       nil ->
-        {:ok, _} = ExLLM.Cache.start_link()
+        {:ok, _} = ExLLM.Infrastructure.Cache.start_link()
 
       _pid ->
         # Clear existing cache
-        ExLLM.Cache.clear()
+        ExLLM.Infrastructure.Cache.clear()
     end
 
     on_exit(fn ->
-      ExLLM.Cache.clear()
+      ExLLM.Infrastructure.Cache.clear()
     end)
 
     context
@@ -90,11 +92,11 @@ defmodule ExLLM.TestHelpers do
   Generate a test session with messages.
   """
   def generate_test_session(backend \\ "test", message_count \\ 5) do
-    session = ExLLM.Session.new(backend)
+    session = ExLLM.Core.Session.new(backend)
 
     Enum.reduce(1..message_count, session, fn i, acc ->
       role = if rem(i, 2) == 1, do: "user", else: "assistant"
-      ExLLM.Session.add_message(acc, role, "Message #{i}")
+      ExLLM.Core.Session.add_message(acc, role, "Message #{i}")
     end)
   end
 
@@ -103,9 +105,9 @@ defmodule ExLLM.TestHelpers do
   """
   def setup_stream_recovery_test(context \\ %{}) do
     # Start StreamRecovery if not already started
-    case Process.whereis(ExLLM.StreamRecovery) do
+    case Process.whereis(ExLLM.Core.Streaming.Recovery) do
       nil ->
-        {:ok, _} = ExLLM.StreamRecovery.start_link()
+        {:ok, _} = ExLLM.Core.Streaming.Recovery.start_link()
 
       _pid ->
         :ok
@@ -118,7 +120,7 @@ defmodule ExLLM.TestHelpers do
   Assert that a response has expected structure.
   """
   def assert_valid_response(response) do
-    assert %ExLLM.Types.LLMResponse{} = response
+    assert %Types.LLMResponse{} = response
     assert is_binary(response.content) or is_nil(response.content)
     assert is_map(response.usage) or is_nil(response.usage)
 
@@ -134,7 +136,7 @@ defmodule ExLLM.TestHelpers do
   Assert that a streaming chunk has expected structure.
   """
   def assert_valid_chunk(chunk) do
-    assert %ExLLM.Types.StreamChunk{} = chunk
+    assert %Types.StreamChunk{} = chunk
     assert is_binary(chunk.content) or is_nil(chunk.content)
     assert is_binary(chunk.finish_reason) or is_nil(chunk.finish_reason)
 

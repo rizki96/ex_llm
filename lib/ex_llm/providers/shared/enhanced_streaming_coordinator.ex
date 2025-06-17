@@ -98,8 +98,8 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
   """
 
   alias ExLLM.Providers.Shared.{StreamingCoordinator, HTTPClient}
-  alias ExLLM.Streaming.FlowController
-  alias ExLLM.{Logger, Types}
+  alias ExLLM.Infrastructure.Streaming.FlowController
+  alias ExLLM.Types
 
   require Logger
 
@@ -223,7 +223,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
           end
 
           # Send completion chunk
-          enhanced_callback.(%Types.StreamChunk{
+          enhanced_callback.(%ExLLM.Types.StreamChunk{
             content: "",
             finish_reason: "stop"
           })
@@ -384,7 +384,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
               :ok
 
             {:error, :backpressure} ->
-              Logger.warn("Backpressure applied in stream #{stream_context.recovery_id}")
+              Logger.warning("Backpressure applied in stream #{stream_context.recovery_id}")
               # Continue processing, FlowController handles the backpressure
               :ok
           end
@@ -502,7 +502,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
       {:ok, chunk} when is_struct(chunk, Types.StreamChunk) ->
         validate_and_save_chunk(chunk, recovery_id, stats.chunk_count, options)
 
-      %Types.StreamChunk{} = chunk ->
+      %ExLLM.Types.StreamChunk{} = chunk ->
         validate_and_save_chunk(chunk, recovery_id, stats.chunk_count, options)
 
       nil ->
@@ -526,7 +526,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
           {:ok, chunk}
 
         {:error, reason} ->
-          Logger.warn("Invalid chunk rejected in enhanced stream: #{inspect(reason)}")
+          Logger.warning("Invalid chunk rejected in enhanced stream: #{inspect(reason)}")
           :skip
       end
     else
@@ -539,13 +539,9 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
     if Keyword.get(options, :stream_recovery, false) do
       # Use StreamingCoordinator's recovery functionality
       if stream_recovery_enabled?() do
-        case ExLLM.StreamRecovery.add_chunk(recovery_id, chunk) do
-          :ok ->
-            Logger.debug("Saved enhanced chunk #{chunk_count} for stream #{recovery_id}")
-
-          {:error, reason} ->
-            Logger.debug("Failed to save enhanced chunk: #{inspect(reason)}")
-        end
+        # record_chunk uses GenServer.cast and always returns :ok
+        ExLLM.Core.Streaming.Recovery.record_chunk(recovery_id, chunk)
+        Logger.debug("Saved enhanced chunk #{chunk_count} for stream #{recovery_id}")
       end
     end
   end
@@ -555,7 +551,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
     recovery_id = stream_context.recovery_id
 
     # Create an error chunk
-    error_chunk = %Types.StreamChunk{
+    error_chunk = %ExLLM.Types.StreamChunk{
       content: "Error: #{inspect(reason)}",
       finish_reason: "error"
     }
@@ -586,42 +582,41 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
       provider = Keyword.get(options, :provider, :unknown)
       messages = extract_messages_from_request(request, provider)
 
-      case ExLLM.StreamRecovery.init_recovery(provider, messages, options) do
-        {:ok, _} ->
-          Logger.debug("Enhanced stream recovery initialized for #{recovery_id}")
-
-        {:error, reason} ->
-          Logger.warn("Failed to initialize enhanced stream recovery: #{inspect(reason)}")
-      end
+      {:ok, _} = ExLLM.Core.Streaming.Recovery.init_recovery(provider, messages, options)
+      Logger.debug("Enhanced stream recovery initialized for #{recovery_id}")
     end
   end
 
   defp mark_stream_recoverable(recovery_id, reason) do
     if stream_recovery_enabled?() do
-      case ExLLM.StreamRecovery.mark_error(recovery_id, reason) do
-        :ok ->
-          Logger.info("Enhanced stream #{recovery_id} marked as recoverable: #{inspect(reason)}")
+      case ExLLM.Core.Streaming.Recovery.record_error(recovery_id, reason) do
+        {:ok, recoverable} ->
+          if recoverable do
+            Logger.info(
+              "Enhanced stream #{recovery_id} marked as recoverable: #{inspect(reason)}"
+            )
+          else
+            Logger.debug(
+              "Enhanced stream #{recovery_id} error recorded (not recoverable): #{inspect(reason)}"
+            )
+          end
 
         {:error, error} ->
-          Logger.warn("Failed to mark enhanced stream as recoverable: #{inspect(error)}")
+          Logger.warning("Failed to mark enhanced stream as recoverable: #{inspect(error)}")
       end
     end
   end
 
   defp cleanup_stream_state(recovery_id) do
     if stream_recovery_enabled?() do
-      case ExLLM.StreamRecovery.complete_stream(recovery_id) do
-        :ok ->
-          Logger.debug("Enhanced stream recovery state cleaned up: #{recovery_id}")
-
-        {:error, reason} ->
-          Logger.debug("Failed to cleanup enhanced stream state: #{inspect(reason)}")
-      end
+      # complete_stream uses GenServer.cast and always returns :ok
+      ExLLM.Core.Streaming.Recovery.complete_stream(recovery_id)
+      Logger.debug("Enhanced stream recovery state cleaned up: #{recovery_id}")
     end
   end
 
   defp stream_recovery_enabled? do
-    Process.whereis(ExLLM.StreamRecovery) != nil
+    Process.whereis(ExLLM.Core.Streaming.Recovery) != nil
   end
 
   defp extract_messages_from_request(request, :openai) when is_map(request) do

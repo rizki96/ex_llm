@@ -2,7 +2,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Providers.OpenAI
   alias ExLLM.Types
-  alias ExLLM.Test.ConfigProviderHelper
+  alias ExLLM.Testing.ConfigProviderHelper
 
   describe "configured?/1" do
     test "returns true when API key is available" do
@@ -586,7 +586,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
 
     test "get_file retrieves file metadata" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, _provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, _provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
       # Test get_file when implemented
       # result = OpenAI.get_file("file-abc123", config_provider: provider)
@@ -596,7 +596,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
 
     test "delete_file removes uploaded file" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, _provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, _provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
       # Test delete_file when implemented
       # result = OpenAI.delete_file("file-abc123", config_provider: provider)
@@ -606,7 +606,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
 
     test "retrieve_file_content downloads file data" do
       config = %{openai: %{api_key: "test-key"}}
-      {:ok, _provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, _provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
       # Test retrieve_file_content when implemented
       # result = OpenAI.retrieve_file_content("file-abc123", config_provider: provider)

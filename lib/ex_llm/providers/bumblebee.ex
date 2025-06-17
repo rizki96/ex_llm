@@ -32,9 +32,10 @@ defmodule ExLLM.Providers.Bumblebee do
   - Streaming support for real-time generation
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
-  alias ExLLM.{Bumblebee.ModelLoader, Logger, Types}
+  alias ExLLM.{Infrastructure.Logger, Types}
+  alias ExLLM.Providers.Bumblebee.ModelLoader
 
   @available_models [
     "microsoft/phi-2",
@@ -555,5 +556,17 @@ defmodule ExLLM.Providers.Bumblebee do
       end
 
     features
+  end
+
+  @doc """
+  Generate embeddings for text using Bumblebee models.
+
+  This function is a placeholder for Bumblebee embeddings support.
+  Bumblebee can support embeddings through models like sentence transformers.
+  """
+  @impl ExLLM.Provider
+  @spec embeddings(list(String.t()), keyword()) :: {:error, term()}
+  def embeddings(_inputs, _options \\ []) do
+    {:error, {:not_implemented, :bumblebee_embeddings}}
   end
 end

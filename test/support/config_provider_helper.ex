@@ -1,4 +1,4 @@
-defmodule ExLLM.Test.ConfigProviderHelper do
+defmodule ExLLM.Testing.ConfigProviderHelper do
   @moduledoc """
   Helper for setting up static config providers in tests.
 
@@ -16,7 +16,7 @@ defmodule ExLLM.Test.ConfigProviderHelper do
       # provider is a PID that can be used with config_provider option
   """
   def setup_static_provider(config) do
-    {:ok, pid} = ExLLM.ConfigProvider.Static.start_link(config)
+    {:ok, pid} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
     pid
   end
 

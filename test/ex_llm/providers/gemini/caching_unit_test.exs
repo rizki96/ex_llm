@@ -6,9 +6,9 @@ defmodule ExLLM.Gemini.CachingUnitTest do
   """
 
   use ExUnit.Case, async: true
-  alias ExLLM.Gemini.Caching
-  alias ExLLM.Gemini.Caching.{CachedContent, UsageMetadata}
-  alias ExLLM.Gemini.Content.{Content, Part}
+  alias ExLLM.Providers.Gemini.Caching
+  alias ExLLM.Providers.Gemini.Caching.{CachedContent, UsageMetadata}
+  alias ExLLM.Providers.Gemini.Content.{Content, Part}
 
   describe "CachedContent struct" do
     test "creates cached content with all fields" do

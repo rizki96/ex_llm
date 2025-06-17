@@ -6,19 +6,19 @@ defmodule ExLLM.Application do
   @impl true
   def start(_type, _args) do
     # Initialize circuit breaker ETS table
-    ExLLM.CircuitBreaker.init()
+    ExLLM.Infrastructure.CircuitBreaker.init()
 
     # Initialize metrics system
-    ExLLM.CircuitBreaker.Metrics.setup()
+    ExLLM.Infrastructure.CircuitBreaker.Metrics.setup()
 
     children =
       [
         # Start StreamRecovery for all adapters
-        ExLLM.StreamRecovery,
+        ExLLM.Core.Streaming.Recovery,
         # Start Cache if enabled
         cache_child_spec(),
         # Start Circuit Breaker Configuration Manager
-        ExLLM.CircuitBreaker.ConfigManager,
+        ExLLM.Infrastructure.CircuitBreaker.ConfigManager,
         # Start Circuit Breaker Metrics system if enabled
         metrics_child_spec()
       ]
@@ -30,7 +30,7 @@ defmodule ExLLM.Application do
 
     children =
       if Code.ensure_loaded?(Bumblebee) and not in_test do
-        children ++ [ExLLM.Bumblebee.ModelLoader]
+        children ++ [ExLLM.Providers.Bumblebee.ModelLoader]
       else
         children
       end
@@ -41,7 +41,7 @@ defmodule ExLLM.Application do
 
   defp cache_child_spec do
     if Application.get_env(:ex_llm, :cache_enabled, false) do
-      ExLLM.Cache
+      ExLLM.Infrastructure.Cache
     else
       nil
     end
@@ -51,19 +51,9 @@ defmodule ExLLM.Application do
     config = Application.get_env(:ex_llm, :circuit_breaker_metrics, [])
 
     if Keyword.get(config, :enabled, false) and :statsd in Keyword.get(config, :backends, []) do
-      ExLLM.CircuitBreaker.Metrics.StatsDReporter
+      ExLLM.Infrastructure.CircuitBreaker.Metrics.StatsDReporter
     else
       nil
-    end
-  end
-
-  defp env do
-    # Check if we're in escript mode by checking if Mix is available
-    if Code.ensure_loaded?(Mix) do
-      Mix.env()
-    else
-      # Default to :prod when Mix is not available (escript mode)
-      :prod
     end
   end
 end

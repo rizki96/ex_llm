@@ -1,6 +1,6 @@
 defmodule ExLLM.Gemini.ModelsUnitTest do
   use ExUnit.Case, async: true
-  alias ExLLM.Gemini.Models.Model
+  alias ExLLM.Providers.Gemini.Models.Model
 
   describe "Model.from_api/1" do
     test "properly deserializes all model fields" do

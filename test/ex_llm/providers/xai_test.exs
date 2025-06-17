@@ -1,16 +1,17 @@
 defmodule ExLLM.Providers.XAITest do
   use ExUnit.Case
   alias ExLLM.Providers.XAI
+  alias ExLLM.Types
 
   describe "XAI adapter" do
     test "configured?/1 returns false when no API key" do
-      {:ok, pid} = ExLLM.ConfigProvider.Static.start_link(%{xai: %{}})
+      {:ok, pid} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{xai: %{}})
       refute XAI.configured?(config_provider: pid)
     end
 
     test "configured?/1 returns true when API key is set" do
       config = %{xai: %{api_key: "test-key"}}
-      {:ok, pid} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, pid} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       assert XAI.configured?(config_provider: pid)
     end
 
@@ -32,7 +33,7 @@ defmodule ExLLM.Providers.XAITest do
 
       # Check model structure
       first_model = hd(models)
-      assert %ExLLM.Types.Model{} = first_model
+      assert %Types.Model{} = first_model
       assert is_binary(first_model.id)
       assert is_binary(first_model.name)
       assert is_integer(first_model.context_window)

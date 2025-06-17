@@ -132,6 +132,7 @@ mix ex_llm.cache clean --older-than 7d
 
 📚 **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes  
 📖 **[User Guide](docs/USER_GUIDE.md)** - Comprehensive documentation of all features  
+🏗️ **[Architecture Guide](docs/ARCHITECTURE.md)** - Clean layered architecture and namespace organization  
 🔧 **[Logger Guide](docs/LOGGER.md)** - Debug logging and troubleshooting  
 ⚡ **[Provider Capabilities](docs/PROVIDER_CAPABILITIES.md)** - Feature comparison across providers  
 🧪 **[Testing Guide](docs/TESTING.md)** - Comprehensive testing system with semantic tagging and caching

@@ -3,7 +3,7 @@ defmodule ExLLM.Providers.OpenRouterIntegrationTest do
   alias ExLLM.Providers.OpenRouter
   alias ExLLM.Types
   # Import test cache helpers
-  import ExLLM.TestCacheHelpers
+  import ExLLM.Testing.TestCacheHelpers
 
   @moduletag :integration
   @moduletag :external
@@ -26,7 +26,7 @@ defmodule ExLLM.Providers.OpenRouterIntegrationTest do
     setup_test_cache(context)
     # Clear context on test exit
     on_exit(fn ->
-      ExLLM.TestCacheDetector.clear_test_context()
+      ExLLM.Testing.TestCacheDetector.clear_test_context()
     end)
 
     :ok
@@ -426,7 +426,7 @@ defmodule ExLLM.Providers.OpenRouterIntegrationTest do
 
     test "handles invalid API key" do
       config = %{openrouter: %{api_key: "sk-or-invalid-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
       messages = [%{role: "user", content: "Test"}]
 

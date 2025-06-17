@@ -1,12 +1,12 @@
 defmodule ExLLM.Gemini.ContentIntegrationTest do
   use ExUnit.Case, async: true
 
-  alias ExLLM.Gemini.Content.{
+  alias ExLLM.Providers.Gemini.Content.{
     GenerateContentRequest,
     Part
   }
 
-  alias ExLLM.Gemini.Content.Content, as: ContentStruct
+  alias ExLLM.Providers.Gemini.Content.Content, as: ContentStruct
 
   @moduletag :integration
   @moduletag :external
@@ -28,7 +28,7 @@ defmodule ExLLM.Gemini.ContentIntegrationTest do
         ]
       }
 
-      case ExLLM.Gemini.Content.generate_content(model, request) do
+      case ExLLM.Providers.Gemini.Content.generate_content(model, request) do
         {:ok, response} ->
           assert response.candidates
           assert length(response.candidates) > 0
@@ -36,6 +36,10 @@ defmodule ExLLM.Gemini.ContentIntegrationTest do
 
         {:error, %{message: "API key not valid" <> _}} ->
           # Expected when running without valid API key
+          assert true
+
+        {:error, %{message: "API key is required", reason: :missing_api_key}} ->
+          # Expected when running without API key
           assert true
 
         {:error, error} ->

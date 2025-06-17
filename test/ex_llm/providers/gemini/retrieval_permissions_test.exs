@@ -1,9 +1,9 @@
 defmodule ExLLM.Providers.Gemini.RetrievalPermissionsTest do
   use ExUnit.Case, async: false
 
-  alias ExLLM.Gemini.Permissions
+  alias ExLLM.Providers.Gemini.Permissions
 
-  alias ExLLM.Gemini.Permissions.{
+  alias ExLLM.Providers.Gemini.Permissions.{
     Permission,
     ListPermissionsResponse
   }

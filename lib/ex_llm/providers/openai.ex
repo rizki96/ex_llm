@@ -14,7 +14,7 @@ defmodule ExLLM.Providers.OpenAI do
       export OPENAI_API_BASE="https://api.openai.com/v1"  # optional
 
       # Use with default environment provider
-      ExLLM.Providers.OpenAI.chat(messages, config_provider: ExLLM.ConfigProvider.Env)
+      ExLLM.Providers.OpenAI.chat(messages, config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
   ### Using Static Configuration
 
@@ -25,7 +25,7 @@ defmodule ExLLM.Providers.OpenAI do
           base_url: "https://api.openai.com/v1"  # optional
         }
       }
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       ExLLM.Providers.OpenAI.chat(messages, config_provider: provider)
 
   ## Example Usage
@@ -45,10 +45,10 @@ defmodule ExLLM.Providers.OpenAI do
       end
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
   @behaviour ExLLM.Providers.Shared.StreamingBehavior
 
-  alias ExLLM.{Error, Logger, Types}
+  alias ExLLM.{Infrastructure.Logger, Types}
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
@@ -89,7 +89,7 @@ defmodule ExLLM.Providers.OpenAI do
       }
 
       # Instrument with telemetry
-      ExLLM.Telemetry.span([:ex_llm, :provider, :request], metadata, fn ->
+      ExLLM.Infrastructure.Telemetry.span([:ex_llm, :provider, :request], metadata, fn ->
         body = build_request_body(messages, model, config, options)
         headers = build_headers(api_key, config)
         url = "#{get_base_url(config)}/chat/completions"
@@ -211,7 +211,7 @@ defmodule ExLLM.Providers.OpenAI do
     config = ConfigHelper.get_config(:openai, config_provider)
 
     # Use ModelLoader with API fetching
-    ExLLM.ModelLoader.load_models(
+    ExLLM.Infrastructure.Config.ModelLoader.load_models(
       :openai,
       Keyword.merge(options,
         api_fetcher: fn _opts -> fetch_openai_models(config) end,
@@ -446,7 +446,7 @@ defmodule ExLLM.Providers.OpenAI do
       model: model,
       finish_reason: choice["finish_reason"],
       cost:
-        ExLLM.Cost.calculate("openai", model, %{
+        ExLLM.Core.Cost.calculate("openai", model, %{
           input_tokens: enhanced_usage.input_tokens,
           output_tokens: enhanced_usage.output_tokens
         }),
@@ -457,12 +457,12 @@ defmodule ExLLM.Providers.OpenAI do
   defp get_context_window(model_id) do
     # Use ModelConfig for context window lookup
     # This will return nil if model not found, which we handle in the caller
-    ExLLM.ModelConfig.get_context_window(:openai, model_id)
+    ExLLM.Infrastructure.Config.ModelConfig.get_context_window(:openai, model_id)
   end
 
   # Public helper functions for testing and validation
   def validate_functions_parameter(functions) when is_list(functions) do
-    Logger.warn("[OpenAI] The 'functions' parameter is deprecated. Use 'tools' instead.")
+    Logger.warning("[OpenAI] The 'functions' parameter is deprecated. Use 'tools' instead.")
     :ok
   end
 
@@ -835,7 +835,7 @@ defmodule ExLLM.Providers.OpenAI do
         # Add cost tracking if enabled
         embedding_response =
           if Keyword.get(options, :track_cost, true) do
-            cost = ExLLM.Cost.calculate(:openai, model, embedding_response.usage)
+            cost = ExLLM.Core.Cost.calculate(:openai, model, embedding_response.usage)
             %{embedding_response | cost: cost}
           else
             embedding_response
@@ -844,7 +844,7 @@ defmodule ExLLM.Providers.OpenAI do
         {:ok, embedding_response}
 
       _ ->
-        {:error, Error.json_parse_error("Invalid embeddings response")}
+        {:error, ExLLM.Infrastructure.Error.json_parse_error("Invalid embeddings response")}
     end
   end
 
@@ -1227,7 +1227,7 @@ defmodule ExLLM.Providers.OpenAI do
   end
 
   defp validate_file_purpose(purpose) do
-    Error.validation_error(
+    ExLLM.Infrastructure.Error.validation_error(
       :purpose,
       "Invalid purpose '#{purpose}'. Must be one of: fine-tune, fine-tune-results, assistants, assistants_output, batch, batch_output, vision, user_data, evals"
     )
@@ -1427,14 +1427,17 @@ defmodule ExLLM.Providers.OpenAI do
     missing = required -- Keyword.keys(params)
 
     if missing != [] do
-      Error.validation_error(:params, "Missing required parameters: #{inspect(missing)}")
+      ExLLM.Infrastructure.Error.validation_error(
+        :params,
+        "Missing required parameters: #{inspect(missing)}"
+      )
     else
       # Validate bytes (max 8GB)
       # 8 GB
       max_bytes = 8 * 1024 * 1024 * 1024
 
       if params[:bytes] > max_bytes do
-        Error.validation_error(:bytes, "Upload size cannot exceed 8 GB")
+        ExLLM.Infrastructure.Error.validation_error(:bytes, "Upload size cannot exceed 8 GB")
       else
         # Validate purpose
         validate_file_purpose(params[:purpose])
@@ -1462,7 +1465,7 @@ defmodule ExLLM.Providers.OpenAI do
       end
 
     if size > max_part_size do
-      Error.validation_error(:data, "Part size cannot exceed 64 MB")
+      ExLLM.Infrastructure.Error.validation_error(:data, "Part size cannot exceed 64 MB")
     else
       {:ok, data}
     end

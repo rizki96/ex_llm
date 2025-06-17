@@ -26,7 +26,8 @@ defmodule ExLLM.ExampleApp do
   Comprehensive example application demonstrating all ExLLM features.
   """
   
-  alias ExLLM.{Session, Context, ModelCapabilities, FunctionCalling}
+  alias ExLLM.Core.{Session, Context, FunctionCalling}
+  alias ExLLM.Infrastructure.Config.ModelCapabilities
   
   @default_provider :ollama
   
@@ -368,7 +369,7 @@ defmodule ExLLM.ExampleApp do
         IO.puts("  Total: #{total_tokens}")
         
         # Calculate and display cost
-        model = ExLLM.ModelConfig.get_default_model(provider)
+        model = ExLLM.Config.ModelConfig.get_default_model(provider)
         if model do
           usage = %{
             input_tokens: input_tokens,
@@ -562,10 +563,10 @@ defmodule ExLLM.ExampleApp do
     IO.puts("This demonstrates how ExLLM handles conversations that exceed context windows.\n")
     
     # Get default model for provider
-    model = ExLLM.ModelConfig.get_default_model(provider) || "default-model"
+    model = ExLLM.Config.ModelConfig.get_default_model(provider) || "default-model"
     
     # Get context window size
-    context_window = ExLLM.Context.get_context_window(provider, model)
+    context_window = ExLLM.Core.Context.get_context_window(provider, model)
     IO.puts("Provider: #{provider}")
     IO.puts("Context window: #{format_number(context_window)} tokens")
     IO.puts("Reserve tokens: 500 (for model processing)")
@@ -1881,8 +1882,8 @@ defmodule ExLLM.ExampleApp do
     IO.puts("This demonstrates response caching to save time and money.\n")
     
     # Start cache if not running
-    case Process.whereis(ExLLM.Cache) do
-      nil -> {:ok, _} = ExLLM.Cache.start_link()
+    case Process.whereis(ExLLM.Infrastructure.Cache) do
+      nil -> {:ok, _} = ExLLM.Infrastructure.Cache.start_link()
       _ -> :ok
     end
     

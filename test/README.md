@@ -1,122 +1,125 @@
 # ExLLM Test Suite
 
-This directory contains comprehensive tests for the ExLLM library, covering all adapters, features, and integration scenarios.
+This directory contains comprehensive tests for the ExLLM library, covering all providers, features, and integration scenarios. The test suite uses intelligent caching for 25x faster integration tests and is organized following the layered architecture pattern.
 
 ## Test Structure
 
-The test suite is organized into different categories:
-
-### Unit Tests
-- **Location**: `test/ex_llm/adapters/*_unit_test.exs`
-- **Purpose**: Test adapter logic without requiring API access
-- **Run by default**: Always executed in CI/CD and local development
-- **Requirements**: No API keys needed
-
-### Integration Tests
-- **Location**: `test/ex_llm/adapters/*_integration_test.exs`
-- **Purpose**: Test against real APIs and services
-- **Tagged with**: `:skip` by default to prevent accidental API usage
-- **Requirements**: Valid API keys and/or running services
+The test suite is organized following the ExLLM layered architecture:
 
 ### Core Library Tests
-- **Location**: `test/ex_llm/*_test.exs`
-- **Purpose**: Test core ExLLM functionality (sessions, contexts, costs, etc.)
+- **Location**: `test/ex_llm/core/*_test.exs`
+- **Purpose**: Test core ExLLM functionality (sessions, contexts, costs, embeddings, etc.)
+- **Run by default**: Always executed in local development
+- **Requirements**: No API keys needed
+
+### Provider Tests
+- **Location**: `test/ex_llm/providers/`
+- **Structure**:
+  - `*_unit_test.exs` - Unit tests without API calls
+  - `*_integration_test.exs` - Integration tests with real APIs
+  - Provider-specific subdirectories (e.g., `gemini/` for Gemini API tests)
+- **Requirements**: Integration tests require API keys
+
+### Infrastructure Tests
+- **Location**: `test/ex_llm/infrastructure/`
+- **Purpose**: Test infrastructure components (circuit breakers, config, streaming, etc.)
 - **Run by default**: Always executed
+
+### Testing Framework Tests
+- **Location**: `test/ex_llm/testing/`
+- **Purpose**: Test the testing infrastructure itself (caching, helpers, etc.)
+
+### Integration Tests
+- **Location**: `test/integration/`
+- **Purpose**: End-to-end integration tests for complete workflows
+- **Tagged with**: `:integration` and excluded by default
+- **Requirements**: May require API keys depending on the test
 
 ## Running Tests
 
-### Run All Tests (Default)
+### Quick Start
+
 ```bash
-# Run all unit tests and core library tests
+# Run all tests (excludes integration/external by default)
 mix test
 
 # Run with coverage
 mix test --cover
+
+# Run fast tests only (excludes slow tests)
+mix test.fast
 ```
 
-### Run Tests for Specific Adapters
+### Test Categories
 
-#### OpenAI Tests
+#### By Test Type
 ```bash
-# Unit tests only (no API key required)
-mix test test/ex_llm/adapters/openai_unit_test.exs
+# Unit tests only (no API calls)
+mix test.unit
 
-# Integration tests (requires OPENAI_API_KEY)
-mix test test/ex_llm/adapters/openai_integration_test.exs --include openai
+# Integration tests (requires API keys)
+mix test.integration
 
-# Run both with API key loaded
-./scripts/run_with_env.sh mix test test/ex_llm/adapters/openai_*_test.exs --include openai
+# External tests (calls external services)
+mix test.external
+
+# Live API tests
+mix test.live_api
+
+# Local-only tests (no external calls)
+mix test.local_only
 ```
 
-#### Anthropic Tests
+#### By Provider (24 Mix Aliases)
 ```bash
-# Unit tests only (no API key required)
-mix test test/ex_llm/adapters/anthropic_unit_test.exs
-
-# Integration tests (requires ANTHROPIC_API_KEY)
-mix test test/ex_llm/adapters/anthropic_integration_test.exs --include anthropic
-
-# Run both with API key loaded
-./scripts/run_with_env.sh mix test test/ex_llm/adapters/anthropic_*_test.exs --include anthropic
+# Individual providers
+mix test.anthropic      # Anthropic Claude tests
+mix test.openai         # OpenAI GPT tests  
+mix test.gemini         # Google Gemini tests
+mix test.groq           # Groq tests
+mix test.mistral        # Mistral AI tests
+mix test.openrouter     # OpenRouter tests
+mix test.perplexity     # Perplexity tests
+mix test.ollama         # Ollama local tests
+mix test.lmstudio       # LM Studio tests
+mix test.bumblebee      # Bumblebee local tests
 ```
 
-#### OpenRouter Tests
+#### By Capability
 ```bash
-# Unit tests only (no API key required)
-mix test test/ex_llm/adapters/openrouter_unit_test.exs
-
-# Integration tests (requires OPENROUTER_API_KEY)
-mix test test/ex_llm/adapters/openrouter_integration_test.exs --include openrouter
-
-# Run both with API key loaded
-./scripts/run_with_env.sh mix test test/ex_llm/adapters/openrouter_*_test.exs --include openrouter
+mix test.streaming      # Streaming response tests
+mix test.vision         # Vision/image processing tests
+mix test.multimodal     # Multimodal input tests
+mix test.function_calling # Function/tool calling tests
+mix test.embedding      # Embedding generation tests
 ```
 
-#### Ollama Tests
+#### By Environment Needs
 ```bash
-# Unit tests only (no server required)
-mix test test/ex_llm/adapters/ollama_unit_test.exs
-
-# Integration tests (requires running Ollama server)
-mix test test/ex_llm/adapters/ollama_integration_test.exs --include ollama
-
-# Run both with Ollama server running
-mix test test/ex_llm/adapters/ollama_*_test.exs --include ollama
+mix test.live_api       # Tests calling live APIs
+mix test.local_only     # Local-only tests (no API calls)
+mix test.fast           # Fast tests (cached/mocked)
+mix test.all            # All tests including slow ones
+mix test.oauth2         # OAuth2 authentication tests
 ```
 
-### Run Integration Tests by Provider
+### Test Caching (25x Speed Improvement)
+
+ExLLM includes an advanced test caching system that dramatically speeds up integration tests:
 
 ```bash
-# Run all OpenAI integration tests
-./scripts/run_with_env.sh mix test --only openai
+# Tests with automatic caching
+mix test.anthropic --include live_api
 
-# Run all Anthropic integration tests
-./scripts/run_with_env.sh mix test --only anthropic
+# Manage test cache
+mix ex_llm.cache stats
+mix ex_llm.cache clean --older-than 7d
+mix ex_llm.cache clear
+mix ex_llm.cache show anthropic
 
-# Run all OpenRouter integration tests
-./scripts/run_with_env.sh mix test --only openrouter
-
-# Run all Ollama integration tests (requires Ollama server)
-mix test --only ollama
-
-# Run all integration tests with API keys
-./scripts/run_with_env.sh mix test --only integration
-```
-
-### Run Specific Test Categories
-
-```bash
-# Run only streaming tests
-mix test --only streaming
-
-# Run only function calling tests
-mix test --only function_calling
-
-# Run only vision/multimodal tests
-mix test --only vision
-
-# Run only cost calculation tests
-mix test --only cost
+# Enable cache debugging
+export EX_LLM_TEST_CACHE_ENABLED=true
+export EX_LLM_LOG_LEVEL=debug
 ```
 
 ## Environment Setup
@@ -125,40 +128,25 @@ mix test --only cost
 Set these environment variables for integration tests:
 
 ```bash
-# OpenAI
+# Core providers
 export OPENAI_API_KEY="sk-..."
-
-# Anthropic
 export ANTHROPIC_API_KEY="sk-ant-..."
-
-# OpenRouter
-export OPENROUTER_API_KEY="sk-or-..."
-export OPENROUTER_APP_NAME="ExLLM Test"          # Optional
-export OPENROUTER_APP_URL="https://example.com"  # Optional
-
-# Other providers (if testing)
-export GROQ_API_KEY="gsk_..."
 export GEMINI_API_KEY="..."
+export GROQ_API_KEY="gsk_..."
+export MISTRAL_API_KEY="..."
+
+# Router providers
+export OPENROUTER_API_KEY="sk-or-..."
+export PERPLEXITY_API_KEY="pplx-..."
+
+# Optional metadata
+export OPENROUTER_APP_NAME="ExLLM Test"
+export OPENROUTER_APP_URL="https://example.com"
 ```
 
-### Using Environment File
-Create `~/.env` file with your API keys:
+### Local Services
 
-```bash
-# ~/.env
-OPENAI_API_KEY=sk-...
-ANTHROPIC_API_KEY=sk-ant-...
-OPENROUTER_API_KEY=sk-or-...
-```
-
-Then use the environment script:
-```bash
-./scripts/run_with_env.sh mix test --only integration
-```
-
-### Ollama Setup
-For Ollama integration tests:
-
+#### Ollama Setup
 ```bash
 # Install Ollama
 curl -fsSL https://ollama.ai/install.sh | sh
@@ -166,83 +154,123 @@ curl -fsSL https://ollama.ai/install.sh | sh
 # Start Ollama service
 ollama serve
 
-# Pull a test model (optional, tests will work without)
+# Pull test models (optional)
 ollama pull llama3.2:1b
+ollama pull nomic-embed-text
+```
+
+#### LM Studio Setup
+```bash
+# Start LM Studio with API server enabled
+# Default endpoint: http://localhost:1234/v1
 ```
 
 ## Test Tags and Filtering
 
 ### Available Tags
-- `:integration` - All integration tests
-- `:openai` - OpenAI-specific tests
-- `:anthropic` - Anthropic-specific tests
-- `:openrouter` - OpenRouter-specific tests
-- `:ollama` - Ollama-specific tests
-- `:skip` - Tests skipped by default
+
+**Test Types:**
+- `:unit` - Unit tests (no external calls)
+- `:integration` - Integration tests
+- `:external` - Tests that call external services
+- `:live_api` - Tests that require live API access
+
+**Providers:**
+- `:provider:anthropic`, `:provider:openai`, `:provider:gemini`, etc.
+
+**Capabilities:**
 - `:streaming` - Streaming functionality tests
 - `:function_calling` - Function/tool calling tests
 - `:vision` - Vision/multimodal tests
-- `:cost` - Cost calculation tests
+- `:embedding` - Embedding generation tests
+- `:multimodal` - Multimodal input handling
+
+**Special Categories:**
+- `:requires_api_key` - Tests needing API keys
+- `:requires_oauth` - Tests needing OAuth setup
+- `:requires_service` - Tests needing local services
+- `:slow` - Slow-running tests
+- `:very_slow` - Very slow tests
+- `:quota_sensitive` - Tests that consume significant API quota
+- `:flaky` - Tests that may be unreliable
+- `:wip` - Work-in-progress tests
 
 ### Filtering Examples
+
 ```bash
-# Include only specific tags
-mix test --only openai
+# Include specific tags
+mix test --include live_api
+mix test --include requires_api_key
+mix test --include oauth2
+
+# Run only specific tags
+mix test --only provider:anthropic
 mix test --only streaming
+mix test --only integration
 
-# Exclude specific tags
-mix test --exclude integration
-mix test --exclude skip
+# Exclude problematic tests
+mix test --exclude requires_service
+mix test --exclude slow
+mix test --exclude flaky
 
-# Multiple tags
-mix test --only "openai and streaming"
-mix test --exclude "integration or skip"
+# Complex filtering
+mix test --only "provider:openai and streaming"
+mix test --exclude "integration or external"
 ```
 
 ## Test Development Guidelines
 
 ### Adding New Tests
-1. **Unit Tests**: Add to appropriate `*_unit_test.exs` file
-2. **Integration Tests**: Add to appropriate `*_integration_test.exs` file
-3. **New Adapters**: Follow the established pattern:
-   - Create `adapter_name_unit_test.exs`
-   - Create `adapter_name_integration_test.exs`
-   - Tag integration tests with `:skip` and `:adapter_name`
 
-### Test Structure Pattern
+1. **Core Library Tests**: Add to `test/ex_llm/core/`
+2. **Provider Tests**: Add to `test/ex_llm/providers/provider_name/`
+3. **Infrastructure Tests**: Add to `test/ex_llm/infrastructure/`
+4. **Integration Tests**: Add to `test/integration/`
+
+### Test Tagging Pattern
+
 ```elixir
-defmodule ExLLM.Adapters.ProviderUnitTest do
+defmodule ExLLM.Providers.ProviderIntegrationTest do
+  use ExUnit.Case
+  
+  @moduletag :integration
+  @moduletag :external
+  @moduletag :live_api
+  @moduletag :requires_api_key
+  @moduletag :provider:provider_name
+  
+  # Test implementation...
+end
+```
+
+### Unit Test Pattern
+
+```elixir
+defmodule ExLLM.Providers.ProviderUnitTest do
   use ExUnit.Case, async: true
-  alias ExLLM.Adapters.Provider
+  
+  @moduletag :unit
+  @moduletag :provider:provider_name
   
   describe "configuration" do
     test "configured?/1 returns boolean" do
-      # Test configuration logic
-    end
-  end
-  
-  describe "core functionality" do
-    test "chat handles basic messages" do
       # Test without API calls
     end
   end
 end
 ```
 
+### Using Test Cache
+
 ```elixir
-defmodule ExLLM.Adapters.ProviderIntegrationTest do
+defmodule ExLLM.Providers.ProviderIntegrationTest do
   use ExUnit.Case
-  alias ExLLM.Adapters.Provider
+  import ExLLM.Testing.TestCacheHelpers
   
-  @moduletag :integration
-  @moduletag :provider_name
-  @moduletag :skip
-  
-  describe "live API tests" do
-    @tag :skip
-    test "chat works with real API" do
-      # Test with real API calls
-    end
+  test "cached API call" do
+    # Automatically cached based on request parameters
+    {:ok, response} = ExLLM.chat(:provider, [%{role: "user", content: "test"}])
+    assert response.content != ""
   end
 end
 ```
@@ -250,27 +278,46 @@ end
 ## Continuous Integration
 
 ### CI Configuration
-The test suite is designed to work in CI environments:
+
+The test suite is designed for CI environments:
 
 ```bash
-# CI runs unit tests by default (no API keys needed)
-mix test
+# CI runs fast tests by default (no API keys needed)
+mix test.ci
 
-# Optional: Run integration tests in CI with secrets
-OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} mix test --only openai
+# Full CI with API keys (if available)
+mix test.ci.full
+
+# Specific provider tests in CI
+OPENAI_API_KEY=${{ secrets.OPENAI_API_KEY }} mix test.openai
 ```
 
 ### GitHub Actions Example
+
 ```yaml
 - name: Run unit tests
-  run: mix test
+  run: mix test.ci
 
 - name: Run integration tests
   env:
     OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-  run: mix test --only integration
+  run: mix test.integration
   if: env.OPENAI_API_KEY != ''
+```
+
+## Performance Testing
+
+### Load Testing
+```bash
+# Test with multiple concurrent requests
+mix test --only "integration and streaming" --max-cases 10
+```
+
+### Memory Usage Monitoring
+```bash
+# Monitor memory during tests
+mix test --cover --export-coverage default.coverdata
 ```
 
 ## Troubleshooting
@@ -285,29 +332,33 @@ mix test --timeout 30000
 
 #### Integration Tests Skipped
 ```bash
-# Make sure to include the provider tag
-mix test --include openai test/ex_llm/adapters/openai_integration_test.exs
+# Make sure to include the required tags
+mix test --include live_api test/ex_llm/providers/anthropic_integration_test.exs
 
-# Or remove @skip tags in the test files
+# Check for required environment variables
+echo $ANTHROPIC_API_KEY
+```
+
+#### Cache Issues
+```bash
+# Clear test cache if responses seem stale
+mix ex_llm.cache clear
+
+# Disable cache for debugging
+export EX_LLM_TEST_CACHE_ENABLED=false
 ```
 
 #### API Rate Limits
 ```bash
 # Run tests sequentially to avoid rate limits
 mix test --max-cases 1 --only integration
-```
 
-#### Missing Models (Ollama)
-```bash
-# Pull required models
-ollama pull llama3.2:1b
-ollama pull nomic-embed-text
-
-# Or run tests that don't require specific models
-mix test test/ex_llm/adapters/ollama_unit_test.exs
+# Use cached responses
+export EX_LLM_TEST_CACHE_ENABLED=true
 ```
 
 ### Debugging Test Failures
+
 ```bash
 # Run with detailed output
 mix test --trace
@@ -315,38 +366,33 @@ mix test --trace
 # Run single test with maximum verbosity
 mix test test/path/to/test.exs:line_number --trace
 
-# Check ExLLM logs
-ELIXIR_LOG_LEVEL=debug mix test
+# Enable debug logging
+export EX_LLM_LOG_LEVEL=debug
+mix test
 ```
 
-## Performance Testing
+## Architecture Notes
 
-### Load Testing
-```bash
-# Test with multiple concurrent requests
-mix test --only "integration and streaming" --max-cases 10
-```
+The test suite follows ExLLM's layered architecture:
 
-### Memory Usage
-```bash
-# Monitor memory during tests
-mix test --cover --export-coverage default.coverdata
-```
+- **Core Layer**: Business logic tests (`test/ex_llm/core/`)
+- **Infrastructure Layer**: Technical concerns (`test/ex_llm/infrastructure/`)
+- **Providers Layer**: External integrations (`test/ex_llm/providers/`)
+- **Testing Layer**: Test framework itself (`test/ex_llm/testing/`)
+
+This organization ensures:
+- Clear separation of concerns
+- Easy navigation and maintenance
+- Consistent test patterns across the codebase
+- Efficient test caching and execution
 
 ## Contributing
 
-When adding new tests:
-
-1. **Follow the pattern**: Use the same structure as existing adapter tests
-2. **Tag appropriately**: Add relevant tags for filtering
-3. **Document requirements**: Note any special setup needed
-4. **Test both success and error cases**: Include negative testing
-5. **Keep integration tests focused**: Test real API behavior, not edge cases
-6. **Use meaningful assertions**: Test actual functionality, not just structure
-
 ### Pull Request Checklist
 - [ ] Unit tests pass without API keys
-- [ ] Integration tests pass with API keys
-- [ ] New tests follow established patterns
-- [ ] Tests are properly tagged
+- [ ] Integration tests pass with API keys (when available)
+- [ ] New tests follow established patterns and directory structure
+- [ ] Tests are properly tagged for filtering
+- [ ] Test cache works correctly for integration tests
 - [ ] Documentation updated if needed
+- [ ] Tests follow the layered architecture organization

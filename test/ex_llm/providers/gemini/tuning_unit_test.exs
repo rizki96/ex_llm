@@ -1,9 +1,9 @@
 defmodule ExLLM.Providers.Gemini.TuningUnitTest do
   use ExUnit.Case
 
-  alias ExLLM.Gemini.Tuning
+  alias ExLLM.Providers.Gemini.Tuning
 
-  alias ExLLM.Gemini.Tuning.{
+  alias ExLLM.Providers.Gemini.Tuning.{
     TunedModel,
     TuningTask,
     TuningSnapshot,

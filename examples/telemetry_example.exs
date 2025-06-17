@@ -28,17 +28,17 @@ IO.puts("Response: #{response.content}")
 IO.puts("\n=== Example 2: Session Management ===")
 
 # Create a new session (emits [:ex_llm, :session, :created])
-session = ExLLM.Session.new("anthropic", name: "Math Session")
+session = ExLLM.Core.Session.new("anthropic", name: "Math Session")
 
 # Add messages (emits [:ex_llm, :session, :message_added])
-session = ExLLM.Session.add_message(session, "user", "What is the capital of France?")
-session = ExLLM.Session.add_message(session, "assistant", "The capital of France is Paris.")
+session = ExLLM.Core.Session.add_message(session, "user", "What is the capital of France?")
+session = ExLLM.Core.Session.add_message(session, "assistant", "The capital of France is Paris.")
 
 # Update token usage (emits [:ex_llm, :session, :token_usage_updated])
-session = ExLLM.Session.update_token_usage(session, %{input_tokens: 15, output_tokens: 10})
+session = ExLLM.Core.Session.update_token_usage(session, %{input_tokens: 15, output_tokens: 10})
 
 # Clear messages (emits [:ex_llm, :session, :cleared])
-session = ExLLM.Session.clear_messages(session)
+session = ExLLM.Core.Session.clear_messages(session)
 
 # Example 3: Context window management
 IO.puts("\n=== Example 3: Context Window ===")
@@ -52,7 +52,7 @@ long_messages = for i <- 1..100 do
 end
 
 # This will emit [:ex_llm, :context, :window_exceeded] if messages are too long
-case ExLLM.Context.validate_context(long_messages, :openai, "gpt-4", max_tokens: 1000) do
+case ExLLM.Core.Context.validate_context(long_messages, :openai, "gpt-4", max_tokens: 1000) do
   {:ok, token_count} ->
     IO.puts("Messages fit within context window: #{token_count} tokens")
   {:error, reason} ->
@@ -60,7 +60,7 @@ case ExLLM.Context.validate_context(long_messages, :openai, "gpt-4", max_tokens:
 end
 
 # Truncate messages (emits [:ex_llm, :context, :truncation, :stop])
-truncated = ExLLM.Context.truncate_messages(long_messages, :openai, "gpt-4", 
+truncated = ExLLM.Core.Context.truncate_messages(long_messages, :openai, "gpt-4", 
   max_tokens: 1000,
   strategy: :smart
 )

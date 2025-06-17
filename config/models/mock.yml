@@ -9,8 +9,23 @@ models:
     capabilities:
       - streaming
       - function_calling
-  # Support any model name for testing
-  "groq/llama3-70b-8192":
+  mock-model-small:
+    context_window: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+      - streaming
+      - function_calling
+  mock-model-large:
+    context_window: 8192
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+      - streaming
+      - function_calling
+  groq/llama3-70b-8192:
     context_window: 8192
     pricing:
       input: 0.0

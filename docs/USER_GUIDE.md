@@ -1479,7 +1479,7 @@ alias ExLLM.Logger
 # Log at different levels
 Logger.debug("Starting chat request")
 Logger.info("Chat completed in #{duration}ms")
-Logger.warning("Rate limit approaching")
+Logger.warn("Rate limit approaching")
 Logger.error("API request failed", error: reason)
 ```
 

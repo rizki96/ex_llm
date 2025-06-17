@@ -12,9 +12,8 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   across provider adapters.
   """
 
-  alias ExLLM.Error
-  alias ExLLM.Logger
-  alias ExLLM.TestResponseInterceptor
+  alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Testing.TestResponseInterceptor
 
   # 60 seconds
   @default_timeout 60_000
@@ -50,7 +49,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
       {:cached, cached_response} ->
         # Emit cache hit telemetry
-        ExLLM.Telemetry.emit_cache_hit(cache_key_from_request(url, body))
+        ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, body))
 
         # Return cached response with metadata
         if Application.get_env(:ex_llm, :debug_test_cache, false) do
@@ -69,7 +68,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
       {:proceed, request_metadata} ->
         # Emit cache miss telemetry
-        ExLLM.Telemetry.emit_cache_miss(cache_key_from_request(url, body))
+        ExLLM.Infrastructure.Telemetry.emit_cache_miss(cache_key_from_request(url, body))
 
         # Make real request with telemetry
         make_real_request_with_telemetry(
@@ -81,10 +80,6 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           provider,
           request_metadata
         )
-
-      {:error, _reason} ->
-        # Cache error, proceed with real request
-        make_real_request_with_telemetry(url, body, headers, method, timeout, provider, %{})
     end
   end
 
@@ -114,19 +109,15 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     case TestResponseInterceptor.intercept_request(url, %{}, headers, opts) do
       {:cached, cached_response} ->
         # Emit cache hit telemetry
-        ExLLM.Telemetry.emit_cache_hit(cache_key_from_request(url, %{}))
+        ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, %{}))
         # Return cached response with metadata
         {:ok, add_cache_metadata(cached_response)}
 
       {:proceed, request_metadata} ->
         # Emit cache miss telemetry
-        ExLLM.Telemetry.emit_cache_miss(cache_key_from_request(url, %{}))
+        ExLLM.Infrastructure.Telemetry.emit_cache_miss(cache_key_from_request(url, %{}))
         # Make real GET request with telemetry
         make_real_get_request_with_telemetry(url, headers, timeout, provider, request_metadata)
-
-      {:error, _reason} ->
-        # Cache error, proceed with real request
-        make_real_get_request_with_telemetry(url, headers, timeout, provider, %{})
     end
   end
 
@@ -156,10 +147,6 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
       {:proceed, request_metadata} ->
         # Make real streaming request
         make_real_streaming_request(url, body, headers, provider, request_metadata, opts)
-
-      {:error, _reason} ->
-        # Cache error, proceed with real request
-        make_real_streaming_request(url, body, headers, provider, %{}, opts)
     end
   end
 
@@ -209,32 +196,6 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         end)
 
         {:ok, :streaming}
-
-      {:error, _reason} ->
-        # Cache error, proceed with real request
-        Task.start(fn ->
-          start_streaming_request(url, body, headers, timeout, parent, callback, opts)
-        end)
-
-        {:ok, :streaming}
-    end
-  end
-
-  defp start_streaming_request(url, body, headers, timeout, parent, callback, opts) do
-    case Req.post(url, json: body, headers: headers, receive_timeout: timeout, into: :self) do
-      {:ok, response} ->
-        handle_streaming_response(response, parent, callback, opts)
-
-      {:error, reason} ->
-        send(parent, {:stream_error, Error.connection_error(reason)})
-    end
-  end
-
-  defp handle_streaming_response(response, parent, callback, opts) do
-    if response.status in 200..299 do
-      handle_req_stream_response(response, parent, callback, "", opts)
-    else
-      handle_streaming_error(response, parent, opts)
     end
   end
 
@@ -260,7 +221,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
       error_handler.(response.status, body_string)
     else
-      send(parent, {:stream_error, Error.api_error(response.status, body)})
+      send(parent, {:stream_error, ExLLM.Infrastructure.Error.api_error(response.status, body)})
     end
   end
 
@@ -378,7 +339,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         categorize_error(status, message)
 
       _ ->
-        Error.api_error(status, body)
+        ExLLM.Infrastructure.Error.api_error(status, body)
     end
   end
 
@@ -386,44 +347,6 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
   defp handle_error_response(status, body) do
     handle_api_error(status, body)
-  end
-
-  defp handle_req_stream_response(response, parent, callback, buffer, opts) do
-    %Req.Response.Async{ref: ref} = response.body
-    provider = Keyword.get(opts, :provider, :unknown)
-
-    receive do
-      {^ref, {:data, data}} ->
-        {events, new_buffer} = parse_sse_chunks(data, buffer)
-
-        # Log chunk received if streaming logging is enabled
-        if length(events) > 0 do
-          Logger.log_stream_event(provider, :chunk_received, %{
-            event_count: length(events),
-            buffer_size: byte_size(new_buffer)
-          })
-        end
-
-        Enum.each(events, fn event ->
-          if event.data != "[DONE]" do
-            callback.(event.data)
-          end
-        end)
-
-        handle_req_stream_response(response, parent, callback, new_buffer, opts)
-
-      {^ref, :done} ->
-        Logger.log_stream_event(provider, :stream_complete, %{})
-        send(parent, :stream_done)
-
-      {^ref, {:error, reason}} ->
-        Logger.log_stream_event(provider, :stream_error, %{reason: inspect(reason)})
-        send(parent, {:stream_error, Error.connection_error(reason)})
-    after
-      Keyword.get(opts, :recv_timeout, @stream_timeout) ->
-        Logger.log_stream_event(provider, :stream_timeout, %{timeout_ms: @stream_timeout})
-        send(parent, {:stream_error, {:error, :timeout}})
-    end
   end
 
   defp parse_sse_event(lines) do
@@ -454,21 +377,25 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     message = error["message"] || "Unknown error"
 
     case type do
-      "authentication_error" -> Error.authentication_error(message)
-      "rate_limit_error" -> Error.rate_limit_error(message)
-      "invalid_request_error" -> Error.validation_error(:request, message)
-      _ -> Error.api_error(status, error)
+      "authentication_error" -> ExLLM.Infrastructure.Error.authentication_error(message)
+      "rate_limit_error" -> ExLLM.Infrastructure.Error.rate_limit_error(message)
+      "invalid_request_error" -> ExLLM.Infrastructure.Error.validation_error(:request, message)
+      _ -> ExLLM.Infrastructure.Error.api_error(status, error)
     end
   end
 
   defp handle_structured_error(status, error) do
-    Error.api_error(status, error)
+    ExLLM.Infrastructure.Error.api_error(status, error)
   end
 
-  defp categorize_error(401, message), do: Error.authentication_error(message)
-  defp categorize_error(429, message), do: Error.rate_limit_error(message)
-  defp categorize_error(503, message), do: Error.service_unavailable(message)
-  defp categorize_error(status, message), do: Error.api_error(status, message)
+  defp categorize_error(401, message),
+    do: ExLLM.Infrastructure.Error.authentication_error(message)
+
+  defp categorize_error(429, message), do: ExLLM.Infrastructure.Error.rate_limit_error(message)
+  defp categorize_error(503, message), do: ExLLM.Infrastructure.Error.service_unavailable(message)
+
+  defp categorize_error(status, message),
+    do: ExLLM.Infrastructure.Error.api_error(status, message)
 
   # Provider-specific header builders
 
@@ -717,7 +644,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     }
 
     # Instrument with telemetry
-    ExLLM.Telemetry.span([:ex_llm, :http, :request], metadata, fn ->
+    ExLLM.Infrastructure.Telemetry.span([:ex_llm, :http, :request], metadata, fn ->
       make_real_request(url, body, headers, method, timeout, provider, request_metadata)
     end)
   end
@@ -801,7 +728,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
 
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   end
 
@@ -815,7 +742,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     }
 
     # Instrument with telemetry
-    ExLLM.Telemetry.span([:ex_llm, :http, :request], metadata, fn ->
+    ExLLM.Infrastructure.Telemetry.span([:ex_llm, :http, :request], metadata, fn ->
       make_real_get_request(url, headers, timeout, provider, request_metadata)
     end)
   end
@@ -893,7 +820,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
 
-        {:error, Error.connection_error(reason)}
+        {:error, ExLLM.Infrastructure.Error.connection_error(reason)}
     end
   end
 
@@ -974,7 +901,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
 
-        {:error, Error.connection_error(reason)}
+        {:error, ExLLM.Infrastructure.Error.connection_error(reason)}
     end
   end
 
@@ -1037,7 +964,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
 
-        send(parent, {:stream_error, Error.connection_error(reason)})
+        send(parent, {:stream_error, ExLLM.Infrastructure.Error.connection_error(reason)})
     end
   end
 
@@ -1176,7 +1103,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, error_response, response_info)
 
-        send(parent, {:stream_error, Error.connection_error(reason)})
+        send(parent, {:stream_error, ExLLM.Infrastructure.Error.connection_error(reason)})
     after
       Keyword.get(opts, :recv_timeout, @stream_timeout) ->
         Logger.log_stream_event(provider, :stream_timeout, %{timeout_ms: @stream_timeout})
@@ -1384,7 +1311,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           duration_ms: duration
         )
 
-        Error.connection_error(reason)
+        ExLLM.Infrastructure.Error.connection_error(reason)
     end
   catch
     {:file_read_error, path, reason} ->

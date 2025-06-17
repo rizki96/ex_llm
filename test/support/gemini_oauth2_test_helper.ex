@@ -1,4 +1,4 @@
-defmodule ExLLM.Test.GeminiOAuth2Helper do
+defmodule ExLLM.Testing.GeminiOAuth2Helper do
   @moduledoc """
   Test helper for Gemini OAuth2 authentication.
 
@@ -21,7 +21,7 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
   ## Usage in Tests
 
       setup do
-        case ExLLM.Test.GeminiOAuth2Helper.get_valid_token() do
+        case ExLLM.Testing.GeminiOAuth2Helper.get_valid_token() do
           {:ok, token} ->
             {:ok, oauth_token: token}
           {:error, :no_token} ->
@@ -83,7 +83,7 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
   ## Alternative: Use @moduletag or @tag
 
       # Skip entire module if no OAuth
-      if not ExLLM.Test.GeminiOAuth2Helper.oauth_available?() do
+      if not ExLLM.Testing.GeminiOAuth2Helper.oauth_available?() do
         @moduletag :skip
       end
 
@@ -94,7 +94,7 @@ defmodule ExLLM.Test.GeminiOAuth2Helper do
       end
 
       # Then in test_helper.exs:
-      if not ExLLM.Test.GeminiOAuth2Helper.oauth_available?() do
+      if not ExLLM.Testing.GeminiOAuth2Helper.oauth_available?() do
         ExUnit.configure(exclude: [:requires_oauth])
       end
   """

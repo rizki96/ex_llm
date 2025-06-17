@@ -73,7 +73,7 @@ end
 for i <- 1..5 do
   IO.puts("\n   Request #{i}:")
   
-  result = ExLLM.Retry.with_circuit_breaker_retry(
+  result = ExLLM.Infrastructure.Retry.with_circuit_breaker_retry(
     flaky_service,
     circuit_name: "retry_demo",
     circuit_breaker: [failure_threshold: 3, reset_timeout: 2000],
@@ -132,7 +132,7 @@ for provider <- providers do
   circuit_open_count = 0
   
   for _ <- 1..10 do
-    result = ExLLM.Retry.with_provider_circuit_breaker(
+    result = ExLLM.Infrastructure.Retry.with_provider_circuit_breaker(
       provider,
       fn -> simulate_provider.(provider) end,
       retry: [max_attempts: 2, base_delay: 50]

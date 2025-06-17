@@ -13,12 +13,11 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
   """
 
   alias ExLLM.Providers.Shared.HTTPClient
-  alias ExLLM.{Logger, Types}
+  alias ExLLM.Types
 
   require Logger
 
   @default_timeout :timer.minutes(5)
-  @default_chunk_size 1024
   # Log metrics every 1 second during streaming
   @metrics_interval 1000
 
@@ -88,7 +87,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
       case HTTPClient.post_stream(url, request, stream_opts) do
         {:ok, _response} ->
           # Send completion chunk
-          enhanced_callback.(%Types.StreamChunk{
+          enhanced_callback.(%ExLLM.Types.StreamChunk{
             content: "",
             finish_reason: "stop"
           })
@@ -258,7 +257,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
               {:ok, chunk}
 
             {:error, reason} ->
-              Logger.warn("Invalid chunk rejected: #{inspect(reason)}")
+              Logger.warning("Invalid chunk rejected: #{inspect(reason)}")
               :skip
           end
         else
@@ -267,7 +266,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
         end
 
       # Handle direct StreamChunk return (new parse functions)
-      %Types.StreamChunk{} = chunk ->
+      %ExLLM.Types.StreamChunk{} = chunk ->
         # Validate chunk if validator provided
         if validator = Keyword.get(options, :validate_chunk) do
           case validator.(chunk) do
@@ -276,7 +275,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
               {:ok, chunk}
 
             {:error, reason} ->
-              Logger.warn("Invalid chunk rejected: #{inspect(reason)}")
+              Logger.warning("Invalid chunk rejected: #{inspect(reason)}")
               :skip
           end
         else
@@ -304,7 +303,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     recovery_id = stream_context.recovery_id
 
     # Create an error chunk without the error field
-    error_chunk = %Types.StreamChunk{
+    error_chunk = %ExLLM.Types.StreamChunk{
       content: "Error: #{inspect(reason)}",
       finish_reason: "error"
     }
@@ -337,59 +336,53 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
       messages = extract_messages_from_request(request, provider)
 
       # Initialize recovery with StreamRecovery module
-      case ExLLM.StreamRecovery.init_recovery(provider, messages, options) do
-        {:ok, _} ->
-          Logger.debug("Stream recovery initialized for #{recovery_id}")
+      {:ok, _} = ExLLM.Core.Streaming.Recovery.init_recovery(provider, messages, options)
+      Logger.debug("Stream recovery initialized for #{recovery_id}")
 
-          # Store additional context for recovery
-          recovery_context = %{
-            url: url,
-            headers: sanitize_headers(headers),
-            request_template: sanitize_request(request),
-            original_options: options
-          }
+      # Store additional context for recovery (currently not used)
+      _recovery_context = %{
+        url: url,
+        headers: sanitize_headers(headers),
+        request_template: sanitize_request(request),
+        original_options: options
+      }
 
-          ExLLM.StreamRecovery.update_context(recovery_id, recovery_context)
-
-        {:error, reason} ->
-          Logger.warn("Failed to initialize stream recovery: #{inspect(reason)}")
-      end
+      # ExLLM.Core.Streaming.Recovery.update_context(recovery_id, recovery_context)
+      # Note: update_context function doesn't exist in StreamRecovery module
     end
   end
 
   defp save_stream_chunk(recovery_id, chunk, chunk_count) do
     if stream_recovery_enabled?() do
-      case ExLLM.StreamRecovery.add_chunk(recovery_id, chunk) do
-        :ok ->
-          Logger.debug("Saved chunk #{chunk_count} for stream #{recovery_id}")
-
-        {:error, reason} ->
-          Logger.debug("Failed to save chunk: #{inspect(reason)}")
-      end
+      # record_chunk uses GenServer.cast and always returns :ok
+      ExLLM.Core.Streaming.Recovery.record_chunk(recovery_id, chunk)
+      Logger.debug("Saved chunk #{chunk_count} for stream #{recovery_id}")
     end
   end
 
   defp mark_stream_recoverable(recovery_id, reason) do
     if stream_recovery_enabled?() do
-      case ExLLM.StreamRecovery.mark_error(recovery_id, reason) do
-        :ok ->
-          Logger.info("Stream #{recovery_id} marked as recoverable: #{inspect(reason)}")
+      case ExLLM.Core.Streaming.Recovery.record_error(recovery_id, reason) do
+        {:ok, recoverable} ->
+          if recoverable do
+            Logger.info("Stream #{recovery_id} marked as recoverable: #{inspect(reason)}")
+          else
+            Logger.debug(
+              "Stream #{recovery_id} error recorded (not recoverable): #{inspect(reason)}"
+            )
+          end
 
         {:error, error} ->
-          Logger.warn("Failed to mark stream as recoverable: #{inspect(error)}")
+          Logger.warning("Failed to mark stream as recoverable: #{inspect(error)}")
       end
     end
   end
 
   defp cleanup_stream_state(recovery_id) do
     if stream_recovery_enabled?() do
-      case ExLLM.StreamRecovery.complete_stream(recovery_id) do
-        :ok ->
-          Logger.debug("Stream recovery state cleaned up: #{recovery_id}")
-
-        {:error, reason} ->
-          Logger.debug("Failed to cleanup stream state: #{inspect(reason)}")
-      end
+      # complete_stream uses GenServer.cast and always returns :ok
+      ExLLM.Core.Streaming.Recovery.complete_stream(recovery_id)
+      Logger.debug("Stream recovery state cleaned up: #{recovery_id}")
     end
   end
 
@@ -397,7 +390,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
 
   defp stream_recovery_enabled? do
     # Check if StreamRecovery process is running
-    Process.whereis(ExLLM.StreamRecovery) != nil
+    Process.whereis(ExLLM.Core.Streaming.Recovery) != nil
   end
 
   defp extract_messages_from_request(request, :openai) when is_map(request) do
@@ -471,7 +464,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
 
   # New helper functions for enhanced streaming
 
-  defp create_enhanced_callback(callback, stream_context, options) do
+  defp create_enhanced_callback(callback, _stream_context, options) do
     transform_fn = Keyword.get(options, :transform_chunk)
 
     fn chunk ->
@@ -494,7 +487,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     end
   end
 
-  defp flush_chunk_buffer(chunks, callback, stats) do
+  defp flush_chunk_buffer(chunks, callback, _stats) do
     # For buffered chunks, we can aggregate or process them together
     Enum.each(chunks, fn chunk ->
       callback.(chunk)

@@ -3,7 +3,7 @@ defmodule ExLLM.Providers.AnthropicIntegrationTest do
   alias ExLLM.Providers.Anthropic
   alias ExLLM.Types
   # Import test cache helpers
-  import ExLLM.TestCacheHelpers
+  import ExLLM.Testing.TestCacheHelpers
   @moduletag :integration
   @moduletag :external
   @moduletag :live_api
@@ -23,7 +23,7 @@ defmodule ExLLM.Providers.AnthropicIntegrationTest do
     setup_test_cache(context)
     # Clear context on test exit
     on_exit(fn ->
-      ExLLM.TestCacheDetector.clear_test_context()
+      ExLLM.Testing.TestCacheDetector.clear_test_context()
     end)
 
     :ok
@@ -242,7 +242,7 @@ defmodule ExLLM.Providers.AnthropicIntegrationTest do
 
     test "handles invalid API key" do
       config = %{anthropic: %{api_key: "sk-ant-invalid-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       messages = [%{role: "user", content: "Test"}]
 
       case Anthropic.chat(messages, config_provider: provider) do
@@ -352,7 +352,7 @@ defmodule ExLLM.Providers.AnthropicIntegrationTest do
           assert response.cost < 0.01
           # Verify cost matches usage
           expected_cost =
-            ExLLM.Cost.calculate(
+            ExLLM.Core.Cost.calculate(
               "anthropic",
               response.model,
               response.usage

@@ -15,7 +15,7 @@ defmodule ExLLM.Providers.Gemini do
       export GEMINI_MODEL="gemini-2.0-flash"  # optional
 
       # Use with default environment provider
-      ExLLM.Providers.Gemini.chat(messages, config_provider: ExLLM.ConfigProvider.Env)
+      ExLLM.Providers.Gemini.chat(messages, config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
   ### Using Static Configuration
 
@@ -25,7 +25,7 @@ defmodule ExLLM.Providers.Gemini do
           model: "gemini-2.5-flash-preview-05-20"
         }
       }
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       ExLLM.Providers.Gemini.chat(messages, config_provider: provider)
 
   ## Example Usage
@@ -57,12 +57,12 @@ defmodule ExLLM.Providers.Gemini do
       {:ok, response} = ExLLM.Providers.Gemini.chat(messages, options)
   """
 
-  @behaviour ExLLM.Adapter
+  @behaviour ExLLM.Provider
 
   alias ExLLM.Types
   alias ExLLM.Providers.Shared.{ConfigHelper, ModelUtils}
 
-  alias ExLLM.Gemini.Content.{
+  alias ExLLM.Providers.Gemini.Content.{
     GenerateContentRequest,
     GenerateContentResponse,
     Content,
@@ -78,7 +78,11 @@ defmodule ExLLM.Providers.Gemini do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -98,7 +102,9 @@ defmodule ExLLM.Providers.Gemini do
       # Convert messages to Gemini Content format
       request = build_content_request(messages, options)
 
-      case ExLLM.Gemini.Content.generate_content(model, request, config_provider: config_provider) do
+      case ExLLM.Providers.Gemini.Content.generate_content(model, request,
+             config_provider: config_provider
+           ) do
         {:ok, response} ->
           convert_content_response_to_llm_response(response, model)
 
@@ -114,7 +120,11 @@ defmodule ExLLM.Providers.Gemini do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -134,7 +144,7 @@ defmodule ExLLM.Providers.Gemini do
       # Convert messages to Gemini Content format
       request = build_content_request(messages, options)
 
-      case ExLLM.Gemini.Content.stream_generate_content(model, request,
+      case ExLLM.Providers.Gemini.Content.stream_generate_content(model, request,
              config_provider: config_provider
            ) do
         {:ok, stream} ->
@@ -155,7 +165,7 @@ defmodule ExLLM.Providers.Gemini do
   @impl true
   def list_models(options \\ []) do
     # Use the new Models API module
-    case ExLLM.Gemini.Models.list_models(options) do
+    case ExLLM.Providers.Gemini.Models.list_models(options) do
       {:ok, response} ->
         # Convert from Models API format to ExLLM Types.Model format
         models =
@@ -172,13 +182,17 @@ defmodule ExLLM.Providers.Gemini do
           Keyword.get(
             options,
             :config_provider,
-            Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+            Application.get_env(
+              :ex_llm,
+              :config_provider,
+              ExLLM.Infrastructure.ConfigProvider.Default
+            )
           )
 
         _config = get_config(config_provider)
 
         # Use ModelLoader with config only
-        ExLLM.ModelLoader.load_models(
+        ExLLM.Infrastructure.Config.ModelLoader.load_models(
           :gemini,
           Keyword.merge(options,
             api_fetcher: fn _opts -> {:ok, []} end,
@@ -188,12 +202,12 @@ defmodule ExLLM.Providers.Gemini do
     end
   end
 
-  defp is_gemini_chat_model_struct?(%ExLLM.Gemini.Models.Model{} = model) do
+  defp is_gemini_chat_model_struct?(%ExLLM.Providers.Gemini.Models.Model{} = model) do
     # Filter for Gemini chat models from API struct
     String.starts_with?(model.name, "models/gemini")
   end
 
-  defp convert_api_model_to_types(%ExLLM.Gemini.Models.Model{} = api_model) do
+  defp convert_api_model_to_types(%ExLLM.Providers.Gemini.Models.Model{} = api_model) do
     # Convert from Gemini Models API format to ExLLM Types.Model format
     model_id = String.replace_prefix(api_model.name, "models/", "")
 
@@ -246,7 +260,11 @@ defmodule ExLLM.Providers.Gemini do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -265,7 +283,11 @@ defmodule ExLLM.Providers.Gemini do
       Keyword.get(
         options,
         :config_provider,
-        Application.get_env(:ex_llm, :config_provider, ExLLM.ConfigProvider.Default)
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
       )
 
     config = get_config(config_provider)
@@ -282,13 +304,13 @@ defmodule ExLLM.Providers.Gemini do
         )
 
       # Use Gemini Embeddings API
-      case ExLLM.Gemini.Embeddings.embed_content(model, inputs, api_key: api_key) do
+      case ExLLM.Providers.Gemini.Embeddings.embed_content(model, inputs, api_key: api_key) do
         {:ok, response} ->
           # Convert from Gemini format to ExLLM format
           embeddings = Enum.map(response.embeddings, & &1.values)
 
           {:ok,
-           %ExLLM.Types.EmbeddingResponse{
+           %Types.EmbeddingResponse{
              embeddings: embeddings,
              model: model,
              usage: %{
@@ -313,7 +335,7 @@ defmodule ExLLM.Providers.Gemini do
         provider.get_all(:gemini)
 
       provider when is_pid(provider) ->
-        ExLLM.ConfigProvider.Static.get_all(provider)
+        ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider)
         |> Map.get(:gemini, %{})
     end
   end
@@ -442,8 +464,8 @@ defmodule ExLLM.Providers.Gemini do
             # Estimate if not provided
             %{
               input_tokens: 100,
-              output_tokens: ExLLM.Cost.estimate_tokens(content),
-              total_tokens: 100 + ExLLM.Cost.estimate_tokens(content)
+              output_tokens: ExLLM.Core.Cost.estimate_tokens(content),
+              total_tokens: 100 + ExLLM.Core.Cost.estimate_tokens(content)
             }
           end
 
@@ -453,7 +475,7 @@ defmodule ExLLM.Providers.Gemini do
            usage: usage,
            model: model,
            finish_reason: candidate.finish_reason || "stop",
-           cost: ExLLM.Cost.calculate("gemini", model, usage)
+           cost: ExLLM.Core.Cost.calculate("gemini", model, usage)
          }}
 
       [] ->

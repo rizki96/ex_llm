@@ -3,7 +3,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
   alias ExLLM.Providers.OpenAI
   alias ExLLM.Types
   # Import test cache helpers
-  import ExLLM.TestCacheHelpers
+  import ExLLM.Testing.TestCacheHelpers
 
   @moduletag :integration
   @moduletag :external
@@ -26,7 +26,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
     setup_test_cache(context)
     # Clear context on test exit
     on_exit(fn ->
-      ExLLM.TestCacheDetector.clear_test_context()
+      ExLLM.Testing.TestCacheDetector.clear_test_context()
     end)
 
     :ok
@@ -446,7 +446,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
 
     test "handles invalid API key" do
       config = %{openai: %{api_key: "sk-invalid-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
       messages = [%{role: "user", content: "Test"}]
 
@@ -503,7 +503,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
 
           # Verify cost matches usage
           expected_cost =
-            ExLLM.Cost.calculate(
+            ExLLM.Core.Cost.calculate(
               "openai",
               response.model,
               response.usage

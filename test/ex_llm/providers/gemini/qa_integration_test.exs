@@ -1,7 +1,7 @@
 defmodule ExLLM.Gemini.QAIntegrationTest do
   use ExUnit.Case, async: false
 
-  alias ExLLM.Gemini.QA
+  alias ExLLM.Providers.Gemini.QA
 
   @moduletag :integration
   @moduletag :gemini_qa_integration

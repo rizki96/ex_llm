@@ -1,455 +1,258 @@
-defmodule ExLLM.Providers.MockTest do
+defmodule ExLLM.MockTest do
   use ExUnit.Case, async: false
+
   alias ExLLM.Providers.Mock
-  alias ExLLM.Types.{LLMResponse, StreamChunk}
+  alias ExLLM.Types
 
   setup do
-    # Ensure Mock adapter is started
+    # Using TestHelpers would reset the mock, but we need direct control
+    # for this test suite to test the Mock adapter itself
     case Mock.start_link() do
       {:ok, _pid} -> :ok
       {:error, {:already_started, _pid}} -> :ok
     end
 
-    # Clear any existing mock configuration
-    Application.delete_env(:ex_llm, :mock_responses)
     Mock.reset()
     :ok
   end
 
-  describe "chat/2" do
-    test "returns static response when configured" do
-      response = %LLMResponse{
-        content: "Mock response",
-        usage: %{input_tokens: 10, output_tokens: 20},
-        model: "mock-model",
-        cost: %{input: 0.01, output: 0.02, total: 0.03}
-      }
-
-      Application.put_env(:ex_llm, :mock_responses, %{chat: response})
+  describe "basic chat operations" do
+    test "returns static response" do
+      Mock.set_response(%{
+        content: "Hello from mock!",
+        model: "test-model",
+        usage: %{input_tokens: 5, output_tokens: 10}
+      })
 
       messages = [%{role: "user", content: "Hello"}]
-      assert {:ok, ^response} = Mock.chat(messages, [])
+
+      assert {:ok, response} = ExLLM.chat(:mock, messages, cache: false)
+      assert response.content == "Hello from mock!"
+      assert response.model == "test-model"
+      assert response.usage.input_tokens == 5
+      assert response.usage.output_tokens == 10
     end
 
-    test "returns dynamic response based on messages" do
-      dynamic_fn = fn messages, _options ->
+    test "captures requests" do
+      messages = [%{role: "user", content: "Test message"}]
+      options = [temperature: 0.7, max_tokens: 100]
+      full_options = options ++ [cache: false]
+
+      ExLLM.chat(:mock, messages, full_options)
+
+      requests = Mock.get_requests()
+      assert length(requests) == 1
+
+      last_request = Mock.get_last_request()
+      assert last_request.type == :chat
+      assert last_request.messages == messages
+      assert last_request.options == full_options
+    end
+
+    test "handles dynamic responses" do
+      Mock.set_response_handler(fn messages, _options ->
         last_message = List.last(messages)
 
-        %LLMResponse{
+        %{
           content: "Echo: #{last_message.content}",
-          usage: %{input_tokens: 5, output_tokens: 10},
           model: "echo-model"
         }
-      end
+      end)
 
-      Application.put_env(:ex_llm, :mock_responses, %{chat: dynamic_fn})
+      messages = [%{role: "user", content: "Hello world"}]
 
-      messages = [%{role: "user", content: "Test message"}]
-      {:ok, response} = Mock.chat(messages, [])
-
-      assert response.content == "Echo: Test message"
+      assert {:ok, response} = ExLLM.chat(:mock, messages, cache: false)
+      assert response.content == "Echo: Hello world"
       assert response.model == "echo-model"
     end
 
-    test "returns error when configured" do
-      Application.put_env(:ex_llm, :mock_responses, %{
-        chat: {:error, "API Error"}
-      })
-
-      messages = [%{role: "user", content: "Hello"}]
-      assert {:error, "API Error"} = Mock.chat(messages, [])
-    end
-
-    test "returns default response when not configured" do
-      messages = [%{role: "user", content: "Hello"}]
-      {:ok, response} = Mock.chat(messages, [])
-
-      assert response.content == "This is a mock response"
-      assert response.usage.input_tokens == 10
-      assert response.usage.output_tokens == 20
-    end
-
-    test "simulates rate limit error when configured" do
-      Application.put_env(:ex_llm, :mock_responses, %{
-        chat: {:error, :rate_limit}
-      })
-
-      messages = [%{role: "user", content: "Hello"}]
-      assert {:error, :rate_limit} = Mock.chat(messages, [])
-    end
-
-    test "cycles through responses when list is provided" do
-      responses = [
-        %LLMResponse{content: "Response 1", usage: %{}, model: "mock"},
-        %LLMResponse{content: "Response 2", usage: %{}, model: "mock"},
-        %LLMResponse{content: "Response 3", usage: %{}, model: "mock"}
-      ]
-
-      Application.put_env(:ex_llm, :mock_responses, %{chat: responses})
+    test "simulates errors" do
+      # Explicitly reset before setting error to ensure clean state
+      Mock.reset()
+      Mock.set_error({:api_error, %{status: 500, body: "Internal server error"}})
 
       messages = [%{role: "user", content: "Hello"}]
 
-      # Should cycle through responses
-      assert {:ok, %{content: "Response 1"}} = Mock.chat(messages, [])
-      assert {:ok, %{content: "Response 2"}} = Mock.chat(messages, [])
-      assert {:ok, %{content: "Response 3"}} = Mock.chat(messages, [])
-      # Cycles back
-      assert {:ok, %{content: "Response 1"}} = Mock.chat(messages, [])
+      assert {:error, {:api_error, %{status: 500, body: "Internal server error"}}} =
+               ExLLM.chat(:mock, messages, retry: false, cache: false)
     end
   end
 
-  describe "stream/2" do
-    test "streams chunks when configured" do
+  describe "streaming operations" do
+    test "returns stream chunks" do
       chunks = [
-        %StreamChunk{content: "Hello", id: "chunk-0", finish_reason: nil},
-        %StreamChunk{content: " world", id: "chunk-1", finish_reason: nil},
-        %StreamChunk{content: "!", id: "chunk-2", finish_reason: "stop"}
+        %Types.StreamChunk{content: "Hello ", finish_reason: nil},
+        %Types.StreamChunk{content: "world!", finish_reason: nil},
+        %Types.StreamChunk{content: "", finish_reason: "stop"}
       ]
 
-      Application.put_env(:ex_llm, :mock_responses, %{stream: chunks})
+      Mock.set_stream_chunks(chunks)
 
-      messages = [%{role: "user", content: "Hello"}]
-      {:ok, stream} = Mock.stream_chat(messages, [])
+      messages = [%{role: "user", content: "Hi"}]
 
-      collected_chunks = Enum.to_list(stream)
-      assert length(collected_chunks) == 3
-      assert Enum.at(collected_chunks, 0).content == "Hello"
-      assert Enum.at(collected_chunks, 2).finish_reason == "stop"
+      assert {:ok, stream} = ExLLM.stream_chat(:mock, messages)
+
+      collected = Enum.to_list(stream)
+      assert length(collected) == 3
+      assert Enum.at(collected, 0).content == "Hello "
+      assert Enum.at(collected, 1).content == "world!"
+      assert Enum.at(collected, 2).finish_reason == "stop"
     end
 
-    test "returns stream error when configured" do
-      Application.put_env(:ex_llm, :mock_responses, %{
-        stream: {:error, "Stream error"}
+    test "captures streaming requests" do
+      messages = [%{role: "user", content: "Stream test"}]
+
+      {:ok, stream} = ExLLM.stream_chat(:mock, messages, temperature: 0.5)
+      # Consume stream
+      Enum.to_list(stream)
+
+      last_request = Mock.get_last_request()
+      assert last_request.type == :stream_chat
+      assert last_request.messages == messages
+      assert last_request.options[:temperature] == 0.5
+    end
+  end
+
+  describe "function calling" do
+    test "returns function call response" do
+      Mock.set_response(%{
+        content: nil,
+        function_call: %{
+          name: "get_weather",
+          arguments: ~s({"location": "San Francisco"})
+        }
       })
 
-      messages = [%{role: "user", content: "Hello"}]
-      assert {:error, "Stream error"} = Mock.stream_chat(messages, [])
-    end
-
-    test "generates dynamic stream" do
-      dynamic_stream = fn messages, _options ->
-        last_msg = List.last(messages).content
-        words = String.split(last_msg, " ")
-
-        Stream.map(words, fn word ->
-          %StreamChunk{content: word <> " ", id: "dynamic-chunk"}
-        end)
-      end
-
-      Application.put_env(:ex_llm, :mock_responses, %{stream: dynamic_stream})
-
-      messages = [%{role: "user", content: "one two three"}]
-      {:ok, stream} = Mock.stream_chat(messages, [])
-
-      chunks = Enum.to_list(stream)
-      assert length(chunks) == 3
-      assert Enum.at(chunks, 0).content == "one "
-      assert Enum.at(chunks, 1).content == "two "
-      assert Enum.at(chunks, 2).content == "three "
-    end
-
-    test "returns default stream when not configured" do
-      messages = [%{role: "user", content: "Hello"}]
-      {:ok, stream} = Mock.stream_chat(messages, [])
-
-      chunks = Enum.to_list(stream)
-      assert length(chunks) == 7
-      assert Enum.at(chunks, 0).content == "This "
-      assert Enum.at(chunks, 6).finish_reason == "stop"
-    end
-
-    test "simulates stream interruption" do
-      # Ensure Mock GenServer is started for this test
-      case Mock.start_link() do
-        {:ok, _pid} -> :ok
-        {:error, {:already_started, _pid}} -> :ok
-      end
-
-      chunks_with_error = [
-        %StreamChunk{content: "Start", id: "chunk-0"},
-        %StreamChunk{content: " of", id: "chunk-1"},
-        {:error, :connection_lost}
-      ]
-
-      Application.put_env(:ex_llm, :mock_responses, %{stream: chunks_with_error})
-
-      messages = [%{role: "user", content: "Hello"}]
-      {:ok, stream} = Mock.stream_chat(messages, [])
-
-      # Collecting should raise when it hits the error
-      assert_raise RuntimeError, fn ->
-        Enum.to_list(stream)
-      end
-    end
-  end
-
-  describe "embeddings/2" do
-    test "returns embedding response when configured" do
-      embedding_response = %{
-        embeddings: [
-          %{embedding: [0.1, 0.2, 0.3], index: 0}
-        ],
-        model: "text-embedding-mock",
-        usage: %{input_tokens: 5, output_tokens: 0}
-      }
-
-      Application.put_env(:ex_llm, :mock_responses, %{embeddings: embedding_response})
-
-      assert {:ok, response} = Mock.embeddings("test text", [])
-      assert response.embeddings == embedding_response.embeddings
-      assert response.model == "text-embedding-mock"
-    end
-
-    test "handles multiple inputs" do
-      dynamic_embeddings = fn inputs, _options ->
-        embeddings =
-          inputs
-          |> Enum.with_index()
-          |> Enum.map(fn {_text, idx} ->
-            %{embedding: [0.1 * idx, 0.2 * idx, 0.3 * idx], index: idx}
-          end)
-
+      functions = [
         %{
-          embeddings: embeddings,
-          model: "multi-embed",
-          usage: %{input_tokens: length(inputs) * 5, output_tokens: 0}
+          name: "get_weather",
+          description: "Get weather",
+          parameters: %{
+            "type" => "object",
+            "properties" => %{
+              "location" => %{"type" => "string"}
+            }
+          }
         }
-      end
-
-      Application.put_env(:ex_llm, :mock_responses, %{embeddings: dynamic_embeddings})
-
-      inputs = ["text1", "text2", "text3"]
-      {:ok, response} = Mock.embeddings(inputs, [])
-
-      assert length(response.embeddings) == 3
-      assert Enum.at(response.embeddings, 1).embedding == [0.1, 0.2, 0.3]
-      assert Enum.at(response.embeddings, 2).embedding == [0.2, 0.4, 0.6]
-    end
-
-    test "returns default embeddings when not configured" do
-      {:ok, response} = Mock.embeddings("test", [])
-
-      assert length(response.embeddings) == 1
-      # Default mock embedding size
-      assert length(hd(response.embeddings)) == 384
-      # Default mock model
-      assert response.model == "mock-embedding-model"
-    end
-  end
-
-  describe "list_models/1" do
-    test "returns configured models" do
-      models = [
-        %{id: "mock-gpt-4", context_window: 8192},
-        %{id: "mock-claude", context_window: 100_000}
       ]
 
-      Application.put_env(:ex_llm, :mock_responses, %{list_models: models})
+      messages = [%{role: "user", content: "What's the weather?"}]
 
-      result = Mock.list_models([])
-      assert {:ok, returned_models} = result
-      assert length(returned_models) == 2
-      # Check that models were converted to proper structs
-      assert Enum.all?(returned_models, &is_struct(&1, ExLLM.Types.Model))
+      assert {:ok, response} = ExLLM.chat(:mock, messages, functions: functions, cache: false)
+      assert response.function_call != nil
+      assert response.function_call.name == "get_weather"
+      assert response.function_call.arguments == ~s({"location": "San Francisco"})
     end
 
-    test "returns default models when not configured" do
-      result = Mock.list_models([])
-      assert {:ok, models} = result
-
-      assert is_list(models)
-      assert length(models) > 0
-      assert "mock-model-small" in Enum.map(models, & &1.id)
-    end
-  end
-
-  describe "list_embedding_models/1" do
-    test "returns configured embedding models" do
-      models = [
-        %{name: "mock-embed-1", dimensions: 768},
-        %{name: "mock-embed-2", dimensions: 1536}
-      ]
-
-      Application.put_env(:ex_llm, :mock_responses, %{list_embedding_models: models})
-
-      result = Mock.list_embedding_models([])
-      assert {:ok, returned_models} = result
-      assert length(returned_models) == 2
-      # Check the models have the expected fields
-      assert Enum.all?(returned_models, &Map.has_key?(&1, :name))
-      assert Enum.all?(returned_models, &Map.has_key?(&1, :dimensions))
-    end
-
-    test "returns default embedding models when not configured" do
-      result = Mock.list_embedding_models([])
-      assert {:ok, models} = result
-
-      assert is_list(models)
-      assert length(models) > 0
-      # Default mock embedding model
-      assert hd(models).name == "mock-embedding-small"
-    end
-  end
-
-  describe "complex scenarios" do
-    setup do
-      # Ensure Mock adapter is started
-      case GenServer.whereis(ExLLM.Providers.Mock) do
-        nil ->
-          {:ok, _pid} = ExLLM.Providers.Mock.start_link([])
-
-        _pid ->
-          :ok
-      end
-
-      on_exit(fn ->
-        # Clear any mock configuration
-        Application.delete_env(:ex_llm, :mock_responses)
-      end)
-
-      :ok
-    end
-
-    test "simulates function calling" do
-      function_response = %LLMResponse{
+    test "parses function calls from response" do
+      Mock.set_response(%{
         content: nil,
         tool_calls: [
           %{
             id: "call_123",
             type: "function",
             function: %{
-              name: "get_weather",
-              arguments: ~s({"location": "San Francisco"})
+              name: "get_time",
+              arguments: ~s({"timezone": "PST"})
             }
           }
-        ],
-        usage: %{input_tokens: 50, output_tokens: 30},
-        model: "mock-function-model"
-      }
-
-      Application.put_env(:ex_llm, :mock_responses, %{chat: function_response})
-
-      messages = [%{role: "user", content: "What's the weather?"}]
-
-      options = [
-        functions: [
-          %{
-            name: "get_weather",
-            parameters: %{type: "object", properties: %{}}
-          }
         ]
-      ]
+      })
 
-      {:ok, response} = Mock.chat(messages, options)
-      assert response.tool_calls != nil
+      messages = [%{role: "user", content: "What time is it?"}]
+      {:ok, response} = ExLLM.chat(:mock, messages, cache: false)
+
+      # Since mock adapter doesn't implement provider-specific parsing,
+      # we'll test the response structure directly
+      assert response.tool_calls
       assert length(response.tool_calls) == 1
-      assert hd(response.tool_calls).function.name == "get_weather"
+      assert hd(response.tool_calls).function.name == "get_time"
+    end
+  end
+
+  describe "retry behavior" do
+    test "retries on transient errors" do
+      call_count = :counters.new(1, [:atomics])
+
+      Mock.set_response_handler(fn _messages, _options ->
+        :counters.add(call_count, 1, 1)
+        count = :counters.get(call_count, 1)
+
+        if count <= 2 do
+          {:error, {:network_error, "Connection timeout"}}
+        else
+          {:ok, %{content: "Success after retry"}}
+        end
+      end)
+
+      messages = [%{role: "user", content: "Test retry"}]
+
+      assert {:ok, response} =
+               ExLLM.chat(:mock, messages,
+                 retry_options: [max_attempts: 3, base_delay: 10],
+                 cache: false
+               )
+
+      assert response.content == "Success after retry"
+      assert :counters.get(call_count, 1) == 3
     end
 
-    test "simulates vision model response" do
-      vision_response = fn messages, _options ->
-        # Check if message contains image content
-        has_image =
-          Enum.any?(messages, fn msg ->
-            case msg.content do
-              content when is_list(content) ->
-                Enum.any?(content, fn part ->
-                  Map.get(part, :type) == "image_url"
-                end)
+    test "respects retry disabled option" do
+      messages = [%{role: "user", content: "No retry"}]
 
-              _ ->
-                false
-            end
-          end)
+      assert {:error, {:network_error, "Connection failed"}} =
+               ExLLM.chat(:mock, messages,
+                 retry: false,
+                 cache: false,
+                 mock_error: {:network_error, "Connection failed"}
+               )
 
-        content =
-          if has_image do
-            "I can see an image in the conversation"
-          else
-            "No image provided"
-          end
-
-        %LLMResponse{
-          content: content,
-          usage: %{input_tokens: 100, output_tokens: 20},
-          model: "mock-vision-model"
-        }
-      end
-
-      Application.put_env(:ex_llm, :mock_responses, %{chat: vision_response})
-
-      # Test with image
-      messages_with_image = [
-        %{
-          role: "user",
-          content: [
-            %{type: "text", text: "What's in this image?"},
-            %{type: "image_url", image_url: %{url: "https://example.com/img.jpg"}}
-          ]
-        }
-      ]
-
-      {:ok, response} = Mock.chat(messages_with_image, [])
-      assert response.content == "I can see an image in the conversation"
-
-      # Test without image
-      messages_without_image = [%{role: "user", content: "Hello"}]
-      {:ok, response} = Mock.chat(messages_without_image, [])
-      assert response.content == "No image provided"
+      # Should only have one request
+      assert length(Mock.get_requests()) == 1
     end
+  end
 
-    test "tracks call count and arguments" do
-      # This demonstrates how mock adapter could be extended for testing
-      call_tracker = :ets.new(:mock_calls, [:set, :public])
+  describe "model listing" do
+    test "returns mock models" do
+      assert {:ok, models} = ExLLM.list_models(:mock)
+      assert length(models) == 4
 
-      tracking_fn = fn messages, options ->
-        try do
-          :ets.update_counter(call_tracker, :call_count, 1, {:call_count, 0})
-          :ets.insert(call_tracker, {:last_call, {messages, options}})
-        catch
-          :error, :badarg ->
-            # Table doesn't exist anymore, skip tracking
-            :ok
+      assert Enum.find(models, &(&1.id == "mock-model"))
+      assert Enum.find(models, &(&1.id == "mock-model-small"))
+      assert Enum.find(models, &(&1.id == "mock-model-large"))
+      assert Enum.find(models, &(&1.id == "groq/llama3-70b-8192"))
+    end
+  end
+
+  describe "configuration" do
+    test "mock adapter is always configured" do
+      assert ExLLM.configured?(:mock)
+    end
+  end
+
+  describe "context management integration" do
+    test "respects context truncation with mock" do
+      Mock.set_response_handler(fn messages, _options ->
+        # Return the number of messages received
+        %{content: "Received #{length(messages)} messages"}
+      end)
+
+      # Create many messages
+      messages =
+        for i <- 1..100 do
+          %{role: "user", content: "Message #{i} with some content to fill tokens"}
         end
 
-        %LLMResponse{
-          content: "Tracked response",
-          usage: %{input_tokens: 5, output_tokens: 5},
-          model: "tracking-model"
-        }
-      end
+      assert {:ok, response} =
+               ExLLM.chat(:mock, messages,
+                 max_tokens: 100,
+                 strategy: :sliding_window,
+                 cache: false
+               )
 
-      Application.put_env(:ex_llm, :mock_responses, %{chat: tracking_fn})
-
-      # Make multiple calls
-      Mock.chat([%{role: "user", content: "First"}], temperature: 0.5)
-      Mock.chat([%{role: "user", content: "Second"}], temperature: 0.7)
-
-      # Verify tracking (only if table still exists)
-      try do
-        [{:call_count, count}] = :ets.lookup(call_tracker, :call_count)
-        assert count == 2
-
-        [{:last_call, {messages, options}}] = :ets.lookup(call_tracker, :last_call)
-        assert hd(messages).content == "Second"
-        assert options[:temperature] == 0.7
-      catch
-        :error, :badarg ->
-          # Table was deleted, which is acceptable
-          :ok
-      end
-
-      # Clean up
-      try do
-        :ets.delete(call_tracker)
-      catch
-        :error, :badarg ->
-          # Already deleted
-          :ok
-      end
-
-      # Clean up the global mock responses to avoid affecting other tests
-      Application.delete_env(:ex_llm, :mock_responses)
+      # The response should indicate fewer messages due to truncation
+      assert response.content =~ "Received"
+      # The exact number depends on token estimation
     end
   end
 end

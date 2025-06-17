@@ -6,9 +6,15 @@ defmodule ExLLM.Gemini.TokensUnitTest do
   """
 
   use ExUnit.Case, async: true
-  alias ExLLM.Gemini.Tokens
-  alias ExLLM.Gemini.Tokens.{CountTokensRequest, CountTokensResponse, ModalityTokenCount}
-  alias ExLLM.Gemini.Content.{GenerateContentRequest, Content, Part}
+  alias ExLLM.Providers.Gemini.Tokens
+
+  alias ExLLM.Providers.Gemini.Tokens.{
+    CountTokensRequest,
+    CountTokensResponse,
+    ModalityTokenCount
+  }
+
+  alias ExLLM.Providers.Gemini.Content.{GenerateContentRequest, Content, Part}
 
   describe "CountTokensRequest struct" do
     test "creates struct with contents" do

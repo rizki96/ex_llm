@@ -15,7 +15,7 @@ defmodule ExLLM do
 
       # Using static configuration
       config = %{anthropic: %{api_key: "your-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
       {:ok, response} = ExLLM.chat(:anthropic, messages, config_provider: provider)
 
   ## Supported Providers
@@ -32,7 +32,7 @@ defmodule ExLLM do
   - `:gemini` - Google Gemini models
   - `:xai` - X.AI Grok models
   - `:bumblebee` - Local models via Bumblebee (Phi-2, Llama 2, Mistral, etc.)
-  - `:mock` - Mock adapter for testing
+  - `:mock` - Mock provider for testing
 
   ## Features
 
@@ -78,12 +78,12 @@ defmodule ExLLM do
         gemini: %{api_key: "...", model: "gemini-pro"},
         bumblebee: %{model: "microsoft/phi-2"}
       }
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
   ### Custom Configuration
 
       defmodule MyConfigProvider do
-        @behaviour ExLLM.ConfigProvider
+        @behaviour ExLLM.Infrastructure.ConfigProvider
         
         def get([:anthropic, :api_key]), do: MyApp.get_secret("anthropic_key")
         def get(_), do: nil
@@ -124,17 +124,22 @@ defmodule ExLLM do
   """
 
   alias ExLLM.{
-    Cache,
+    Core.Cost,
+    Core.Streaming.Recovery,
+    Types
+  }
+
+  alias ExLLM.Core.{
     Capabilities,
     Context,
-    Cost,
     FunctionCalling,
-    ModelCapabilities,
-    ProviderCapabilities,
     Session,
-    StreamRecovery,
-    Types,
     Vision
+  }
+
+  alias ExLLM.Infrastructure.Config.{
+    ModelCapabilities,
+    ProviderCapabilities
   }
 
   @type provider ::
@@ -189,7 +194,7 @@ defmodule ExLLM do
   - `:timeout` - Request timeout in milliseconds (provider-specific defaults)
     - Ollama default: 120000 (2 minutes)
     - Other providers use their client library defaults
-  - Mock adapter options:
+  - Mock provider options:
     - `:mock_response` - Static response or response map
     - `:mock_handler` - Function to generate dynamic responses
     - `:mock_error` - Simulate an error
@@ -217,7 +222,7 @@ defmodule ExLLM do
       {:ok, response} = ExLLM.chat(:groq, messages, model: "mixtral-8x7b-32768")
 
       # With custom configuration
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(%{
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{
         anthropic: %{api_key: "your-key"}
       })
       {:ok, response} = ExLLM.chat(:anthropic, messages, config_provider: provider)
@@ -257,7 +262,7 @@ defmodule ExLLM do
   """
   @spec chat(provider() | String.t(), messages(), options()) ::
           {:ok, Types.LLMResponse.t() | struct() | map()} | {:error, term()}
-  defdelegate chat(provider_or_model, messages, options \\ []), to: ExLLM.Chat
+  defdelegate chat(provider_or_model, messages, options \\ []), to: ExLLM.Core.Chat
 
   @doc """
   Send a streaming chat completion request to the specified LLM provider.
@@ -302,7 +307,7 @@ defmodule ExLLM do
   """
   @spec stream_chat(provider() | String.t(), messages(), options()) ::
           {:ok, Types.stream()} | {:error, term()}
-  defdelegate stream_chat(provider_or_model, messages, options \\ []), to: ExLLM.Chat
+  defdelegate stream_chat(provider_or_model, messages, options \\ []), to: ExLLM.Core.Chat
 
   @doc """
   Check if the specified provider is properly configured.
@@ -324,9 +329,9 @@ defmodule ExLLM do
   """
   @spec configured?(provider(), options()) :: boolean()
   def configured?(provider, options \\ []) do
-    case get_adapter(provider) do
-      {:ok, adapter} ->
-        adapter.configured?(options)
+    case get_provider(provider) do
+      {:ok, provider_module} ->
+        provider_module.configured?(options)
 
       {:error, _} ->
         false
@@ -349,9 +354,9 @@ defmodule ExLLM do
   """
   @spec default_model(provider()) :: String.t() | {:error, term()}
   def default_model(provider) do
-    case get_adapter(provider) do
-      {:ok, adapter} ->
-        adapter.default_model()
+    case get_provider(provider) do
+      {:ok, provider_module} ->
+        provider_module.default_model()
 
       {:error, reason} ->
         {:error, reason}
@@ -377,14 +382,8 @@ defmodule ExLLM do
   """
   @spec list_models(provider(), options()) ::
           {:ok, [Types.Model.t()]} | {:error, term()}
-  def list_models(provider, options \\ []) do
-    case get_adapter(provider) do
-      {:ok, adapter} ->
-        adapter.list_models(options)
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  def list_models(provider, _options \\ []) do
+    ExLLM.Core.Models.list_for_provider(provider)
   end
 
   @doc """
@@ -599,7 +598,7 @@ defmodule ExLLM do
       session = ExLLM.new_session(:anthropic)
       session = ExLLM.new_session(:openai, name: "Customer Support")
   """
-  @spec new_session(provider(), keyword()) :: Session.Types.Session.t()
+  @spec new_session(provider(), keyword()) :: Types.Session.t()
   def new_session(provider, opts \\ []) do
     Session.new(to_string(provider), opts)
   end
@@ -621,8 +620,8 @@ defmodule ExLLM do
       {:ok, {response, session}} = ExLLM.chat_with_session(session, "Hello!")
       # Session now contains the conversation history
   """
-  @spec chat_with_session(Session.Types.Session.t(), String.t(), options()) ::
-          {:ok, {Types.LLMResponse.t(), Session.Types.Session.t()}} | {:error, term()}
+  @spec chat_with_session(Types.Session.t(), String.t(), options()) ::
+          {:ok, {Types.LLMResponse.t(), Types.Session.t()}} | {:error, term()}
   def chat_with_session(session, content, options \\ []) do
     # Add user message to session
     session = Session.add_message(session, "user", content)
@@ -677,8 +676,8 @@ defmodule ExLLM do
 
       session = ExLLM.add_session_message(session, "user", "What is Elixir?")
   """
-  @spec add_session_message(Session.Types.Session.t(), String.t(), String.t(), keyword()) ::
-          Session.Types.Session.t()
+  @spec add_session_message(Types.Session.t(), String.t(), String.t(), keyword()) ::
+          Types.Session.t()
   def add_session_message(session, role, content, opts \\ []) do
     Session.add_message(session, role, content, opts)
   end
@@ -698,8 +697,8 @@ defmodule ExLLM do
       messages = ExLLM.get_session_messages(session)
       last_10 = ExLLM.get_session_messages(session, 10)
   """
-  @spec get_session_messages(Session.Types.Session.t(), non_neg_integer() | nil) ::
-          [Session.Types.message()]
+  @spec get_session_messages(Types.Session.t(), non_neg_integer() | nil) ::
+          [Types.message()]
   def get_session_messages(session, limit \\ nil) do
     Session.get_messages(session, limit)
   end
@@ -718,7 +717,7 @@ defmodule ExLLM do
       tokens = ExLLM.session_token_usage(session)
       # => 2500
   """
-  @spec session_token_usage(Session.Types.Session.t()) :: non_neg_integer()
+  @spec session_token_usage(Types.Session.t()) :: non_neg_integer()
   def session_token_usage(session) do
     Session.total_tokens(session)
   end
@@ -736,7 +735,7 @@ defmodule ExLLM do
 
       session = ExLLM.clear_session(session)
   """
-  @spec clear_session(Session.Types.Session.t()) :: Session.Types.Session.t()
+  @spec clear_session(Types.Session.t()) :: Types.Session.t()
   def clear_session(session) do
     Session.clear_messages(session)
   end
@@ -755,7 +754,7 @@ defmodule ExLLM do
       {:ok, json} = ExLLM.save_session(session)
       File.write!("session.json", json)
   """
-  @spec save_session(Session.Types.Session.t()) :: {:ok, String.t()} | {:error, term()}
+  @spec save_session(Types.Session.t()) :: {:ok, String.t()} | {:error, term()}
   def save_session(session) do
     Session.to_json(session)
   end
@@ -774,14 +773,14 @@ defmodule ExLLM do
       json = File.read!("session.json")
       {:ok, session} = ExLLM.load_session(json)
   """
-  @spec load_session(String.t()) :: {:ok, Session.Types.Session.t()} | {:error, term()}
+  @spec load_session(String.t()) :: {:ok, Types.Session.t()} | {:error, term()}
   def load_session(json) do
     Session.from_json(json)
   end
 
   # Private functions
 
-  defp get_adapter(provider) do
+  defp get_provider(provider) do
     providers = %{
       anthropic: ExLLM.Providers.Anthropic,
       bumblebee: ExLLM.Providers.Bumblebee,
@@ -802,8 +801,8 @@ defmodule ExLLM do
       nil ->
         {:error, {:unsupported_provider, provider}}
 
-      adapter ->
-        {:ok, adapter}
+      provider_module ->
+        {:ok, provider_module}
     end
   end
 
@@ -819,7 +818,7 @@ defmodule ExLLM do
   """
   @spec resume_stream(String.t(), keyword()) :: {:ok, Types.stream()} | {:error, term()}
   def resume_stream(recovery_id, opts \\ []) do
-    StreamRecovery.resume_stream(recovery_id, opts)
+    Recovery.resume_stream(recovery_id, opts)
   end
 
   @doc """
@@ -827,7 +826,7 @@ defmodule ExLLM do
   """
   @spec list_recoverable_streams() :: list(map())
   def list_recoverable_streams do
-    StreamRecovery.list_recoverable_streams()
+    Recovery.list_recoverable_streams()
   end
 
   # Function calling API
@@ -848,7 +847,7 @@ defmodule ExLLM do
       end
   """
   @spec parse_function_calls(Types.LLMResponse.t() | map(), provider()) ::
-          {:ok, list(FunctionCalling.FunctionCall.t())} | {:error, term()}
+          {:ok, list(ExLLM.Core.FunctionCalling.FunctionCall.t())} | {:error, term()}
   def parse_function_calls(response, provider) do
     FunctionCalling.parse_function_calls(response, provider)
   end
@@ -869,9 +868,9 @@ defmodule ExLLM do
       
       {:ok, result} = ExLLM.execute_function(function_call, functions)
   """
-  @spec execute_function(FunctionCalling.FunctionCall.t(), list(map())) ::
-          {:ok, FunctionCalling.FunctionResult.t()}
-          | {:error, FunctionCalling.FunctionResult.t()}
+  @spec execute_function(ExLLM.Core.FunctionCalling.FunctionCall.t(), list(map())) ::
+          {:ok, ExLLM.Core.FunctionCalling.FunctionResult.t()}
+          | {:error, ExLLM.Core.FunctionCalling.FunctionResult.t()}
   def execute_function(function_call, available_functions) do
     # Normalize functions
     normalized =
@@ -898,7 +897,7 @@ defmodule ExLLM do
       messages = messages ++ [formatted]
       {:ok, response} = ExLLM.chat(:openai, messages)
   """
-  @spec format_function_result(FunctionCalling.FunctionResult.t(), provider()) ::
+  @spec format_function_result(ExLLM.Core.FunctionCalling.FunctionResult.t(), provider()) ::
           map()
   def format_function_result(result, provider) do
     FunctionCalling.format_function_result(result, provider)
@@ -1108,9 +1107,9 @@ defmodule ExLLM do
   def find_providers_with_features(features) do
     # Use the new Capabilities module for normalized lookups
     features
-    |> Enum.map(&ExLLM.Capabilities.normalize_capability/1)
+    |> Enum.map(&ExLLM.Core.Capabilities.normalize_capability/1)
     |> Enum.reduce(nil, fn feature, acc ->
-      providers = ExLLM.Capabilities.find_providers(feature)
+      providers = ExLLM.Core.Capabilities.find_providers(feature)
 
       if acc == nil do
         providers
@@ -1270,37 +1269,9 @@ defmodule ExLLM do
   """
   @spec embeddings(provider(), list(String.t()), options()) ::
           {:ok, Types.EmbeddingResponse.t()} | {:error, term()}
-  def embeddings(provider, inputs, options \\ []) do
-    case get_adapter(provider) do
-      {:ok, adapter} ->
-        # Ensure module is loaded
-        Code.ensure_loaded(adapter)
-
-        # Check if adapter supports embeddings
-        # Note: embeddings/2 with default args exports both embeddings/1 and embeddings/2
-        has_embeddings =
-          function_exported?(adapter, :embeddings, 2) or
-            function_exported?(adapter, :embeddings, 1)
-
-        if has_embeddings do
-          # Use cache if enabled
-          # For embeddings, generate a different type of cache key
-          cache_key = generate_embeddings_cache_key(provider, inputs, options)
-
-          # Add provider metadata for disk persistence
-          cache_options = Keyword.put(options, :provider, provider)
-
-          Cache.with_cache(cache_key, cache_options, fn ->
-            adapter.embeddings(inputs, options)
-          end)
-        else
-          {:error, {:not_supported, "#{provider} does not support embeddings"}}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
+  defdelegate embeddings(provider, inputs, options \\ []),
+    to: ExLLM.Core.Embeddings,
+    as: :generate
 
   @doc """
   List available embedding models for a provider.
@@ -1314,22 +1285,8 @@ defmodule ExLLM do
   """
   @spec list_embedding_models(provider(), options()) ::
           {:ok, list(Types.EmbeddingModel.t())} | {:error, term()}
-  def list_embedding_models(provider, options \\ []) do
-    case get_adapter(provider) do
-      {:ok, adapter} ->
-        Code.ensure_loaded(adapter)
-
-        if function_exported?(adapter, :list_embedding_models, 1) or
-             function_exported?(adapter, :list_embedding_models, 0) do
-          adapter.list_embedding_models(options)
-        else
-          # No embedding models if not supported
-          {:ok, []}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  def list_embedding_models(provider, _options \\ []) do
+    ExLLM.Core.Embeddings.list_models(provider)
   end
 
   @doc """
@@ -1343,24 +1300,9 @@ defmodule ExLLM do
       # => 0.87
   """
   @spec cosine_similarity(list(float()), list(float())) :: float()
-  def cosine_similarity(embedding1, embedding2) when length(embedding1) == length(embedding2) do
-    dot_product =
-      Enum.zip(embedding1, embedding2)
-      |> Enum.reduce(0.0, fn {a, b}, acc -> acc + a * b end)
-
-    magnitude1 = :math.sqrt(Enum.reduce(embedding1, 0.0, fn x, acc -> acc + x * x end))
-    magnitude2 = :math.sqrt(Enum.reduce(embedding2, 0.0, fn x, acc -> acc + x * x end))
-
-    if magnitude1 * magnitude2 == 0 do
-      0.0
-    else
-      dot_product / (magnitude1 * magnitude2)
-    end
-  end
-
-  def cosine_similarity(_, _) do
-    raise ArgumentError, "Embeddings must have the same dimension"
-  end
+  defdelegate cosine_similarity(embedding1, embedding2),
+    to: ExLLM.Core.Embeddings,
+    as: :similarity
 
   @doc """
   Find the most similar items from a list of embeddings.
@@ -1445,7 +1387,7 @@ defmodule ExLLM do
       message = %{
         role: "user",
         content: [
-          ExLLM.Vision.text("What's in this image?"),
+          ExLLM.Core.Vision.text("What's in this image?"),
           image_part
         ]
       }
@@ -1525,26 +1467,5 @@ defmodule ExLLM do
         error -> error
       end
     end
-  end
-
-
-  # Private helper for generating embeddings cache key
-  defp generate_embeddings_cache_key(provider, inputs, options) do
-    # Filter relevant options for embeddings
-    relevant_opts =
-      options
-      |> Keyword.take([:model, :dimensions, :encoding_format])
-      |> Enum.sort()
-
-    # Create cache key components
-    key_data = %{
-      provider: provider,
-      inputs: inputs,
-      options: relevant_opts
-    }
-
-    # Generate deterministic hash
-    :crypto.hash(:sha256, :erlang.term_to_binary(key_data))
-    |> Base.encode64(padding: false)
   end
 end

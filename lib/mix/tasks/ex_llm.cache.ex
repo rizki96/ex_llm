@@ -15,9 +15,9 @@ defmodule Mix.Tasks.ExLlm.Cache do
 
   use Mix.Task
 
-  alias ExLLM.TestCacheStats
-  alias ExLLM.TestCacheHelpers
-  alias ExLLM.Cache.Storage.TestCache
+  alias ExLLM.Testing.TestCacheStats
+  alias ExLLM.Testing.TestCacheHelpers
+  alias ExLLM.Infrastructure.Cache.Storage.TestCache
 
   @shortdoc "Manage ExLLM test response cache"
 

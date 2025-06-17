@@ -9,8 +9,9 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
   alias ExLLM
   alias ExLLM.Providers.Gemini
+  alias ExLLM.Types
 
-  alias ExLLM.Gemini.{
+  alias ExLLM.Providers.Gemini.{
     Models,
     Content,
     Files,
@@ -29,7 +30,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
     @describetag :integration
     test "adapter configuration and setup" do
       # Test that the adapter is properly configured
-      assert Gemini.configured?(config_provider: ExLLM.ConfigProvider.Env)
+      assert Gemini.configured?(config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
       # Test default model
       default_model = Gemini.default_model()
@@ -38,15 +39,15 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
     end
 
     test "model listing integration" do
-      # Test that list_models returns proper ExLLM.Types.Model structs
-      {:ok, models} = Gemini.list_models(config_provider: ExLLM.ConfigProvider.Env)
+      # Test that list_models returns proper Types.Model structs
+      {:ok, models} = Gemini.list_models(config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
       assert is_list(models)
       assert length(models) > 0
 
       # Verify model structure
       model = hd(models)
-      assert %ExLLM.Types.Model{} = model
+      assert %Types.Model{} = model
       assert model.id
       assert model.name
       assert is_map(model.capabilities)
@@ -66,11 +67,11 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       # Test via ExLLM main interface
       {:ok, response} =
         ExLLM.chat(:gemini, messages,
-          config_provider: ExLLM.ConfigProvider.Env,
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
           model: "gemini-2.0-flash"
         )
 
-      assert %ExLLM.Types.LLMResponse{} = response
+      assert %Types.LLMResponse{} = response
       assert is_binary(response.content)
       assert String.length(response.content) > 0
       assert is_map(response.usage)
@@ -86,7 +87,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       # Test via ExLLM streaming interface
       {:ok, stream} =
         ExLLM.stream_chat(:gemini, messages,
-          config_provider: ExLLM.ConfigProvider.Env,
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
           model: "gemini-2.0-flash"
         )
 
@@ -95,7 +96,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
       # Verify chunk structure
       chunk = hd(chunks)
-      assert %ExLLM.Types.StreamChunk{} = chunk
+      assert %Types.StreamChunk{} = chunk
       assert is_binary(chunk.content) or is_nil(chunk.content)
     end
 
@@ -104,7 +105,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       messages = [%{role: "user", content: "Test"}]
 
       config = %{gemini: %{api_key: "invalid-key"}}
-      {:ok, provider} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
       {:error, error} =
         ExLLM.chat(messages,
@@ -128,11 +129,11 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
                Models.get_model("models/gemini-pro", api_key: "definitely-invalid-key")
 
       # Test Content API structure
-      request = %ExLLM.Gemini.Content.GenerateContentRequest{
+      request = %ExLLM.Providers.Gemini.Content.GenerateContentRequest{
         contents: [
-          %ExLLM.Gemini.Content.Content{
+          %ExLLM.Providers.Gemini.Content.Content{
             role: "user",
-            parts: [%ExLLM.Gemini.Content.Part{text: "Hello"}]
+            parts: [%ExLLM.Providers.Gemini.Content.Part{text: "Hello"}]
           }
         ]
       }
@@ -147,9 +148,9 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
       # Test Embeddings API structure  
       request = %Embeddings.EmbedContentRequest{
-        content: %ExLLM.Gemini.Content.Content{
+        content: %ExLLM.Providers.Gemini.Content.Content{
           role: "user",
-          parts: [%ExLLM.Gemini.Content.Part{text: "test"}]
+          parts: [%ExLLM.Providers.Gemini.Content.Part{text: "test"}]
         }
       }
 
@@ -184,24 +185,24 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       # Generate embeddings using ExLLM interface
       {:ok, embedding_1} =
         ExLLM.embeddings(:gemini, [content_1],
-          config_provider: ExLLM.ConfigProvider.Env,
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
           model: "text-embedding-004"
         )
 
       {:ok, embedding_2} =
         ExLLM.embeddings(:gemini, [content_2],
-          config_provider: ExLLM.ConfigProvider.Env,
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
           model: "text-embedding-004"
         )
 
       {:ok, embedding_3} =
         ExLLM.embeddings(:gemini, [content_3],
-          config_provider: ExLLM.ConfigProvider.Env,
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
           model: "text-embedding-004"
         )
 
       # Check response structure
-      assert %ExLLM.Types.EmbeddingResponse{} = embedding_1
+      assert %Types.EmbeddingResponse{} = embedding_1
       assert is_list(embedding_1.embeddings)
       assert length(embedding_1.embeddings) == 1
 
@@ -222,7 +223,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
   describe "Feature detection and capabilities" do
     @tag :integration
     test "model capabilities detection" do
-      {:ok, models} = Gemini.list_models(config_provider: ExLLM.ConfigProvider.Env)
+      {:ok, models} = Gemini.list_models(config_provider: ExLLM.Infrastructure.ConfigProvider.Env)
 
       # Models should be loaded from config
       assert length(models) > 0, "No models loaded"
@@ -248,7 +249,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       # Test that ExLLM can detect Gemini provider capabilities
       {:ok, provider_info} = ExLLM.get_provider_capabilities(:gemini)
 
-      assert %ExLLM.ProviderCapabilities.ProviderInfo{} = provider_info
+      assert %ExLLM.Infrastructure.Config.ProviderCapabilities.ProviderInfo{} = provider_info
       assert provider_info.id == :gemini
       assert :chat in provider_info.endpoints
       assert :streaming in provider_info.features
@@ -271,7 +272,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       assert_raise RuntimeError, ~r/Unknown model non-existent-model/, fn ->
         ExLLM.chat(:gemini, messages,
           model: "non-existent-model",
-          config_provider: ExLLM.ConfigProvider.Env
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env
         )
       end
     end
@@ -279,7 +280,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
     test "validates required configuration" do
       # Test without API key
       config = %{gemini: %{}}
-      {:ok, pid} = ExLLM.ConfigProvider.Static.start_link(config)
+      {:ok, pid} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
       messages = [%{role: "user", content: "Test"}]
 
@@ -317,7 +318,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
       {:ok, _response} =
         ExLLM.chat(:gemini, messages,
-          config_provider: ExLLM.ConfigProvider.Env,
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
           model: "gemini-2.0-flash"
         )
 
@@ -337,7 +338,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
       {:ok, stream} =
         ExLLM.stream_chat(:gemini, messages,
-          config_provider: ExLLM.ConfigProvider.Env,
+          config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
           model: "gemini-2.0-flash"
         )
 
@@ -349,7 +350,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
       # First chunk should arrive within 5 seconds
       assert time_to_first_chunk < 5_000
-      assert %ExLLM.Types.StreamChunk{} = first_chunk
+      assert %Types.StreamChunk{} = first_chunk
     end
 
     @tag :performance
@@ -362,7 +363,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
         for i <- 1..3 do
           Task.async(fn ->
             ExLLM.chat(:gemini, messages ++ [%{role: "user", content: "Request #{i}"}],
-              config_provider: ExLLM.ConfigProvider.Env,
+              config_provider: ExLLM.Infrastructure.ConfigProvider.Env,
               model: "gemini-2.0-flash"
             )
           end)
@@ -376,7 +377,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
       Enum.each(results, fn
         {:ok, response} ->
-          assert %ExLLM.Types.LLMResponse{} = response
+          assert %Types.LLMResponse{} = response
           assert String.length(response.content) > 0
 
         {:error, reason} ->
