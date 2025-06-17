@@ -4,13 +4,22 @@ A unified Elixir client for Large Language Models with intelligent test caching,
 
 > ⚠️ **Alpha Quality Software**: This library is in early development. APIs may change without notice until version 1.0.0 is released. Use in production at your own risk.
 
-## What's New in v0.7.0
+## What's New Since v0.7.0
 
-- **🚀 Advanced Test Caching System**: 25x faster integration tests with intelligent response caching
-- **🏷️ Comprehensive Test Tagging**: Semantic test organization with 138 skip tags replaced by meaningful tags
-- **⚡ Mix Test Aliases**: 24 new aliases for targeted testing (provider-specific, tag-based, capability-based)
-- **🤖 Smart Test Detection**: Automatic requirement checking with ExLLM.Case module
-- **📊 Cache Management**: Built-in cache analytics, TTL management, and cleanup tools
+### v0.8.1 - Documentation & Code Quality
+- **📖 Comprehensive API Documentation**: Complete public API reference with examples and clear separation from internal modules
+- **🧹 Zero Compilation Warnings**: Clean codebase with all warnings resolved (Logger.warn → Logger.warning, unreachable clauses)
+- **🏗️ Enhanced Documentation Structure**: Organized guides and references with ExDoc integration
+
+### v0.8.0 - Advanced Streaming & Telemetry
+- **🚀 Production-Ready Streaming Infrastructure**: Memory-efficient circular buffers, flow control, and intelligent batching
+- **📊 Comprehensive Telemetry System**: Complete observability with telemetry events for all operations
+- **⚡ Enhanced Streaming Performance**: Reduced system calls and graceful degradation for slow consumers
+- **🔒 Memory Safety**: Fixed-size buffers prevent unbounded memory growth
+
+### v0.7.1 - Documentation System
+- **📚 Complete ExDoc Configuration**: Organized documentation structure with guides and references
+- **🎯 24 Mix Test Aliases**: Targeted testing commands for providers, capabilities, and test types
 
 ## Features
 
@@ -61,7 +70,7 @@ Add `ex_llm` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.7.0"},
+    {:ex_llm, "~> 0.8.1"},
     
     # Optional hardware acceleration backends (choose one):
     {:exla, "~> 0.7", optional: true},
