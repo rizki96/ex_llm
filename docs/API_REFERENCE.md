@@ -1,51 +1,141 @@
 # ExLLM Public API Reference
 
-This document provides a comprehensive overview of ExLLM's public API. All functions listed here are accessed through the main `ExLLM` module.
+This document provides a comprehensive overview of ExLLM's public API. The library provides three levels of API access:
 
-## Core Chat Functions
+1. **High-Level API** - Simple functions for common use cases
+2. **Builder API** - Fluent interface for constructing requests
+3. **Pipeline API** - Low-level access for advanced customization
+
+## High-Level API
 
 ### Basic Chat
 ```elixir
-# Simple chat completion
-{:ok, response} = ExLLM.chat(:openai, "Hello, world!")
+# Simple chat completion with messages
+messages = [%{role: "user", content: "Hello, world!"}]
+{:ok, response} = ExLLM.chat(:openai, messages)
 
 # With options
-{:ok, response} = ExLLM.chat(:anthropic, "Explain quantum physics",
+{:ok, response} = ExLLM.chat(:anthropic, messages, %{
   model: "claude-3-opus", 
   temperature: 0.7,
   max_tokens: 500
-)
+})
+
+# Using provider/model syntax
+{:ok, response} = ExLLM.chat("openai/gpt-4", messages)
 ```
 
-### Streaming Chat
+### Streaming
 ```elixir
 # Stream responses with a callback
-{:ok, stream_id} = ExLLM.stream_chat(:openai, "Tell me a story", 
-  fn chunk ->
-    IO.write(chunk.content)
-  end
-)
+ExLLM.stream(:openai, messages, %{stream: true}, fn chunk ->
+  IO.write(chunk.content || "")
+end)
+
+# With options
+ExLLM.stream(:anthropic, messages, %{
+  model: "claude-3-5-sonnet-20241022",
+  stream: true,
+  temperature: 0.8
+}, fn chunk ->
+  process_chunk(chunk)
+end)
+```
+
+## Builder API
+
+### Fluent Request Building
+```elixir
+# Build and execute a request
+{:ok, response} = 
+  ExLLM.build(:openai)
+  |> ExLLM.with_messages([
+    %{role: "system", content: "You are a helpful assistant"},
+    %{role: "user", content: "Hello!"}
+  ])
+  |> ExLLM.with_model("gpt-4")
+  |> ExLLM.with_temperature(0.7)
+  |> ExLLM.with_max_tokens(1000)
+  |> ExLLM.execute()
+
+# Streaming with builder
+ExLLM.build(:anthropic)
+|> ExLLM.with_messages(messages)
+|> ExLLM.with_stream(fn chunk ->
+  IO.write(chunk.content || "")
+end)
+|> ExLLM.execute_stream()
+
+# With custom plugs
+{:ok, response} =
+  ExLLM.build(:openai)
+  |> ExLLM.with_messages(messages)
+  |> ExLLM.prepend_plug(MyApp.Plugs.RateLimiter)
+  |> ExLLM.append_plug(MyApp.Plugs.Logger)
+  |> ExLLM.execute()
+```
+
+## Pipeline API
+
+### Direct Pipeline Execution
+```elixir
+# Create a request
+request = ExLLM.Pipeline.Request.new(:openai, messages, %{
+  model: "gpt-4",
+  temperature: 0.7
+})
+
+# Run with default pipeline
+{:ok, response} = ExLLM.run(request)
+
+# Run with custom pipeline
+custom_pipeline = [
+  ExLLM.Plugs.ValidateProvider,
+  MyApp.Plugs.CustomAuth,
+  ExLLM.Plugs.FetchConfig,
+  ExLLM.Plugs.BuildTeslaClient,
+  ExLLM.Plugs.ExecuteRequest,
+  ExLLM.Plugs.Providers.OpenAIParseResponse
+]
+
+{:ok, response} = ExLLM.run(request, custom_pipeline)
 ```
 
 ## Session Management
 
+Sessions provide stateful conversation management with automatic context tracking.
+
 ### Creating and Using Sessions
 ```elixir
 # Create a new session
-{:ok, session} = ExLLM.new_session(:anthropic, 
+{:ok, session} = ExLLM.Session.new(:anthropic, %{
   model: "claude-3-sonnet",
   system: "You are a helpful assistant"
-)
+})
 
 # Chat with session (maintains conversation history)
-{:ok, session, response} = ExLLM.chat_with_session(session, "What's the weather?")
+{:ok, session, response} = ExLLM.Session.chat(session, "What's the weather?")
+
+# Continue the conversation
+{:ok, session, response} = ExLLM.Session.chat(session, "What about tomorrow?")
 
 # Get session history
-messages = ExLLM.get_session_messages(session)
+messages = session.messages
 
 # Save/load sessions
-{:ok, _} = ExLLM.save_session(session, "/path/to/session.json")
-{:ok, session} = ExLLM.load_session("/path/to/session.json")
+{:ok, _} = ExLLM.Session.save(session, "/path/to/session.json")
+{:ok, session} = ExLLM.Session.load("/path/to/session.json")
+```
+
+### Session with Streaming
+```elixir
+# Create streaming session
+{:ok, session} = ExLLM.Session.new(:openai, %{stream: true})
+
+# Stream with session
+{:ok, session} = ExLLM.Session.stream(session, "Tell me a story", fn chunk ->
+  IO.write(chunk.content || "")
+end)
 ```
 
 ## Model Information
@@ -199,6 +289,43 @@ true = ExLLM.configured?(:openai)
 
 # List recoverable streams
 streams = ExLLM.list_recoverable_streams()
+```
+
+## Response Types
+
+### LLMResponse Structure
+```elixir
+%ExLLM.Types.LLMResponse{
+  content: "The response text",
+  model: "gpt-4",
+  finish_reason: "stop",
+  usage: %{
+    input_tokens: 10,
+    output_tokens: 20,
+    total_tokens: 30
+  },
+  cost: %{
+    input_cost: 0.0001,
+    output_cost: 0.0002,
+    total_cost: 0.0003,
+    currency: "USD"
+  },
+  tools: nil,  # Tool calls if any
+  raw_response: %{}  # Raw provider response
+}
+```
+
+### StreamChunk Structure
+```elixir
+%ExLLM.Types.StreamChunk{
+  content: "chunk text",  # Incremental content
+  role: "assistant",
+  done: false,  # true when streaming completes
+  model: "gpt-4",
+  usage: %{},  # Token usage (usually in final chunk)
+  finish_reason: nil,  # Set in final chunk
+  provider: :openai
+}
 ```
 
 ## Configuration

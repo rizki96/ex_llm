@@ -6,6 +6,13 @@ A unified Elixir client for Large Language Models with intelligent test caching,
 
 ## What's New Since v0.7.0
 
+### v0.9.0 - Pipeline Architecture (NEW)
+- **🚀 Phoenix-Style Pipeline Architecture**: Composable plug system for request processing
+- **🔌 Extensible Plug System**: Easy to create custom plugs for authentication, rate limiting, etc.
+- **📊 Dual API Design**: Simple high-level API + powerful low-level pipeline API
+- **🏗️ Builder Pattern API**: Fluent interface for constructing complex requests
+- **⚡ Enhanced Streaming**: Coordinator-based streaming with provider-specific parsers
+
 ### v0.8.1 - Documentation & Code Quality
 - **📖 Comprehensive API Documentation**: Complete public API reference with examples and clear separation from internal modules
 - **🧹 Zero Compilation Warnings**: Clean codebase with all warnings resolved (Logger.warn → Logger.warning, unreachable clauses)
@@ -142,6 +149,7 @@ mix ex_llm.cache clean --older-than 7d
 📚 **[Quick Start Guide](docs/QUICKSTART.md)** - Get up and running in 5 minutes  
 📖 **[User Guide](docs/USER_GUIDE.md)** - Comprehensive documentation of all features  
 🏗️ **[Architecture Guide](docs/ARCHITECTURE.md)** - Clean layered architecture and namespace organization  
+🔌 **[Pipeline Architecture](docs/PIPELINE_ARCHITECTURE.md)** - Phoenix-style plug system and extensibility  
 🔧 **[Logger Guide](docs/LOGGER.md)** - Debug logging and troubleshooting  
 ⚡ **[Provider Capabilities](docs/PROVIDER_CAPABILITIES.md)** - Feature comparison across providers  
 🧪 **[Testing Guide](docs/TESTING.md)** - Comprehensive testing system with semantic tagging and caching

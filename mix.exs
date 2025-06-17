@@ -60,6 +60,9 @@ defmodule ExLLM.MixProject do
       # JSON encoding/decoding
       {:jason, "~> 1.4"},
 
+      # HTTP client with middleware support
+      {:tesla, "~> 1.8"},
+
       # WebSocket client for Live API
       {:gun, "~> 2.1"},
 

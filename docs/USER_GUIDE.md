@@ -7,24 +7,25 @@ This comprehensive guide covers all features and capabilities of the ExLLM libra
 1. [Installation and Setup](#installation-and-setup)
 2. [Configuration](#configuration)
 3. [Basic Usage](#basic-usage)
-4. [Providers](#providers)
-5. [Chat Completions](#chat-completions)
-6. [Streaming](#streaming)
-7. [Session Management](#session-management)
-8. [Context Management](#context-management)
-9. [Function Calling](#function-calling)
-10. [Vision and Multimodal](#vision-and-multimodal)
-11. [Embeddings](#embeddings)
-12. [Structured Outputs](#structured-outputs)
-13. [Cost Tracking](#cost-tracking)
-14. [Error Handling and Retries](#error-handling-and-retries)
-15. [Caching](#caching)
-16. [Response Caching](#response-caching)
-17. [Model Discovery](#model-discovery)
-18. [Provider Capabilities](#provider-capabilities)
-19. [Logging](#logging)
-20. [Testing with Mock Adapter](#testing-with-mock-adapter)
-21. [Advanced Topics](#advanced-topics)
+4. [Pipeline API](#pipeline-api-new-in-v090)
+5. [Providers](#providers)
+6. [Chat Completions](#chat-completions)
+7. [Streaming](#streaming)
+8. [Session Management](#session-management)
+9. [Context Management](#context-management)
+10. [Function Calling](#function-calling)
+11. [Vision and Multimodal](#vision-and-multimodal)
+12. [Embeddings](#embeddings)
+13. [Structured Outputs](#structured-outputs)
+14. [Cost Tracking](#cost-tracking)
+15. [Error Handling and Retries](#error-handling-and-retries)
+16. [Caching](#caching)
+17. [Response Caching](#response-caching)
+18. [Model Discovery](#model-discovery)
+19. [Provider Capabilities](#provider-capabilities)
+20. [Logging](#logging)
+21. [Testing with Mock Adapter](#testing-with-mock-adapter)
+22. [Advanced Topics](#advanced-topics)
 
 ## Installation and Setup
 
@@ -202,6 +203,156 @@ IO.puts(response.content)
   }
 }
 ```
+
+## Pipeline API (NEW in v0.9.0)
+
+ExLLM now features a powerful Phoenix-style pipeline architecture that provides both simple and advanced APIs.
+
+### High-Level API
+
+The high-level API remains simple and straightforward:
+
+```elixir
+# Simple chat
+{:ok, response} = ExLLM.chat(:openai, messages)
+
+# With options
+{:ok, response} = ExLLM.chat(:anthropic, messages, %{
+  model: "claude-3-5-sonnet-20241022",
+  temperature: 0.7,
+  max_tokens: 2000
+})
+
+# Streaming
+ExLLM.stream(:openai, messages, %{stream: true}, fn chunk ->
+  IO.write(chunk.content || "")
+end)
+```
+
+### Builder API
+
+The new fluent builder API provides a convenient way to construct requests:
+
+```elixir
+# Basic builder usage
+{:ok, response} = 
+  ExLLM.build(:openai)
+  |> ExLLM.with_messages([
+    %{role: "system", content: "You are a helpful assistant"},
+    %{role: "user", content: "Hello!"}
+  ])
+  |> ExLLM.with_model("gpt-4")
+  |> ExLLM.with_temperature(0.7)
+  |> ExLLM.with_max_tokens(1000)
+  |> ExLLM.execute()
+
+# With custom plugs
+{:ok, response} =
+  ExLLM.build(:anthropic)
+  |> ExLLM.with_messages(messages)
+  |> ExLLM.prepend_plug(MyApp.Plugs.RateLimiter)
+  |> ExLLM.append_plug(MyApp.Plugs.ResponseLogger)
+  |> ExLLM.execute()
+
+# Streaming with builder
+ExLLM.build(:openai)
+|> ExLLM.with_messages(messages)
+|> ExLLM.with_stream(fn chunk ->
+  IO.write(chunk.content || "")
+end)
+|> ExLLM.execute_stream()
+```
+
+### Low-Level Pipeline API
+
+For advanced use cases, you can work directly with the pipeline:
+
+```elixir
+# Create a request
+request = ExLLM.Pipeline.Request.new(:openai, messages, %{
+  model: "gpt-4",
+  temperature: 0.7
+})
+
+# Use default pipeline
+{:ok, response} = ExLLM.run(request)
+
+# Or use a custom pipeline
+custom_pipeline = [
+  ExLLM.Plugs.ValidateProvider,
+  MyApp.Plugs.CustomAuth,
+  ExLLM.Plugs.FetchConfig,
+  MyApp.Plugs.RateLimiter,
+  ExLLM.Plugs.BuildTeslaClient,
+  ExLLM.Plugs.ExecuteRequest,
+  MyApp.Plugs.CustomParser
+]
+
+{:ok, response} = ExLLM.run(request, custom_pipeline)
+```
+
+### Creating Custom Plugs
+
+You can easily create custom plugs to extend functionality:
+
+```elixir
+defmodule MyApp.Plugs.APIKeyValidator do
+  use ExLLM.Plug
+  
+  @impl true
+  def init(opts) do
+    Keyword.validate!(opts, [:required_header])
+  end
+  
+  @impl true
+  def call(request, opts) do
+    header = opts[:required_header] || "x-api-key"
+    
+    if valid_api_key?(request, header) do
+      request
+    else
+      ExLLM.Pipeline.Request.halt_with_error(request, %{
+        plug: __MODULE__,
+        error: :invalid_api_key,
+        message: "Invalid or missing API key"
+      })
+    end
+  end
+  
+  defp valid_api_key?(request, header) do
+    # Your validation logic here
+    request.config[String.to_atom(header)] != nil
+  end
+end
+```
+
+### Pipeline Streaming
+
+The pipeline architecture includes advanced streaming support:
+
+```elixir
+# Streaming with custom pipeline
+streaming_pipeline = [
+  ExLLM.Plugs.ValidateProvider,
+  ExLLM.Plugs.FetchConfig,
+  ExLLM.Plugs.BuildTeslaClient,
+  ExLLM.Plugs.StreamCoordinator,
+  ExLLM.Plugs.Providers.OpenAIPrepareRequest,
+  ExLLM.Plugs.Providers.OpenAIParseStreamResponse,
+  ExLLM.Plugs.ExecuteStreamRequest
+]
+
+request = ExLLM.Pipeline.Request.new(:openai, messages, %{
+  stream: true,
+  stream_callback: fn chunk ->
+    IO.write(chunk.content || "")
+  end
+})
+
+{:ok, _} = ExLLM.run(request, streaming_pipeline)
+```
+
+For more details on the pipeline architecture, see the [Pipeline Architecture Guide](PIPELINE_ARCHITECTURE.md).
 
 ## Providers
 
