@@ -341,7 +341,7 @@ defmodule ExLLM.Core.Streaming.Recovery do
       |> Enum.join("")
 
     # Adjust messages to include partial response
-    adjusted_messages =
+    _adjusted_messages =
       partial.messages ++
         [
           %{role: "assistant", content: content},
@@ -349,7 +349,7 @@ defmodule ExLLM.Core.Streaming.Recovery do
         ]
 
     # Adjust token count
-    adjusted_options =
+    _adjusted_options =
       Keyword.update(
         partial.options,
         :max_tokens,
@@ -357,7 +357,10 @@ defmodule ExLLM.Core.Streaming.Recovery do
         &(&1 - partial.token_count)
       )
 
-    ExLLM.stream_chat(partial.provider, adjusted_messages, adjusted_options)
+    # Create a new stream with the adjusted messages
+    # The recovery system needs to handle the new streaming API
+    # For now, return an error indicating the need for refactoring
+    {:error, :streaming_recovery_needs_refactoring}
   end
 
   defp resume_with_strategy(partial, :paragraph) do
@@ -371,7 +374,7 @@ defmodule ExLLM.Core.Streaming.Recovery do
     truncated_content = String.slice(content, 0, last_paragraph_end)
 
     # Adjust messages
-    adjusted_messages =
+    _adjusted_messages =
       partial.messages ++
         [
           %{role: "assistant", content: truncated_content},
@@ -381,7 +384,10 @@ defmodule ExLLM.Core.Streaming.Recovery do
           }
         ]
 
-    ExLLM.stream_chat(partial.provider, adjusted_messages, partial.options)
+    # Create a new stream with the adjusted messages
+    # The recovery system needs to handle the new streaming API
+    # For now, return an error indicating the need for refactoring
+    {:error, :streaming_recovery_needs_refactoring}
   end
 
   defp resume_with_strategy(partial, :summarize) do
@@ -399,13 +405,16 @@ defmodule ExLLM.Core.Streaming.Recovery do
     Please briefly summarize what was covered above, then continue with the rest of the response.
     """
 
-    adjusted_messages =
+    _adjusted_messages =
       partial.messages ++
         [
           %{role: "user", content: summary_prompt}
         ]
 
-    ExLLM.stream_chat(partial.provider, adjusted_messages, partial.options)
+    # Create a new stream with the adjusted messages
+    # The recovery system needs to handle the new streaming API
+    # For now, return an error indicating the need for refactoring
+    {:error, :streaming_recovery_needs_refactoring}
   end
 
   defp find_last_paragraph_end(content) do

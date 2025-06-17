@@ -352,8 +352,12 @@ defmodule ExLLM do
     end)
   end
 
-  @doc false
-  @deprecated "Use provider configuration instead"
+  @doc """
+  Returns the default model for a provider.
+
+  This is a convenience function that returns sensible defaults.
+  Users should prefer specifying models explicitly.
+  """
   def default_model(provider) do
     case provider do
       :openai -> "gpt-4"
@@ -366,15 +370,66 @@ defmodule ExLLM do
     end
   end
 
-  @doc false
-  @deprecated "Use ExLLM.chat/3 with embeddings pipeline"
-  def embeddings(_provider, _input, _opts \\ %{}) do
-    {:error, "Embeddings not yet implemented in pipeline architecture"}
+  @doc """
+  Generates embeddings for the given input.
+
+  This function delegates to the provider module's embeddings implementation.
+
+  ## Examples
+
+      {:ok, embeddings} = ExLLM.embeddings(:openai, "Hello world")
+      # Returns embedding vector
+  """
+  def embeddings(provider, input, opts \\ %{}) do
+    case provider_to_module(provider) do
+      nil ->
+        {:error, "Unknown provider: #{provider}"}
+
+      provider_module ->
+        if function_exported?(provider_module, :embeddings, 2) do
+          apply(provider_module, :embeddings, [input, Keyword.new(opts)])
+        else
+          {:error, "Provider #{provider} does not support embeddings"}
+        end
+    end
   end
 
-  @doc false
-  @deprecated "Use provider configuration"
-  def list_models(_provider) do
-    {:error, "Model listing not yet implemented in pipeline architecture"}
+  @doc """
+  Lists available models for a provider.
+
+  This function delegates to the provider module's list_models implementation.
+
+  ## Examples
+
+      {:ok, models} = ExLLM.list_models(:openai)
+      # Returns list of model structs with id, context_window, etc.
+  """
+  def list_models(provider) do
+    case provider_to_module(provider) do
+      nil ->
+        {:error, "Unknown provider: #{provider}"}
+
+      provider_module ->
+        if function_exported?(provider_module, :list_models, 0) do
+          apply(provider_module, :list_models, [])
+        else
+          {:error, "Provider #{provider} does not support model listing"}
+        end
+    end
   end
+
+  defp provider_to_module(:openai), do: ExLLM.Providers.OpenAI
+  defp provider_to_module(:anthropic), do: ExLLM.Providers.Anthropic
+  defp provider_to_module(:gemini), do: ExLLM.Providers.Gemini
+  defp provider_to_module(:groq), do: ExLLM.Providers.Groq
+  defp provider_to_module(:mistral), do: ExLLM.Providers.Mistral
+  defp provider_to_module(:openrouter), do: ExLLM.Providers.OpenRouter
+  defp provider_to_module(:perplexity), do: ExLLM.Providers.Perplexity
+  defp provider_to_module(:ollama), do: ExLLM.Providers.Ollama
+  defp provider_to_module(:lmstudio), do: ExLLM.Providers.LMStudio
+  defp provider_to_module(:bumblebee), do: ExLLM.Providers.Bumblebee
+  defp provider_to_module(:xai), do: ExLLM.Providers.XAI
+  defp provider_to_module(:bedrock), do: ExLLM.Providers.Bedrock
+  defp provider_to_module(:mock), do: ExLLM.Providers.Mock
+  defp provider_to_module(_), do: nil
 end

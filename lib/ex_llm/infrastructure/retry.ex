@@ -163,7 +163,10 @@ defmodule ExLLM.Infrastructure.Retry do
     with_provider_circuit_breaker(
       provider,
       fn ->
-        ExLLM.stream_chat(provider, messages, opts)
+        # Convert to new stream API - needs a callback
+        callback = opts[:stream_callback] || fn _chunk -> :ok end
+        opts_map = Map.new(opts) |> Map.put(:stream, true)
+        ExLLM.stream(provider, messages, opts_map, callback)
       end,
       circuit_breaker: circuit_opts
     )

@@ -292,17 +292,7 @@ defmodule ExLLM.Core.Chat do
 
   defp prepare_messages_for_provider(provider, messages, options) do
     # Get model from options or use default
-    model =
-      case Keyword.get(options, :model) do
-        nil ->
-          case ExLLM.default_model(provider) do
-            {:error, _} -> nil
-            model -> model
-          end
-
-        model ->
-          model
-      end
+    model = Keyword.get(options, :model) || ExLLM.default_model(provider)
 
     # Add provider and model info to options for context management
     context_options =
