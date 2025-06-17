@@ -107,7 +107,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
         # will always return {:error, _}. We use dynamic dispatch to avoid
         # compile-time warnings.
         setup_result = setup_backend(backend)
-        
+
         # Log the result appropriately
         log_setup_result(backend, setup_result)
       end)
@@ -320,17 +320,17 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
     Application.get_env(:ex_llm, :circuit_breaker_metrics, [])
     |> Keyword.get(:backends, [])
   end
-  
+
   # When either Prometheus or StatsD is available, handle success case
   if @prometheus_available or @statsd_available do
     defp log_setup_result(backend, :ok) do
       Logger.info("Successfully initialized #{backend} metrics backend")
     end
-    
+
     defp log_setup_result(backend, {:error, reason}) do
       Logger.warning("Failed to initialize #{backend} metrics backend: #{inspect(reason)}")
     end
-    
+
     defp log_setup_result(backend, other) do
       Logger.warning("Unexpected setup result for #{backend}: #{inspect(other)}")
     end
@@ -339,7 +339,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
     defp log_setup_result(backend, {:error, reason}) do
       Logger.warning("Failed to initialize #{backend} metrics backend: #{inspect(reason)}")
     end
-    
+
     defp log_setup_result(backend, other) do
       Logger.warning("Unexpected setup result for #{backend}: #{inspect(other)}")
     end
@@ -353,14 +353,14 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
         else
           {:error, :prometheus_not_available}
         end
-        
+
       :statsd ->
         if Code.ensure_loaded?(Statsd) do
           setup_statsd_client()
         else
           {:error, :statsd_not_available}
         end
-        
+
       _ ->
         Logger.warning("Unknown metrics backend: #{backend}")
         {:error, :unknown_backend}

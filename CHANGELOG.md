@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.1] - 2025-06-17
+
+### Added
+- **Comprehensive API Documentation** - Complete public API reference
+  - `docs/API_REFERENCE.md` - Full public API documentation with examples
+  - `guides/internal_modules.md` - Internal modules guide with migration examples
+  - Enhanced ExDoc configuration with organized guide sections
+  - Clear separation between public API and internal implementation
+
+### Fixed
+- All compilation warnings resolved
+  - Replace deprecated `Logger.warn` with `Logger.warning`
+  - Fix unreachable error clauses in HTTP client and metrics modules
+  - Add conditional compilation for optional dependencies (Prometheus, StatsD)
+  - Remove unused streaming functions and helper methods
+  - Fix module attribute ordering issues
+  - Add embeddings function stubs to all provider implementations
+  - Fix nil module reference warnings using `apply/3`
+
+### Enhanced
+- **Developer Experience** - Better documentation structure and API clarity
+- **Code Quality** - Clean compilation with zero warnings
+- **Documentation Organization** - Logical grouping of guides and references
+
 ## [0.8.0] - 2025-06-16
 
 ### Added

@@ -197,12 +197,13 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
         # Use HTTPClient's stream_request which returns immediately
         # HTTPClient.stream_request always returns {:ok, :streaming}
-        {:ok, :streaming} = HTTPClient.stream_request(url, request, headers, callback,
-               provider: provider_name,
-               timeout: 60_000,
-               stream_id: stream_id
-             )
-        
+        {:ok, :streaming} =
+          HTTPClient.stream_request(url, request, headers, callback,
+            provider: provider_name,
+            timeout: 60_000,
+            stream_id: stream_id
+          )
+
         {:ok, stream_id}
       end
 
