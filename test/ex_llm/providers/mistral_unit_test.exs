@@ -281,32 +281,64 @@ defmodule ExLLM.Providers.MistralUnitTest do
   end
 
   describe "adapter behavior compliance" do
-    test "implements all required callbacks" do
-      # Functions with default arguments export multiple arities
-      # Check that at least one expected arity exists
-      assert function_exported?(Mistral, :chat, 1) or function_exported?(Mistral, :chat, 2)
-
-      assert function_exported?(Mistral, :stream_chat, 1) or
-               function_exported?(Mistral, :stream_chat, 2)
-
-      assert function_exported?(Mistral, :configured?, 0) or
-               function_exported?(Mistral, :configured?, 1)
-
-      assert function_exported?(Mistral, :default_model, 0)
-
-      assert function_exported?(Mistral, :list_models, 0) or
-               function_exported?(Mistral, :list_models, 1)
+    test "implements required ExLLM.Provider behavior" do
+      # Verify the module implements the ExLLM.Provider behavior
+      behaviours = ExLLM.Providers.Mistral.__info__(:attributes)[:behaviour] || []
+      assert ExLLM.Provider in behaviours
     end
 
-    test "implements embeddings callback" do
-      # Embeddings is an optional callback
-      # Mistral implements it
-      # Debug: Check what functions are exported
-      functions = ExLLM.Providers.Mistral.__info__(:functions)
-      embeddings_funcs = Enum.filter(functions, fn {name, _} -> name == :embeddings end)
+    test "functions are actually callable and return expected patterns" do
+      # Verify that the functions can be called and return appropriate error messages
+      # when missing required configuration
+      messages = [%{role: "user", content: "test"}]
 
-      # The test should pass because Mistral does implement embeddings
-      assert length(embeddings_funcs) > 0
+      # chat/2 should return {:ok, response} or {:error, reason}
+      result = Mistral.chat(messages)
+      assert match?({:error, _}, result)
+
+      # stream_chat/2 should return {:ok, stream} or {:error, reason}
+      result = Mistral.stream_chat(messages)
+      assert match?({:error, _}, result)
+
+      # embeddings/2 should return {:ok, response} or {:error, reason}
+      result = Mistral.embeddings("test")
+      assert match?({:error, _}, result)
+
+      # list_models/1 should return {:ok, models} or {:error, reason}
+      result = Mistral.list_models()
+      assert match?({:ok, _}, result) or match?({:error, _}, result)
+
+      # configured?/1 should return boolean
+      result = Mistral.configured?()
+      assert is_boolean(result)
+
+      # default_model/0 should return string
+      result = Mistral.default_model()
+      assert is_binary(result)
+    end
+
+    test "functions are listed in module info" do
+      # Check that the functions appear in the module's function list
+      functions = ExLLM.Providers.Mistral.__info__(:functions)
+      
+      required_functions = [
+        {:chat, 1},
+        {:chat, 2},
+        {:stream_chat, 1},
+        {:stream_chat, 2},
+        {:configured?, 0},
+        {:configured?, 1},
+        {:default_model, 0},
+        {:list_models, 0},
+        {:list_models, 1},
+        {:embeddings, 1},
+        {:embeddings, 2}
+      ]
+
+      for {func, arity} <- required_functions do
+        assert {func, arity} in functions,
+               "Expected function #{func}/#{arity} to be in module function list"
+      end
     end
   end
 end

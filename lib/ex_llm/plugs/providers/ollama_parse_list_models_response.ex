@@ -1,50 +1,50 @@
 defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
   @moduledoc """
   Parses list models response from the Ollama API.
-  
+
   Transforms Ollama's local models list into a standardized format.
   """
-  
+
   use ExLLM.Plug
-  
+
   @impl true
   def call(%ExLLM.Pipeline.Request{response: %Tesla.Env{} = response} = request, _opts) do
     case response.status do
       200 ->
         parse_success_response(request, response)
-      
+
       status when status == 404 ->
         # Ollama not running or endpoint not found
         parse_not_found_response(request, response)
-        
+
       status when status >= 500 ->
         parse_server_error_response(request, response, status)
-        
+
       _ ->
         parse_unknown_error_response(request, response)
     end
   end
-  
+
   defp parse_success_response(request, response) do
     body = response.body
-    
+
     # Extract and transform model data
-    models = 
+    models =
       case body["models"] do
         models when is_list(models) ->
           models
           |> Enum.map(&transform_model/1)
           |> Enum.sort_by(& &1.id)
-        
+
         _ ->
           []
       end
-    
+
     request
     |> Map.put(:result, models)
     |> ExLLM.Pipeline.Request.put_state(:completed)
   end
-  
+
   defp parse_not_found_response(request, _response) do
     error_data = %{
       type: :service_unavailable,
@@ -53,10 +53,10 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       provider: :ollama,
       hint: "Make sure Ollama is installed and running (ollama serve)"
     }
-    
+
     ExLLM.Pipeline.Request.halt_with_error(request, error_data)
   end
-  
+
   defp parse_server_error_response(request, _response, status) do
     error_data = %{
       type: :server_error,
@@ -65,10 +65,10 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       provider: :ollama,
       retryable: true
     }
-    
+
     ExLLM.Pipeline.Request.halt_with_error(request, error_data)
   end
-  
+
   defp parse_unknown_error_response(request, response) do
     error_data = %{
       type: :unknown_error,
@@ -77,14 +77,14 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       provider: :ollama,
       raw_response: response.body
     }
-    
+
     ExLLM.Pipeline.Request.halt_with_error(request, error_data)
   end
-  
+
   defp transform_model(model) do
     model_name = model["name"]
     base_name = extract_base_model_name(model_name)
-    
+
     %{
       id: model_name,
       name: model_name,
@@ -95,7 +95,8 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       context_window: get_context_window(base_name),
       max_output_tokens: get_max_output_tokens(base_name),
       capabilities: get_capabilities(base_name),
-      pricing: %{input: 0.0, output: 0.0},  # Local models are free
+      # Local models are free
+      pricing: %{input: 0.0, output: 0.0},
       metadata: %{
         family: model["details"]["family"],
         parameter_size: model["details"]["parameter_size"],
@@ -104,7 +105,7 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       }
     }
   end
-  
+
   defp extract_base_model_name(full_name) do
     # Extract base model name from tags like "llama3.2:3b-instruct-q4_K_M"
     case String.split(full_name, ":") do
@@ -112,25 +113,25 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       _ -> full_name
     end
   end
-  
+
   defp format_size(size_bytes) when is_integer(size_bytes) do
     cond do
       size_bytes >= 1_073_741_824 ->
         "#{Float.round(size_bytes / 1_073_741_824, 1)} GB"
-      
+
       size_bytes >= 1_048_576 ->
         "#{Float.round(size_bytes / 1_048_576, 1)} MB"
-      
+
       size_bytes >= 1024 ->
         "#{Float.round(size_bytes / 1024, 1)} KB"
-      
+
       true ->
         "#{size_bytes} B"
     end
   end
-  
+
   defp format_size(_), do: "Unknown"
-  
+
   defp get_context_window(base_name) do
     # Known context windows for common Ollama models
     cond do
@@ -159,7 +160,7 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       true -> 4_096
     end
   end
-  
+
   defp get_max_output_tokens(base_name) do
     # Maximum output tokens for common models
     cond do
@@ -176,43 +177,43 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       true -> 2_048
     end
   end
-  
+
   defp get_capabilities(base_name) do
     # Base capability for all models
     capabilities = ["chat"]
-    
+
     # Check for code capabilities
-    capabilities = 
+    capabilities =
       if base_name =~ ~r/code|starcoder|deepseek-coder|codellama/ do
         ["code" | capabilities]
       else
         capabilities
       end
-    
+
     # Check for vision capabilities
-    capabilities = 
+    capabilities =
       if base_name =~ ~r/llava|bakllava|vision/ do
         ["vision" | capabilities]
       else
         capabilities
       end
-    
+
     # Check for embedding capabilities
-    capabilities = 
+    capabilities =
       if base_name =~ ~r/embed|bge|e5|nomic-embed/ do
         ["embeddings" | capabilities]
       else
         capabilities
       end
-    
+
     # Check for function calling (most modern models support it)
-    capabilities = 
+    capabilities =
       if base_name =~ ~r/llama3|mistral|mixtral|qwen2|deepseek|phi3|gemma2|command-r/ do
         ["function_calling" | capabilities]
       else
         capabilities
       end
-    
+
     Enum.uniq(capabilities)
   end
 end

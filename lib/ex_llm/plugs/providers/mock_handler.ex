@@ -26,10 +26,12 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
     # 2. Application environment (for cache tests)  
     # 3. Options passed to handler
     # 4. Default echo response
-    response = 
+    response =
       case get_mock_agent_response(messages, config) do
-        {:ok, agent_response} -> agent_response
-        _ -> 
+        {:ok, agent_response} ->
+          agent_response
+
+        _ ->
           case Application.get_env(:ex_llm, :mock_responses, %{})[:chat] do
             nil -> opts[:response] || generate_mock_response(messages, config)
             app_response -> normalize_app_response(app_response, messages, config)
@@ -43,7 +45,7 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
 
     # Check if we should simulate an error (from Mock agent or options)
     error_to_simulate = get_mock_agent_error() || config[:mock_error] || opts[:error]
-    
+
     if error_to_simulate do
       # Use the Request error handling system properly
       Request.halt_with_error(request, %{
@@ -60,16 +62,43 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   end
 
   defp handle_streaming_request(request, messages, config, opts) do
-    # Check if Mock agent has streaming chunks configured
-    stream_response = 
+    # Check multiple sources for mock stream response in priority order:
+    # 1. Mock agent configuration
+    # 2. Application environment (for test overrides)
+    # 3. Options passed to handler  
+    # 4. Default stream generation
+    stream_response =
       case get_mock_agent_stream(messages, config) do
-        {:ok, stream} -> stream
-        _ -> opts[:stream] || generate_mock_stream(messages, config)
+        {:ok, stream} ->
+          stream
+
+        _ ->
+          case Application.get_env(:ex_llm, :mock_responses, %{})[:stream] do
+            nil ->
+              opts[:stream] || generate_mock_stream(messages, config)
+
+            chunks when is_list(chunks) ->
+              # Convert chunks list to stream
+              Stream.map(chunks, fn chunk ->
+                # Add small delay to simulate real streaming
+                Process.sleep(10)
+                chunk
+              end)
+
+            stream_fn when is_function(stream_fn, 2) ->
+              case stream_fn.(messages, config) do
+                {:ok, stream} -> stream
+                stream -> stream
+              end
+
+            _ ->
+              generate_mock_stream(messages, config)
+          end
       end
 
     # Check if we should simulate an error
     error_to_simulate = get_mock_agent_error() || config[:mock_error] || opts[:error]
-    
+
     if error_to_simulate do
       # Use the Request error handling system properly
       Request.halt_with_error(request, %{
@@ -78,6 +107,17 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
         mock_handler_called: true
       })
     else
+      # For streaming, call the callback directly if available
+      if callback = config[:stream_callback] do
+        # Process the stream and call callback for each chunk synchronously
+        # This avoids process context issues while still simulating streaming
+        Enum.each(stream_response, fn chunk ->
+          callback.(chunk)
+          # Small delay to simulate streaming behavior
+          Process.sleep(10)
+        end)
+      end
+
       request
       |> Map.put(:result, stream_response)
       |> Request.put_state(:completed)
@@ -90,24 +130,27 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
     try do
       # Check if Mock agent is running and has a response configured
       case Process.whereis(ExLLM.Providers.Mock) do
-        nil -> 
+        nil ->
           {:error, :agent_not_running}
+
         _pid ->
           # Use the Mock agent's chat function to get the response
           case ExLLM.Providers.Mock.chat(messages, Enum.to_list(config)) do
-            {:ok, response} -> 
+            {:ok, response} ->
               # Convert to the format expected by the pipeline
-              {:ok, %{
-                content: response.content,
-                role: "assistant", 
-                model: response.model,
-                usage: response.usage,
-                provider: :mock,
-                mock_config: config,
-                function_call: response.function_call,
-                tool_calls: response.tool_calls
-              }}
-            {:error, _} = error -> 
+              {:ok,
+               %{
+                 content: response.content,
+                 role: "assistant",
+                 model: response.model,
+                 usage: response.usage,
+                 provider: :mock,
+                 mock_config: config,
+                 function_call: response.function_call,
+                 tool_calls: response.tool_calls
+               }}
+
+            {:error, _} = error ->
               error
           end
       end
@@ -120,8 +163,9 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   defp get_mock_agent_stream(messages, config) do
     try do
       case Process.whereis(ExLLM.Providers.Mock) do
-        nil -> 
+        nil ->
           {:error, :agent_not_running}
+
         _pid ->
           # Use the Mock agent's stream_chat function to get the stream
           case ExLLM.Providers.Mock.stream_chat(messages, Enum.to_list(config)) do
@@ -138,7 +182,9 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   defp get_mock_agent_error do
     try do
       case Process.whereis(ExLLM.Providers.Mock) do
-        nil -> nil
+        nil ->
+          nil
+
         _pid ->
           # Check the agent's state to see if it's in error mode
           Agent.get(ExLLM.Providers.Mock, fn state ->
@@ -184,24 +230,26 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
           function_call: response.function_call,
           tool_calls: response.tool_calls
         }
-      
+
       response when is_map(response) ->
         # Convert map to pipeline format
         %{
           content: response[:content] || response["content"] || "Mock response",
           role: "assistant",
           model: response[:model] || response["model"] || config[:model] || "mock-model",
-          usage: response[:usage] || response["usage"] || %{
-            prompt_tokens: 10,
-            completion_tokens: 15,
-            total_tokens: 25
-          },
+          usage:
+            response[:usage] || response["usage"] ||
+              %{
+                prompt_tokens: 10,
+                completion_tokens: 15,
+                total_tokens: 25
+              },
           provider: :mock,
           mock_config: config,
           function_call: response[:function_call] || response["function_call"],
           tool_calls: response[:tool_calls] || response["tool_calls"]
         }
-      
+
       _ ->
         generate_mock_response([], config)
     end

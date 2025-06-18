@@ -1,14 +1,14 @@
 defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
   @moduledoc """
   Prepares a request for AWS Bedrock API.
-  
+
   AWS Bedrock has different request formats for different model families:
   - Claude (Anthropic)
   - Titan (Amazon)
   - Llama (Meta)
   - Command (Cohere)
   - Mistral
-  
+
   This plug detects the model family and formats the request accordingly.
   """
 
@@ -19,7 +19,7 @@ defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
   def call(%Request{config: config} = request, _opts) do
     model = config[:model] || "anthropic.claude-v2"
     body = build_request_body(request, model)
-    
+
     # Set the endpoint based on the model
     endpoint = determine_endpoint(model, config[:stream] || false)
 
@@ -34,14 +34,19 @@ defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
     cond do
       String.contains?(model, "claude") ->
         build_claude_request(messages, config)
+
       String.contains?(model, "titan") ->
         build_titan_request(messages, config)
+
       String.contains?(model, "llama") ->
         build_llama_request(messages, config)
+
       String.contains?(model, "command") ->
         build_cohere_request(messages, config)
+
       String.contains?(model, "mistral") ->
         build_mistral_request(messages, config)
+
       true ->
         # Default to Claude format
         build_claude_request(messages, config)
@@ -51,13 +56,13 @@ defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
   defp build_claude_request(messages, config) do
     # Claude on Bedrock uses Anthropic's message format
     {system_messages, other_messages} = Enum.split_with(messages, &(&1[:role] == "system"))
-    
+
     body = %{
       messages: Enum.map(other_messages, &format_claude_message/1),
       max_tokens: config[:max_tokens] || 4096,
       temperature: config[:temperature] || 0.7
     }
-    
+
     # Add system message if present
     case system_messages do
       [] -> body
@@ -68,11 +73,11 @@ defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
   defp format_claude_message(%{role: "user", content: content}) do
     %{"role" => "user", "content" => content}
   end
-  
+
   defp format_claude_message(%{role: "assistant", content: content}) do
     %{"role" => "assistant", "content" => content}
   end
-  
+
   defp format_claude_message(%{role: _, content: content}) do
     # Default unknown roles to user
     %{"role" => "user", "content" => content}
@@ -132,7 +137,7 @@ defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
 
   defp determine_endpoint(model, streaming) do
     model_id = normalize_model_id(model)
-    
+
     if streaming do
       "/model/#{model_id}/invoke-with-response-stream"
     else

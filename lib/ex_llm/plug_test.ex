@@ -1,21 +1,21 @@
 defmodule ExLLM.PlugTest do
   alias ExLLM.Pipeline.Request
-  
+
   @moduledoc """
   Testing utilities for ExLLM plugs and pipelines.
-  
+
   This module provides helpers and utilities for testing ExLLM plugs in isolation
   and testing complete pipelines. It follows the patterns established by Phoenix's
   ConnTest but adapted for ExLLM's pipeline architecture.
-  
+
   ## Usage
-  
+
   Add this to your test files:
-  
+
       use ExLLM.PlugTest
       
   ## Building Test Requests
-  
+
       # Basic request
       request = build_request()
       
@@ -30,7 +30,7 @@ defmodule ExLLM.PlugTest do
       )
       
   ## Assertions
-  
+
       # Test if request was halted
       assert_halted(request)
       assert_not_halted(request)
@@ -48,7 +48,7 @@ defmodule ExLLM.PlugTest do
       assert_metadata(request, :http_status, 200)
       
   ## Mock Responses
-  
+
       # Mock a successful HTTP response
       mock_response = mock_http_response(200, %{
         "choices" => [%{"message" => %{"content" => "Hello!"}}]
@@ -59,14 +59,14 @@ defmodule ExLLM.PlugTest do
         "error" => %{"message" => "Invalid API key"}
       })
   """
-  
+
   defmacro __using__(_opts) do
     quote do
       import ExLLM.PlugTest
       import ExUnit.Assertions
-      
+
       alias ExLLM.Pipeline.Request
-      
+
       @doc """
       Builds a test request with default or custom attributes.
       """
@@ -76,102 +76,115 @@ defmodule ExLLM.PlugTest do
           messages: [%{role: "user", content: "Test message"}],
           options: %{}
         }
-        
+
         attrs = Map.merge(defaults, Map.new(attrs))
         Request.new(attrs.provider, attrs.messages, attrs.options)
       end
     end
   end
-  
+
   @doc """
   Asserts that a request has been halted.
   """
   def assert_halted(%Request{halted: true}), do: :ok
+
   def assert_halted(%Request{halted: false}) do
     raise ExUnit.AssertionError, message: "Expected request to be halted, but it was not"
   end
-  
+
   @doc """
   Asserts that a request has not been halted.
   """
   def assert_not_halted(%Request{halted: false}), do: :ok
+
   def assert_not_halted(%Request{halted: true}) do
     raise ExUnit.AssertionError, message: "Expected request to not be halted, but it was"
   end
-  
+
   @doc """
   Asserts that a request is in a specific state.
   """
   def assert_state(%Request{state: state}, expected_state) when state == expected_state, do: :ok
+
   def assert_state(%Request{state: actual_state}, expected_state) do
-    raise ExUnit.AssertionError, 
-      message: "Expected request state to be #{inspect(expected_state)}, got #{inspect(actual_state)}"
+    raise ExUnit.AssertionError,
+      message:
+        "Expected request state to be #{inspect(expected_state)}, got #{inspect(actual_state)}"
   end
-  
+
   @doc """
   Asserts that a request has a specific error type.
   """
   def assert_error(%Request{errors: errors}, error_type) do
-    if Enum.any?(errors, & &1.error == error_type) do
+    if Enum.any?(errors, &(&1.error == error_type)) do
       :ok
     else
       error_types = Enum.map(errors, & &1.error)
+
       raise ExUnit.AssertionError,
         message: "Expected error #{inspect(error_type)}, got errors: #{inspect(error_types)}"
     end
   end
-  
+
   @doc """
   Asserts that a request has an error with a specific message.
   """
   def assert_error_message(%Request{errors: errors}, message) do
-    if Enum.any?(errors, & &1.message == message) do
+    if Enum.any?(errors, &(&1.message == message)) do
       :ok
     else
       messages = Enum.map(errors, & &1.message)
+
       raise ExUnit.AssertionError,
         message: "Expected error message '#{message}', got messages: #{inspect(messages)}"
     end
   end
-  
+
   @doc """
   Asserts that a request has no errors.
   """
   def assert_no_errors(%Request{errors: []}), do: :ok
+
   def assert_no_errors(%Request{errors: errors}) do
     raise ExUnit.AssertionError,
       message: "Expected no errors, got #{length(errors)} error(s): #{inspect(errors)}"
   end
-  
+
   @doc """
   Asserts that a request has a specific assign value.
   """
   def assert_assign(%Request{assigns: assigns}, key, expected_value) do
     case Map.get(assigns, key) do
-      ^expected_value -> :ok
+      ^expected_value ->
+        :ok
+
       actual_value ->
         raise ExUnit.AssertionError,
-          message: "Expected assign #{inspect(key)} to be #{inspect(expected_value)}, got #{inspect(actual_value)}"
+          message:
+            "Expected assign #{inspect(key)} to be #{inspect(expected_value)}, got #{inspect(actual_value)}"
     end
   end
-  
+
   @doc """
   Asserts that a request has a specific metadata value.
   """
   def assert_metadata(%Request{metadata: metadata}, key, expected_value) do
     case Map.get(metadata, key) do
-      ^expected_value -> :ok
+      ^expected_value ->
+        :ok
+
       actual_value ->
         raise ExUnit.AssertionError,
-          message: "Expected metadata #{inspect(key)} to be #{inspect(expected_value)}, got #{inspect(actual_value)}"
+          message:
+            "Expected metadata #{inspect(key)} to be #{inspect(expected_value)}, got #{inspect(actual_value)}"
     end
   end
-  
+
   @doc """
   Creates a mock Tesla HTTP response.
-  
+
   ## Examples
-  
+
       # Success response
       response = mock_http_response(200, %{"result" => "success"})
       
@@ -186,7 +199,7 @@ defmodule ExLLM.PlugTest do
   """
   def mock_http_response(status, body, headers \\ []) do
     default_headers = [{"content-type", "application/json"}]
-    
+
     %Tesla.Env{
       status: status,
       body: body,
@@ -195,7 +208,7 @@ defmodule ExLLM.PlugTest do
       url: "https://api.example.com/test"
     }
   end
-  
+
   @doc """
   Creates a mock streaming response for testing streaming plugs.
   """
@@ -206,12 +219,12 @@ defmodule ExLLM.PlugTest do
       stream_ref: make_ref()
     }
   end
-  
+
   @doc """
   Runs a single plug against a request.
-  
+
   ## Examples
-  
+
       request = build_request()
       result = run_plug(request, ExLLM.Plugs.ValidateProvider)
       
@@ -229,26 +242,26 @@ defmodule ExLLM.PlugTest do
           stacktrace: __STACKTRACE__,
           message: Exception.message(error)
         }
-        
+
         request
         |> Map.update!(:errors, &[error_entry | &1])
         |> Map.put(:state, :error)
         |> Request.halt()
     end
   end
-  
+
   @doc """
   Runs a pipeline against a request (convenience wrapper around Pipeline.run).
   """
   def run_pipeline(%Request{} = request, pipeline) when is_list(pipeline) do
     ExLLM.Pipeline.run(request, pipeline)
   end
-  
+
   @doc """
   Creates a test pipeline with mock plugs for testing.
-  
+
   ## Examples
-  
+
       pipeline = test_pipeline([
         ExLLM.Plugs.ValidateProvider,
         {ExLLM.TestPlugs.MockSuccess, result: "test result"},
@@ -258,12 +271,12 @@ defmodule ExLLM.PlugTest do
   def test_pipeline(plugs) when is_list(plugs) do
     plugs
   end
-  
+
   @doc """
   Captures log output during test execution.
-  
+
   ## Examples
-  
+
       {result, logs} = capture_log(fn ->
         run_plug(request, ExLLM.Plugs.FetchConfig)
       end)

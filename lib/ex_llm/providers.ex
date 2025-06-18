@@ -44,14 +44,12 @@ defmodule ExLLM.Providers do
       {:bumblebee, :stream} -> bumblebee_stream_pipeline()
       {:mock, :chat} -> mock_chat_pipeline()
       {:mock, :stream} -> mock_stream_pipeline()
-      
       # Embeddings pipelines
       {:openai, :embeddings} -> openai_embeddings_pipeline()
       {:gemini, :embeddings} -> gemini_embeddings_pipeline()
       {:ollama, :embeddings} -> ollama_embeddings_pipeline()
       {:mock, :embeddings} -> mock_embeddings_pipeline()
       {_, :embeddings} -> default_embeddings_pipeline()
-      
       # List models pipelines
       {:openai, :list_models} -> openai_list_models_pipeline()
       {:anthropic, :list_models} -> anthropic_list_models_pipeline()
@@ -60,10 +58,8 @@ defmodule ExLLM.Providers do
       {:ollama, :list_models} -> ollama_list_models_pipeline()
       {:mock, :list_models} -> mock_list_models_pipeline()
       {_, :list_models} -> default_list_models_pipeline()
-      
       # Validation pipeline (all providers use the same)
       {_, :validate} -> validation_pipeline()
-      
       _ -> default_chat_pipeline()
     end
   end
@@ -229,6 +225,7 @@ defmodule ExLLM.Providers do
     [
       Plugs.ValidateProvider,
       Plugs.FetchConfig,
+      Plugs.StreamCoordinator,
       Plugs.Providers.MockHandler
     ]
   end
@@ -429,7 +426,8 @@ defmodule ExLLM.Providers do
       Plugs.ValidateProvider,
       Plugs.FetchConfig,
       Plugs.BuildTeslaClient,
-      {Plugs.Cache, ttl: 600}, # Cache embeddings longer
+      # Cache embeddings longer
+      {Plugs.Cache, ttl: 600},
       Plugs.Providers.OpenAIPrepareEmbeddingRequest,
       Plugs.ExecuteRequest,
       Plugs.Providers.OpenAIParseEmbeddingResponse,
@@ -513,7 +511,8 @@ defmodule ExLLM.Providers do
       Plugs.ValidateProvider,
       Plugs.FetchConfig,
       Plugs.BuildTeslaClient,
-      {Plugs.Cache, ttl: 3600}, # Cache model lists for 1 hour
+      # Cache model lists for 1 hour
+      {Plugs.Cache, ttl: 3600},
       Plugs.Providers.OpenAIPrepareListModelsRequest,
       Plugs.ExecuteRequest,
       Plugs.Providers.OpenAIParseListModelsResponse

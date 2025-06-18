@@ -33,12 +33,13 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
 
   defp build_request_body(messages, config, provider) do
     # Get the provider's default model instead of hardcoding
-    default_model = case provider do
-      :openai -> "gpt-4"
-      :groq -> "llama-3.1-8b-instant"
-      _ -> "gpt-4"
-    end
-    
+    default_model =
+      case provider do
+        :openai -> "gpt-4"
+        :groq -> "llama-3.1-8b-instant"
+        _ -> "gpt-4"
+      end
+
     %{
       model: config[:model] || default_model,
       messages: format_messages(messages),

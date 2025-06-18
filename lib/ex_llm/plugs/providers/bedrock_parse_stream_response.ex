@@ -1,13 +1,13 @@
 defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
   @moduledoc """
   Parses streaming responses from AWS Bedrock API.
-  
+
   Bedrock streams events in a specific format with different
   event types for different model families.
   """
 
   use ExLLM.Plug
-  
+
   alias ExLLM.Pipeline.Request
 
   @impl true
@@ -16,7 +16,7 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
   @impl true
   def call(%Request{assigns: assigns} = request, _opts) do
     model = assigns[:bedrock_model] || ""
-    
+
     # Set up stream parser configuration based on model
     parser_config = %{
       parse_chunk: build_parser(model),
@@ -27,12 +27,12 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
         usage: %{}
       }
     }
-    
+
     request
     |> Request.put_private(:stream_parser, parser_config)
     |> Request.assign(:stream_parser_configured, true)
   end
-  
+
   defp build_parser(model) do
     cond do
       String.contains?(model, "claude") -> &parse_claude_chunk/1
@@ -49,13 +49,13 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
     case decode_bedrock_event(chunk) do
       {:ok, %{"type" => "content_block_delta", "delta" => %{"text" => text}}} ->
         {:continue, %{content: text}}
-        
+
       {:ok, %{"type" => "message_stop"}} ->
         {:done, %{done: true}}
-        
+
       {:ok, %{"type" => "message_delta", "usage" => usage}} ->
         {:continue, %{usage: parse_usage(usage)}}
-        
+
       _ ->
         {:continue, nil}
     end
@@ -66,10 +66,10 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
     case decode_bedrock_event(chunk) do
       {:ok, %{"chunk" => %{"outputText" => text}}} ->
         {:continue, %{content: text}}
-        
+
       {:ok, %{"completionReason" => reason}} ->
         {:done, %{done: true, finish_reason: reason}}
-        
+
       _ ->
         {:continue, nil}
     end
@@ -80,10 +80,10 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
     case decode_bedrock_event(chunk) do
       {:ok, %{"generation" => text}} ->
         {:continue, %{content: text}}
-        
+
       {:ok, %{"stop_reason" => reason}} ->
         {:done, %{done: true, finish_reason: reason}}
-        
+
       _ ->
         {:continue, nil}
     end
@@ -94,10 +94,10 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
     case decode_bedrock_event(chunk) do
       {:ok, %{"text" => text}} ->
         {:continue, %{content: text}}
-        
+
       {:ok, %{"is_finished" => true}} ->
         {:done, %{done: true}}
-        
+
       _ ->
         {:continue, nil}
     end
@@ -108,13 +108,13 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
     case decode_bedrock_event(chunk) do
       {:ok, %{"outputs" => [%{"text" => text} | _]}} ->
         {:continue, %{content: text}}
-        
+
       {:ok, %{"choices" => [%{"delta" => %{"content" => content}} | _]}} ->
         {:continue, %{content: content}}
-        
+
       {:ok, %{"choices" => [%{"finish_reason" => reason} | _]}} when not is_nil(reason) ->
         {:done, %{done: true, finish_reason: reason}}
-        
+
       _ ->
         {:continue, nil}
     end
@@ -123,7 +123,7 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
   defp decode_bedrock_event(chunk) do
     # Bedrock events come in a specific format
     # :event-type header followed by JSON data
-    
+
     # Try to extract JSON from the chunk
     chunk
     |> String.trim()
@@ -153,6 +153,6 @@ defmodule ExLLM.Plugs.Providers.BedrockParseStreamResponse do
       total_tokens: input + output
     }
   end
-  
+
   defp parse_usage(_), do: %{}
 end

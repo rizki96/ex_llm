@@ -1,12 +1,12 @@
 defmodule ExLLM.Benchmark do
   @moduledoc """
   Benchmarking utilities for ExLLM pipeline performance.
-  
+
   This module provides tools to measure and optimize pipeline performance,
   helping identify bottlenecks and validate optimization strategies.
-  
+
   ## Usage
-  
+
       # Benchmark a simple chat operation
       ExLLM.Benchmark.run_chat_benchmark(:openai, messages)
       
@@ -30,9 +30,9 @@ defmodule ExLLM.Benchmark do
 
   @doc """
   Runs a comprehensive benchmark of chat operations.
-  
+
   ## Options
-  
+
     * `:iterations` - Number of iterations to run (default: 100)
     * `:warmup` - Number of warmup iterations (default: 10)
     * `:providers` - List of providers to test (default: [:mock])
@@ -40,7 +40,7 @@ defmodule ExLLM.Benchmark do
     * `:concurrent` - Run concurrent tests (default: false)
     
   ## Examples
-  
+
       # Basic benchmark
       ExLLM.Benchmark.run_chat_benchmark(:openai, messages)
       
@@ -65,15 +65,16 @@ defmodule ExLLM.Benchmark do
     Logger.debug("Warmup completed: #{inspect(warmup_results.summary)}")
 
     # Main benchmark
-    results = if concurrent do
-      run_concurrent_iterations(provider, messages, iterations, measure)
-    else
-      run_iterations(provider, messages, iterations, true, measure)
-    end
+    results =
+      if concurrent do
+        run_concurrent_iterations(provider, messages, iterations, measure)
+      else
+        run_iterations(provider, messages, iterations, true, measure)
+      end
 
     # Calculate statistics
     stats = calculate_statistics(results.measurements)
-    
+
     report = %{
       provider: provider,
       iterations: iterations,
@@ -90,9 +91,9 @@ defmodule ExLLM.Benchmark do
 
   @doc """
   Compares performance of different pipeline configurations.
-  
+
   ## Examples
-  
+
       pipelines = [
         {:baseline, ExLLM.Providers.get_pipeline(:openai, :chat)},
         {:with_cache, add_cache_plug(baseline_pipeline)},
@@ -108,28 +109,29 @@ defmodule ExLLM.Benchmark do
 
     Logger.info("Comparing #{length(pipeline_configs)} pipeline configurations")
 
-    results = 
+    results =
       Enum.map(pipeline_configs, fn {name, pipeline} ->
         Logger.debug("Benchmarking pipeline: #{name}")
-        
-        measurements = 
+
+        measurements =
           Enum.map(1..iterations, fn _ ->
             measure_pipeline_execution(provider, messages, pipeline)
           end)
-        
+
         stats = calculate_statistics(measurements)
-        
-        {name, %{
-          pipeline_length: length(pipeline),
-          statistics: stats,
-          measurements: measurements
-        }}
+
+        {name,
+         %{
+           pipeline_length: length(pipeline),
+           statistics: stats,
+           measurements: measurements
+         }}
       end)
       |> Map.new()
 
     # Generate comparison report
     comparison = generate_comparison_report(results)
-    
+
     %{
       configurations: results,
       comparison: comparison,
@@ -139,9 +141,9 @@ defmodule ExLLM.Benchmark do
 
   @doc """
   Profiles memory usage of a function.
-  
+
   ## Examples
-  
+
       ExLLM.Benchmark.profile_memory(fn ->
         ExLLM.build(:openai, messages)
         |> ExLLM.with_cache()
@@ -153,16 +155,16 @@ defmodule ExLLM.Benchmark do
     # Start memory profiling
     :erlang.garbage_collect()
     initial_memory = :erlang.memory()
-    
+
     # Measure execution
     {time, result} = :timer.tc(fun)
-    
+
     # Final memory measurement
     :erlang.garbage_collect()
     final_memory = :erlang.memory()
-    
+
     # Calculate memory delta
-    memory_delta = 
+    memory_delta =
       Enum.map(initial_memory, fn {type, initial_bytes} ->
         final_bytes = Keyword.get(final_memory, type, 0)
         {type, final_bytes - initial_bytes}
@@ -179,42 +181,55 @@ defmodule ExLLM.Benchmark do
 
   @doc """
   Benchmarks pipeline plug overhead.
-  
+
   Measures the overhead of individual plugs and pipeline setup.
   """
   @spec benchmark_plug_overhead(Pipeline.pipeline(), keyword()) :: map()
   def benchmark_plug_overhead(pipeline, opts \\ []) do
     iterations = Keyword.get(opts, :iterations, 1000)
-    
+
     # Benchmark empty request creation
-    empty_request_time = benchmark_function(fn ->
-      Request.new(:mock, [], %{})
-    end, iterations)
-    
+    empty_request_time =
+      benchmark_function(
+        fn ->
+          Request.new(:mock, [], %{})
+        end,
+        iterations
+      )
+
     # Benchmark individual plugs
     request = Request.new(:mock, [%{role: "user", content: "test"}], %{})
-    
-    plug_times = 
+
+    plug_times =
       Enum.map(pipeline, fn plug_spec ->
         {plug, opts} = normalize_plug_spec(plug_spec)
-        
-        time = benchmark_function(fn ->
-          if function_exported?(plug, :call, 2) do
-            plug.call(request, plug.init(opts))
-          else
-            request
-          end
-        end, iterations)
-        
+
+        time =
+          benchmark_function(
+            fn ->
+              if function_exported?(plug, :call, 2) do
+                plug.call(request, plug.init(opts))
+              else
+                request
+              end
+            end,
+            iterations
+          )
+
         {plug, time}
       end)
       |> Map.new()
-    
+
     # Benchmark full pipeline
-    full_pipeline_time = benchmark_function(fn ->
-      Pipeline.run(request, pipeline)
-    end, div(iterations, 10))  # Fewer iterations for full pipeline
-    
+    full_pipeline_time =
+      benchmark_function(
+        fn ->
+          Pipeline.run(request, pipeline)
+        end,
+        # Fewer iterations for full pipeline
+        div(iterations, 10)
+      )
+
     %{
       empty_request_time: empty_request_time,
       plug_times: plug_times,
@@ -237,31 +252,36 @@ defmodule ExLLM.Benchmark do
 
     # Start monitoring
     monitor_pid = start_monitoring()
-    
+
     # Ramp up
     tasks = ramp_up_load(provider, messages, concurrency, ramp_up_seconds)
-    
+
     # Sustained load
     :timer.sleep(duration_seconds * 1000)
-    
+
     # Shutdown
     results = shutdown_load_test(tasks, monitor_pid)
-    
-    Logger.info("Stress test completed: #{results.total_requests} requests, #{results.errors} errors")
+
+    Logger.info(
+      "Stress test completed: #{results.total_requests} requests, #{results.errors} errors"
+    )
+
     results
   end
 
   ## Private Functions
 
   defp run_iterations(provider, messages, iterations, measure_detailed?, measures \\ [:time]) do
-    measurements = 
+    measurements =
       Enum.map(1..iterations, fn _i ->
         if measure_detailed? do
           measure_detailed_execution(provider, messages, measures)
         else
-          {time, _result} = :timer.tc(fn ->
-            ExLLM.chat(provider, messages)
-          end)
+          {time, _result} =
+            :timer.tc(fn ->
+              ExLLM.chat(provider, messages)
+            end)
+
           %{time: time}
         end
       end)
@@ -278,16 +298,16 @@ defmodule ExLLM.Benchmark do
   defp run_concurrent_iterations(provider, messages, iterations, measures) do
     concurrency = min(iterations, System.schedulers_online() * 2)
     batch_size = div(iterations, concurrency)
-    
-    tasks = 
+
+    tasks =
       1..concurrency
       |> Enum.map(fn _ ->
         Task.async(fn ->
           run_iterations(provider, messages, batch_size, true, measures)
         end)
       end)
-    
-    results = 
+
+    results =
       tasks
       |> Enum.map(&Task.await(&1, 30_000))
       |> Enum.reduce(%{measurements: [], summary: %{}}, fn result, acc ->
@@ -296,50 +316,58 @@ defmodule ExLLM.Benchmark do
           summary: merge_summaries(acc.summary, result.summary)
         }
       end)
-    
+
     %{results | summary: Map.put(results.summary, :concurrent, true)}
   end
 
   defp measure_detailed_execution(provider, messages, measures) do
     request = Request.new(provider, messages, %{})
     pipeline = Providers.get_pipeline(provider, :chat)
-    
+
     initial_memory = if :memory in measures, do: :erlang.memory(:total), else: 0
-    initial_reductions = if :reductions in measures, do: :erlang.process_info(self(), :reductions), else: {nil, 0}
-    
-    {time, result} = :timer.tc(fn ->
-      Pipeline.run(request, pipeline)
-    end)
-    
+
+    initial_reductions =
+      if :reductions in measures, do: :erlang.process_info(self(), :reductions), else: {nil, 0}
+
+    {time, result} =
+      :timer.tc(fn ->
+        Pipeline.run(request, pipeline)
+      end)
+
     final_memory = if :memory in measures, do: :erlang.memory(:total), else: 0
-    final_reductions = if :reductions in measures, do: :erlang.process_info(self(), :reductions), else: {nil, 0}
-    
+
+    final_reductions =
+      if :reductions in measures, do: :erlang.process_info(self(), :reductions), else: {nil, 0}
+
     measurement = %{time: time}
-    
-    measurement = if :memory in measures do
-      Map.put(measurement, :memory_delta, final_memory - initial_memory)
-    else
-      measurement
-    end
-    
-    measurement = if :reductions in measures do
-      {_, initial_reds} = initial_reductions
-      {_, final_reds} = final_reductions
-      Map.put(measurement, :reductions, final_reds - initial_reds)
-    else
-      measurement
-    end
-    
+
+    measurement =
+      if :memory in measures do
+        Map.put(measurement, :memory_delta, final_memory - initial_memory)
+      else
+        measurement
+      end
+
+    measurement =
+      if :reductions in measures do
+        {_, initial_reds} = initial_reductions
+        {_, final_reds} = final_reductions
+        Map.put(measurement, :reductions, final_reds - initial_reds)
+      else
+        measurement
+      end
+
     Map.put(measurement, :success, match?(%Request{state: :completed}, result))
   end
 
   defp measure_pipeline_execution(provider, messages, pipeline) do
     request = Request.new(provider, messages, %{})
-    
-    {time, result} = :timer.tc(fn ->
-      Pipeline.run(request, pipeline)
-    end)
-    
+
+    {time, result} =
+      :timer.tc(fn ->
+        Pipeline.run(request, pipeline)
+      end)
+
     %{
       time: time,
       success: match?(%Request{state: :completed}, result),
@@ -351,7 +379,7 @@ defmodule ExLLM.Benchmark do
     times = Enum.map(measurements, & &1.time)
     sorted_times = Enum.sort(times)
     count = length(times)
-    
+
     %{
       count: count,
       min: Enum.min(times),
@@ -368,7 +396,7 @@ defmodule ExLLM.Benchmark do
   defp calculate_median(sorted_list) do
     count = length(sorted_list)
     middle = div(count, 2)
-    
+
     if rem(count, 2) == 0 do
       (Enum.at(sorted_list, middle - 1) + Enum.at(sorted_list, middle)) / 2
     else
@@ -397,21 +425,23 @@ defmodule ExLLM.Benchmark do
   defp generate_comparison_report(results) do
     baseline_name = results |> Map.keys() |> List.first()
     baseline_stats = get_in(results, [baseline_name, :statistics])
-    
+
     Enum.map(results, fn {name, data} ->
       stats = data.statistics
-      
-      improvement = if name != baseline_name do
-        calculate_improvement(baseline_stats.mean, stats.mean)
-      else
-        0.0
-      end
-      
-      {name, %{
-        mean_time: stats.mean,
-        improvement_percent: improvement,
-        relative_performance: stats.mean / baseline_stats.mean
-      }}
+
+      improvement =
+        if name != baseline_name do
+          calculate_improvement(baseline_stats.mean, stats.mean)
+        else
+          0.0
+        end
+
+      {name,
+       %{
+         mean_time: stats.mean,
+         improvement_percent: improvement,
+         relative_performance: stats.mean / baseline_stats.mean
+       }}
     end)
     |> Map.new()
   end
@@ -423,18 +453,19 @@ defmodule ExLLM.Benchmark do
   end
 
   defp calculate_improvement(baseline, current) do
-    ((baseline - current) / baseline) * 100
+    (baseline - current) / baseline * 100
   end
 
   defp benchmark_function(fun, iterations) do
     # Warmup
     Enum.each(1..10, fn _ -> fun.() end)
-    
+
     # Actual measurement
-    {total_time, _} = :timer.tc(fn ->
-      Enum.each(1..iterations, fn _ -> fun.() end)
-    end)
-    
+    {total_time, _} =
+      :timer.tc(fn ->
+        Enum.each(1..iterations, fn _ -> fun.() end)
+      end)
+
     total_time / iterations
   end
 
@@ -443,6 +474,7 @@ defmodule ExLLM.Benchmark do
 
   defp calculate_efficiency(plug_times, full_pipeline_time) do
     total_plug_time = Enum.sum(Map.values(plug_times))
+
     if full_pipeline_time > 0 do
       total_plug_time / full_pipeline_time
     else
@@ -460,11 +492,12 @@ defmodule ExLLM.Benchmark do
 
   defp format_summary(stats) do
     "mean: #{Float.round(stats.mean / 1000, 2)}ms, " <>
-    "p95: #{Float.round(stats.p95 / 1000, 2)}ms, " <>
-    "success: #{Float.round(stats.success_rate * 100, 1)}%"
+      "p95: #{Float.round(stats.p95 / 1000, 2)}ms, " <>
+      "success: #{Float.round(stats.success_rate * 100, 1)}%"
   end
 
   defp merge_summaries(acc, new) when map_size(acc) == 0, do: new
+
   defp merge_summaries(acc, new) do
     %{
       total_time: acc.total_time + new.total_time,
@@ -480,14 +513,17 @@ defmodule ExLLM.Benchmark do
 
   defp monitor_loop(state) do
     receive do
-      {:request_completed} -> 
+      {:request_completed} ->
         monitor_loop(%{state | requests: state.requests + 1})
-      {:request_failed} -> 
+
+      {:request_failed} ->
         monitor_loop(%{state | requests: state.requests + 1, errors: state.errors + 1})
-      {:get_stats, from} -> 
+
+      {:get_stats, from} ->
         send(from, state)
         monitor_loop(state)
-      :stop -> 
+
+      :stop ->
         state
     after
       1000 -> monitor_loop(state)
@@ -495,17 +531,20 @@ defmodule ExLLM.Benchmark do
   end
 
   defp ramp_up_load(provider, messages, target_concurrency, ramp_seconds) do
-    step_size = target_concurrency / (ramp_seconds * 10)  # 10 steps per second
-    
+    # 10 steps per second
+    step_size = target_concurrency / (ramp_seconds * 10)
+
     Enum.reduce(1..target_concurrency, [], fn i, tasks ->
       if rem(i, round(step_size)) == 0 do
-        :timer.sleep(100)  # 100ms between steps
+        # 100ms between steps
+        :timer.sleep(100)
       end
-      
-      task = Task.async(fn ->
-        continuous_requests(provider, messages)
-      end)
-      
+
+      task =
+        Task.async(fn ->
+          continuous_requests(provider, messages)
+        end)
+
       [task | tasks]
     end)
   end
@@ -516,7 +555,9 @@ defmodule ExLLM.Benchmark do
         {:ok, _} -> send(:stress_monitor, {:request_completed})
         {:error, _} -> send(:stress_monitor, {:request_failed})
       end
-      :timer.sleep(100)  # Brief pause between requests
+
+      # Brief pause between requests
+      :timer.sleep(100)
       continuous_requests(provider, messages)
     catch
       :exit, _ -> :stopped
@@ -526,17 +567,19 @@ defmodule ExLLM.Benchmark do
   defp shutdown_load_test(tasks, monitor_pid) do
     # Stop all tasks
     Enum.each(tasks, fn task -> Task.shutdown(task, :brutal_kill) end)
-    
+
     # Get final stats from monitor
     send(monitor_pid, {:get_stats, self()})
+
     receive do
-      stats -> 
+      stats ->
         send(monitor_pid, :stop)
+
         %{
           total_requests: stats.requests,
           errors: stats.errors,
           duration: :os.system_time(:second) - stats.start_time,
-          error_rate: (if stats.requests > 0, do: stats.errors / stats.requests, else: 0)
+          error_rate: if(stats.requests > 0, do: stats.errors / stats.requests, else: 0)
         }
     after
       1000 -> %{total_requests: 0, errors: 0, duration: 0, error_rate: 0}

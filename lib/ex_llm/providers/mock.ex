@@ -271,12 +271,13 @@ defmodule ExLLM.Providers.Mock do
       case state.response_mode do
         :static ->
           # Build response that incorporates message content if needed
-          response = 
+          response =
             if should_echo_message?(state.static_response) do
               build_echo_response(state.static_response, messages, options)
             else
               build_response(state.static_response, messages, options)
             end
+
           {:ok, response}
 
         :handler ->
@@ -633,16 +634,16 @@ defmodule ExLLM.Providers.Mock do
   defp build_response(base_response, _messages, _options) do
     base_response
   end
-  
+
   defp should_echo_message?(_response) do
     # Temporarily disable echo behavior to fix tests
     false
   end
-  
+
   defp build_echo_response(base_response, messages, _options) do
     last_message = List.last(messages) || %{content: ""}
     user_content = Map.get(last_message, :content) || Map.get(last_message, "content") || ""
-    
+
     %{base_response | content: "Mock response to: #{user_content}"}
   end
 

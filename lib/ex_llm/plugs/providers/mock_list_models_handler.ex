@@ -1,12 +1,12 @@
 defmodule ExLLM.Plugs.Providers.MockListModelsHandler do
   @moduledoc """
   Mock handler for list models requests in the pipeline architecture.
-  
+
   This handler returns a static list of mock models for testing purposes.
   """
-  
+
   use ExLLM.Plug
-  
+
   @impl true
   def call(%ExLLM.Pipeline.Request{} = request, opts) do
     # Check if we should simulate an error
@@ -19,26 +19,26 @@ defmodule ExLLM.Plugs.Providers.MockListModelsHandler do
     else
       # Return mock models list
       models = get_mock_models(request.config, opts)
-      
+
       request
       |> Map.put(:result, models)
       |> ExLLM.Pipeline.Request.put_state(:completed)
       |> ExLLM.Pipeline.Request.assign(:mock_list_models_handler_called, true)
     end
   end
-  
+
   defp get_mock_error(config, opts) do
-    config[:mock_error] || opts[:error] || 
+    config[:mock_error] || opts[:error] ||
       Application.get_env(:ex_llm, :mock_list_models_error)
   end
-  
+
   defp get_mock_models(config, opts) do
     # Check for custom models in various places
-    custom_models = 
-      config[:models] || 
-      opts[:models] || 
-      Application.get_env(:ex_llm, :mock_models)
-    
+    custom_models =
+      config[:models] ||
+        opts[:models] ||
+        Application.get_env(:ex_llm, :mock_models)
+
     if custom_models do
       custom_models
     else
@@ -47,7 +47,7 @@ defmodule ExLLM.Plugs.Providers.MockListModelsHandler do
         %{
           id: "mock-model-large",
           name: "Mock Large Model",
-          context_window: 128000,
+          context_window: 128_000,
           max_output_tokens: 4096,
           capabilities: ["chat", "embeddings", "function_calling"],
           pricing: %{

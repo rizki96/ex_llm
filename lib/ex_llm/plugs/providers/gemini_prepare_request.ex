@@ -16,16 +16,17 @@ defmodule ExLLM.Plugs.Providers.GeminiPrepareRequest do
   @impl true
   def call(%Request{config: config} = request, _opts) do
     body = build_request_body(request)
-    
+
     # Set the dynamic endpoint based on the model and streaming
     model = config[:model] || "gemini-2.0-flash"
     is_streaming = config[:stream] == true
-    
-    endpoint = if is_streaming do
-      "/models/#{model}:streamGenerateContent?alt=sse"
-    else
-      "/models/#{model}:generateContent"
-    end
+
+    endpoint =
+      if is_streaming do
+        "/models/#{model}:streamGenerateContent?alt=sse"
+      else
+        "/models/#{model}:generateContent"
+      end
 
     request
     |> Map.put(:provider_request, body)
