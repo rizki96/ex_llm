@@ -1,0 +1,14 @@
+Complete the feature analysis by examining the Core, Infrastructure, and Testing directories. For each module found:
+
+1. Identify what specific features/capabilities it provides
+2. Determine its current architectural layer placement 
+3. Assess whether it's properly integrated with the pipeline architecture or still using legacy patterns
+4. Look for any overlapping functionality between modules
+5. Identify the testing and caching system capabilities
+
+Pay special attention to:
+- The sophisticated test caching system mentioned in docs (25x speed improvement)
+- Circuit breaker and telemetry infrastructure 
+- Cost tracking and session management systems
+- Context management strategies
+- Any modules that might be duplicating functionality

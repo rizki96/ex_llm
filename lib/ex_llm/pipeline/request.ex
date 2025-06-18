@@ -27,7 +27,7 @@ defmodule ExLLM.Pipeline.Request do
     * `:stream_ref` - Reference for streaming process
   """
 
-  @type state :: :pending | :executing | :completed | :error
+  @type state :: :pending | :executing | :streaming | :completed | :error
 
   @type t :: %__MODULE__{
           # Request identification
@@ -198,7 +198,7 @@ defmodule ExLLM.Pipeline.Request do
   """
   @spec put_state(t(), state()) :: t()
   def put_state(%__MODULE__{} = request, state)
-      when state in [:pending, :executing, :completed, :error] do
+      when state in [:pending, :executing, :streaming, :completed, :error] do
     %{request | state: state}
   end
 

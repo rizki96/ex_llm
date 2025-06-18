@@ -9,7 +9,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
   This plug expects:
   - `request.tesla_client` to be set (by BuildTeslaClient)
-  - `request.private.provider_request_body` to be set (by provider prepare plugs)
+  - `request.private.provider_request_body` OR `request.provider_request` to be set (by provider prepare plugs)
   - `request.config.stream_callback` to be set with a callback function
 
   ## Options
@@ -41,7 +41,8 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   end
 
   def call(%Request{} = request, opts) do
-    body = request.private[:provider_request_body]
+    # Check both fields for backward compatibility
+    body = request.private[:provider_request_body] || request.provider_request
 
     if body do
       execute_stream_request(request, body, opts)
@@ -59,7 +60,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     endpoint = get_endpoint(request)
 
     # Check if we have a stream coordinator
-    coordinator = request[:stream_coordinator]
+    coordinator = request.stream_coordinator
 
     if coordinator do
       # Coordinator will handle the callback
@@ -89,9 +90,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
         stream_to_coordinator(client, endpoint, body, coordinator, stream_ref, opts)
       end)
 
-    request
-    |> Map.put(:stream_pid, stream_pid)
-    |> Map.put(:stream_ref, stream_ref)
+    %{request | stream_pid: stream_pid, stream_ref: stream_ref}
     |> Request.assign(:streaming_started, true)
     |> Request.put_metadata(:stream_start_time, System.monotonic_time(:millisecond))
     |> Request.put_state(:streaming)
@@ -106,9 +105,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
         stream_response(client, endpoint, body, callback, parent, stream_ref, opts)
       end)
 
-    request
-    |> Map.put(:stream_pid, stream_pid)
-    |> Map.put(:stream_ref, stream_ref)
+    %{request | stream_pid: stream_pid, stream_ref: stream_ref}
     |> Request.assign(:streaming_started, true)
     |> Request.put_metadata(:stream_start_time, System.monotonic_time(:millisecond))
   end

@@ -10,7 +10,7 @@ defmodule ExLLM.Providers do
   alias ExLLM.Pipeline
   alias ExLLM.Plugs
 
-  @type pipeline_type :: :chat | :stream | :embeddings | :completion
+  @type pipeline_type :: :chat | :stream | :embeddings | :completion | :list_models | :validate
 
   @doc """
   Gets the pipeline for a specific provider and operation type.
@@ -27,10 +27,43 @@ defmodule ExLLM.Providers do
       {:anthropic, :chat} -> anthropic_chat_pipeline()
       {:anthropic, :stream} -> anthropic_stream_pipeline()
       {:gemini, :chat} -> gemini_chat_pipeline()
+      {:gemini, :stream} -> gemini_stream_pipeline()
       {:groq, :chat} -> groq_chat_pipeline()
+      {:groq, :stream} -> groq_stream_pipeline()
       {:mistral, :chat} -> mistral_chat_pipeline()
+      {:mistral, :stream} -> mistral_stream_pipeline()
+      {:openrouter, :stream} -> openrouter_stream_pipeline()
+      {:perplexity, :stream} -> perplexity_stream_pipeline()
+      {:xai, :chat} -> xai_chat_pipeline()
+      {:xai, :stream} -> xai_stream_pipeline()
       {:ollama, :chat} -> ollama_chat_pipeline()
+      {:ollama, :stream} -> ollama_stream_pipeline()
+      {:lmstudio, :stream} -> lmstudio_stream_pipeline()
+      {:bedrock, :chat} -> bedrock_chat_pipeline()
+      {:bedrock, :stream} -> bedrock_stream_pipeline()
+      {:bumblebee, :stream} -> bumblebee_stream_pipeline()
       {:mock, :chat} -> mock_chat_pipeline()
+      {:mock, :stream} -> mock_stream_pipeline()
+      
+      # Embeddings pipelines
+      {:openai, :embeddings} -> openai_embeddings_pipeline()
+      {:gemini, :embeddings} -> gemini_embeddings_pipeline()
+      {:ollama, :embeddings} -> ollama_embeddings_pipeline()
+      {:mock, :embeddings} -> mock_embeddings_pipeline()
+      {_, :embeddings} -> default_embeddings_pipeline()
+      
+      # List models pipelines
+      {:openai, :list_models} -> openai_list_models_pipeline()
+      {:anthropic, :list_models} -> anthropic_list_models_pipeline()
+      {:gemini, :list_models} -> gemini_list_models_pipeline()
+      {:groq, :list_models} -> groq_list_models_pipeline()
+      {:ollama, :list_models} -> ollama_list_models_pipeline()
+      {:mock, :list_models} -> mock_list_models_pipeline()
+      {_, :list_models} -> default_list_models_pipeline()
+      
+      # Validation pipeline (all providers use the same)
+      {_, :validate} -> validation_pipeline()
+      
       _ -> default_chat_pipeline()
     end
   end
@@ -187,7 +220,43 @@ defmodule ExLLM.Providers do
     [
       Plugs.ValidateProvider,
       Plugs.FetchConfig,
+      {Plugs.Cache, ttl: 300},
       Plugs.Providers.MockHandler
+    ]
+  end
+
+  defp mock_stream_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.Providers.MockHandler
+    ]
+  end
+
+  defp groq_stream_pipeline do
+    # Groq uses OpenAI-compatible streaming
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.ExecuteStreamRequest
+    ]
+  end
+
+  defp gemini_stream_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :sliding_window},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.GeminiPrepareRequest,
+      Plugs.Providers.GeminiParseStreamResponse,
+      Plugs.ExecuteStreamRequest
     ]
   end
 
@@ -202,6 +271,216 @@ defmodule ExLLM.Providers do
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.ExecuteRequest,
       Plugs.Providers.OpenAIParseResponse,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp mistral_stream_pipeline do
+    # Mistral uses OpenAI-compatible streaming
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.ExecuteStreamRequest,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp openrouter_stream_pipeline do
+    # OpenRouter uses OpenAI-compatible streaming
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.ExecuteStreamRequest,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp perplexity_stream_pipeline do
+    # Perplexity uses OpenAI-compatible streaming
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.ExecuteStreamRequest,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp ollama_stream_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :none},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.OllamaPrepareRequest,
+      Plugs.Providers.OllamaParseStreamResponse,
+      Plugs.ExecuteStreamRequest
+      # No cost tracking for local models
+    ]
+  end
+
+  defp lmstudio_stream_pipeline do
+    # LMStudio uses OpenAI-compatible streaming
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.ExecuteStreamRequest
+      # No cost tracking for local models
+    ]
+  end
+
+  defp bumblebee_stream_pipeline do
+    # Bumblebee doesn't support streaming yet
+    # Fall back to regular chat for now
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :none},
+      Plugs.Providers.BumblebeePrepareRequest,
+      Plugs.Providers.BumblebeeExecuteLocal,
+      Plugs.Providers.BumblebeeParseResponse
+    ]
+  end
+
+  defp xai_chat_pipeline do
+    # X.AI uses OpenAI-compatible API
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 300},
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OpenAIParseResponse,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp xai_stream_pipeline do
+    # X.AI uses OpenAI-compatible streaming
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.ExecuteStreamRequest,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp bedrock_chat_pipeline do
+    # AWS Bedrock requires special handling
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 300},
+      Plugs.Providers.BedrockPrepareRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.BedrockParseResponse,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp bedrock_stream_pipeline do
+    # AWS Bedrock streaming
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.StreamCoordinator,
+      Plugs.Providers.BedrockPrepareRequest,
+      Plugs.Providers.BedrockParseStreamResponse,
+      Plugs.ExecuteStreamRequest,
+      Plugs.TrackCost
+    ]
+  end
+
+  # Embeddings pipelines
+
+  defp openai_embeddings_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 600}, # Cache embeddings longer
+      Plugs.Providers.OpenAIPrepareEmbeddingRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OpenAIParseEmbeddingResponse,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp gemini_embeddings_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 600},
+      Plugs.Providers.GeminiPrepareEmbeddingRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.GeminiParseEmbeddingResponse,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp ollama_embeddings_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      # No cost tracking for local models
+      Plugs.Providers.OllamaPrepareEmbeddingRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OllamaParseEmbeddingResponse
+    ]
+  end
+
+  defp mock_embeddings_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.Cache, ttl: 300},
+      Plugs.Providers.MockEmbeddingHandler
+    ]
+  end
+
+  defp default_embeddings_pipeline do
+    # Default pipeline for OpenAI-compatible embedding APIs
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 600},
+      Plugs.Providers.OpenAIPrepareEmbeddingRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OpenAIParseEmbeddingResponse,
       Plugs.TrackCost
     ]
   end
@@ -225,5 +504,91 @@ defmodule ExLLM.Providers do
     # In a real implementation, this would store in ETS or similar
     # For now, this is a placeholder
     :ok
+  end
+
+  # List models pipelines
+
+  defp openai_list_models_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 3600}, # Cache model lists for 1 hour
+      Plugs.Providers.OpenAIPrepareListModelsRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OpenAIParseListModelsResponse
+    ]
+  end
+
+  defp anthropic_list_models_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      # Anthropic doesn't have a models API, return static list
+      Plugs.Providers.AnthropicStaticModelsList
+    ]
+  end
+
+  defp gemini_list_models_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 3600},
+      Plugs.Providers.GeminiPrepareListModelsRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.GeminiParseListModelsResponse
+    ]
+  end
+
+  defp groq_list_models_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 3600},
+      Plugs.Providers.GroqPrepareListModelsRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.GroqParseListModelsResponse
+    ]
+  end
+
+  defp ollama_list_models_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      # No caching for local models as they can change
+      Plugs.Providers.OllamaPrepareListModelsRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OllamaParseListModelsResponse
+    ]
+  end
+
+  defp mock_list_models_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.Cache, ttl: 300},
+      Plugs.Providers.MockListModelsHandler
+    ]
+  end
+
+  defp default_list_models_pipeline do
+    # Default pipeline that returns an error for unsupported providers
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.Providers.UnsupportedListModels
+    ]
+  end
+
+  defp validation_pipeline do
+    # Simple pipeline for checking if a provider is configured
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.ValidateConfiguration
+    ]
   end
 end

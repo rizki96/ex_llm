@@ -237,6 +237,20 @@ defmodule ExLLM.Core.Capabilities do
     normalized_feature = normalize_capability(feature)
     ModelCapabilities.find_models_with_features([normalized_feature])
   end
+  
+  @doc """
+  Group models by a specific capability.
+  
+  Returns a map where the keys are provider names and values are lists
+  of models that support the given capability.
+  """
+  @spec models_by_capability(atom() | String.t()) :: %{atom() => [String.t()]}
+  def models_by_capability(capability) do
+    normalized_capability = normalize_capability(capability)
+    
+    find_models(normalized_capability)
+    |> Enum.group_by(fn {provider, _model} -> provider end, fn {_provider, model} -> model end)
+  end
 
   @doc """
   Get normalized capability name.

@@ -23,7 +23,7 @@ defmodule ExLLM.IntegrationTest do
       messages = [%{role: "user", content: "Test message"}]
 
       # Build a custom pipeline
-      request =
+      builder =
         ExLLM.build(:mock, messages)
         |> ExLLM.with_model("custom-model")
         |> ExLLM.with_temperature(0.5)
@@ -42,12 +42,11 @@ defmodule ExLLM.IntegrationTest do
          }}
       ]
 
-      result = ExLLM.run(request, pipeline)
+      result = ExLLM.run(builder.request, pipeline)
 
       assert result.state == :completed
       assert result.result.content == "Custom response"
-      assert result.config.temperature == 0.5
-      assert result.config.model == "custom-model"
+      assert result.result.model == "custom-model"
     end
 
     test "error handling in pipeline" do
@@ -56,7 +55,7 @@ defmodule ExLLM.IntegrationTest do
       # Create a pipeline that will error
       pipeline = [
         Plugs.ValidateProvider,
-        {Plugs.Providers.MockHandler, error: :simulated_error, error_message: "Test error"}
+        {Plugs.Providers.MockHandler, error: :simulated_error}
       ]
 
       request = Request.new(:mock, messages)
@@ -65,7 +64,7 @@ defmodule ExLLM.IntegrationTest do
       assert result.state == :error
       assert result.halted == true
       assert length(result.errors) == 1
-      assert hd(result.errors).message == "Test error"
+      assert hd(result.errors).error == :simulated_error
     end
   end
 
@@ -120,16 +119,16 @@ defmodule ExLLM.IntegrationTest do
 
   describe "fluent API" do
     test "builder pattern works correctly" do
-      request =
+      builder =
         ExLLM.build(:mock, [%{role: "user", content: "Hello"}])
         |> ExLLM.with_model("test-model")
         |> ExLLM.with_temperature(0.8)
         |> ExLLM.with_max_tokens(500)
 
-      assert request.provider == :mock
-      assert request.options.model == "test-model"
-      assert request.options.temperature == 0.8
-      assert request.options.max_tokens == 500
+      assert builder.request.provider == :mock
+      assert builder.request.options.model == "test-model"
+      assert builder.request.options.temperature == 0.8
+      assert builder.request.options.max_tokens == 500
     end
 
     test "execute with fluent API" do

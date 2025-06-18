@@ -15,6 +15,7 @@ defmodule ExLLM.Plugs.Providers.OllamaPrepareRequest do
     body = build_request_body(request)
 
     request
+    |> Map.put(:provider_request, body)
     |> Request.put_private(:provider_request_body, body)
     |> Request.assign(:request_prepared, true)
   end

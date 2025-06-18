@@ -348,4 +348,74 @@ defmodule ExLLM.Core.Embeddings do
   end
 
   defp dot_product(_, _), do: raise(ArgumentError, "Vectors must have the same length")
+  
+  @doc """
+  Find similar items based on embeddings.
+  
+  ## Examples
+  
+      results = ExLLM.Core.Embeddings.find_similar(query_embedding, items, top_k: 5)
+  """
+  @spec find_similar([float()], list(map()), keyword()) :: list(%{item: any(), similarity: float()})
+  def find_similar(query_embedding, items, opts \\ []) do
+    top_k = Keyword.get(opts, :top_k, 10)
+    similarity_metric = Keyword.get(opts, :metric, :cosine)
+    threshold = Keyword.get(opts, :threshold, 0.0)
+    
+    items
+    |> Enum.map(fn 
+      # Handle tuple format {item, embedding}
+      {item, embedding} when is_list(embedding) ->
+        sim = similarity(query_embedding, embedding, similarity_metric)
+        %{item: item, similarity: sim}
+      
+      # Handle map format with embedding key
+      %{embedding: embedding} = item_map ->
+        sim = similarity(query_embedding, embedding, similarity_metric)
+        %{item: item_map, similarity: sim}
+        
+      # Handle other map formats - try common keys
+      item_map when is_map(item_map) ->
+        embedding = Map.get(item_map, :embedding) || Map.get(item_map, "embedding")
+        if embedding do
+          sim = similarity(query_embedding, embedding, similarity_metric)
+          %{item: item_map, similarity: sim}
+        else
+          raise ArgumentError, "Item must have :embedding key: #{inspect(item_map)}"
+        end
+    end)
+    |> Enum.filter(fn %{similarity: sim} -> sim >= threshold end)
+    |> Enum.sort_by(fn %{similarity: sim} -> sim end, :desc)
+    |> Enum.take(top_k)
+  end
+  
+  @doc """
+  List models that support embeddings for a provider.
+  
+  ## Examples
+  
+      {:ok, models} = ExLLM.Core.Embeddings.list_embedding_models(:openai)
+  """
+  @spec list_embedding_models(atom()) :: {:ok, list(String.t())} | {:error, term()}
+  def list_embedding_models(provider) do
+    case list_models(provider) do
+      {:ok, models} ->
+        {:ok, models}
+      {:error, :no_models_found} ->
+        # If no models found for the provider, this means either:
+        # 1. Provider is unknown, or 
+        # 2. Provider has no embedding models
+        # We need to check if provider exists by checking ModelConfig
+        models_map = ModelConfig.get_all_models(provider)
+        if map_size(models_map) == 0 do
+          # Provider is unknown
+          {:error, :no_models_found}
+        else
+          # Provider exists but has no embedding models
+          {:ok, []}
+        end
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
 end

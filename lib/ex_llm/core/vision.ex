@@ -182,6 +182,18 @@ defmodule ExLLM.Core.Vision do
   end
 
   @doc """
+  Create a vision message with text and images.
+  
+  ## Examples
+  
+      {:ok, message} = ExLLM.Core.Vision.create_message("What's in this image?", ["https://example.com/img.jpg"])
+  """
+  @spec create_message(String.t(), list(String.t()), keyword()) :: {:ok, map()} | {:error, term()}
+  def create_message(text, images, opts \\ []) do
+    build_message("user", text, images, opts)
+  end
+
+  @doc """
   Format messages for a specific provider.
 
   Some providers have specific requirements for vision content.

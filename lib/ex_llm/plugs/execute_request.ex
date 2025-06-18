@@ -51,8 +51,8 @@ defmodule ExLLM.Plugs.ExecuteRequest do
   end
 
   def call(%Request{} = request, opts) do
-    endpoint = opts[:endpoint] || get_provider_endpoint(request.provider)
-    method = opts[:method] || :post
+    endpoint = opts[:endpoint] || request.assigns[:http_path] || get_provider_endpoint(request.provider)
+    method = opts[:method] || request.assigns[:http_method] || :post
 
     # Log the request in debug mode
     if request.config[:debug] do
@@ -92,6 +92,23 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
         request
         |> Request.halt_with_error(error)
+        
+      %Tesla.Env{status: status} = env when status in 200..299 ->
+        # Direct success response
+        request
+        |> Map.put(:response, env)
+        |> Request.put_state(:completed)
+        |> Request.put_metadata(:http_status, status)
+        |> Request.put_metadata(:response_headers, env.headers)
+
+      %Tesla.Env{status: status, body: body} = env ->
+        # Direct HTTP error
+        error = build_http_error(status, body, request.provider)
+
+        request
+        |> Map.put(:response, env)
+        |> Request.halt_with_error(error)
+        |> Request.put_metadata(:http_status, status)
     end
   end
 

@@ -18,7 +18,7 @@ defmodule ExLLM.Plugs.Providers.AnthropicPrepareRequest do
     body = build_request_body(request)
 
     request
-    |> Request.put_private(:provider_request_body, body)
+    |> Map.put(:provider_request, body)
     |> Request.assign(:request_prepared, true)
   end
 

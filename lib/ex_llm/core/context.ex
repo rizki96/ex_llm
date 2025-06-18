@@ -226,4 +226,46 @@ defmodule ExLLM.Core.Context do
   defp is_system_message?(%{role: "system"}), do: true
   defp is_system_message?(%{"role" => "system"}), do: true
   defp is_system_message?(_), do: false
+  
+  @doc """
+  Get statistics about a conversation's context usage.
+  
+  ## Examples
+  
+      stats = ExLLM.Core.Context.stats(messages)
+  """
+  @spec stats(list(map())) :: map()
+  def stats(messages) do
+    total_tokens = Cost.estimate_tokens(messages)
+    message_count = length(messages)
+    
+    system_messages = Enum.filter(messages, &is_system_message?/1)
+    user_messages = Enum.filter(messages, fn msg -> 
+      msg[:role] == "user" || msg["role"] == "user"
+    end)
+    assistant_messages = Enum.filter(messages, fn msg ->
+      msg[:role] == "assistant" || msg["role"] == "assistant"
+    end)
+    
+    # Group messages by role for by_role stats
+    by_role = 
+      messages
+      |> Enum.group_by(fn msg ->
+        msg[:role] || msg["role"] || "unknown"
+      end)
+      |> Enum.into(%{}, fn {role, msgs} -> {role, length(msgs)} end)
+    
+    %{
+      total_tokens: total_tokens,
+      message_count: message_count,
+      avg_tokens_per_message: if(message_count > 0, do: total_tokens / message_count, else: 0),
+      system_message_count: length(system_messages),
+      user_message_count: length(user_messages),
+      assistant_message_count: length(assistant_messages),
+      system_tokens: Cost.estimate_tokens(system_messages),
+      user_tokens: Cost.estimate_tokens(user_messages),
+      assistant_tokens: Cost.estimate_tokens(assistant_messages),
+      by_role: by_role
+    }
+  end
 end

@@ -14,11 +14,22 @@ defmodule ExLLM.Plugs.Providers.GeminiPrepareRequest do
   require Logger
 
   @impl true
-  def call(%Request{} = request, _opts) do
+  def call(%Request{config: config} = request, _opts) do
     body = build_request_body(request)
+    
+    # Set the dynamic endpoint based on the model and streaming
+    model = config[:model] || "gemini-2.0-flash"
+    is_streaming = config[:stream] == true
+    
+    endpoint = if is_streaming do
+      "/models/#{model}:streamGenerateContent?alt=sse"
+    else
+      "/models/#{model}:generateContent"
+    end
 
     request
-    |> Request.put_private(:provider_request_body, body)
+    |> Map.put(:provider_request, body)
+    |> Request.assign(:http_path, endpoint)
     |> Request.assign(:request_prepared, true)
   end
 

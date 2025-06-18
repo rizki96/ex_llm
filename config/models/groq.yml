@@ -1,5 +1,5 @@
 provider: groq
-default_model: groq/deepseek-r1-distill-llama-70b
+default_model: llama-3.1-8b-instant
 models:
   whisper-large-v3:
     context_window: 448

@@ -118,13 +118,14 @@ defmodule ExLLM.Plugs.TrackCost do
     else
       # Use the existing Cost module for pricing
       case Cost.get_pricing(provider, model) do
-        {:ok, pricing} ->
+        %{input: input_price, output: output_price} ->
+          # Core.Cost returns %{input: 30.0, output: 60.0} format (already per 1M tokens)
           %{
-            input: pricing.input_token_price * 1_000_000,
-            output: pricing.output_token_price * 1_000_000
+            input: input_price,
+            output: output_price
           }
 
-        {:error, _} ->
+        _ ->
           # Fallback pricing
           Logger.warning("No pricing found for #{provider}/#{model}, using defaults")
           get_default_pricing(provider)

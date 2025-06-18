@@ -10,14 +10,6 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseStreamResponse do
   require Logger
 
   @impl true
-  def call(%Request{stream_ref: nil} = request, _opts) do
-    Request.halt_with_error(request, %{
-      plug: __MODULE__,
-      error: :no_stream,
-      message: "No stream reference found"
-    })
-  end
-
   def call(%Request{} = request, _opts) do
     # Set up stream parser configuration for Anthropic's format
     parser_config = %{

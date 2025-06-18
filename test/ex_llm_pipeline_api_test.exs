@@ -67,7 +67,7 @@ defmodule ExLLM.PipelineAPITest do
       end
 
       # Use the request builder API directly with mock provider
-      request =
+      builder =
         ExLLM.build(:mock, [%{role: "user", content: "Test"}])
         |> ExLLM.with_model("test-model")
         |> ExLLM.with_temperature(0.5)
@@ -75,7 +75,7 @@ defmodule ExLLM.PipelineAPITest do
 
       # Execute with a minimal pipeline (skip validation for test provider)
       result =
-        ExLLM.Pipeline.run(request, [
+        ExLLM.Pipeline.run(builder.request, [
           Plugs.FetchConfig,
           TestHandler
         ])
