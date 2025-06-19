@@ -1,160 +1,169 @@
-default_model: 'ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS'
-metadata:
-  source: ollama_generate_config
-  updated_at: '2025-06-07T03:12:46.782132Z'
+provider: ollama
+default_model: ollama/codegemma
 models:
-  ollama/codegeex4:
+  ollama/llama2:latest:
+    context_window: 4096
     capabilities:
     - streaming
-    context_window: 32768
-    max_output_tokens: 8192
+    parameter_size: 7B
+  ollama/mxbai-embed-large:latest:
+    context_window: 512
+    capabilities:
+    - streaming
+    - embeddings
+    parameter_size: 334M
+  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS:
+    context_window: 40960
+    capabilities:
+    - streaming
+    - function_calling
+    parameter_size: 8.19B
+  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_NL:
+    context_window: 40960
+    capabilities:
+    - streaming
+    - function_calling
+    parameter_size: 8.19B
+  ollama/hf.co/bartowski/Zyphra_ZR1-1.5B-GGUF:Q8_0:
+    context_window: 4096
+    capabilities:
+    - streaming
+    parameter_size: 1.78B
+  ollama/nomic-embed-text:latest:
+    context_window: 4096
+    capabilities:
+    - streaming
+    - embeddings
+    parameter_size: 137M
+  ollama/hf.co/mradermacher/Darkest-muse-v1-GGUF:Q8_0:
+    context_window: 8192
+    capabilities:
+    - streaming
+    parameter_size: 9.24B
   ollama/codegemma:
     context_window: 8192
     max_output_tokens: 8192
     mode: completion
-  ollama/codellama:
-    context_window: 4096
-    max_output_tokens: 4096
-    mode: completion
-  ollama/deepseek-coder-v2-base:
-    capabilities:
-    - function_calling
-    context_window: 8192
+  ollama/codegeex4:
+    context_window: 32768
     max_output_tokens: 8192
-    mode: completion
+    capabilities:
+    - streaming
   ollama/deepseek-coder-v2-instruct:
+    context_window: 32768
+    max_output_tokens: 8192
     capabilities:
     - streaming
     - function_calling
-    context_window: 32768
-    max_output_tokens: 8192
-  ollama/deepseek-coder-v2-lite-base:
-    capabilities:
-    - function_calling
+  ollama/deepseek-coder-v2-base:
     context_window: 8192
     max_output_tokens: 8192
+    capabilities:
+    - function_calling
     mode: completion
   ollama/deepseek-coder-v2-lite-instruct:
-    capabilities:
-    - streaming
-    - function_calling
     context_window: 32768
     max_output_tokens: 8192
-  ollama/hf.co/bartowski/Zyphra_ZR1-1.5B-GGUF:Q8_0:
     capabilities:
     - streaming
-    context_window: 4096
-    parameter_size: 1.78B
-  ollama/hf.co/mradermacher/Darkest-muse-v1-GGUF:Q8_0:
-    capabilities:
-    - streaming
-    context_window: 4096
-    parameter_size: 9.24B
-  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_NL:
+    - function_calling
+  ollama/deepseek-coder-v2-lite-base:
+    context_window: 8192
+    max_output_tokens: 8192
     capabilities:
     - function_calling
-    - streaming
-    context_window: 40960
-    parameter_size: 8.19B
-  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS:
-    capabilities:
-    - function_calling
-    - streaming
-    context_window: 40960
-    parameter_size: 8.19B
+    mode: completion
   ollama/internlm2_5-20b-chat:
+    context_window: 32768
+    max_output_tokens: 8192
     capabilities:
     - streaming
     - function_calling
-    context_window: 32768
-    max_output_tokens: 8192
   ollama/llama2:
-    capabilities:
-    - streaming
     context_window: 4096
     max_output_tokens: 4096
+    capabilities:
+    - streaming
+  ollama/llama2:7b:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+  ollama/llama2:13b:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
+  ollama/llama2:70b:
+    context_window: 4096
+    max_output_tokens: 4096
+    capabilities:
+    - streaming
   ollama/llama2-uncensored:
     context_window: 4096
     max_output_tokens: 4096
     mode: completion
-  ollama/llama2:13b:
-    capabilities:
-    - streaming
-    context_window: 4096
-    max_output_tokens: 4096
-  ollama/llama2:70b:
-    capabilities:
-    - streaming
-    context_window: 4096
-    max_output_tokens: 4096
-  ollama/llama2:7b:
-    capabilities:
-    - streaming
-    context_window: 4096
-    max_output_tokens: 4096
   ollama/llama3:
-    capabilities:
-    - streaming
     context_window: 8192
     max_output_tokens: 8192
-  ollama/llama3.1:
     capabilities:
     - streaming
-    - function_calling
-    context_window: 8192
-    max_output_tokens: 8192
-  ollama/llama3:70b:
-    capabilities:
-    - streaming
-    context_window: 8192
-    max_output_tokens: 8192
   ollama/llama3:8b:
+    context_window: 8192
+    max_output_tokens: 8192
     capabilities:
     - streaming
+  ollama/llama3:70b:
     context_window: 8192
     max_output_tokens: 8192
+    capabilities:
+    - streaming
+  ollama/llama3.1:
+    context_window: 8192
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+    - function_calling
+  ollama/mistral-large-instruct-2407:
+    context_window: 65536
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+    - function_calling
   ollama/mistral:
+    context_window: 8192
+    max_output_tokens: 8192
     capabilities:
     - function_calling
-    context_window: 8192
-    max_output_tokens: 8192
     mode: completion
   ollama/mistral-7B-Instruct-v0.1:
-    capabilities:
-    - streaming
-    - function_calling
     context_window: 8192
     max_output_tokens: 8192
-  ollama/mistral-7B-Instruct-v0.2:
     capabilities:
     - streaming
     - function_calling
+  ollama/mistral-7B-Instruct-v0.2:
     context_window: 32768
     max_output_tokens: 32768
-  ollama/mistral-large-instruct-2407:
     capabilities:
     - streaming
     - function_calling
-    context_window: 65536
-    max_output_tokens: 8192
+  ollama/mixtral-8x7B-Instruct-v0.1:
+    context_window: 32768
+    max_output_tokens: 32768
+    capabilities:
+    - streaming
+    - function_calling
   ollama/mixtral-8x22B-Instruct-v0.1:
-    capabilities:
-    - streaming
-    - function_calling
     context_window: 65536
     max_output_tokens: 65536
-  ollama/mixtral-8x7B-Instruct-v0.1:
     capabilities:
     - streaming
     - function_calling
-    context_window: 32768
-    max_output_tokens: 32768
-  ollama/nomic-embed-text:latest:
-    capabilities:
-    - embeddings
-    - streaming
+  ollama/codellama:
     context_window: 4096
-    parameter_size: 137M
+    max_output_tokens: 4096
+    mode: completion
   ollama/orca-mini:
     context_window: 4096
     max_output_tokens: 4096
@@ -163,4 +172,6 @@ models:
     context_window: 2048
     max_output_tokens: 2048
     mode: completion
-provider: ollama
+metadata:
+  updated_at: '2025-06-19T12:01:36.065648'
+  source: ollama_api

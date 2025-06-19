@@ -2,7 +2,7 @@ provider: bedrock_converse
 models:
   amazon.nova-micro-v1:0:
     context_window: 300000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.035
       output: 0.14
@@ -13,7 +13,7 @@ models:
     - structured_output
   us.amazon.nova-micro-v1:0:
     context_window: 300000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.035
       output: 0.14
@@ -24,7 +24,7 @@ models:
     - structured_output
   eu.amazon.nova-micro-v1:0:
     context_window: 300000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.046
       output: 0.184
@@ -35,7 +35,7 @@ models:
     - structured_output
   amazon.nova-lite-v1:0:
     context_window: 128000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.06
       output: 0.24
@@ -48,7 +48,7 @@ models:
     - pdf_input
   us.amazon.nova-lite-v1:0:
     context_window: 128000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.06
       output: 0.24
@@ -61,7 +61,7 @@ models:
     - pdf_input
   eu.amazon.nova-lite-v1:0:
     context_window: 128000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.078
       output: 0.312
@@ -74,7 +74,7 @@ models:
     - pdf_input
   amazon.nova-pro-v1:0:
     context_window: 300000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.8
       output: 3.2
@@ -87,7 +87,7 @@ models:
     - pdf_input
   us.amazon.nova-pro-v1:0:
     context_window: 300000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 0.8
       output: 3.2
@@ -100,7 +100,7 @@ models:
     - pdf_input
   eu.amazon.nova-pro-v1:0:
     context_window: 300000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 1.05
       output: 4.2
@@ -113,7 +113,7 @@ models:
     - pdf_input
   us.amazon.nova-premier-v1:0:
     context_window: 1000000
-    max_output_tokens: 4096
+    max_output_tokens: 10000
     pricing:
       input: 2.5
       output: 12.5

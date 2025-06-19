@@ -86,12 +86,42 @@ models:
     - pdf_input
     - tool_choice
     deprecation_date: '2025-06-01'
+  vertex_ai/claude-opus-4:
+    context_window: 200000
+    max_output_tokens: 32000
+    pricing:
+      input: 15.0
+      output: 75.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
   vertex_ai/claude-opus-4@20250514:
     context_window: 200000
     max_output_tokens: 32000
     pricing:
       input: 15.0
       output: 75.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  vertex_ai/claude-sonnet-4:
+    context_window: 200000
+    max_output_tokens: 64000
+    pricing:
+      input: 3.0
+      output: 15.0
     capabilities:
     - streaming
     - function_calling

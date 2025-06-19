@@ -148,6 +148,70 @@ models:
       effective Flash model, released in October of 2024.
     default_temperature: 1
     default_top_p: 0.95
+  gemini/gemini-2.5-flash:
+    context_window: 1048576
+    max_output_tokens: 65536
+    capabilities:
+    - streaming
+    - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
+    - vision
+    version: '001'
+    display_name: Gemini 2.5 Flash
+    description: Stable version of Gemini 2.5 Flash, our mid-size multimodal model
+      that supports up to 1 million tokens, released in June of 2025.
+    default_temperature: 1
+    default_top_p: 0.95
+    default_top_k: 64
+    pricing:
+      input: 0.3
+      output: 2.5
+      reasoning: 2.5
+    supported_endpoints:
+    - /v1/chat/completions
+    - /v1/completions
+    - /v1/batch
+    supported_modalities:
+    - text
+    - image
+    - audio
+    - video
+    supported_output_modalities:
+    - text
+  gemini/gemini-2.5-pro:
+    context_window: 1048576
+    max_output_tokens: 65536
+    capabilities:
+    - streaming
+    - function_calling
+    - system_messages
+    - long_context
+    - document_understanding
+    - audio_input
+    - vision
+    - video_understanding
+    version: '2.5'
+    display_name: Gemini 2.5 Pro
+    description: Stable release (June 17th, 2025) of Gemini 2.5 Pro
+    default_temperature: 1
+    default_top_p: 0.95
+    default_top_k: 64
+    pricing:
+      input: 1.25
+      output: 10.0
+    supported_endpoints:
+    - /v1/chat/completions
+    - /v1/completions
+    supported_modalities:
+    - text
+    - image
+    - audio
+    - video
+    supported_output_modalities:
+    - text
   gemini/gemini-2.0-flash:
     context_window: 1048576
     max_output_tokens: 8192
@@ -279,45 +343,6 @@ models:
     supported_output_modalities:
     - text
     - image
-  gemini/gemini-1.5-pro-001:
-    context_window: 2000000
-    max_output_tokens: 8192
-    capabilities:
-    - streaming
-    - function_calling
-    - system_messages
-    - long_context
-    - document_understanding
-    - audio_input
-    - video_understanding
-    pricing:
-      input: 3.5
-      output: 10.5
-    deprecation_date: '2025-05-24'
-  gemini/gemini-1.5-flash-001:
-    context_window: 1000000
-    max_output_tokens: 8192
-    capabilities:
-    - streaming
-    - function_calling
-    - system_messages
-    - long_context
-    - document_understanding
-    - audio_input
-    pricing:
-      input: 0.075
-      output: 0.3
-    deprecation_date: '2025-05-24'
-  gemini/gemini-1.5-flash-001-tuning:
-    context_window: 16384
-    max_output_tokens: 8192
-    capabilities:
-    - streaming
-    - function_calling
-    - system_messages
-    - long_context
-    - document_understanding
-    - audio_input
   gemini/gemini-2.5-pro-exp-03-25:
     context_window: 1048576
     max_output_tokens: 65535
@@ -447,6 +472,27 @@ models:
     - text
     supported_output_modalities:
     - audio
+  gemini/gemini-2.5-pro-preview-06-05:
+    context_window: 1048576
+    max_output_tokens: 65535
+    pricing:
+      input: 1.25
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - system_messages
+    - web_search
+    - tool_choice
+    supported_modalities:
+    - text
+    - image
+    - audio
+    - video
+    supported_output_modalities:
+    - text
   gemini/gemini-2.5-pro-preview-05-06:
     context_window: 1048576
     max_output_tokens: 65535
@@ -590,6 +636,21 @@ models:
     - structured_output
     - system_messages
     - tool_choice
+  gemini/gemini-1.5-flash-001:
+    context_window: 1048576
+    max_output_tokens: 8192
+    pricing:
+      input: 0.075
+      output: 0.3
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - system_messages
+    - tool_choice
+    deprecation_date: '2025-05-24'
   gemini/gemini-1.5-flash-latest:
     context_window: 1048576
     max_output_tokens: 8192
@@ -665,6 +726,21 @@ models:
     - streaming
     - function_calling
     - tool_choice
+  gemini/gemini-1.5-pro-001:
+    context_window: 2097152
+    max_output_tokens: 8192
+    pricing:
+      input: 3.5
+      output: 10.5
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - system_messages
+    - tool_choice
+    deprecation_date: '2025-05-24'
   gemini/gemini-1.5-pro-exp-0801:
     context_window: 2097152
     max_output_tokens: 8192
@@ -723,22 +799,8 @@ models:
     - function_calling
     - vision
     - tool_choice
-  gemini/embedding-001:
-    context_window: 2048
-    max_output_tokens: 1
-    capabilities:
-    - embeddings
-    display_name: Embedding 001
-    description: Legacy text embedding model
-  gemini/text-embedding-004:
-    context_window: 2048
-    max_output_tokens: 1
-    capabilities:
-    - embeddings
-    display_name: Text Embedding 004
-    description: Latest text embedding model with improved performance
 metadata:
-  updated_at: '2025-06-12T23:13:29.735554'
+  updated_at: '2025-06-19T12:01:35.679630'
   source: gemini_api
   api_version: v1beta
-  total_models_fetched: 13
+  total_models_fetched: 15

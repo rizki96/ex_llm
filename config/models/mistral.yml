@@ -233,6 +233,50 @@ models:
     - streaming
     - function_calling
     - tool_choice
+  mistral/magistral-medium-latest:
+    context_window: 40000
+    max_output_tokens: 40000
+    pricing:
+      input: 2.0
+      output: 5.0
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
+  mistral/magistral-medium-2506:
+    context_window: 40000
+    max_output_tokens: 40000
+    pricing:
+      input: 2.0
+      output: 5.0
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
+  mistral/magistral-small-latest:
+    context_window: 40000
+    max_output_tokens: 40000
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
+  mistral/magistral-small-2506:
+    context_window: 40000
+    max_output_tokens: 40000
+    pricing:
+      input: 0.5
+      output: 1.5
+    capabilities:
+    - streaming
+    - function_calling
+    - reasoning
+    - tool_choice
   mistral/mistral-embed:
     context_window: 8192
     pricing:

@@ -1,6 +1,83 @@
 provider: openrouter
 default_model: anthropic/claude-3-5-sonnet
 models:
+  minimax/minimax-m1:
+    context_window: 1000000
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 0.3
+      output: 1.6500000000000001
+  minimax/minimax-m1:extended:
+    context_window: 128000
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 0.55
+      output: 2.2
+  google/gemini-2.5-flash-lite-preview-06-17:
+    context_window: 1048576
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 0.09999999999999999
+      output: 0.39999999999999997
+  google/gemini-2.5-flash:
+    context_window: 1048576
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 0.3
+      output: 2.5
+  google/gemini-2.5-pro:
+    context_window: 1048576
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 1.25
+      output: 10.0
+  moonshotai/kimi-dev-72b:free:
+    context_window: 131072
+    max_output_tokens: null
+    capabilities:
+    - streaming
+  openai/o3-pro:
+    context_window: 200000
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 20.0
+      output: 80.0
+  mistralai/magistral-small-2506:
+    context_window: 40000
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 0.5
+      output: 1.5
+  mistralai/magistral-medium-2506:
+    context_window: 40960
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 2.0
+      output: 5.0
+  mistralai/magistral-medium-2506:thinking:
+    context_window: 40960
+    max_output_tokens: null
+    capabilities:
+    - streaming
+    pricing:
+      input: 2.0
+      output: 5.0
   google/gemini-2.5-pro-preview:
     context_window: 1048576
     max_output_tokens: null
@@ -38,14 +115,6 @@ models:
     pricing:
       input: 0.049999999999999996
       output: 0.09999999999999999
-  google/gemma-2b-it:
-    context_window: 8192
-    max_output_tokens: null
-    capabilities:
-    - streaming
-    pricing:
-      input: 0.09999999999999999
-      output: 0.09999999999999999
   deepseek/deepseek-r1-0528:free:
     context_window: 163840
     max_output_tokens: null
@@ -64,14 +133,6 @@ models:
     max_output_tokens: null
     capabilities:
     - streaming
-  sarvamai/sarvam-m:
-    context_window: 32768
-    max_output_tokens: null
-    capabilities:
-    - streaming
-    pricing:
-      input: 0.25
-      output: 0.75
   thedrummer/valkyrie-49b-v1:
     context_window: 131072
     max_output_tokens: null
@@ -149,7 +210,7 @@ models:
     capabilities:
     - streaming
   mistralai/mistral-medium-3:
-    context_window: 131072
+    context_window: 32768
     max_output_tokens: null
     capabilities:
     - streaming
@@ -247,17 +308,12 @@ models:
       input: 0.25
       output: 1.0
   opengvlab/internvl3-14b:free:
-    context_window: 32000
+    context_window: 12288
     max_output_tokens: null
     capabilities:
     - streaming
   opengvlab/internvl3-2b:free:
-    context_window: 32000
-    max_output_tokens: null
-    capabilities:
-    - streaming
-  deepseek/deepseek-prover-v2:free:
-    context_window: 163840
+    context_window: 12288
     max_output_tokens: null
     capabilities:
     - streaming
@@ -416,8 +472,8 @@ models:
     capabilities:
     - streaming
     pricing:
-      input: 10.0
-      output: 40.0
+      input: 2.0
+      output: 8.0
   openai/o4-mini:
     context_window: 200000
     max_output_tokens: null
@@ -542,7 +598,7 @@ models:
       input: 0.15
       output: 0.6
   meta-llama/llama-4-scout:free:
-    context_window: 200000
+    context_window: 128000
     max_output_tokens: null
     capabilities:
     - streaming
@@ -567,14 +623,6 @@ models:
     max_output_tokens: null
     capabilities:
     - streaming
-  scb10x/llama3.1-typhoon2-8b-instruct:
-    context_window: 8192
-    max_output_tokens: null
-    capabilities:
-    - streaming
-    pricing:
-      input: 0.18
-      output: 0.18
   scb10x/llama3.1-typhoon2-70b-instruct:
     context_window: 8192
     max_output_tokens: null
@@ -583,11 +631,6 @@ models:
     pricing:
       input: 0.88
       output: 0.88
-  qwen/qwen2.5-vl-3b-instruct:free:
-    context_window: 64000
-    max_output_tokens: null
-    capabilities:
-    - streaming
   google/gemini-2.5-pro-exp-03-25:
     context_window: 1048576
     max_output_tokens: null
@@ -787,11 +830,6 @@ models:
     pricing:
       input: 2.0
       output: 8.0
-  deepseek/deepseek-r1-zero:free:
-    context_window: 163840
-    max_output_tokens: null
-    capabilities:
-    - streaming
   qwen/qwq-32b:free:
     context_window: 40000
     max_output_tokens: null
@@ -805,11 +843,6 @@ models:
     pricing:
       input: 0.15
       output: 0.19999999999999998
-  moonshotai/moonlight-16b-a3b-instruct:free:
-    context_window: 8192
-    max_output_tokens: null
-    capabilities:
-    - streaming
   nousresearch/deephermes-3-llama-3-8b-preview:free:
     context_window: 131072
     max_output_tokens: null
@@ -1018,7 +1051,7 @@ models:
     - streaming
     pricing:
       input: 0.049999999999999996
-      output: 0.11
+      output: 0.09
   deepseek/deepseek-r1-distill-qwen-32b:free:
     context_window: 16000
     max_output_tokens: null
@@ -1204,7 +1237,7 @@ models:
     capabilities:
     - streaming
     pricing:
-      input: 0.07
+      input: 0.049999999999999996
       output: 0.25
   amazon/nova-lite-v1:
     context_window: 300000
@@ -1271,7 +1304,7 @@ models:
       input: 2.0
       output: 6.0
   mistralai/pixtral-large-2411:
-    context_window: 131072
+    context_window: 32768
     max_output_tokens: null
     capabilities:
     - streaming
@@ -1419,11 +1452,6 @@ models:
     pricing:
       input: 0.04
       output: 0.04
-  qwen/qwen-2.5-7b-instruct:free:
-    context_window: 32768
-    max_output_tokens: null
-    capabilities:
-    - streaming
   qwen/qwen-2.5-7b-instruct:
     context_window: 32768
     max_output_tokens: null
@@ -1689,11 +1717,6 @@ models:
     pricing:
       input: 2.5
       output: 10.0
-  meta-llama/llama-3.1-405b:free:
-    context_window: 64000
-    max_output_tokens: null
-    capabilities:
-    - streaming
   meta-llama/llama-3.1-405b:
     context_window: 32768
     max_output_tokens: null
@@ -1737,7 +1760,7 @@ models:
     capabilities:
     - streaming
     pricing:
-      input: 0.019000000000000003
+      input: 0.016
       output: 0.03
   meta-llama/llama-3.1-405b-instruct:
     context_window: 32768
@@ -1767,7 +1790,7 @@ models:
     - streaming
     pricing:
       input: 0.01
-      output: 0.029
+      output: 0.02
   openai/gpt-4o-mini:
     context_window: 128000
     max_output_tokens: null
@@ -2335,14 +2358,6 @@ models:
     pricing:
       input: 0.065
       output: 0.065
-  meta-llama/llama-2-70b-chat:
-    context_window: 4096
-    max_output_tokens: null
-    capabilities:
-    - streaming
-    pricing:
-      input: 0.8999999999999999
-      output: 0.8999999999999999
   openai/gpt-3.5-turbo:
     context_window: 16385
     max_output_tokens: null
@@ -2375,6 +2390,18 @@ models:
     pricing:
       input: 30.0
       output: 60.0
+  openrouter/deepseek/deepseek-r1-0528:
+    context_window: 65336
+    max_output_tokens: 8192
+    pricing:
+      input: 0.5
+      output: 2.15
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - reasoning
+    - tool_choice
   openrouter/deepseek/deepseek-r1:
     context_window: 65336
     max_output_tokens: 8192
@@ -2415,6 +2442,20 @@ models:
     capabilities:
     - streaming
     - tool_choice
+  openrouter/google/gemini-2.5-pro:
+    context_window: 1048576
+    max_output_tokens: 8192
+    pricing:
+      input: 1.25
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - audio_output
+    - structured_output
+    - system_messages
+    - tool_choice
   openrouter/google/gemini-pro-1.5:
     context_window: 1000000
     max_output_tokens: 8192
@@ -2432,6 +2473,20 @@ models:
     pricing:
       input: 0.1
       output: 0.4
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - audio_output
+    - structured_output
+    - system_messages
+    - tool_choice
+  openrouter/google/gemini-2.5-flash:
+    context_window: 1048576
+    max_output_tokens: 8192
+    pricing:
+      input: 0.3
+      output: 2.5
     capabilities:
     - streaming
     - function_calling
@@ -2559,6 +2614,18 @@ models:
     - streaming
     - function_calling
     - vision
+    - tool_choice
+  openrouter/anthropic/claude-sonnet-4:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - reasoning
     - tool_choice
   openrouter/mistralai/mistral-large:
     context_window: 32000
@@ -2904,5 +2971,5 @@ models:
     - streaming
     - tool_choice
 metadata:
-  updated_at: '2025-06-06T14:30:54.717968'
+  updated_at: '2025-06-19T12:01:35.872971'
   source: openrouter_api

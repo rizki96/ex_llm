@@ -2,6 +2,12 @@ provider: vertex_ai-image-models
 models:
   vertex_ai/imagegeneration@006:
     mode: image_generation
+  vertex_ai/imagen-4.0-generate-preview-06-06:
+    mode: image_generation
+  vertex_ai/imagen-4.0-ultra-generate-preview-06-06:
+    mode: image_generation
+  vertex_ai/imagen-4.0-fast-generate-preview-06-06:
+    mode: image_generation
   vertex_ai/imagen-3.0-generate-002:
     mode: image_generation
   vertex_ai/imagen-3.0-generate-001:
