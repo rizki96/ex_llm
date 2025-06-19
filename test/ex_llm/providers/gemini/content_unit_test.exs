@@ -183,6 +183,7 @@ defmodule ExLLM.Gemini.ContentTest do
     end
 
     @tag :integration
+    @tag :function_calling
     test "handles function calling" do
       model = "gemini-2.0-flash"
 
@@ -328,6 +329,7 @@ defmodule ExLLM.Gemini.ContentTest do
 
   describe "stream_generate_content/3" do
     @tag :integration
+    @tag :streaming
     test "streams content chunks" do
       model = "gemini-2.0-flash"
 
@@ -360,6 +362,7 @@ defmodule ExLLM.Gemini.ContentTest do
       assert length(texts) > 0
     end
 
+    @tag :streaming
     test "handles streaming errors" do
       model = "gemini-2.0-flash"
 
@@ -397,6 +400,7 @@ defmodule ExLLM.Gemini.ContentTest do
     end
 
     @tag :integration
+    @tag :streaming
     test "streams with function calling" do
       model = "gemini-2.0-flash"
 
@@ -722,6 +726,7 @@ defmodule ExLLM.Gemini.ContentTest do
     end
 
     @tag :integration
+    @tag :streaming
     test "works with streaming through main interface" do
       messages = [
         %{role: "user", content: "Count to 3"}

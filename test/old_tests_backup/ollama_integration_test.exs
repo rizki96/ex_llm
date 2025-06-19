@@ -13,6 +13,7 @@ defmodule ExLLM.OllamaIntegrationTest do
   # Or use the provider-specific alias: mix test.ollama
 
   describe "generate/2" do
+    @tag :streaming
     test "generates completion without streaming" do
       result = Ollama.generate("The capital of France is", model: "llama2")
 
@@ -69,6 +70,7 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "stream_generate/2" do
+    @tag :streaming
     test "streams generation responses" do
       {:ok, stream} = Ollama.stream_generate("Tell me a short story", model: "llama2")
 
@@ -206,6 +208,7 @@ defmodule ExLLM.OllamaIntegrationTest do
   end
 
   describe "embeddings/2" do
+    @tag :embedding
     test "generates embeddings for text" do
       result = Ollama.embeddings("Hello world", model: "nomic-embed-text")
 
@@ -228,6 +231,7 @@ defmodule ExLLM.OllamaIntegrationTest do
       end
     end
 
+    @tag :embedding
     test "generates embeddings for multiple inputs" do
       inputs = ["Hello", "World", "Testing"]
       result = Ollama.embeddings(inputs, model: "nomic-embed-text")

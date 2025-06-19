@@ -101,6 +101,7 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
       assert input.activity_end == %{}
     end
 
+    @tag :function_calling
     test "build_tool_response_message/1 creates tool response message" do
       function_responses = [
         %{
@@ -147,6 +148,7 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
       assert content.generation_complete == true
     end
 
+    @tag :function_calling
     test "parse_server_message/1 parses tool call message" do
       message = %{
         "toolCall" => %{

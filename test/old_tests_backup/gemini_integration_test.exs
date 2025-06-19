@@ -56,6 +56,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       assert is_boolean(model.capabilities.supports_vision)
     end
 
+    @tag :function_calling
     test "basic chat functionality through ExLLM interface" do
       messages = [
         %{
@@ -79,6 +80,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
       assert response.model
     end
 
+    @tag :streaming
     test "streaming chat through ExLLM interface" do
       messages = [
         %{role: "user", content: "Count from 1 to 3, one number per line"}
@@ -177,6 +179,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
     end
 
     @tag :integration
+    @tag :embedding
     test "embeddings integration with similarity search" do
       content_1 = "The weather is sunny today"
       content_2 = "It's a bright and clear day"
@@ -331,6 +334,7 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
 
     @tag :performance
     @tag :integration
+    @tag :streaming
     test "streaming latency" do
       messages = [%{role: "user", content: "Count from 1 to 5"}]
 

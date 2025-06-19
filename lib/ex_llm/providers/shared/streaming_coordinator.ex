@@ -134,8 +134,10 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
         Task.start(fn ->
           process_stream_data(
             data,
-            "",  # text_buffer
-            [],  # chunk_buffer  
+            # text_buffer
+            "",
+            # chunk_buffer  
+            [],
             callback,
             parse_chunk_fn,
             stream_context,

@@ -106,11 +106,11 @@ defmodule ExLLM.Plugs.Providers.OpenRouterParseListModelsResponse do
 
   defp parse_capabilities(model) do
     base_capabilities = ["chat"]
-    
+
     # Extract supported parameters to determine capabilities
     supported_params = model["supported_parameters"] || []
-    
-    capabilities = 
+
+    capabilities =
       if "tools" in supported_params or "tool_choice" in supported_params do
         ["function_calling" | base_capabilities]
       else
@@ -136,6 +136,7 @@ defmodule ExLLM.Plugs.Providers.OpenRouterParseListModelsResponse do
     case get_in(model, ["architecture", "input_modalities"]) do
       modalities when is_list(modalities) ->
         "image" in modalities or "file" in modalities
+
       _ ->
         # Fallback: check model ID for known vision models
         model_id = model["id"] || ""

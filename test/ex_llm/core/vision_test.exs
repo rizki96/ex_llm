@@ -157,12 +157,14 @@ defmodule ExLLM.Core.VisionTest do
   end
 
   describe "supports_vision?/1" do
+    @tag :vision
     test "returns true for vision-capable providers" do
       assert Vision.supports_vision?(:anthropic)
       assert Vision.supports_vision?(:openai)
       assert Vision.supports_vision?(:gemini)
     end
 
+    @tag :vision
     test "returns false for non-vision providers" do
       refute Vision.supports_vision?(:bumblebee)
       refute Vision.supports_vision?(:unknown)
@@ -170,6 +172,7 @@ defmodule ExLLM.Core.VisionTest do
   end
 
   describe "has_vision_content?/1" do
+    @tag :vision
     test "detects vision content in messages" do
       message_with_image = %{
         role: "user",
@@ -253,6 +256,7 @@ defmodule ExLLM.Core.VisionTest do
       :ok
     end
 
+    @tag :vision
     test "vision_message/3 creates proper message" do
       {:ok, message} = ExLLM.vision_message("What's this?", ["https://example.com/img.jpg"])
 
@@ -275,6 +279,7 @@ defmodule ExLLM.Core.VisionTest do
       File.rm!(path)
     end
 
+    @tag :vision
     test "supports_vision?/2 checks both provider and model" do
       # This would need actual model capability data to work properly
       # For now, just verify the function exists and returns boolean

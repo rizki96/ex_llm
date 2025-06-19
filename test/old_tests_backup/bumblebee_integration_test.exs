@@ -126,6 +126,7 @@ defmodule ExLLM.BumblebeeIntegrationTest do
   end
 
   describe "stream_chat/2 with real models" do
+    @tag :streaming
     test "streams response chunks" do
       messages = [%{role: "user", content: "Tell me a short story about a robot."}]
 
@@ -158,6 +159,7 @@ defmodule ExLLM.BumblebeeIntegrationTest do
       end
     end
 
+    @tag :streaming
     test "streaming respects max_tokens" do
       messages = [%{role: "user", content: "Count from 1 to 100"}]
 

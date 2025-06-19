@@ -114,6 +114,7 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
 
   describe "stream_chat/2 with Bumblebee available" do
     @tag :unit
+    @tag :streaming
     test "validates messages before streaming" do
       assert {:error, message} = Bumblebee.stream_chat([])
       assert message =~ "Messages cannot be empty"
@@ -123,6 +124,7 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
     @tag :integration
     @tag :model_loading
     @tag :skip_unit
+    @tag :streaming
     test "validates streaming options" do
       messages = [%{role: "user", content: "Stream test"}]
 
@@ -342,6 +344,7 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
     end
 
     @tag :unit
+    @tag :streaming
     test "stream_chat returns proper response tuple" do
       result = Bumblebee.stream_chat([])
       assert {:error, _message} = result

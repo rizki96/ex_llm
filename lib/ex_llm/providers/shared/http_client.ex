@@ -874,7 +874,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     # Handle streaming differently - don't use Req's :into option
     # Extract the collector for manual processing
     collector = Keyword.get(opts, :into)
-    
+
     # Don't pass :into to Req, let it handle streaming normally
     # req_opts remains without :into
 

@@ -116,6 +116,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
       end
     end
 
+    @tag :vision
     test "handles multimodal content with vision models" do
       # Small 1x1 red pixel PNG
       red_pixel =
@@ -150,6 +151,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
   end
 
   describe "stream_chat/2" do
+    @tag :streaming
     test "streams chat responses" do
       messages = [
         %{role: "user", content: "Count from 1 to 5"}
@@ -179,6 +181,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
       end
     end
 
+    @tag :streaming
     test "handles streaming with tools" do
       messages = [
         %{role: "user", content: "What's the weather in Boston?"}
@@ -220,6 +223,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
   end
 
   describe "embeddings/2" do
+    @tag :embedding
     test "generates embeddings for single text" do
       case OpenAI.embeddings("Hello world") do
         {:ok, response} ->
@@ -237,6 +241,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
       end
     end
 
+    @tag :embedding
     test "generates embeddings for multiple texts" do
       texts = ["Hello", "World", "Testing"]
 
@@ -253,6 +258,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
       end
     end
 
+    @tag :embedding
     test "respects model parameter for embeddings" do
       case OpenAI.embeddings("Test", model: "text-embedding-3-small") do
         {:ok, response} ->
@@ -268,6 +274,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
     end
   end
 
+  @tag :function_calling
   describe "tool/function calling" do
     test "executes function calls" do
       messages = [
@@ -310,6 +317,7 @@ defmodule ExLLM.Providers.OpenAIIntegrationTest do
       end
     end
 
+    @tag :function_calling
     test "supports parallel tool calls" do
       messages = [
         %{role: "user", content: "What's the weather in Boston and New York?"}

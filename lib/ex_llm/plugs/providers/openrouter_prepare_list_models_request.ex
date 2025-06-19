@@ -1,7 +1,7 @@
 defmodule ExLLM.Plugs.Providers.OpenRouterPrepareListModelsRequest do
   @moduledoc """
   Prepares the list models request for OpenRouter.
-  
+
   OpenRouter uses a similar endpoint to OpenAI but provides additional 
   metadata and supports models from multiple providers.
   """

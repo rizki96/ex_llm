@@ -5,6 +5,7 @@ defmodule ExLLM.StreamingTest do
   alias ExLLM.Plugs
 
   describe "streaming functionality" do
+    @tag :streaming
     test "stream/4 API with mock provider" do
       messages = [%{role: "user", content: "Hello, stream!"}]
       # Create a process to collect chunks
@@ -46,6 +47,7 @@ defmodule ExLLM.StreamingTest do
       assert Enum.at(chunks, 3).done == true
     end
 
+    @tag :streaming
     test "streaming with OpenAI-style SSE parsing" do
       parser = &ExLLM.Plugs.Providers.OpenAIParseStreamResponse.parse_sse_chunk/1
 
@@ -62,6 +64,7 @@ defmodule ExLLM.StreamingTest do
       assert {:done, %{done: true}} = parser.(done_data)
     end
 
+    @tag :streaming
     test "streaming with Anthropic event parsing" do
       parser = &ExLLM.Plugs.Providers.AnthropicParseStreamResponse.parse_anthropic_chunk/1
 
@@ -80,6 +83,7 @@ defmodule ExLLM.StreamingTest do
       assert {:done, %{done: true}} = parser.(done_data)
     end
 
+    @tag :streaming
     test "stream coordinator manages chunks correctly" do
       messages = [%{role: "user", content: "Test"}]
 

@@ -116,6 +116,7 @@ defmodule ExLLM.Providers.AnthropicComprehensiveTest do
   describe "Streaming API" do
     @tag :requires_api_key
     @tag :streaming
+    @tag :streaming
     test "stream chat completion" do
       messages = [
         %{role: "user", content: "Count from 1 to 3."}
@@ -141,6 +142,7 @@ defmodule ExLLM.Providers.AnthropicComprehensiveTest do
     end
 
     @tag :requires_api_key
+    @tag :streaming
     @tag :streaming
     test "stream with early termination" do
       messages = [
@@ -351,6 +353,7 @@ defmodule ExLLM.Providers.AnthropicComprehensiveTest do
   end
 
   describe "Embeddings API (Not Supported)" do
+    @tag :embedding
     test "embeddings returns not supported error" do
       assert {:error, {:embeddings_not_supported, :anthropic}} =
                Anthropic.embeddings(["test"])

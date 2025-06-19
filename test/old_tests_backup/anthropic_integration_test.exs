@@ -129,6 +129,7 @@ defmodule ExLLM.Providers.AnthropicIntegrationTest do
   end
 
   describe "stream_chat/2" do
+    @tag :streaming
     test "streams chat responses" do
       messages = [
         %{role: "user", content: "Count from 1 to 5"}
@@ -155,6 +156,7 @@ defmodule ExLLM.Providers.AnthropicIntegrationTest do
       end
     end
 
+    @tag :streaming
     test "handles streaming errors gracefully" do
       messages = [
         %{role: "user", content: "Test"}

@@ -140,6 +140,7 @@ defmodule ExLLM.Gemini.FilesUnitTest do
       assert Files.mime_type_from_extension(".pdf") == "application/pdf"
     end
 
+    @tag :streaming
     test "returns octet-stream for unknown extensions" do
       assert Files.mime_type_from_extension(".xyz") == "application/octet-stream"
       assert Files.mime_type_from_extension("") == "application/octet-stream"

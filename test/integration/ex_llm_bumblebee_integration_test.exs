@@ -28,6 +28,7 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
       assert message =~ "Bumblebee"
     end
 
+    @tag :streaming
     test "stream_chat returns error without Bumblebee" do
       messages = [%{role: "user", content: "Hello"}]
       assert {:error, message} = ExLLM.stream_chat(:bumblebee, messages)

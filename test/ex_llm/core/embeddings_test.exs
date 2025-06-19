@@ -75,6 +75,7 @@ defmodule ExLLM.Core.EmbeddingsTest do
       {:ok, items: items_with_embeddings}
     end
 
+    @tag :embedding
     test "finds most similar embedding", %{items: items} do
       query = [1.0, 0.0, 0.0]
       results = ExLLM.find_similar(query, items, top_k: 1)
@@ -86,6 +87,7 @@ defmodule ExLLM.Core.EmbeddingsTest do
       assert similarity == 1.0
     end
 
+    @tag :embedding
     test "returns top k similar embeddings", %{items: items} do
       query = [1.0, 0.0, 0.0]
       results = ExLLM.find_similar(query, items, top_k: 3)
@@ -114,6 +116,7 @@ defmodule ExLLM.Core.EmbeddingsTest do
       end)
     end
 
+    @tag :embedding
     test "returns empty list when no embeddings meet threshold", %{items: items} do
       # Orthogonal to all embeddings in the dataset
       query = [0.0, 0.0, 1.0]
@@ -169,6 +172,7 @@ defmodule ExLLM.Core.EmbeddingsTest do
       :ok
     end
 
+    @tag :embedding
     test "generates embeddings for text input" do
       {:ok, response} = ExLLM.embeddings(:mock, ["Hello world"], cache: false)
 
@@ -177,6 +181,7 @@ defmodule ExLLM.Core.EmbeddingsTest do
       assert response.usage.input_tokens == 10
     end
 
+    @tag :embedding
     test "generates embeddings for multiple inputs" do
       # Update mock config for multiple inputs
       Application.put_env(:ex_llm, :mock_responses, %{
@@ -204,16 +209,19 @@ defmodule ExLLM.Core.EmbeddingsTest do
   end
 
   describe "list_embedding_models/2" do
+    @tag :embedding
     test "returns empty list for mock provider (no embeddings in config)" do
       {:ok, models} = ExLLM.list_embedding_models(:mock)
       assert models == []
     end
 
+    @tag :embedding
     test "returns empty list for provider without embeddings support" do
       {:ok, models} = ExLLM.list_embedding_models(:anthropic)
       assert models == []
     end
 
+    @tag :embedding
     test "returns models for providers with embeddings support" do
       {:ok, models} = ExLLM.list_embedding_models(:gemini)
       assert length(models) > 0

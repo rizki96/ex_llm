@@ -39,6 +39,7 @@ defmodule ExLLM.Providers.XAITest do
       assert is_integer(first_model.context_window)
     end
 
+    @tag :embedding
     test "embeddings/2 returns not supported error" do
       assert {:error, {:not_supported, _}} = XAI.embeddings(["test"], [])
     end
@@ -58,6 +59,7 @@ defmodule ExLLM.Providers.XAITest do
   end
 
   describe "vision support" do
+    @tag :vision
     test "vision models are properly identified" do
       {:ok, models} = XAI.list_models()
 

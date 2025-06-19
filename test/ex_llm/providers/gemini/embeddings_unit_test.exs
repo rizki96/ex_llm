@@ -41,6 +41,7 @@ defmodule ExLLM.Gemini.EmbeddingsUnitTest do
   end
 
   describe "ContentEmbedding struct" do
+    @tag :embedding
     test "creates embedding with values" do
       embedding = %ContentEmbedding{
         values: [0.1, 0.2, 0.3, 0.4, 0.5]
@@ -215,6 +216,7 @@ defmodule ExLLM.Gemini.EmbeddingsUnitTest do
   end
 
   describe "parse_embedding_response/1" do
+    @tag :embedding
     test "parses single embedding response" do
       response = %{
         "embedding" => %{
@@ -237,6 +239,7 @@ defmodule ExLLM.Gemini.EmbeddingsUnitTest do
   end
 
   describe "parse_batch_response/1" do
+    @tag :embedding
     test "parses batch embedding response" do
       response = %{
         "embeddings" => [

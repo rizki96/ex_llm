@@ -28,6 +28,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       {:ok, function: base_function}
     end
 
+    @tag :function_calling
     test "OpenAI format (returns Function struct)", %{function: function} do
       normalized = FunctionCalling.normalize_function(function, :openai)
       assert %Function{} = normalized
@@ -36,6 +37,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert normalized.parameters == function.parameters
     end
 
+    @tag :function_calling
     test "Anthropic format (accepts input_schema)", %{function: function} do
       # Test with input_schema field
       anthropic_func = %{
@@ -51,6 +53,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert normalized.parameters == function.parameters
     end
 
+    @tag :function_calling
     test "Unknown provider returns Function struct", %{function: function} do
       normalized = FunctionCalling.normalize_function(function, :unknown)
       assert %Function{} = normalized
@@ -73,6 +76,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert normalized.parameters == minimal_function.parameters
     end
 
+    @tag :function_calling
     test "preserves handler function" do
       handler = fn _args -> {:ok, "handled"} end
 
@@ -88,6 +92,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
   end
 
   describe "normalize_functions/2" do
+    @tag :function_calling
     test "normalizes multiple functions" do
       functions = [
         %{name: "func1", parameters: %{type: "object"}},
@@ -115,6 +120,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       {:ok, function: function}
     end
 
+    @tag :function_calling
     test "formats for OpenAI", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :openai)
 
@@ -124,6 +130,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert openai_func["parameters"] == function.parameters
     end
 
+    @tag :function_calling
     test "formats for Anthropic", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :anthropic)
 
@@ -134,6 +141,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       refute Map.has_key?(anthropic_tool, "parameters")
     end
 
+    @tag :function_calling
     test "formats for Gemini", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :gemini)
 
@@ -143,6 +151,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert gemini_func["parameters"] == function.parameters
     end
 
+    @tag :function_calling
     test "formats for Bedrock", %{function: function} do
       formatted = FunctionCalling.format_for_provider([function], :bedrock)
 
@@ -159,6 +168,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
   end
 
   describe "parse_function_calls/2" do
+    @tag :function_calling
     test "parses OpenAI function call" do
       response = %{
         "choices" => [
@@ -179,6 +189,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert call.arguments == ~s({"location": "San Francisco"})
     end
 
+    @tag :function_calling
     test "parses OpenAI tool calls" do
       response = %{
         "choices" => [
@@ -204,6 +215,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert call.arguments == ~s({"location": "NYC"})
     end
 
+    @tag :function_calling
     test "parses Anthropic tool use" do
       response = %{
         "content" => [
@@ -223,6 +235,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert call.arguments == %{"location" => "Paris"}
     end
 
+    @tag :function_calling
     test "parses Gemini function calls" do
       response = %{
         "candidates" => [
@@ -246,6 +259,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert call.arguments == %{"location" => "Tokyo"}
     end
 
+    @tag :function_calling
     test "returns empty list when no function calls" do
       assert {:ok, []} = FunctionCalling.parse_function_calls(%{}, :openai)
       assert {:ok, []} = FunctionCalling.parse_function_calls(%{"content" => []}, :anthropic)
@@ -325,6 +339,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
   end
 
   describe "execute_function/2" do
+    @tag :function_calling
     test "executes function with handler" do
       function = %Function{
         name: "calculate",
@@ -346,6 +361,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert result.error == nil
     end
 
+    @tag :function_calling
     test "returns error for unknown function" do
       call = %FunctionCall{name: "unknown", arguments: %{}}
 
@@ -431,6 +447,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert formatted.content =~ "Location not found"
     end
 
+    @tag :function_calling
     test "formats result for Anthropic" do
       result = %FunctionResult{
         name: "toolu_123",
@@ -444,6 +461,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
       assert formatted.content == ~s("Success")
     end
 
+    @tag :function_calling
     test "formats error for Anthropic" do
       result = %FunctionResult{
         name: "toolu_123",
@@ -479,6 +497,7 @@ defmodule ExLLM.Core.FunctionCallingTest do
   end
 
   describe "integration flow" do
+    @tag :function_calling
     test "complete function calling workflow" do
       # 1. Define function
       handler = fn args ->
