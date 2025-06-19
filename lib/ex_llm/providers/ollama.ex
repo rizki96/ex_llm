@@ -131,7 +131,7 @@ defmodule ExLLM.Providers.Ollama do
     timeout = Keyword.get(options, :timeout, 120_000)
 
     result = HTTPClient.post_json(url, body, headers, provider: :ollama, timeout: timeout)
-    
+
     case result do
       {:ok, response} when is_map(response) ->
         # Check if this is a raw JSON response or wrapped response
@@ -140,6 +140,7 @@ defmodule ExLLM.Providers.Ollama do
           case response do
             %{status: 200, body: body} ->
               {:ok, parse_response(body, model)}
+
             %{status: status, body: body} ->
               ExLLM.Infrastructure.Error.api_error(status, body)
           end

@@ -230,16 +230,30 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
   defp get_endpoint(%Request{provider: provider, config: config}) do
     case provider do
-      :openai -> config[:base_url] || "https://api.openai.com/v1/chat/completions"
-      :anthropic -> config[:base_url] || "https://api.anthropic.com/v1/messages"
-      :gemini -> build_gemini_endpoint(config)
-      :groq -> config[:base_url] || "https://api.groq.com/openai/v1/chat/completions"
-      :mistral -> config[:base_url] || "https://api.mistral.ai/v1/chat/completions"
-      :ollama -> config[:base_url] || "http://localhost:11434/api/chat"
-      :lmstudio -> 
+      :openai ->
+        config[:base_url] || "https://api.openai.com/v1/chat/completions"
+
+      :anthropic ->
+        config[:base_url] || "https://api.anthropic.com/v1/messages"
+
+      :gemini ->
+        build_gemini_endpoint(config)
+
+      :groq ->
+        config[:base_url] || "https://api.groq.com/openai/v1/chat/completions"
+
+      :mistral ->
+        config[:base_url] || "https://api.mistral.ai/v1/chat/completions"
+
+      :ollama ->
+        config[:base_url] || "http://localhost:11434/api/chat"
+
+      :lmstudio ->
         # Return relative path without leading slash so Tesla appends to base URL
         "chat/completions"
-      _ -> config[:base_url] || config[:endpoint] || "/"
+
+      _ ->
+        config[:base_url] || config[:endpoint] || "/"
     end
   end
 
