@@ -525,14 +525,32 @@ defmodule ExLLM.Providers.Gemini.Content do
 
       # Start async streaming request
       Task.start(fn ->
-        {:ok, :streaming} =
+        result =
           HTTPClient.stream_request(url, body, headers, callback,
             provider: :gemini,
             timeout: 60_000
           )
 
-        # Stream completed - actual errors will be sent via callback messages
-        send(parent, {chunks_ref, :done})
+        # Forward the completion or error message to the stream
+        case result do
+          {:ok, :streaming} ->
+            # Wait for the stream to complete
+            receive do
+              :stream_done ->
+                send(parent, {chunks_ref, :done})
+
+              {:stream_error, error} ->
+                send(parent, {chunks_ref, {:error, error}})
+            after
+              70_000 ->
+                send(parent, {chunks_ref, {:error, "Stream timeout"}})
+            end
+
+          # Note: HTTPClient.stream_request currently always returns {:ok, :streaming} on success
+          # but keeping this clause for completeness
+          {:error, error} ->
+            send(parent, {chunks_ref, {:error, error}})
+        end
       end)
 
       # Create stream that receives parsed chunks
@@ -549,6 +567,10 @@ defmodule ExLLM.Providers.Gemini.Content do
 
               {^ref, {:error, error}} ->
                 throw(error)
+
+              _other ->
+                # Skip unexpected messages
+                {[], ref}
             after
               100 -> {[], ref}
             end

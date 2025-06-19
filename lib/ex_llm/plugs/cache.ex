@@ -63,9 +63,9 @@ defmodule ExLLM.Plugs.Cache do
 
   defp skip_cache?(request, opts) do
     # Skip caching if explicitly disabled or cache is not enabled
-    opts[:skip_cache] || 
-    request.config[:skip_cache] || 
-    request.config[:cache] == false
+    opts[:skip_cache] ||
+      request.config[:skip_cache] ||
+      request.config[:cache] == false
   end
 
   defp generate_cache_key(request, opts) do

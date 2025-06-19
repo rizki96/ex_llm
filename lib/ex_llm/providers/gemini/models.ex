@@ -118,19 +118,19 @@ defmodule ExLLM.Providers.Gemini.Models do
       # Build query parameters
       query_params = build_list_query_params(opts)
 
-      # Make request using Base module for caching support
-      case Base.request(
-             method: :get,
-             url: "/v1beta/models",
-             query: query_params,
-             api_key: api_key,
-             opts: opts
-           ) do
-        {:ok, body} ->
-          {:ok, parse_list_response(body)}
+      # Make direct HTTP request (bypassing caching for now)
+      url = "https://generativelanguage.googleapis.com/v1/models?key=#{api_key}"
 
-        {:error, error} ->
-          {:error, error}
+      case Req.get(url) do
+        {:ok, %{status: 200, body: body}} ->
+          parsed = parse_list_response(body)
+          {:ok, parsed}
+
+        {:ok, %{status: status, body: body}} ->
+          {:error, %{status: status, message: "API error", body: body}}
+
+        {:error, reason} ->
+          {:error, %{reason: :network_error, message: inspect(reason)}}
       end
     else
       {:error, _} = error -> error
@@ -160,22 +160,21 @@ defmodule ExLLM.Providers.Gemini.Models do
          config <- ConfigHelper.get_config(:gemini, config_provider),
          api_key <- get_api_key(config),
          {:ok, _} <- validate_api_key(api_key) do
-      # Make request using Base module for caching support
-      case Base.request(
-             method: :get,
-             url: "/v1beta/#{normalized_name}",
-             query: %{},
-             api_key: api_key,
-             opts: opts
-           ) do
-        {:ok, body} ->
+      # Make direct HTTP request (bypassing caching for now)
+      url = "https://generativelanguage.googleapis.com/v1/#{normalized_name}?key=#{api_key}"
+
+      case Req.get(url) do
+        {:ok, %{status: 200, body: body}} ->
           {:ok, Model.from_api(body)}
 
-        {:error, %{status: 404}} ->
+        {:ok, %{status: 404}} ->
           {:error, %{status: 404, message: "Model not found: #{model_name}"}}
 
-        {:error, error} ->
-          {:error, error}
+        {:ok, %{status: status, body: body}} ->
+          {:error, %{status: status, message: "API error", body: body}}
+
+        {:error, reason} ->
+          {:error, %{reason: :network_error, message: inspect(reason)}}
       end
     else
       {:error, _} = error -> error

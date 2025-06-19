@@ -169,7 +169,7 @@ defmodule ExLLM.Providers.Gemini do
       {:ok, response} ->
         # Convert from Models API format to ExLLM Types.Model format
         models =
-          response.models
+          response[:models]
           |> Enum.filter(&is_gemini_chat_model_struct?/1)
           |> Enum.map(&convert_api_model_to_types/1)
           |> Enum.sort_by(& &1.id)
@@ -303,26 +303,395 @@ defmodule ExLLM.Providers.Gemini do
           Map.get(config, :embedding_model, "text-embedding-004")
         )
 
-      # Use Gemini Embeddings API
-      case ExLLM.Providers.Gemini.Embeddings.embed_content(model, inputs, api_key: api_key) do
-        {:ok, response} ->
-          # Convert from Gemini format to ExLLM format
-          embeddings = Enum.map(response.embeddings, & &1.values)
+      # Use Gemini Embeddings API - for single text, use embed_text helper
+      case inputs do
+        [single_text] when is_binary(single_text) ->
+          # Single text embedding - pass all options through
+          case ExLLM.Providers.Gemini.Embeddings.embed_text(model, single_text, options) do
+            {:ok, embedding} ->
+              # Convert from Gemini format to ExLLM format - embeddings should be list(list(float()))
+              {:ok,
+               %Types.EmbeddingResponse{
+                 embeddings: [embedding.values],
+                 model: model,
+                 usage: %{
+                   # Estimate, Gemini doesn't provide token counts
+                   total_tokens: 100
+                 }
+               }}
 
-          {:ok,
-           %Types.EmbeddingResponse{
-             embeddings: embeddings,
-             model: model,
-             usage: %{
-               # Estimate, Gemini doesn't provide token counts
-               total_tokens: length(inputs) * 100
-             }
-           }}
+            {:error, error} ->
+              {:error, error}
+          end
+
+        multiple_texts when is_list(multiple_texts) ->
+          # Multiple text embeddings - pass all options through
+          case ExLLM.Providers.Gemini.Embeddings.embed_texts(model, multiple_texts, options) do
+            {:ok, embeddings} ->
+              # Convert from Gemini format to ExLLM format - embeddings should be list(list(float()))
+              embedding_vectors = Enum.map(embeddings, & &1.values)
+
+              {:ok,
+               %Types.EmbeddingResponse{
+                 embeddings: embedding_vectors,
+                 model: model,
+                 usage: %{
+                   # Estimate, Gemini doesn't provide token counts
+                   total_tokens: length(multiple_texts) * 100
+                 }
+               }}
+
+            {:error, error} ->
+              {:error, error}
+          end
+
+        _ ->
+          {:error, "inputs must be a list of strings"}
+      end
+    end
+  end
+
+  @doc """
+  Generates embeddings for multiple texts in batch.
+
+  ## Parameters
+    * `texts` - List of strings to embed
+    * `options` - Options including `:model`, `:task_type`, `:title`, `:output_dimensionality`
+  """
+  def batch_embed_contents(texts, options \\ [])
+
+  def batch_embed_contents(texts, options) when is_list(texts) do
+    embeddings(texts, options)
+  end
+
+  @doc """
+  Gets information about a specific model.
+
+  ## Parameters
+    * `model_name` - The model name (e.g., "gemini-2.0-flash")
+    * `options` - Options including `:config_provider`
+  """
+  def get_model(model_name, options \\ []) do
+    case ExLLM.Providers.Gemini.Models.get_model(model_name, options) do
+      {:ok, api_model} ->
+        # Convert from Gemini Models API format to ExLLM Types.Model format
+        model_id = String.replace_prefix(api_model.name, "models/", "")
+
+        types_model = %Types.Model{
+          id: model_id,
+          name: api_model.display_name,
+          description: api_model.description,
+          context_window: api_model.input_token_limit,
+          max_output_tokens: api_model.output_token_limit,
+          capabilities: %{
+            supports_streaming: "streamGenerateContent" in api_model.supported_generation_methods,
+            supports_functions: "generateContent" in api_model.supported_generation_methods,
+            supports_vision:
+              String.contains?(model_id, "vision") ||
+                String.contains?(model_id, "gemini-1.5") ||
+                String.contains?(model_id, "gemini-2"),
+            features: parse_features_from_methods(api_model.supported_generation_methods)
+          }
+        }
+
+        {:ok, types_model}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Counts tokens using a generateContentRequest format.
+
+  ## Parameters
+    * `request` - A map in generateContentRequest format
+    * `options` - Options including `:config_provider`
+  """
+  def count_tokens_with_request(request, options \\ []) do
+    # Extract model from request
+    model = Map.get(request, "model", "gemini-2.0-flash-exp")
+
+    config_provider =
+      Keyword.get(
+        options,
+        :config_provider,
+        Application.get_env(
+          :ex_llm,
+          :config_provider,
+          ExLLM.Infrastructure.ConfigProvider.Default
+        )
+      )
+
+    # Convert plain map to GenerateContentRequest struct if needed
+    generate_content_request =
+      case request do
+        %GenerateContentRequest{} ->
+          request
+
+        map when is_map(map) ->
+          # Convert plain map to struct
+          contents =
+            Map.get(map, "contents", [])
+            |> Enum.map(fn content_map ->
+              %Content{
+                role: Map.get(content_map, "role", "user"),
+                parts:
+                  Map.get(content_map, "parts", [])
+                  |> Enum.map(fn part ->
+                    %Part{
+                      text: Map.get(part, "text"),
+                      inline_data: Map.get(part, "inlineData"),
+                      function_call: Map.get(part, "functionCall"),
+                      function_response: Map.get(part, "functionResponse"),
+                      code_execution_result: Map.get(part, "codeExecutionResult")
+                    }
+                  end)
+              }
+            end)
+
+          # Build generation config if present
+          generation_config =
+            case Map.get(map, "generationConfig") do
+              nil ->
+                nil
+
+              gc_map ->
+                %GenerationConfig{
+                  temperature: Map.get(gc_map, "temperature"),
+                  top_p: Map.get(gc_map, "topP"),
+                  top_k: Map.get(gc_map, "topK"),
+                  max_output_tokens: Map.get(gc_map, "maxOutputTokens"),
+                  stop_sequences: Map.get(gc_map, "stopSequences"),
+                  response_mime_type: Map.get(gc_map, "responseMimeType"),
+                  response_schema: Map.get(gc_map, "responseSchema"),
+                  thinking_config: Map.get(gc_map, "thinkingConfig")
+                }
+            end
+
+          # Build safety settings if present
+          safety_settings =
+            case Map.get(map, "safetySettings") do
+              nil ->
+                nil
+
+              settings ->
+                Enum.map(settings, fn setting ->
+                  %SafetySetting{
+                    category: Map.get(setting, "category"),
+                    threshold: Map.get(setting, "threshold")
+                  }
+                end)
+            end
+
+          %GenerateContentRequest{
+            # Let the Tokens module handle model normalization
+            model: nil,
+            contents: contents,
+            generation_config: generation_config,
+            safety_settings: safety_settings
+          }
+      end
+
+    # Create CountTokensRequest struct with generateContentRequest
+    count_request = %ExLLM.Providers.Gemini.Tokens.CountTokensRequest{
+      generate_content_request: generate_content_request
+    }
+
+    case ExLLM.Providers.Gemini.Tokens.count_tokens(model, count_request,
+           config_provider: config_provider
+         ) do
+      {:ok, result} ->
+        # Convert response to expected format for tests
+        {:ok,
+         %{
+           "totalTokens" => result.total_tokens,
+           "cachedContentTokenCount" => result.cached_content_token_count
+         }}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Counts tokens for the given messages.
+
+  ## Parameters
+    * `messages` - List of messages to count tokens for
+    * `model` - The model name (e.g., "gemini-2.0-flash")
+    * `options` - Options including `:config_provider`
+  """
+  def count_tokens(messages, model, options \\ []) do
+    # Convert messages to Gemini Content format
+    contents = Enum.map(messages, &convert_message_to_content/1)
+
+    # Create count tokens request
+    request = %ExLLM.Providers.Gemini.Tokens.CountTokensRequest{
+      contents: contents
+    }
+
+    case ExLLM.Providers.Gemini.Tokens.count_tokens(model, request, options) do
+      {:ok, response} ->
+        # Convert to simple map format expected by tests
+        {:ok,
+         %{
+           "totalTokens" => response.total_tokens,
+           "cachedContentTokenCount" => response.cached_content_token_count
+         }}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Lists files owned by the requesting project.
+
+  ## Parameters
+    * `options` - Options including `:page_size`, `:page_token`, and `:config_provider`
+  """
+  def list_files(options \\ []) do
+    case ExLLM.Providers.Gemini.Files.list_files(options) do
+      {:ok, response} ->
+        # Convert to simple map format expected by tests
+        {:ok,
+         %{
+           "files" => Enum.map(response.files, &file_to_map/1),
+           "nextPageToken" => response.next_page_token
+         }}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Creates (uploads) a file.
+
+  ## Parameters
+    * `file_content` - Binary content of the file
+    * `display_name` - Display name for the file
+    * `options` - Options including `:config_provider`
+  """
+  def create_file(file_content, display_name, options \\ []) do
+    # Create a temporary file
+    temp_path = Path.join(System.tmp_dir(), "gemini_upload_#{System.unique_integer()}")
+
+    try do
+      File.write!(temp_path, file_content)
+
+      upload_options = Keyword.put(options, :display_name, display_name)
+
+      case ExLLM.Providers.Gemini.Files.upload_file(temp_path, upload_options) do
+        {:ok, file} ->
+          {:ok, file_to_map(file)}
 
         {:error, error} ->
           {:error, error}
       end
+    after
+      File.rm(temp_path)
     end
+  end
+
+  @doc """
+  Gets metadata for a specific file.
+
+  ## Parameters
+    * `file_name` - The file name (e.g., "files/abc-123")
+    * `options` - Options including `:config_provider`
+  """
+  def get_file(file_name, options \\ []) do
+    case ExLLM.Providers.Gemini.Files.get_file(file_name, options) do
+      {:ok, file} ->
+        {:ok, file_to_map(file)}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  @doc """
+  Deletes a file.
+
+  ## Parameters
+    * `file_name` - The file name (e.g., "files/abc-123")
+    * `options` - Options including `:config_provider`
+  """
+  def delete_file(file_name, options \\ []) do
+    case ExLLM.Providers.Gemini.Files.delete_file(file_name, options) do
+      :ok ->
+        {:ok, %{}}
+
+      {:error, error} ->
+        {:error, error}
+    end
+  end
+
+  # Context Caching API placeholder functions
+  @doc """
+  Lists cached contents (placeholder - not yet implemented).
+  """
+  def list_cached_contents(_options \\ []) do
+    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  end
+
+  @doc """
+  Creates cached content (placeholder - not yet implemented).
+  """
+  def create_cached_content(_content, _model, _options \\ []) do
+    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  end
+
+  @doc """
+  Gets cached content (placeholder - not yet implemented).
+  """
+  def get_cached_content(_cached_name, _options \\ []) do
+    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  end
+
+  @doc """
+  Deletes cached content (placeholder - not yet implemented).
+  """
+  def delete_cached_content(_cached_name, _options \\ []) do
+    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  end
+
+  @doc """
+  Lists tuned models (placeholder - not yet implemented).
+  """
+  def list_tuned_models(_options \\ []) do
+    {:error, {:function_not_implemented, "Tuned Models API not yet implemented"}}
+  end
+
+  # Semantic Retrieval API placeholder functions
+  @doc """
+  Lists corpora (placeholder - not yet implemented).
+  """
+  def list_corpora(_options \\ []) do
+    {:error, {:function_not_implemented, "Semantic Retrieval API not yet implemented"}}
+  end
+
+  @doc """
+  Creates a corpus (placeholder - not yet implemented).
+  """
+  def create_corpus(_corpus_name, _options \\ []) do
+    {:error, {:function_not_implemented, "Semantic Retrieval API not yet implemented"}}
+  end
+
+  @doc """
+  Gets a corpus (placeholder - not yet implemented).
+  """
+  def get_corpus(_corpus_id, _options \\ []) do
+    {:error, {:function_not_implemented, "Semantic Retrieval API not yet implemented"}}
+  end
+
+  @doc """
+  Deletes a corpus (placeholder - not yet implemented).
+  """
+  def delete_corpus(_corpus_id, _options \\ []) do
+    {:error, {:function_not_implemented, "Semantic Retrieval API not yet implemented"}}
   end
 
   # Default model fetching moved to shared ConfigHelper module
@@ -402,7 +771,7 @@ defmodule ExLLM.Providers.Gemini do
   defp extract_system_instruction(contents), do: {nil, contents}
 
   defp build_generation_config(options) do
-    config = %GenerationConfig{
+    base_config = %{
       temperature: Keyword.get(options, :temperature),
       top_p: Keyword.get(options, :top_p),
       top_k: Keyword.get(options, :top_k),
@@ -411,13 +780,23 @@ defmodule ExLLM.Providers.Gemini do
       response_mime_type: Keyword.get(options, :response_mime_type)
     }
 
-    # Only return if any field is set
-    if Enum.any?(Map.from_struct(config), fn {_k, v} -> v != nil end) do
-      config
+    # Add advanced generation features
+    advanced_config =
+      base_config
+      |> maybe_add_field(:response_modalities, Keyword.get(options, :response_modalities))
+      |> maybe_add_field(:speech_config, Keyword.get(options, :speech_config))
+      |> maybe_add_field(:thinking_config, Keyword.get(options, :thinking_config))
+
+    # Convert to GenerationConfig struct if any fields are set
+    if Enum.any?(advanced_config, fn {_k, v} -> v != nil end) do
+      struct(GenerationConfig, advanced_config)
     else
       nil
     end
   end
+
+  defp maybe_add_field(map, _key, nil), do: map
+  defp maybe_add_field(map, key, value), do: Map.put(map, key, value)
 
   defp build_safety_settings(options) do
     case Keyword.get(options, :safety_settings) do
@@ -436,15 +815,39 @@ defmodule ExLLM.Providers.Gemini do
 
   defp build_tools(options) do
     case Keyword.get(options, :tools) do
-      nil -> nil
-      tools -> Enum.map(tools, &convert_tool/1)
+      nil ->
+        nil
+
+      tools ->
+        # Handle both formats:
+        # 1. Direct function list (from tests)
+        # 2. Tool struct with function_declarations
+        tools
+        |> List.wrap()
+        |> Enum.map(&convert_tool/1)
     end
   end
 
-  defp convert_tool(tool) do
-    %Tool{
-      function_declarations: tool[:function_declarations] || tool["function_declarations"]
-    }
+  defp convert_tool(tool) when is_map(tool) do
+    cond do
+      # If it already has function_declarations, use as is
+      Map.has_key?(tool, :function_declarations) or Map.has_key?(tool, "function_declarations") ->
+        %Tool{
+          function_declarations: tool[:function_declarations] || tool["function_declarations"]
+        }
+
+      # If it looks like a function definition (has name, description, parameters)
+      Map.has_key?(tool, "name") or Map.has_key?(tool, :name) ->
+        %Tool{
+          function_declarations: [tool]
+        }
+
+      # Otherwise assume it's a tool with function declarations
+      true ->
+        %Tool{
+          function_declarations: []
+        }
+    end
   end
 
   defp convert_content_response_to_llm_response(%GenerateContentResponse{} = response, model) do
@@ -469,14 +872,38 @@ defmodule ExLLM.Providers.Gemini do
             }
           end
 
-        {:ok,
-         %Types.LLMResponse{
-           content: content,
-           usage: usage,
-           model: model,
-           finish_reason: candidate.finish_reason || "stop",
-           cost: ExLLM.Core.Cost.calculate("gemini", model, usage)
-         }}
+        # Check for function calls in the candidate
+        tool_calls = extract_tool_calls_from_candidate(candidate)
+
+        # Check for audio content
+        audio_content = extract_audio_from_candidate(candidate)
+
+        response = %Types.LLMResponse{
+          content: content,
+          usage: usage,
+          model: model,
+          finish_reason: candidate.finish_reason || "stop",
+          cost: ExLLM.Core.Cost.calculate("gemini", model, usage),
+          tool_calls: tool_calls
+        }
+
+        # Add audio_content if present
+        response =
+          if audio_content do
+            Map.put(response, :audio_content, audio_content)
+          else
+            response
+          end
+
+        # Add safety_ratings if present
+        response =
+          if candidate.safety_ratings do
+            Map.put(response, :safety_ratings, candidate.safety_ratings)
+          else
+            response
+          end
+
+        {:ok, response}
 
       [] ->
         # Check if blocked
@@ -492,6 +919,48 @@ defmodule ExLLM.Providers.Gemini do
     candidate.content.parts
     |> Enum.map(fn part -> part.text || "" end)
     |> Enum.join("")
+  end
+
+  defp extract_tool_calls_from_candidate(candidate) do
+    # Check if any parts contain function calls
+    function_calls =
+      candidate.content.parts
+      |> Enum.filter(fn part ->
+        Map.has_key?(part, :function_call) && part.function_call != nil
+      end)
+      |> Enum.map(fn part ->
+        fc = part.function_call
+        # Function call is a map with string keys
+        %{
+          # Gemini doesn't provide IDs, use name
+          id: Map.get(fc, "name", "unknown"),
+          type: "function",
+          function: %{
+            name: Map.get(fc, "name", "unknown"),
+            arguments: Map.get(fc, "args", %{})
+          }
+        }
+      end)
+
+    if Enum.empty?(function_calls), do: nil, else: function_calls
+  end
+
+  defp extract_audio_from_candidate(candidate) do
+    # Check if any parts contain audio data
+    audio_parts =
+      candidate.content.parts
+      |> Enum.filter(fn part ->
+        Map.has_key?(part, :inline_data) &&
+          part.inline_data != nil &&
+          Map.get(part.inline_data, :mime_type, "") =~ "audio"
+      end)
+      |> Enum.map(fn part -> Map.get(part.inline_data, :data) end)
+
+    case audio_parts do
+      [] -> nil
+      # Return first audio part
+      [audio | _] -> audio
+    end
   end
 
   defp convert_content_response_to_stream_chunk(%GenerateContentResponse{} = response) do
@@ -510,5 +979,124 @@ defmodule ExLLM.Providers.Gemini do
           finish_reason: "stop"
         }
     end
+  end
+
+  # Helper function to convert File struct to map for tests
+  defp file_to_map(%ExLLM.Providers.Gemini.Files.File{} = file) do
+    %{
+      "name" => file.name,
+      "displayName" => file.display_name,
+      "mimeType" => file.mime_type,
+      "sizeBytes" => file.size_bytes,
+      "createTime" => datetime_to_string(file.create_time),
+      "updateTime" => datetime_to_string(file.update_time),
+      "expirationTime" => datetime_to_string(file.expiration_time),
+      "sha256Hash" => file.sha256_hash,
+      "uri" => file.uri,
+      "downloadUri" => file.download_uri,
+      "state" => atom_to_state_string(file.state),
+      "source" => atom_to_source_string(file.source)
+    }
+  end
+
+  defp datetime_to_string(nil), do: nil
+  defp datetime_to_string(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+
+  defp atom_to_state_string(:state_unspecified), do: "STATE_UNSPECIFIED"
+  defp atom_to_state_string(:processing), do: "PROCESSING"
+  defp atom_to_state_string(:active), do: "ACTIVE"
+  defp atom_to_state_string(:failed), do: "FAILED"
+  defp atom_to_state_string(other), do: to_string(other)
+
+  defp atom_to_source_string(nil), do: nil
+  defp atom_to_source_string(:source_unspecified), do: "SOURCE_UNSPECIFIED"
+  defp atom_to_source_string(:uploaded), do: "UPLOADED"
+  defp atom_to_source_string(:generated), do: "GENERATED"
+  defp atom_to_source_string(other), do: to_string(other)
+
+  # Semantic Retrieval APIs
+
+  @doc """
+  Performs semantic search over a corpus.
+
+  ## Parameters
+    * `corpus_name` - The corpus name (e.g., "corpora/my-corpus-123")
+    * `query` - The search query
+    * `options` - Options including `:max_results`, `:metadata_filters`, `:oauth_token`
+  """
+  def query_corpus(corpus_name, query, options \\ []) do
+    # TODO: Implement corpora.query API
+    {:error, {:function_not_implemented, "query_corpus/3 not yet implemented"}}
+  end
+
+  @doc """
+  Performs semantic search within a specific document.
+
+  ## Parameters
+    * `document_name` - The document name (e.g., "corpora/my-corpus/documents/my-doc")
+    * `query` - The search query
+    * `options` - Options including `:max_results`, `:metadata_filters`, `:oauth_token`
+  """
+  def query_document(document_name, query, options \\ []) do
+    # TODO: Implement documents.query API
+    {:error, {:function_not_implemented, "query_document/3 not yet implemented"}}
+  end
+
+  # Question Answering API
+
+  @doc """
+  Generates a grounded answer from inline passages or semantic retriever.
+
+  ## Parameters
+    * `question` - The question to answer
+    * `passages` - List of passage maps with "id" and "content" keys
+    * `answer_style` - Answer style: "ABSTRACTIVE", "EXTRACTIVE", or "VERBOSE"
+    * `options` - Options including `:model`, `:temperature`, `:safety_settings`
+  """
+  def generate_answer(question, passages, answer_style, options \\ []) do
+    # TODO: Implement models.generateAnswer API
+    {:error, {:function_not_implemented, "generate_answer/4 not yet implemented"}}
+  end
+
+  # Tuned Models APIs
+
+  @doc """
+  Creates a new tuned model.
+
+  ## Parameters
+    * `config` - Tuning configuration including base model, training data, etc.
+    * `options` - Options including `:oauth_token`
+  """
+  def create_tuned_model(config, options \\ []) do
+    # TODO: Implement tunedModels.create API
+    {:error, {:function_not_implemented, "create_tuned_model/2 not yet implemented"}}
+  end
+
+  @doc """
+  Transfers ownership of a tuned model to another user.
+
+  ## Parameters
+    * `model_name` - The tuned model name
+    * `new_owner_email` - Email address of the new owner
+    * `options` - Options including `:oauth_token`
+  """
+  def transfer_tuned_model_ownership(model_name, new_owner_email, options \\ []) do
+    # TODO: Implement tunedModels.transferOwnership API
+    {:error, {:function_not_implemented, "transfer_tuned_model_ownership/3 not yet implemented"}}
+  end
+
+  # Batch Operations
+
+  @doc """
+  Creates multiple chunks in batch.
+
+  ## Parameters
+    * `document_name` - The document name
+    * `chunks` - List of chunk data
+    * `options` - Options including `:oauth_token`
+  """
+  def batch_create_chunks(document_name, chunks, options \\ []) do
+    # TODO: Implement chunks.batchCreate API
+    {:error, {:function_not_implemented, "batch_create_chunks/3 not yet implemented"}}
   end
 end

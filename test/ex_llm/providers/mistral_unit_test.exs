@@ -320,7 +320,7 @@ defmodule ExLLM.Providers.MistralUnitTest do
     test "functions are listed in module info" do
       # Check that the functions appear in the module's function list
       functions = ExLLM.Providers.Mistral.__info__(:functions)
-      
+
       required_functions = [
         {:chat, 1},
         {:chat, 2},

@@ -195,14 +195,14 @@ defmodule ExLLM.MockTest do
     test "retry functionality not implemented" do
       # Retry functionality not yet implemented in v1.0 pipeline architecture
       # This test documents that retry is not currently supported
-      
+
       # The pipeline doesn't currently implement retry logic, so errors
       # are returned immediately without retry attempts
       messages = [%{role: "user", content: "Test"}]
-      
+
       # Set mock to return an error
       Mock.set_error({:network_error, "Connection failed"})
-      
+
       # Should get the error immediately without retries
       assert {:error, {:network_error, "Connection failed"}} =
                ExLLM.chat(:mock, messages, cache: false)

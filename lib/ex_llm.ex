@@ -124,12 +124,12 @@ defmodule ExLLM do
         if Map.get(assigns, :should_cache, false) do
           cache_key = Map.get(assigns, :cache_key)
           cache_ttl = Map.get(assigns, :cache_ttl, 300)
-          
+
           if cache_key do
             ExLLM.Infrastructure.Cache.put(cache_key, result, ttl: cache_ttl)
           end
         end
-        
+
         {:ok, result}
 
       %Request{state: :error, errors: errors} ->

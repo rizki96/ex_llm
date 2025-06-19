@@ -82,8 +82,12 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000) do
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :anthropic) do
+        {:ok, %{status: _status, body: response_body}} ->
+          {:ok, parse_response(response_body)}
+
         {:ok, response} ->
+          # Fallback for direct response (shouldn't happen with provider: :anthropic)
           {:ok, parse_response(response)}
 
         {:error, {:api_error, %{status: status, body: body}}} ->
@@ -535,4 +539,384 @@ defmodule ExLLM.Providers.Anthropic do
   def embeddings(_inputs, _options \\ []) do
     {:error, {:embeddings_not_supported, :anthropic}}
   end
+
+  # Files API (Beta)
+
+  @doc """
+  Upload a file to Anthropic's Files API.
+
+  Requires the beta header: anthropic-beta: files-api-2025-04-14
+  """
+  def create_file(file_content, filename, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_files_headers(api_key)
+      url = "#{get_base_url(config)}/files"
+
+      # Create multipart form data
+      multipart = [
+        {"file", {file_content, [filename: filename]}},
+        {"purpose", "user_message"}
+      ]
+
+      case HTTPClient.post_multipart(url, multipart, headers,
+             timeout: 120_000,
+             provider: :anthropic
+           ) do
+        {:ok, %{status: _status, body: response_body}} ->
+          {:ok, response_body}
+
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List files in the workspace.
+  """
+  def list_files(options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_files_headers(api_key)
+      url = "#{get_base_url(config)}/files"
+
+      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, response}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Get file metadata.
+  """
+  def get_file(file_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_files_headers(api_key)
+      url = "#{get_base_url(config)}/files/#{file_id}"
+
+      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, response}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Download file content.
+  """
+  def get_file_content(file_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_files_headers(api_key)
+      url = "#{get_base_url(config)}/files/#{file_id}/content"
+
+      case HTTPClient.get_binary(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: content}} ->
+          {:ok, content}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Delete a file.
+  """
+  def delete_file(file_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_files_headers(api_key)
+      url = "#{get_base_url(config)}/files/#{file_id}"
+
+      case HTTPClient.delete_json(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, response}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Message Batches API
+
+  @doc """
+  Create a message batch.
+  """
+  def create_message_batch(requests, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, validated_requests} <- validate_batch_requests(requests) do
+      headers = build_headers(api_key)
+      url = "#{get_base_url(config)}/messages/batches"
+
+      body = %{
+        requests: validated_requests
+      }
+
+      case HTTPClient.post_json(url, body, headers, timeout: 120_000, provider: :anthropic) do
+        {:ok, %{status: _status, body: response_body}} ->
+          {:ok, response_body}
+
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List message batches.
+  """
+  def list_message_batches(options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key)
+      url = "#{get_base_url(config)}/messages/batches"
+
+      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, response}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Get message batch details.
+  """
+  def get_message_batch(batch_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key)
+      url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
+
+      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, response}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Get message batch results.
+  """
+  def get_message_batch_results(batch_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key)
+      url = "#{get_base_url(config)}/messages/batches/#{batch_id}/results"
+
+      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, response}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Cancel a message batch.
+  """
+  def cancel_message_batch(batch_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key)
+      url = "#{get_base_url(config)}/messages/batches/#{batch_id}/cancel"
+
+      case HTTPClient.post_json(url, %{}, headers, timeout: 60_000, provider: :anthropic) do
+        {:ok, %{status: _status, body: response_body}} ->
+          {:ok, response_body}
+
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Delete a message batch.
+  """
+  def delete_message_batch(batch_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key)
+      url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
+
+      case HTTPClient.delete_json(url, headers, provider: :anthropic) do
+        {:ok, %{status: 200, body: response}} ->
+          {:ok, response}
+
+        {:ok, %{status: status, body: body}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Token Counting API
+
+  @doc """
+  Count tokens in a message without creating it.
+  """
+  def count_tokens(messages, model, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:anthropic, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "ANTHROPIC_API_KEY")
+
+    with :ok <- MessageFormatter.validate_messages(messages),
+         {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key)
+      url = "#{get_base_url(config)}/messages/count_tokens"
+
+      # Extract system message if present
+      {system_content, other_messages} = MessageFormatter.extract_system_message(messages)
+      formatted_messages = format_messages_for_anthropic(other_messages)
+
+      body = %{
+        model: model,
+        messages: formatted_messages
+      }
+
+      # Add system message if present
+      body =
+        if system_content do
+          Map.put(body, :system, system_content)
+        else
+          body
+        end
+
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :anthropic) do
+        {:ok, %{status: _status, body: response_body}} ->
+          {:ok, response_body}
+
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Private helper functions
+
+  defp build_files_headers(api_key) do
+    [
+      {"x-api-key", api_key},
+      {"anthropic-version", "2023-06-01"},
+      {"anthropic-beta", "files-api-2025-04-14"}
+    ]
+  end
+
+  defp validate_batch_requests(requests) when is_list(requests) do
+    if length(requests) > 100_000 do
+      {:error, "Batch cannot contain more than 100,000 requests"}
+    else
+      validated =
+        Enum.with_index(requests, fn request, index ->
+          %{
+            custom_id: Map.get(request, :custom_id, "request_#{index}"),
+            params: Map.take(request, [:model, :messages, :max_tokens, :temperature, :system])
+          }
+        end)
+
+      {:ok, validated}
+    end
+  end
+
+  defp validate_batch_requests(_), do: {:error, "Requests must be a list"}
 end

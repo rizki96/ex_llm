@@ -222,7 +222,7 @@ defmodule ExLLM.Providers.Gemini.Embeddings do
     requests =
       Enum.map(texts, fn text ->
         %EmbedContentRequest{
-          model: model,
+          model: normalize_model_name(model),
           content: %Content{
             role: "user",
             parts: [%Part{text: text}]

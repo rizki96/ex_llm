@@ -64,7 +64,14 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           )
         end
 
-        {:ok, response_with_metadata}
+        # Return in the format expected by the provider
+        case provider do
+          # OpenAI expects raw response
+          :openai -> {:ok, response_with_metadata}
+          # Most other providers expect wrapped format with status
+          # For cached responses, we assume 200 status
+          _ -> {:ok, %{status: 200, body: response_with_metadata}}
+        end
 
       {:proceed, request_metadata} ->
         # Emit cache miss telemetry
@@ -110,8 +117,17 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
       {:cached, cached_response} ->
         # Emit cache hit telemetry
         ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, %{}))
-        # Return cached response with metadata
-        {:ok, add_cache_metadata(cached_response)}
+
+        # Add cache metadata
+        response_with_metadata = add_cache_metadata(cached_response)
+
+        # Return in the format expected by the provider
+        case provider do
+          # OpenAI expects raw response
+          :openai -> {:ok, response_with_metadata}
+          # Most other providers expect wrapped format with status
+          _ -> {:ok, %{status: 200, body: response_with_metadata}}
+        end
 
       {:proceed, request_metadata} ->
         # Emit cache miss telemetry
@@ -683,7 +699,16 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, response_body, response_info)
 
-        {:ok, response_body}
+        # Add cache metadata to response body
+        response_with_metadata = add_cache_metadata(response_body)
+
+        # Return in the format expected by the provider
+        case provider do
+          # OpenAI expects raw response
+          :openai -> {:ok, response_with_metadata}
+          # Most other providers expect wrapped format
+          _ -> {:ok, %{status: status, body: response_with_metadata}}
+        end
 
       {:ok, %{status: status, body: response_body}} ->
         # Log error response
@@ -774,7 +799,16 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, response_body, response_info)
 
-        {:ok, %{status: status, body: add_cache_metadata(response_body)}}
+        # Add cache metadata to response body
+        response_with_metadata = add_cache_metadata(response_body)
+
+        # Return in the format expected by the provider
+        case provider do
+          # OpenAI expects raw response
+          :openai -> {:ok, response_with_metadata}
+          # Most other providers expect wrapped format
+          _ -> {:ok, %{status: status, body: response_with_metadata}}
+        end
 
       {:ok, %{status: status, body: response_body}} ->
         # Log error response
@@ -1334,4 +1368,132 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   end
 
   def add_cache_metadata(response), do: response
+
+  @doc """
+  Make a GET request for binary content.
+  """
+  @spec get_binary(String.t(), list({String.t(), String.t()}), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def get_binary(url, headers, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    provider = Keyword.get(opts, :provider, :unknown)
+
+    headers = prepare_headers(headers)
+
+    # Check test cache before making request
+    case TestResponseInterceptor.intercept_request(url, "", headers, opts) do
+      {:cached, cached_response} ->
+        # Emit cache hit telemetry
+        ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, ""))
+
+        response_with_metadata = add_cache_metadata(cached_response)
+
+        # Return in the format expected by the provider
+        case provider do
+          :openai -> {:ok, response_with_metadata}
+          _ -> {:ok, %{status: 200, body: response_with_metadata}}
+        end
+
+      {:proceed, request_metadata} ->
+        # Emit cache miss telemetry
+        ExLLM.Infrastructure.Telemetry.emit_cache_miss(cache_key_from_request(url, ""))
+
+        # Make real request
+        req_opts = [
+          headers: headers,
+          receive_timeout: timeout
+        ]
+
+        start_time = System.monotonic_time(:millisecond)
+
+        case Req.get(url, req_opts) do
+          {:ok, %{status: status, body: body}} ->
+            duration = System.monotonic_time(:millisecond) - start_time
+
+            # Log response
+            Logger.log_response(provider, %{status: status, body: body}, duration)
+
+            # Return in the format expected by the provider
+            case provider do
+              :openai -> {:ok, body}
+              _ -> {:ok, %{status: status, body: body}}
+            end
+
+          {:error, exception} ->
+            duration = System.monotonic_time(:millisecond) - start_time
+            Logger.log_response(provider, %{error: exception}, duration)
+            {:error, exception}
+        end
+    end
+  end
+
+  @doc """
+  Make a DELETE request with JSON response.
+  """
+  @spec delete_json(String.t(), list({String.t(), String.t()}), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def delete_json(url, headers, opts \\ []) do
+    timeout = Keyword.get(opts, :timeout, @default_timeout)
+    provider = Keyword.get(opts, :provider, :unknown)
+
+    headers = prepare_headers(headers)
+
+    # Check test cache before making request
+    case TestResponseInterceptor.intercept_request(url, "", headers, opts) do
+      {:cached, cached_response} ->
+        # Emit cache hit telemetry
+        ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, ""))
+
+        response_with_metadata = add_cache_metadata(cached_response)
+
+        # Return in the format expected by the provider
+        case provider do
+          :openai -> {:ok, response_with_metadata}
+          _ -> {:ok, %{status: 200, body: response_with_metadata}}
+        end
+
+      {:proceed, request_metadata} ->
+        # Emit cache miss telemetry
+        ExLLM.Infrastructure.Telemetry.emit_cache_miss(cache_key_from_request(url, ""))
+
+        # Make real request
+        req_opts = [
+          headers: headers,
+          receive_timeout: timeout
+        ]
+
+        start_time = System.monotonic_time(:millisecond)
+
+        case Req.delete(url, req_opts) do
+          {:ok, %{status: status, body: body}} ->
+            duration = System.monotonic_time(:millisecond) - start_time
+
+            # Parse JSON response
+            response_body =
+              case Jason.decode(body) do
+                {:ok, parsed} -> parsed
+                {:error, _} -> body
+              end
+
+            # Log response
+            Logger.log_response(provider, %{status: status, body: response_body}, duration)
+
+            # Handle errors
+            if status >= 400 do
+              {:error, {:api_error, %{status: status, body: response_body}}}
+            else
+              # Return in the format expected by the provider
+              case provider do
+                :openai -> {:ok, response_body}
+                _ -> {:ok, %{status: status, body: response_body}}
+              end
+            end
+
+          {:error, exception} ->
+            duration = System.monotonic_time(:millisecond) - start_time
+            Logger.log_response(provider, %{error: exception}, duration)
+            {:error, exception}
+        end
+    end
+  end
 end

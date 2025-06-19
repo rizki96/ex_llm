@@ -915,18 +915,126 @@ defmodule ExLLM.Providers.OpenAI do
   end
 
   @doc """
+  Edit an image using OpenAI's DALL-E API.
+
+  ## Parameters
+  - `image_path` - Path to the original image file (PNG, max 4MB, square)
+  - `prompt` - Text description of the desired changes
+  - `options` - Optional parameters:
+    - `:mask_path` - Path to mask image (PNG, same size as image)
+    - `:model` - Model to use (default: "dall-e-2")
+    - `:n` - Number of images to generate (1-10, default: 1)
+    - `:size` - Size: "256x256", "512x512", "1024x1024" (default: "1024x1024")
+    - `:response_format` - Format: "url" or "b64_json" (default: "url")
+    - `:user` - Unique identifier for end-user
+    
+  ## Examples
+
+      {:ok, result} = OpenAI.edit_image("original.png", "Add a red hat to the person")
+      IO.puts(hd(result["data"])["url"])
+  """
+  def edit_image(image_path, prompt, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         # File path is provided by the user for legitimate file upload
+         # sobelow_skip ["Traversal.FileModule"]
+         {:ok, _file_data} <- File.read(image_path),
+         {:ok, form_data} <- build_image_edit_form(image_path, prompt, options) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/images/edits"
+
+      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Create variations of an image using OpenAI's DALL-E API.
+
+  ## Parameters
+  - `image_path` - Path to the original image file (PNG, max 4MB, square)
+  - `options` - Optional parameters:
+    - `:model` - Model to use (default: "dall-e-2")
+    - `:n` - Number of variations to generate (1-10, default: 1)
+    - `:size` - Size: "256x256", "512x512", "1024x1024" (default: "1024x1024")
+    - `:response_format` - Format: "url" or "b64_json" (default: "url")
+    - `:user` - Unique identifier for end-user
+    
+  ## Examples
+
+      {:ok, result} = OpenAI.create_image_variation("original.png", n: 3)
+      Enum.each(result["data"], fn img -> IO.puts(img["url"]) end)
+  """
+  def create_image_variation(image_path, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         # File path is provided by the user for legitimate file upload
+         # sobelow_skip ["Traversal.FileModule"]
+         {:ok, _file_data} <- File.read(image_path),
+         {:ok, form_data} <- build_image_variation_form(image_path, options) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/images/variations"
+
+      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
   Create an assistant.
+
+  ## Parameters
+  - `assistant_params` - Map containing assistant configuration:
+    - `:model` - The model to use (required)
+    - `:name` - Assistant name (optional)
+    - `:description` - Assistant description (optional)
+    - `:instructions` - System instructions (optional)
+    - `:tools` - List of tools the assistant can use (optional)
+    - `:tool_resources` - Tool-specific resources (optional)
+    - `:metadata` - Custom metadata (optional)
+    - `:temperature` - Sampling temperature (optional)
+    - `:top_p` - Nucleus sampling parameter (optional)
+    - `:response_format` - Response format specification (optional)
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, assistant} = OpenAI.create_assistant(%{
+        model: "gpt-4-turbo",
+        name: "Math Assistant",
+        instructions: "You are a helpful math tutor."
+      })
   """
   def create_assistant(assistant_params, options \\ []) do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:openai, config_provider)
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
 
-    with {:ok, _} <- Validation.validate_api_key(api_key) do
-      # Set default model if not provided
-      body = Map.put_new(assistant_params, :model, "gpt-4-turbo")
-
-      headers = build_headers(api_key, config)
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, body} <- validate_assistant_params(assistant_params) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/assistants"
 
       case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
@@ -943,7 +1051,1380 @@ defmodule ExLLM.Providers.OpenAI do
   end
 
   @doc """
+  List assistants.
+
+  ## Options
+  - `:limit` - Number of assistants to return (1-100, default: 20)
+  - `:order` - Sort order: "asc" or "desc" (default: "desc")
+  - `:after` - Cursor for pagination
+  - `:before` - Cursor for pagination
+
+  ## Examples
+
+      {:ok, assistants} = OpenAI.list_assistants()
+      {:ok, assistants} = OpenAI.list_assistants(limit: 50, order: "asc")
+  """
+  def list_assistants(options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/assistants"
+
+      # Build query parameters
+      query_params = build_list_query_params(options)
+
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieve an assistant.
+
+  ## Parameters
+  - `assistant_id` - The ID of the assistant to retrieve
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, assistant} = OpenAI.get_assistant("asst_abc123")
+  """
+  def get_assistant(assistant_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/assistants/#{assistant_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Update an assistant.
+
+  ## Parameters
+  - `assistant_id` - The ID of the assistant to update
+  - `updates` - Map of fields to update
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, assistant} = OpenAI.update_assistant("asst_abc123", %{
+        name: "Updated Math Assistant"
+      })
+  """
+  def update_assistant(assistant_id, updates, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/assistants/#{assistant_id}"
+
+      case HTTPClient.post_json(url, updates, headers,
+             method: :post,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Delete an assistant.
+
+  ## Parameters
+  - `assistant_id` - The ID of the assistant to delete
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, deletion_status} = OpenAI.delete_assistant("asst_abc123")
+  """
+  def delete_assistant(assistant_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/assistants/#{assistant_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :delete,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Threads API
+
+  @doc """
+  Create a new thread for conversation with an assistant.
+
+  ## Parameters
+  - `thread_params` - Optional thread configuration:
+    - `:messages` - Initial messages for the thread
+    - `:tool_resources` - Tool-specific resources
+    - `:metadata` - Custom metadata
+  - `options` - Additional options
+
+  ## Examples
+
+      # Empty thread
+      {:ok, thread} = OpenAI.create_thread()
+      
+      # Thread with initial messages
+      {:ok, thread} = OpenAI.create_thread(%{
+        messages: [
+          %{role: "user", content: "Hello, I need help with math"}
+        ]
+      })
+  """
+  def create_thread(thread_params \\ %{}, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads"
+
+      case HTTPClient.post_json(url, thread_params, headers, timeout: 30_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieve a thread.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread to retrieve
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, thread} = OpenAI.get_thread("thread_abc123")
+  """
+  def get_thread(thread_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Update a thread.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread to update
+  - `updates` - Map of fields to update:
+    - `:tool_resources` - Tool-specific resources
+    - `:metadata` - Custom metadata
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, thread} = OpenAI.update_thread("thread_abc123", %{
+        metadata: %{"user_id" => "user_123"}
+      })
+  """
+  def update_thread(thread_id, updates, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}"
+
+      case HTTPClient.post_json(url, updates, headers,
+             method: :post,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Delete a thread.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread to delete
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, deletion_status} = OpenAI.delete_thread("thread_abc123")
+  """
+  def delete_thread(thread_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :delete,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Messages API
+
+  @doc """
+  Create a message in a thread.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `message_params` - Message configuration:
+    - `:role` - Message role: "user" or "assistant"
+    - `:content` - Message content (string or array for multi-modal)
+    - `:attachments` - File attachments (optional)
+    - `:metadata` - Custom metadata (optional)
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, message} = OpenAI.create_message("thread_abc123", %{
+        role: "user",
+        content: "Can you help me solve this equation?"
+      })
+  """
+  def create_message(thread_id, message_params, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, body} <- validate_message_params(message_params) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/messages"
+
+      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List messages in a thread.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `options` - Query options:
+    - `:limit` - Number of messages to return (1-100, default: 20)
+    - `:order` - Sort order: "asc" or "desc" (default: "desc")
+    - `:after` - Cursor for pagination
+    - `:before` - Cursor for pagination
+    - `:run_id` - Filter by run ID
+
+  ## Examples
+
+      {:ok, messages} = OpenAI.list_messages("thread_abc123")
+      {:ok, messages} = OpenAI.list_messages("thread_abc123", limit: 50, order: "asc")
+  """
+  def list_messages(thread_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/messages"
+
+      # Build query parameters
+      query_params = build_list_query_params(options)
+
+      # Add run_id if provided
+      query_params = maybe_add_query_param(query_params, options, :run_id)
+
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieve a message.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `message_id` - The ID of the message
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, message} = OpenAI.get_message("thread_abc123", "msg_def456")
+  """
+  def get_message(thread_id, message_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/messages/#{message_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Update a message.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `message_id` - The ID of the message
+  - `updates` - Map of fields to update:
+    - `:metadata` - Custom metadata
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, message} = OpenAI.update_message("thread_abc123", "msg_def456", %{
+        metadata: %{"flagged" => "true"}
+      })
+  """
+  def update_message(thread_id, message_id, updates, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/messages/#{message_id}"
+
+      case HTTPClient.post_json(url, updates, headers,
+             method: :post,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Runs API
+
+  @doc """
+  Create a run to execute an assistant on a thread.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread to run
+  - `run_params` - Run configuration:
+    - `:assistant_id` - The assistant to use (required)
+    - `:model` - Override the assistant's model
+    - `:instructions` - Override the assistant's instructions
+    - `:tools` - Override the assistant's tools
+    - `:tool_resources` - Tool-specific resources
+    - `:metadata` - Custom metadata
+    - `:temperature` - Sampling temperature
+    - `:top_p` - Nucleus sampling
+    - `:stream` - Enable streaming
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, run} = OpenAI.create_run("thread_abc123", %{
+        assistant_id: "asst_def456"
+      })
+  """
+  def create_run(thread_id, run_params, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, body} <- validate_run_params(run_params) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs"
+
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Create a thread and run in one request.
+
+  ## Parameters
+  - `create_and_run_params` - Combined configuration:
+    - `:assistant_id` - The assistant to use (required)
+    - `:thread` - Thread configuration (optional)
+    - `:model` - Override the assistant's model
+    - `:instructions` - Override the assistant's instructions
+    - `:tools` - Override the assistant's tools
+    - `:tool_resources` - Tool-specific resources
+    - `:metadata` - Custom metadata
+    - `:temperature` - Sampling temperature
+    - `:top_p` - Nucleus sampling
+    - `:stream` - Enable streaming
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, run} = OpenAI.create_thread_and_run(%{
+        assistant_id: "asst_def456",
+        thread: %{
+          messages: [
+            %{role: "user", content: "Hello!"}
+          ]
+        }
+      })
+  """
+  def create_thread_and_run(create_and_run_params, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, body} <- validate_run_params(create_and_run_params) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/runs"
+
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List runs in a thread.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `options` - Query options:
+    - `:limit` - Number of runs to return (1-100, default: 20)
+    - `:order` - Sort order: "asc" or "desc" (default: "desc")
+    - `:after` - Cursor for pagination
+    - `:before` - Cursor for pagination
+
+  ## Examples
+
+      {:ok, runs} = OpenAI.list_runs("thread_abc123")
+  """
+  def list_runs(thread_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs"
+
+      # Build query parameters
+      query_params = build_list_query_params(options)
+
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieve a run.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `run_id` - The ID of the run
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, run} = OpenAI.get_run("thread_abc123", "run_def456")
+  """
+  def get_run(thread_id, run_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Update a run.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `run_id` - The ID of the run
+  - `updates` - Map of fields to update:
+    - `:metadata` - Custom metadata
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, run} = OpenAI.update_run("thread_abc123", "run_def456", %{
+        metadata: %{"priority" => "high"}
+      })
+  """
+  def update_run(thread_id, run_id, updates, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}"
+
+      case HTTPClient.post_json(url, updates, headers,
+             method: :post,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Cancel a run.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `run_id` - The ID of the run
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, run} = OpenAI.cancel_run("thread_abc123", "run_def456")
+  """
+  def cancel_run(thread_id, run_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/cancel"
+
+      case HTTPClient.post_json(url, %{}, headers, timeout: 30_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Submit tool outputs to continue a run.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `run_id` - The ID of the run
+  - `tool_outputs` - List of tool output objects:
+    - `:tool_call_id` - The ID of the tool call
+    - `:output` - The output from the tool
+  - `options` - Additional options:
+    - `:stream` - Enable streaming
+
+  ## Examples
+
+      {:ok, run} = OpenAI.submit_tool_outputs("thread_abc123", "run_def456", [
+        %{
+          tool_call_id: "call_ghi789",
+          output: "The weather is sunny, 72°F"
+        }
+      ])
+  """
+  def submit_tool_outputs(thread_id, run_id, tool_outputs, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/submit_tool_outputs"
+
+      body = %{
+        tool_outputs: tool_outputs
+      }
+
+      # Add streaming if requested
+      body = if Keyword.get(options, :stream, false), do: Map.put(body, :stream, true), else: body
+
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Run Steps API
+
+  @doc """
+  List run steps.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `run_id` - The ID of the run
+  - `options` - Query options:
+    - `:limit` - Number of steps to return (1-100, default: 20)
+    - `:order` - Sort order: "asc" or "desc" (default: "desc")
+    - `:after` - Cursor for pagination
+    - `:before` - Cursor for pagination
+    - `:include` - Include additional data: ["step_details.tool_calls[*].file_search.results[*].content"]
+
+  ## Examples
+
+      {:ok, steps} = OpenAI.list_run_steps("thread_abc123", "run_def456")
+  """
+  def list_run_steps(thread_id, run_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/steps"
+
+      # Build query parameters
+      query_params = build_list_query_params(options)
+
+      # Add include parameter if provided
+      query_params = maybe_add_query_param(query_params, options, :include)
+
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieve a run step.
+
+  ## Parameters
+  - `thread_id` - The ID of the thread
+  - `run_id` - The ID of the run
+  - `step_id` - The ID of the step
+  - `options` - Additional options:
+    - `:include` - Include additional data
+
+  ## Examples
+
+      {:ok, step} = OpenAI.get_run_step("thread_abc123", "run_def456", "step_ghi789")
+  """
+  def get_run_step(thread_id, run_id, step_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/steps/#{step_id}"
+
+      # Add include parameter if provided
+      query_params = []
+      query_params = maybe_add_query_param(query_params, options, :include)
+
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Vector Stores API
+
+  @doc """
+  Create a vector store.
+
+  ## Parameters
+  - `vector_store_params` - Optional vector store configuration:
+    - `:name` - Name of the vector store
+    - `:file_ids` - List of file IDs to add to the store
+    - `:expires_after` - Expiration policy
+    - `:chunking_strategy` - Chunking configuration
+    - `:metadata` - Custom metadata
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, vector_store} = OpenAI.create_vector_store(%{
+        name: "Support FAQ",
+        file_ids: ["file_abc123", "file_def456"]
+      })
+  """
+  def create_vector_store(vector_store_params \\ %{}, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores"
+
+      case HTTPClient.post_json(url, vector_store_params, headers,
+             timeout: 60_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List vector stores.
+
+  ## Options
+  - `:limit` - Number of stores to return (1-100, default: 20)
+  - `:order` - Sort order: "asc" or "desc" (default: "desc")
+  - `:after` - Cursor for pagination
+  - `:before` - Cursor for pagination
+
+  ## Examples
+
+      {:ok, vector_stores} = OpenAI.list_vector_stores()
+  """
+  def list_vector_stores(options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores"
+
+      # Build query parameters
+      query_params = build_list_query_params(options)
+
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieve a vector store.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, vector_store} = OpenAI.get_vector_store("vs_abc123")
+  """
+  def get_vector_store(vector_store_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Update a vector store.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `updates` - Map of fields to update:
+    - `:name` - Name of the vector store
+    - `:expires_after` - Expiration policy
+    - `:metadata` - Custom metadata
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, vector_store} = OpenAI.update_vector_store("vs_abc123", %{
+        name: "Updated FAQ Store"
+      })
+  """
+  def update_vector_store(vector_store_id, updates, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
+
+      case HTTPClient.post_json(url, updates, headers,
+             method: :post,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Delete a vector store.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, deletion_status} = OpenAI.delete_vector_store("vs_abc123")
+  """
+  def delete_vector_store(vector_store_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :delete,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Vector Store Files API
+
+  @doc """
+  Create a vector store file.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `file_params` - File configuration:
+    - `:file_id` - The ID of the file to add (required)
+    - `:chunking_strategy` - Chunking configuration
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, vector_store_file} = OpenAI.create_vector_store_file("vs_abc123", %{
+        file_id: "file_def456"
+      })
+  """
+  def create_vector_store_file(vector_store_id, file_params, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, body} <- validate_vector_store_file_params(file_params) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files"
+
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List vector store files.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `options` - Query options:
+    - `:limit` - Number of files to return (1-100, default: 20)
+    - `:order` - Sort order: "asc" or "desc" (default: "desc")
+    - `:after` - Cursor for pagination
+    - `:before` - Cursor for pagination
+    - `:filter` - Filter by status: "in_progress", "completed", "failed", "cancelled"
+
+  ## Examples
+
+      {:ok, files} = OpenAI.list_vector_store_files("vs_abc123")
+  """
+  def list_vector_store_files(vector_store_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files"
+
+      # Build query parameters
+      query_params = build_list_query_params(options)
+
+      # Add filter parameter if provided
+      query_params = maybe_add_query_param(query_params, options, :filter)
+
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Retrieve a vector store file.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `file_id` - The ID of the file
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, file} = OpenAI.get_vector_store_file("vs_abc123", "file_def456")
+  """
+  def get_vector_store_file(vector_store_id, file_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files/#{file_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :get,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Delete a vector store file.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `file_id` - The ID of the file
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, deletion_status} = OpenAI.delete_vector_store_file("vs_abc123", "file_def456")
+  """
+  def delete_vector_store_file(vector_store_id, file_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files/#{file_id}"
+
+      case HTTPClient.post_json(url, %{}, headers,
+             method: :delete,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Search a vector store.
+
+  ## Parameters
+  - `vector_store_id` - The ID of the vector store
+  - `search_params` - Search configuration:
+    - `:query` - The search query (required)
+    - `:limit` - Number of results to return (default: 10)
+    - `:filter` - Optional filter criteria
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, results} = OpenAI.search_vector_store("vs_abc123", %{
+        query: "How do I reset my password?",
+        limit: 5
+      })
+  """
+  def search_vector_store(vector_store_id, search_params, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, body} <- validate_search_params(search_params) do
+      headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
+      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/search"
+
+      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Convert text to speech using OpenAI's TTS API.
+
+  ## Parameters
+  - `text` - The text to convert to speech
+  - `options` - Optional parameters:
+    - `:model` - TTS model to use (default: "tts-1")
+    - `:voice` - Voice to use: "alloy", "echo", "fable", "onyx", "nova", "shimmer" (default: "alloy")
+    - `:response_format` - Audio format: "mp3", "opus", "aac", "flac" (default: "mp3")
+    - `:speed` - Speed of speech (0.25 to 4.0, default: 1.0)
+    
+  ## Examples
+
+      {:ok, audio_data} = OpenAI.text_to_speech("Hello world")
+      File.write!("output.mp3", audio_data)
+  """
+  def text_to_speech(text, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, body} <- build_tts_request(text, options) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/audio/speech"
+
+      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+        {:ok, audio_data} when is_binary(audio_data) ->
+          {:ok, audio_data}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
   Transcribe audio using OpenAI's Whisper API.
+
+  ## Parameters  
+  - `file_path` - Path to the audio file
+  - `options` - Optional parameters:
+    - `:model` - Whisper model to use (default: "whisper-1")
+    - `:language` - Language of the audio (ISO-639-1 code)
+    - `:prompt` - Text to guide the model's style
+    - `:response_format` - Format: "json", "text", "srt", "verbose_json", "vtt" (default: "json")
+    - `:temperature` - Sampling temperature (0 to 1)
+    - `:timestamp_granularities` - Include timestamps: ["word", "segment"]
+    
+  ## Examples
+
+      {:ok, result} = OpenAI.transcribe_audio("audio.mp3")
+      IO.puts(result["text"])
   """
   def transcribe_audio(file_path, options \\ []) do
     config_provider = ConfigHelper.get_config_provider(options)
@@ -953,10 +2434,63 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          # File path is provided by the user for legitimate file upload
          # sobelow_skip ["Traversal.FileModule"]
-         {:ok, _file_data} <- File.read(file_path) do
-      # For now, return a simple error since we don't have multipart upload support
-      # Real implementation would need multipart form data support in HTTPClient
-      {:error, :multipart_not_supported}
+         {:ok, _file_data} <- File.read(file_path),
+         {:ok, form_data} <- build_transcription_form(file_path, options) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/audio/transcriptions"
+
+      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Translate audio to English using OpenAI's Whisper API.
+
+  ## Parameters
+  - `file_path` - Path to the audio file
+  - `options` - Optional parameters:
+    - `:model` - Whisper model to use (default: "whisper-1")
+    - `:prompt` - Text to guide the model's style
+    - `:response_format` - Format: "json", "text", "srt", "verbose_json", "vtt" (default: "json")
+    - `:temperature` - Sampling temperature (0 to 1)
+    
+  ## Examples
+
+      {:ok, result} = OpenAI.translate_audio("spanish_audio.mp3")
+      IO.puts(result["text"])
+  """
+  def translate_audio(file_path, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         # File path is provided by the user for legitimate file upload
+         # sobelow_skip ["Traversal.FileModule"]
+         {:ok, _file_data} <- File.read(file_path),
+         {:ok, form_data} <- build_translation_form(file_path, options) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/audio/translations"
+
+      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -1593,5 +3127,468 @@ defmodule ExLLM.Providers.OpenAI do
     Enum.any?(flagged_patterns, fn pattern ->
       String.contains?(String.downcase(content), pattern)
     end)
+  end
+
+  # Audio API helper functions
+
+  defp build_tts_request(text, options) do
+    body = %{
+      input: text,
+      model: Keyword.get(options, :model, "tts-1"),
+      voice: Keyword.get(options, :voice, "alloy")
+    }
+
+    body =
+      body
+      |> maybe_add_optional_param(options, :response_format)
+      |> maybe_add_optional_param(options, :speed)
+
+    # Validate voice
+    valid_voices = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
+
+    if body.voice in valid_voices do
+      {:ok, body}
+    else
+      {:error, "Invalid voice. Must be one of: #{Enum.join(valid_voices, ", ")}"}
+    end
+  end
+
+  defp build_transcription_form(file_path, options) do
+    form_data = [
+      file: {:file, file_path},
+      model: Keyword.get(options, :model, "whisper-1")
+    ]
+
+    # Add optional parameters
+    form_data =
+      form_data
+      |> maybe_add_form_param(options, :language)
+      |> maybe_add_form_param(options, :prompt)
+      |> maybe_add_form_param(options, :response_format)
+      |> maybe_add_form_param(options, :temperature)
+      |> maybe_add_form_param(options, :timestamp_granularities)
+
+    {:ok, form_data}
+  end
+
+  defp build_translation_form(file_path, options) do
+    form_data = [
+      file: {:file, file_path},
+      model: Keyword.get(options, :model, "whisper-1")
+    ]
+
+    # Add optional parameters
+    form_data =
+      form_data
+      |> maybe_add_form_param(options, :prompt)
+      |> maybe_add_form_param(options, :response_format)
+      |> maybe_add_form_param(options, :temperature)
+
+    {:ok, form_data}
+  end
+
+  defp maybe_add_form_param(form_data, options, param) do
+    case Keyword.get(options, param) do
+      nil -> form_data
+      value -> form_data ++ [{param, value}]
+    end
+  end
+
+  # Image API helper functions
+
+  defp build_image_edit_form(image_path, prompt, options) do
+    form_data = [
+      image: {:file, image_path},
+      prompt: prompt,
+      model: Keyword.get(options, :model, "dall-e-2"),
+      n: Keyword.get(options, :n, 1),
+      size: Keyword.get(options, :size, "1024x1024"),
+      response_format: Keyword.get(options, :response_format, "url")
+    ]
+
+    # Add mask if provided
+    form_data =
+      case Keyword.get(options, :mask_path) do
+        nil -> form_data
+        mask_path -> form_data ++ [mask: {:file, mask_path}]
+      end
+
+    # Add optional user parameter
+    form_data = maybe_add_form_param(form_data, options, :user)
+
+    {:ok, form_data}
+  end
+
+  defp build_image_variation_form(image_path, options) do
+    form_data = [
+      image: {:file, image_path},
+      model: Keyword.get(options, :model, "dall-e-2"),
+      n: Keyword.get(options, :n, 1),
+      size: Keyword.get(options, :size, "1024x1024"),
+      response_format: Keyword.get(options, :response_format, "url")
+    ]
+
+    # Add optional user parameter
+    form_data = maybe_add_form_param(form_data, options, :user)
+
+    {:ok, form_data}
+  end
+
+  # Fine-tuning API
+
+  @doc """
+  Create a fine-tuning job.
+
+  Creates a fine-tuning job which begins the process of creating a new model from a given dataset.
+
+  ## Parameters
+  - `fine_tuning_params` - Parameters for the fine-tuning job (map with required training_file)
+  - `options` - Additional options
+
+  ## Required Parameters
+  - `:training_file` - The ID of an uploaded file that contains training data
+  - `:model` - The name of the model to fine-tune
+
+  ## Optional Parameters
+  - `:hyperparameters` - The hyperparameters used for the fine-tuning job
+  - `:suffix` - A string of up to 40 characters that will be added to your fine-tuned model name
+  - `:validation_file` - The ID of an uploaded file that contains validation data
+  - `:integrations` - A list of integrations to enable for your fine-tuning job
+  - `:seed` - The seed controls the reproducibility of the job
+
+  ## Examples
+
+      {:ok, job} = OpenAI.create_fine_tuning_job(%{
+        training_file: "file-abc123",
+        model: "gpt-3.5-turbo",
+        suffix: "my-model"
+      })
+      
+      job["id"] # => "ftjob-abc123"
+      job["status"] # => "validating_files"
+  """
+  def create_fine_tuning_job(fine_tuning_params, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key),
+         {:ok, validated_params} <- validate_fine_tuning_job_params(fine_tuning_params) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/fine_tuning/jobs"
+
+      case HTTPClient.post_json(url, validated_params, headers,
+             timeout: 60_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List fine-tuning jobs.
+
+  List your organization's fine-tuning jobs.
+
+  ## Parameters
+  - `options` - Query options (can include `:after`, `:limit`)
+
+  ## Query Parameters
+  - `:after` - Identifier for the last job from the previous pagination request
+  - `:limit` - Number of fine-tuning jobs to retrieve (default: 20)
+
+  ## Examples
+
+      {:ok, response} = OpenAI.list_fine_tuning_jobs(limit: 10)
+      response["data"] # => [%{"id" => "ftjob-abc123", ...}, ...]
+      response["has_more"] # => false
+  """
+  def list_fine_tuning_jobs(options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config)
+      query_params = build_list_query_params(options)
+      url = "#{get_base_url(config)}/fine_tuning/jobs"
+
+      case HTTPClient.get_json(url, headers,
+             query: query_params,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Get info about a fine-tuning job.
+
+  Get info about a fine-tuning job.
+
+  ## Parameters
+  - `fine_tuning_job_id` - The ID of the fine-tuning job
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, job} = OpenAI.get_fine_tuning_job("ftjob-abc123")
+      job["id"] # => "ftjob-abc123"
+      job["status"] # => "succeeded"
+      job["fine_tuned_model"] # => "ft:gpt-3.5-turbo:my-org:my-model:abc123"
+  """
+  def get_fine_tuning_job(fine_tuning_job_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}"
+
+      case HTTPClient.get_json(url, headers, timeout: 30_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  Cancel a fine-tuning job.
+
+  Immediately cancel a fine-tuning job.
+
+  ## Parameters
+  - `fine_tuning_job_id` - The ID of the fine-tuning job to cancel
+  - `options` - Additional options
+
+  ## Examples
+
+      {:ok, job} = OpenAI.cancel_fine_tuning_job("ftjob-abc123")
+      job["status"] # => "cancelled"
+  """
+  def cancel_fine_tuning_job(fine_tuning_job_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config)
+      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/cancel"
+
+      case HTTPClient.post_json(url, %{}, headers, timeout: 30_000, provider: :openai) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List fine-tuning events.
+
+  Get status updates for a fine-tuning job.
+
+  ## Parameters
+  - `fine_tuning_job_id` - The ID of the fine-tuning job to get events for
+  - `options` - Query options (can include `:after`, `:limit`)
+
+  ## Query Parameters
+  - `:after` - Identifier for the last event from the previous pagination request
+  - `:limit` - Number of events to retrieve (default: 20)
+
+  ## Examples
+
+      {:ok, response} = OpenAI.list_fine_tuning_events("ftjob-abc123", limit: 10)
+      response["data"] # => [%{"object" => "fine_tuning.job.event", ...}, ...]
+  """
+  def list_fine_tuning_events(fine_tuning_job_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config)
+      query_params = build_list_query_params(options)
+      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/events"
+
+      case HTTPClient.get_json(url, headers,
+             query: query_params,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  @doc """
+  List fine-tuning checkpoints.
+
+  List the checkpoints for a fine-tuning job.
+
+  ## Parameters
+  - `fine_tuning_job_id` - The ID of the fine-tuning job to get checkpoints for
+  - `options` - Query options (can include `:after`, `:limit`)
+
+  ## Query Parameters
+  - `:after` - Identifier for the last checkpoint from the previous pagination request
+  - `:limit` - Number of checkpoints to retrieve (default: 10)
+
+  ## Examples
+
+      {:ok, response} = OpenAI.list_fine_tuning_checkpoints("ftjob-abc123")
+      response["data"] # => [%{"id" => "ftckpt-abc123", ...}, ...]
+  """
+  def list_fine_tuning_checkpoints(fine_tuning_job_id, options \\ []) do
+    config_provider = ConfigHelper.get_config_provider(options)
+    config = ConfigHelper.get_config(:openai, config_provider)
+    api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
+
+    with {:ok, _} <- Validation.validate_api_key(api_key) do
+      headers = build_headers(api_key, config)
+      query_params = build_list_query_params(options)
+      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/checkpoints"
+
+      case HTTPClient.get_json(url, headers,
+             query: query_params,
+             timeout: 30_000,
+             provider: :openai
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, {:api_error, %{status: status, body: body}}} ->
+          ErrorHandler.handle_provider_error(:openai, status, body)
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    end
+  end
+
+  # Assistants API helper functions
+
+  defp validate_assistant_params(params) do
+    # Model is required
+    case Map.get(params, :model) do
+      nil -> {:error, "model parameter is required"}
+      _model -> {:ok, Map.put_new(params, :model, "gpt-4-turbo")}
+    end
+  end
+
+  defp build_list_query_params(options) do
+    []
+    |> maybe_add_query_param(options, :limit)
+    |> maybe_add_query_param(options, :order)
+    |> maybe_add_query_param(options, :after)
+    |> maybe_add_query_param(options, :before)
+  end
+
+  defp maybe_add_query_param(params, options, key) do
+    case Keyword.get(options, key) do
+      nil -> params
+      value -> params ++ [{to_string(key), to_string(value)}]
+    end
+  end
+
+  # Threads and Runs API helper functions
+
+  defp validate_message_params(params) do
+    # Role and content are required
+    case {Map.get(params, :role), Map.get(params, :content)} do
+      {nil, _} ->
+        {:error, "role parameter is required"}
+
+      {_, nil} ->
+        {:error, "content parameter is required"}
+
+      {role, _content} when role not in ["user", "assistant"] ->
+        {:error, "role must be 'user' or 'assistant'"}
+
+      _ ->
+        {:ok, params}
+    end
+  end
+
+  defp validate_run_params(params) do
+    # assistant_id is required
+    case Map.get(params, :assistant_id) do
+      nil -> {:error, "assistant_id parameter is required"}
+      _assistant_id -> {:ok, params}
+    end
+  end
+
+  # Vector Stores API helper functions
+
+  defp validate_vector_store_file_params(params) do
+    # file_id is required
+    case Map.get(params, :file_id) do
+      nil -> {:error, "file_id parameter is required"}
+      _file_id -> {:ok, params}
+    end
+  end
+
+  defp validate_search_params(params) do
+    # query is required
+    case Map.get(params, :query) do
+      nil -> {:error, "query parameter is required"}
+      query when is_binary(query) and byte_size(query) > 0 -> {:ok, params}
+      _ -> {:error, "query must be a non-empty string"}
+    end
+  end
+
+  # Fine-tuning API helper functions
+
+  defp validate_fine_tuning_job_params(params) do
+    # training_file and model are required
+    case {Map.get(params, :training_file), Map.get(params, :model)} do
+      {nil, _} ->
+        {:error, "training_file parameter is required"}
+
+      {_, nil} ->
+        {:error, "model parameter is required"}
+
+      {training_file, model} when is_binary(training_file) and is_binary(model) ->
+        {:ok, params}
+
+      _ ->
+        {:error, "training_file and model must be strings"}
+    end
   end
 end

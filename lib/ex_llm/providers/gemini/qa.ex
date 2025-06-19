@@ -245,25 +245,27 @@ defmodule ExLLM.Providers.Gemini.QA do
   @spec parse_generate_answer_response(map()) :: GenerateAnswerResponse.t()
   def parse_generate_answer_response(response_body) do
     # Handle different response formats from HTTPClient
-    actual_body = 
+    actual_body =
       cond do
         # Direct response body format (expected)
         is_map(response_body) and Map.has_key?(response_body, "answer") ->
           response_body
-        
+
         # Wrapped HTTP response format (from cache or HTTPClient)
-        is_map(response_body) and Map.has_key?(response_body, :body) and is_map(response_body[:body]) ->
+        is_map(response_body) and Map.has_key?(response_body, :body) and
+            is_map(response_body[:body]) ->
           response_body[:body]
-        
+
         # String key wrapped format
-        is_map(response_body) and Map.has_key?(response_body, "body") and is_map(response_body["body"]) ->
+        is_map(response_body) and Map.has_key?(response_body, "body") and
+            is_map(response_body["body"]) ->
           response_body["body"]
-        
+
         # Fallback to original format
         true ->
           response_body
       end
-    
+
     %GenerateAnswerResponse{
       answer: actual_body["answer"],
       answerable_probability: actual_body["answerableProbability"],

@@ -6,6 +6,7 @@ defmodule ExLLM.Providers.Gemini.Base do
   alias ExLLM.Providers.Shared.HTTPClient
 
   @base_url "https://generativelanguage.googleapis.com/v1beta"
+  @base_url_v1 "https://generativelanguage.googleapis.com/v1"
 
   @type request_opts :: [
           method: :get | :post | :patch | :delete,
@@ -18,7 +19,7 @@ defmodule ExLLM.Providers.Gemini.Base do
         ]
 
   @doc """
-  Makes an HTTP request to the Gemini API.
+  Makes an HTTP request to the Gemini API (v1beta endpoint).
   """
   @spec request(request_opts()) :: {:ok, map()} | {:error, map()}
   def request(opts) do
@@ -50,6 +51,47 @@ defmodule ExLLM.Providers.Gemini.Base do
 
       {:ok, %{status: status, body: response_body}} ->
         # HTTPClient wrapped error format
+        {:error,
+         %{status: status, message: extract_error_message(response_body), body: response_body}}
+
+      {:error, reason} ->
+        {:error, %{reason: :network_error, message: inspect(reason)}}
+    end
+  end
+
+  @doc """
+  Makes an HTTP request to the Gemini API (v1 endpoint).
+  """
+  @spec request_v1(request_opts()) :: {:ok, map()} | {:error, map()}
+  def request_v1(opts) do
+    method = Keyword.fetch!(opts, :method)
+    path = Keyword.fetch!(opts, :url)
+    query = Keyword.get(opts, :query, %{})
+    body = Keyword.get(opts, :body)
+
+    # Support both API key and OAuth token
+    {url, headers} =
+      if oauth_token = opts[:oauth_token] do
+        # OAuth2 authentication
+        {build_url_v1(path, query), build_headers(oauth_token: oauth_token)}
+      else
+        # API key authentication
+        api_key = Keyword.get(opts, :api_key)
+        {build_url_v1(path, Map.put(query, "key", api_key)), build_headers()}
+      end
+
+    # Use shared HTTPClient for caching support
+    case make_http_request(method, url, body, headers, opts) do
+      {:ok, response_body} when is_map(response_body) ->
+        # Direct response body (successful request)
+        {:ok, response_body}
+
+      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
+        # HTTPClient wrapped response format
+        {:ok, response_body}
+
+      {:ok, %{status: status, body: response_body}} ->
+        # Error response
         {:error,
          %{status: status, message: extract_error_message(response_body), body: response_body}}
 
@@ -103,6 +145,11 @@ defmodule ExLLM.Providers.Gemini.Base do
   defp build_url(path, query_params) do
     query_string = URI.encode_query(query_params)
     "#{@base_url}#{path}?#{query_string}"
+  end
+
+  defp build_url_v1(path, query_params) do
+    query_string = URI.encode_query(query_params)
+    "#{@base_url_v1}#{path}?#{query_string}"
   end
 
   defp build_headers(opts \\ []) do

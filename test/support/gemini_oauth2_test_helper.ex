@@ -259,6 +259,9 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
             corpus_name = corpus["name"]
             IO.puts("Deleting corpus: #{display_name}")
 
+            # First try to cleanup documents within the corpus (needed before deleting corpus)
+            cleanup_corpus_contents(corpus_name, oauth_token)
+
             case delete_corpus_raw(corpus_name, oauth_token) do
               :ok ->
                 :ok
@@ -291,12 +294,14 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
   """
   @spec cleanup_test_documents(String.t(), String.t()) :: :ok | {:error, String.t()}
   def cleanup_test_documents(corpus_name, oauth_token) do
-    case ExLLM.Gemini.Document.list_documents(corpus_name, oauth_token: oauth_token) do
+    case ExLLM.Providers.Gemini.Document.list_documents(corpus_name, oauth_token: oauth_token) do
       {:ok, response} ->
         test_documents = Enum.filter(response.documents || [], &is_test_document?/1)
 
         Enum.each(test_documents, fn document ->
-          case ExLLM.Gemini.Document.delete_document(document.name, oauth_token: oauth_token) do
+          case ExLLM.Providers.Gemini.Document.delete_document(document.name,
+                 oauth_token: oauth_token
+               ) do
             :ok ->
               :ok
 
@@ -314,6 +319,33 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
       {:error, reason} ->
         {:error, "Failed to list documents: #{inspect(reason)}"}
     end
+  end
+
+  @doc """
+  Cleanup all contents (documents and chunks) within a corpus before deletion.
+  """
+  @spec cleanup_corpus_contents(String.t(), String.t()) :: :ok
+  def cleanup_corpus_contents(corpus_name, oauth_token) do
+    try do
+      # Use raw HTTP to list and delete documents to bypass caching and avoid module dependencies
+      case list_documents_raw(corpus_name, oauth_token) do
+        {:ok, documents} ->
+          Enum.each(documents, fn document ->
+            document_name = document["name"]
+
+            # Delete all chunks in this document first (not implemented raw, but documents should cascade)
+            delete_document_raw(document_name, oauth_token)
+          end)
+
+        {:error, _} ->
+          # Corpus might be empty or inaccessible
+          :ok
+      end
+    rescue
+      _ -> :ok
+    end
+
+    :ok
   end
 
   @doc """
@@ -417,6 +449,9 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
             display_name = corpus["displayName"] || "Unknown"
             corpus_name = corpus["name"]
             IO.puts("Deleting corpus: #{display_name}")
+
+            # First try to cleanup documents within the corpus (needed before deleting corpus)
+            cleanup_corpus_contents(corpus_name, oauth_token)
 
             case delete_corpus_raw(corpus_name, oauth_token) do
               :ok ->
@@ -547,5 +582,60 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
     String.contains?(name, "test") or
       String.contains?(name, "sample") or
       String.starts_with?(name, "Test Document")
+  end
+
+  @doc """
+  List documents in a corpus using raw HTTP requests to bypass caching.
+  """
+  @spec list_documents_raw(String.t(), String.t()) :: {:ok, [map()]} | {:error, String.t()}
+  defp list_documents_raw(corpus_name, oauth_token) do
+    url = "https://generativelanguage.googleapis.com/v1beta/#{corpus_name}/documents"
+
+    headers = [
+      authorization: "Bearer #{oauth_token}",
+      content_type: "application/json"
+    ]
+
+    case Req.get(url, headers: headers) do
+      {:ok, %{status: 200, body: body}} ->
+        case body do
+          %{"documents" => documents} when is_list(documents) ->
+            {:ok, documents}
+
+          _response ->
+            # No documents field means empty list
+            {:ok, []}
+        end
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "API error #{status}: #{inspect(body)}"}
+
+      {:error, reason} ->
+        {:error, "HTTP error: #{inspect(reason)}"}
+    end
+  end
+
+  @doc """
+  Delete a document using raw HTTP requests to bypass caching.
+  """
+  @spec delete_document_raw(String.t(), String.t()) :: :ok | {:error, integer() | String.t()}
+  defp delete_document_raw(document_name, oauth_token) do
+    url = "https://generativelanguage.googleapis.com/v1beta/#{document_name}"
+
+    headers = [
+      authorization: "Bearer #{oauth_token}",
+      content_type: "application/json"
+    ]
+
+    case Req.delete(url, headers: headers) do
+      {:ok, %{status: status}} when status in [200, 204, 404] ->
+        :ok
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "Delete failed #{status}: #{inspect(body)}"}
+
+      {:error, reason} ->
+        {:error, "HTTP error: #{inspect(reason)}"}
+    end
   end
 end

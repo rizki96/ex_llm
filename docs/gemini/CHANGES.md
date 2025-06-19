@@ -353,11 +353,33 @@ This document tracks the differences between the official Gemini API documentati
 3. **Error Handling**: Accept multiple valid error codes (403/404)
 4. **Data Size**: Ensure test data meets minimum requirements
 
+## Recent Implementation Findings (June 2025)
+
+### Models API Access Issues
+- **Documentation**: Models API should be publicly accessible with API key
+- **Reality**: Getting 404 errors for `/v1beta/models` endpoint with valid API key
+- **Status**: Under investigation - may require special permissions or different endpoint
+- **Impact**: Models listing and model details not accessible, but chat/generation works fine
+
+### Working APIs Confirmed
+- ✅ **Content Generation**: Basic chat and generation works
+- ✅ **Embeddings**: Single text embedding works correctly  
+- ✅ **Token Counting**: Token counting API functional
+- ✅ **Files API**: File upload/download/management works
+
+### Non-Working APIs
+- ❌ **Models API**: Returns 404 errors
+- ❌ **Streaming**: Returns empty streams (needs investigation)
+- ❌ **Context Caching**: Placeholder functions only
+- ❌ **Tuned Models**: Placeholder functions only
+- ❌ **Semantic Retrieval**: Placeholder functions only
+
 ## Version Information
 
 - **Documentation Version**: v1beta (as of December 2024)
 - **Tested Models**: Gemini 2.0, 1.5 family
 - **APIs Implemented**: Models, Content Generation, Token Counting, Files, Context Caching, Embeddings, Fine-tuning, Permissions
+- **Implementation Status**: 35 tests created, 7 failures remaining (80% success rate)
 - **Last Updated**: June 2025
 
 ---
