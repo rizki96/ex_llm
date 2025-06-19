@@ -4,17 +4,35 @@ The comprehensive example application (`example_app.exs`) demonstrates all featu
 
 ## Quick Start
 
-### Using Ollama (Default - Local)
+### Interactive Mode (Default)
 
 1. Install Ollama from https://ollama.ai
 2. Ensure Ollama is running:
    ```bash
    ollama serve  # if not already running
    ```
-3. Run the example app (uses existing Qwen3 8B model):
+3. Run the example app interactively:
    ```bash
    ./example_app.exs
    ```
+
+### Non-Interactive Mode (CLI)
+
+You can run specific demos non-interactively using command-line arguments:
+
+```bash
+# Show help and available demos
+elixir example_app.exs --help
+
+# List all available demos
+elixir example_app.exs --list
+
+# Run a specific demo
+elixir example_app.exs basic-chat
+
+# Run a demo with custom arguments
+elixir example_app.exs basic-chat "What is the weather like?"
+```
 
 Note: The app uses the `hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS` model which can be downloaded from https://huggingface.co/unsloth/Qwen3-8B-GGUF. This is a 4.6 GB model with efficient IQ4_XS quantization for fast inference. If you want to use a different model, you can set the `OLLAMA_MODEL` environment variable to the desired model name, e.g., `OLLAMA_MODEL=llama3.2:3b ./example_app.exs`.
 
@@ -23,6 +41,7 @@ Note: The app uses the `hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS` model which can be d
 Set the `PROVIDER` environment variable and ensure you have the required API key:
 
 ```bash
+# Interactive mode
 # OpenAI
 export OPENAI_API_KEY="your-key"
 PROVIDER=openai ./example_app.exs
@@ -41,6 +60,11 @@ PROVIDER=xai ./example_app.exs
 
 # Mock (Testing - no API key needed)
 PROVIDER=mock ./example_app.exs
+
+# Non-interactive mode examples
+PROVIDER=openai elixir example_app.exs basic-chat "Hello from OpenAI!"
+PROVIDER=anthropic elixir example_app.exs function-calling
+PROVIDER=mock elixir example_app.exs provider-capabilities
 ```
 
 ## Features Demonstrated

@@ -316,11 +316,7 @@ defmodule ExLLM.ExampleApp do
   
   # Feature implementations
   
-  defp basic_chat(provider) do
-    basic_chat(provider, [])
-  end
-  
-  defp basic_chat(provider, args) do
+  defp basic_chat(provider, args \\ []) do
     IO.puts("\n=== Basic Chat ===")
     IO.puts("This demonstrates simple message exchange with an LLM.\n")
     
@@ -2728,8 +2724,14 @@ defmodule ExLLM.ExampleApp do
         
         IO.puts("")
         
-        # Run the demo with arguments
-        handler.(provider, args)
+        # Run the demo with arguments if supported, otherwise just provider
+        try do
+          handler.(provider, args)
+        rescue
+          BadArityError ->
+            # Fallback to single-argument version
+            handler.(provider)
+        end
         
         IO.puts("\nDemo completed successfully!")
       
@@ -2742,7 +2744,7 @@ defmodule ExLLM.ExampleApp do
   
   defp get_demo_map do
     %{
-      "basic-chat" => {"Basic Chat", &basic_chat/2},
+      "basic-chat" => {"Basic Chat", fn provider, args -> basic_chat(provider, args) end},
       "streaming-chat" => {"Streaming Chat", &streaming_chat/1},
       "session-management" => {"Session Management", &session_management/1},
       "context-management" => {"Context Management", &context_management/1},
