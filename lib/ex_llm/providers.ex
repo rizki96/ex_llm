@@ -32,6 +32,7 @@ defmodule ExLLM.Providers do
       {:groq, :stream} -> groq_stream_pipeline()
       {:mistral, :chat} -> mistral_chat_pipeline()
       {:mistral, :stream} -> mistral_stream_pipeline()
+      {:openrouter, :chat} -> openrouter_chat_pipeline()
       {:openrouter, :stream} -> openrouter_stream_pipeline()
       {:perplexity, :stream} -> perplexity_stream_pipeline()
       {:xai, :chat} -> xai_chat_pipeline()
@@ -55,6 +56,7 @@ defmodule ExLLM.Providers do
       {:anthropic, :list_models} -> anthropic_list_models_pipeline()
       {:gemini, :list_models} -> gemini_list_models_pipeline()
       {:groq, :list_models} -> groq_list_models_pipeline()
+      {:openrouter, :list_models} -> openrouter_list_models_pipeline()
       {:ollama, :list_models} -> ollama_list_models_pipeline()
       {:mock, :list_models} -> mock_list_models_pipeline()
       {_, :list_models} -> default_list_models_pipeline()
@@ -283,6 +285,21 @@ defmodule ExLLM.Providers do
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
       Plugs.ExecuteStreamRequest,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp openrouter_chat_pipeline do
+    # OpenRouter uses OpenAI-compatible API
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 300},
+      Plugs.Providers.OpenAIPrepareRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OpenAIParseResponse,
       Plugs.TrackCost
     ]
   end
@@ -549,6 +566,19 @@ defmodule ExLLM.Providers do
       Plugs.Providers.GroqPrepareListModelsRequest,
       Plugs.ExecuteRequest,
       Plugs.Providers.GroqParseListModelsResponse
+    ]
+  end
+
+  defp openrouter_list_models_pipeline do
+    # OpenRouter has its own model listing format with richer metadata
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      Plugs.BuildTeslaClient,
+      {Plugs.Cache, ttl: 3600},
+      Plugs.Providers.OpenRouterPrepareListModelsRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OpenRouterParseListModelsResponse
     ]
   end
 

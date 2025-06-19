@@ -185,6 +185,11 @@ defmodule ExLLM do
       %Request{state: :completed} ->
         :ok
 
+      %Request{state: :streaming} ->
+        # For streaming, the pipeline starts the stream and returns immediately
+        # The actual streaming happens asynchronously via callbacks
+        :ok
+
       %Request{state: :error, errors: errors} ->
         {:error, format_errors(errors)}
 

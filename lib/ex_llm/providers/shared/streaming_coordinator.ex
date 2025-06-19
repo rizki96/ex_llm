@@ -119,33 +119,36 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Initialize chunk buffer for batching
     buffer_size = Keyword.get(options, :buffer_chunks, 1)
 
-    # Return a function that initializes the accumulator
+    # Simple collector that accumulates data for Req and processes callbacks
     fn
       {:data, data}, acc ->
-        # Initialize accumulator if needed
-        {text_buffer, chunk_buffer, stats} =
+        # Initialize accumulator if needed - binary for response body
+        body =
           case acc do
-            {_, _, _} = state -> state
-            _ -> {"", [], Map.merge(stream_context, %{chunks_buffered: 0})}
+            binary when is_binary(binary) -> binary
+            _ -> ""
           end
 
-        {new_text_buffer, new_chunk_buffer, new_stats} =
+        # Process stream data for callbacks (side effects)
+        # We'll handle this in a separate process to avoid affecting the accumulator
+        Task.start(fn ->
           process_stream_data(
             data,
-            text_buffer,
-            chunk_buffer,
+            "",  # text_buffer
+            [],  # chunk_buffer  
             callback,
             parse_chunk_fn,
-            stats,
+            stream_context,
             buffer_size,
             options
           )
+        end)
 
-        {:cont, {new_text_buffer, new_chunk_buffer, new_stats}}
+        # Accumulate the raw data as binary for Req
+        {:cont, body <> data}
 
-      {:error, reason}, {_, _, stats} ->
+      {:error, reason}, _acc ->
         Logger.error("Stream collector error: #{inspect(reason)}")
-        update_stream_stats(stats, :error_count, 1)
         {:halt, {:error, reason}}
     end
   end

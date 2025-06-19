@@ -62,6 +62,16 @@ defmodule ExLLM.ExampleApp do
       env_var: "GROQ_API_KEY",
       setup: "Set GROQ_API_KEY environment variable"
     },
+    gemini: %{
+      name: "Google Gemini",
+      env_var: "GEMINI_API_KEY",
+      setup: "Set GEMINI_API_KEY environment variable"
+    },
+    openrouter: %{
+      name: "OpenRouter",
+      env_var: "OPENROUTER_API_KEY",
+      setup: "Set OPENROUTER_API_KEY environment variable"
+    },
     xai: %{
       name: "X.AI Grok",
       env_var: "XAI_API_KEY",

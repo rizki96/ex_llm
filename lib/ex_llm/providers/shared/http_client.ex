@@ -871,21 +871,25 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
       receive_timeout: Keyword.get(opts, :receive_timeout, @stream_timeout)
     ]
 
-    # Add the into option if provided
-    req_opts =
-      case Keyword.get(opts, :into) do
-        nil -> req_opts
-        collector -> Keyword.put(req_opts, :into, collector)
-      end
+    # Handle streaming differently - don't use Req's :into option
+    # Extract the collector for manual processing
+    collector = Keyword.get(opts, :into)
+    
+    # Don't pass :into to Req, let it handle streaming normally
+    # req_opts remains without :into
 
     start_time = System.monotonic_time(:millisecond)
 
     case Req.post(url, req_opts) do
-      {:ok, %{status: status} = response} when status in 200..299 ->
+      {:ok, %{status: status, body: body} = response} when status in 200..299 ->
         Logger.log_stream_event(provider, :response_ok, %{status: status})
 
-        # For streaming, we would need to capture the complete response
-        # This is more complex and might be handled by the streaming coordinator
+        # Process the streaming response body with the collector
+        if collector && is_function(collector) do
+          # Process the body through the collector
+          process_streaming_body(body, collector)
+        end
+
         duration = System.monotonic_time(:millisecond) - start_time
 
         response_info = %{
@@ -1494,6 +1498,23 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
             Logger.log_response(provider, %{error: exception}, duration)
             {:error, exception}
         end
+    end
+  end
+
+  # Process streaming response body with collector function
+  defp process_streaming_body(body, collector) do
+    # Split the body into chunks and process each through the collector
+    # For SSE, we need to split by newlines and process data lines
+    if is_binary(body) do
+      # Process the complete streaming response
+      body
+      |> String.split("\n")
+      |> Enum.reduce("", fn line, acc ->
+        case collector.({:data, line <> "\n"}, acc) do
+          {:cont, new_acc} -> new_acc
+          {:halt, _} -> acc
+        end
+      end)
     end
   end
 end
