@@ -74,6 +74,34 @@ defmodule ExLLM.ExampleApp do
   }
   
   def main do
+    args = System.argv()
+    
+    case args do
+      [] ->
+        # Interactive mode (default)
+        run_interactive()
+      
+      ["--help"] ->
+        show_help()
+      
+      ["--list"] ->
+        list_demos()
+      
+      [demo_name] ->
+        # Non-interactive mode - run specific demo
+        run_demo(demo_name)
+      
+      [demo_name | demo_args] ->
+        # Non-interactive mode with arguments
+        run_demo(demo_name, demo_args)
+      
+      _ ->
+        IO.puts("Invalid arguments. Use --help for usage information.")
+        System.halt(1)
+    end
+  end
+  
+  defp run_interactive do
     IO.puts("""
     ╔══════════════════════════════════════════════════════════════╗
     ║               ExLLM Comprehensive Example App                ║
@@ -206,7 +234,7 @@ defmodule ExLLM.ExampleApp do
   defp build_menu_items(_provider, capabilities) do
     # All menu items with availability check
     items = [
-      {"Basic Chat", &basic_chat/1, true},
+      {"Basic Chat", fn provider -> basic_chat(provider, []) end, true},
       {"Streaming Chat", &streaming_chat/1, capabilities && :streaming in capabilities.features},
       {"Session Management (Saves & Resumes Conversations)", &session_management/1, true},
       {"Context Management (Token Limits)", &context_management/1, true},
@@ -289,10 +317,25 @@ defmodule ExLLM.ExampleApp do
   # Feature implementations
   
   defp basic_chat(provider) do
+    basic_chat(provider, [])
+  end
+  
+  defp basic_chat(provider, args) do
     IO.puts("\n=== Basic Chat ===")
     IO.puts("This demonstrates simple message exchange with an LLM.\n")
     
-    prompt = IO.gets("Enter your message: ") |> String.trim()
+    prompt = case args do
+      [] ->
+        # Interactive mode
+        case IO.gets("Enter your message: ") do
+          :eof -> "Hello! Can you tell me a short interesting fact?"
+          input -> String.trim(input)
+        end
+      [message | _] ->
+        # Non-interactive mode with provided message
+        IO.puts("Using message: #{message}")
+        message
+    end
     
     messages = [
       %{role: "user", content: prompt}
@@ -2592,6 +2635,131 @@ defmodule ExLLM.ExampleApp do
       [provider, model] -> {String.to_atom(provider), model}
       _ -> {:unknown, spec}
     end
+  end
+  
+  # CLI argument support functions
+  defp show_help do
+    IO.puts("""
+    ExLLM Example Application
+    
+    Usage:
+      elixir example_app.exs                    # Interactive mode (default)
+      elixir example_app.exs --help             # Show this help
+      elixir example_app.exs --list             # List available demos
+      elixir example_app.exs <demo_name>        # Run specific demo
+      elixir example_app.exs <demo_name> [args] # Run demo with arguments
+    
+    Environment Variables:
+      PROVIDER      Provider to use (ollama, openai, anthropic, groq, mock)
+      OLLAMA_MODEL  Model for Ollama provider
+      *_API_KEY     API keys for respective providers
+    
+    Available Demos:
+      basic-chat              Simple chat conversation
+      streaming-chat          Real-time streaming chat
+      session-management      Multi-turn conversations with history
+      context-management      Token limit handling
+      function-calling        LLM function execution
+      structured-output       Extract structured data with schemas
+      vision                  Image analysis (provider dependent)
+      embeddings             Text embeddings and similarity search
+      model-capabilities      Explore model features
+      provider-capabilities   Explore provider features
+      caching                Cache responses for performance
+      retry-recovery          Error handling and retry logic
+      cost-tracking          Track API usage costs
+      stream-recovery        Auto-resume interrupted streams
+      dynamic-model          Dynamic model selection
+      token-budget           Budget-aware model selection
+      multi-provider         Route requests across providers
+    
+    Examples:
+      # Interactive mode with Ollama
+      elixir example_app.exs
+      
+      # Basic chat with OpenAI
+      PROVIDER=openai elixir example_app.exs basic-chat
+      
+      # Function calling with Anthropic
+      PROVIDER=anthropic elixir example_app.exs function-calling
+      
+      # Vision analysis with mock provider
+      PROVIDER=mock elixir example_app.exs vision
+    """)
+  end
+  
+  defp list_demos do
+    demos = get_demo_map()
+    
+    IO.puts("Available demos:")
+    IO.puts("")
+    
+    demos
+    |> Map.keys()
+    |> Enum.sort()
+    |> Enum.each(fn demo_name ->
+      {title, _handler} = demos[demo_name]
+      IO.puts("  #{String.pad_trailing(demo_name, 20)} - #{title}")
+    end)
+    
+    IO.puts("")
+    IO.puts("Use 'elixir example_app.exs <demo_name>' to run a specific demo.")
+  end
+  
+  defp run_demo(demo_name, args \\ []) do
+    provider = get_provider()
+    
+    if provider == :mock do
+      {:ok, _} = ExLLM.Providers.Mock.start_link()
+    end
+    
+    check_provider_setup(provider)
+    
+    demos = get_demo_map()
+    
+    case Map.get(demos, demo_name) do
+      {_title, handler} ->
+        IO.puts("Running demo: #{demo_name}")
+        IO.puts("Provider: #{provider}")
+        
+        if length(args) > 0 do
+          IO.puts("Arguments: #{Enum.join(args, " ")}")
+        end
+        
+        IO.puts("")
+        
+        # Run the demo with arguments
+        handler.(provider, args)
+        
+        IO.puts("\nDemo completed successfully!")
+      
+      nil ->
+        IO.puts("Unknown demo: #{demo_name}")
+        IO.puts("Use --list to see available demos.")
+        System.halt(1)
+    end
+  end
+  
+  defp get_demo_map do
+    %{
+      "basic-chat" => {"Basic Chat", &basic_chat/2},
+      "streaming-chat" => {"Streaming Chat", &streaming_chat/1},
+      "session-management" => {"Session Management", &session_management/1},
+      "context-management" => {"Context Management", &context_management/1},
+      "function-calling" => {"Function Calling", &function_calling_demo/1},
+      "structured-output" => {"Structured Output", &structured_output_demo/1},
+      "vision" => {"Vision/Multimodal", &vision_demo/1},
+      "embeddings" => {"Embeddings & Semantic Search", &embeddings_demo/1},
+      "model-capabilities" => {"Model Capabilities Explorer", &model_capabilities_explorer/1},
+      "provider-capabilities" => {"Provider Capabilities Explorer", &provider_capabilities_explorer/1},
+      "caching" => {"Caching Demo", &caching_demo/1},
+      "retry-recovery" => {"Retry & Error Recovery", &retry_demo/1},
+      "cost-tracking" => {"Cost Tracking", &cost_tracking_demo/1},
+      "stream-recovery" => {"Stream Recovery", &stream_recovery_demo/1},
+      "dynamic-model" => {"Dynamic Model Selection", &dynamic_model_selection_demo/1},
+      "token-budget" => {"Token Budget Management", &token_budget_demo/1},
+      "multi-provider" => {"Multi-Provider Routing", &multi_provider_routing_demo/1}
+    }
   end
 end
 
