@@ -84,7 +84,7 @@ defmodule ExLLM.ExampleApp do
     
     if provider == :mock do
       # Start mock adapter for testing
-      {:ok, _} = ExLLM.Adapters.Mock.start_link()
+      {:ok, _} = ExLLM.Providers.Mock.start_link()
     end
     
     check_provider_setup(provider)
