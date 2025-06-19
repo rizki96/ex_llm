@@ -513,7 +513,11 @@ defmodule ExLLM.Providers.Gemini.Document do
   # Private functions
 
   @doc false
-  def validate_corpus_name(name) do
+  def validate_corpus_name(nil) do
+    {:error, %{message: "corpus name cannot be nil"}}
+  end
+
+  def validate_corpus_name(name) when is_binary(name) do
     # Corpus ID can contain up to 40 characters that are lowercase alphanumeric or dashes
     # but cannot start or end with a dash
     if String.match?(name, ~r/^corpora\/[a-zA-Z0-9]([a-zA-Z0-9\-]{0,38}[a-zA-Z0-9])?$/) do
@@ -521,6 +525,10 @@ defmodule ExLLM.Providers.Gemini.Document do
     else
       {:error, %{message: "corpus name must be in format 'corpora/{corpus_id}'"}}
     end
+  end
+
+  def validate_corpus_name(_) do
+    {:error, %{message: "corpus name must be a string"}}
   end
 
   @doc false
@@ -726,12 +734,32 @@ defmodule ExLLM.Providers.Gemini.Document do
 
   @doc false
   def parse_document(response) do
+    # Handle different response formats from HTTPClient
+    actual_body = 
+      cond do
+        # Direct response body format (expected)
+        is_map(response) and Map.has_key?(response, "name") ->
+          response
+        
+        # Wrapped HTTP response format (from cache or HTTPClient)
+        is_map(response) and Map.has_key?(response, :body) and is_map(response[:body]) ->
+          response[:body]
+        
+        # String key wrapped format
+        is_map(response) and Map.has_key?(response, "body") and is_map(response["body"]) ->
+          response["body"]
+        
+        # Fallback to original format
+        true ->
+          response
+      end
+    
     %__MODULE__{
-      name: response["name"],
-      display_name: response["displayName"],
-      custom_metadata: parse_metadata(response["customMetadata"]),
-      create_time: response["createTime"],
-      update_time: response["updateTime"]
+      name: actual_body["name"],
+      display_name: actual_body["displayName"],
+      custom_metadata: parse_metadata(actual_body["customMetadata"]),
+      create_time: actual_body["createTime"],
+      update_time: actual_body["updateTime"]
     }
   end
 

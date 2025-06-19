@@ -597,7 +597,11 @@ defmodule ExLLM.Providers.Gemini.Chunk do
   # Private functions
 
   @doc false
-  def validate_document_name(name) do
+  def validate_document_name(nil) do
+    {:error, %{message: "document name cannot be nil"}}
+  end
+
+  def validate_document_name(name) when is_binary(name) do
     # Document name format: corpora/{corpus_id}/documents/{document_id}
     # Both corpus and document IDs follow the same pattern:
     # up to 40 characters that are alphanumeric or dashes, but cannot start or end with a dash
@@ -612,8 +616,16 @@ defmodule ExLLM.Providers.Gemini.Chunk do
     end
   end
 
+  def validate_document_name(_) do
+    {:error, %{message: "document name must be a string"}}
+  end
+
   @doc false
-  def validate_chunk_name(name) do
+  def validate_chunk_name(nil) do
+    {:error, %{message: "chunk name cannot be nil"}}
+  end
+
+  def validate_chunk_name(name) when is_binary(name) do
     # Chunk name format: corpora/{corpus_id}/documents/{document_id}/chunks/{chunk_id}
     # All IDs follow the same pattern:
     # up to 40 characters that are alphanumeric or dashes, but cannot start or end with a dash
@@ -629,6 +641,10 @@ defmodule ExLLM.Providers.Gemini.Chunk do
            "chunk name must be in format 'corpora/{corpus_id}/documents/{document_id}/chunks/{chunk_id}'"
        }}
     end
+  end
+
+  def validate_chunk_name(_) do
+    {:error, %{message: "chunk name must be a string"}}
   end
 
   @doc false
@@ -870,13 +886,33 @@ defmodule ExLLM.Providers.Gemini.Chunk do
 
   @doc false
   def parse_chunk(response) do
+    # Handle different response formats from HTTPClient
+    actual_body = 
+      cond do
+        # Direct response body format (expected)
+        is_map(response) and Map.has_key?(response, "name") ->
+          response
+        
+        # Wrapped HTTP response format (from cache or HTTPClient)
+        is_map(response) and Map.has_key?(response, :body) and is_map(response[:body]) ->
+          response[:body]
+        
+        # String key wrapped format
+        is_map(response) and Map.has_key?(response, "body") and is_map(response["body"]) ->
+          response["body"]
+        
+        # Fallback to original format
+        true ->
+          response
+      end
+    
     %__MODULE__{
-      name: response["name"],
-      data: parse_chunk_data(response["data"]),
-      custom_metadata: parse_metadata(response["customMetadata"]),
-      create_time: response["createTime"],
-      update_time: response["updateTime"],
-      state: parse_state(response["state"])
+      name: actual_body["name"],
+      data: parse_chunk_data(actual_body["data"]),
+      custom_metadata: parse_metadata(actual_body["customMetadata"]),
+      create_time: actual_body["createTime"],
+      update_time: actual_body["updateTime"],
+      state: parse_state(actual_body["state"])
     }
   end
 
@@ -922,8 +958,28 @@ defmodule ExLLM.Providers.Gemini.Chunk do
   end
 
   defp parse_batch_result(response) do
+    # Handle different response formats from HTTPClient
+    actual_body = 
+      cond do
+        # Direct response body format (expected)
+        is_map(response) and Map.has_key?(response, "chunks") ->
+          response
+        
+        # Wrapped HTTP response format (from cache or HTTPClient)
+        is_map(response) and Map.has_key?(response, :body) and is_map(response[:body]) ->
+          response[:body]
+        
+        # String key wrapped format
+        is_map(response) and Map.has_key?(response, "body") and is_map(response["body"]) ->
+          response["body"]
+        
+        # Fallback to original format
+        true ->
+          response
+      end
+    
     %BatchResult{
-      chunks: Enum.map(response["chunks"] || [], &parse_chunk/1)
+      chunks: Enum.map(actual_body["chunks"] || [], &parse_chunk/1)
     }
   end
 

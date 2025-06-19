@@ -585,11 +585,31 @@ defmodule ExLLM.Providers.Gemini.Corpus do
   """
   @spec parse_corpus_response(map()) :: CorpusInfo.t()
   def parse_corpus_response(response_body) do
+    # Handle different response formats from HTTPClient
+    actual_body = 
+      cond do
+        # Direct response body format (expected)
+        is_map(response_body) and Map.has_key?(response_body, "name") ->
+          response_body
+        
+        # Wrapped HTTP response format (from cache or HTTPClient)
+        is_map(response_body) and Map.has_key?(response_body, :body) and is_map(response_body[:body]) ->
+          response_body[:body]
+        
+        # String key wrapped format
+        is_map(response_body) and Map.has_key?(response_body, "body") and is_map(response_body["body"]) ->
+          response_body["body"]
+        
+        # Fallback to original format
+        true ->
+          response_body
+      end
+    
     %CorpusInfo{
-      name: response_body["name"],
-      display_name: response_body["displayName"],
-      create_time: response_body["createTime"],
-      update_time: response_body["updateTime"]
+      name: actual_body["name"],
+      display_name: actual_body["displayName"],
+      create_time: actual_body["createTime"],
+      update_time: actual_body["updateTime"]
     }
   end
 
