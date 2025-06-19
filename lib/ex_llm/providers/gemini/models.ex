@@ -7,7 +7,6 @@ defmodule ExLLM.Providers.Gemini.Models do
   """
 
   alias ExLLM.Providers.Shared.ConfigHelper
-  alias ExLLM.Providers.Gemini.Base
 
   defmodule Model do
     @moduledoc """
@@ -116,7 +115,7 @@ defmodule ExLLM.Providers.Gemini.Models do
          api_key <- get_api_key(config),
          {:ok, _} <- validate_api_key(api_key) do
       # Build query parameters
-      query_params = build_list_query_params(opts)
+      _query_params = build_list_query_params(opts)
 
       # Make direct HTTP request (bypassing caching for now)
       url = "https://generativelanguage.googleapis.com/v1/models?key=#{api_key}"

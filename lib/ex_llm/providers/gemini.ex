@@ -1024,7 +1024,7 @@ defmodule ExLLM.Providers.Gemini do
     * `query` - The search query
     * `options` - Options including `:max_results`, `:metadata_filters`, `:oauth_token`
   """
-  def query_corpus(corpus_name, query, options \\ []) do
+  def query_corpus(_corpus_name, _query, _options \\ []) do
     # TODO: Implement corpora.query API
     {:error, {:function_not_implemented, "query_corpus/3 not yet implemented"}}
   end
@@ -1037,7 +1037,7 @@ defmodule ExLLM.Providers.Gemini do
     * `query` - The search query
     * `options` - Options including `:max_results`, `:metadata_filters`, `:oauth_token`
   """
-  def query_document(document_name, query, options \\ []) do
+  def query_document(_document_name, _query, _options \\ []) do
     # TODO: Implement documents.query API
     {:error, {:function_not_implemented, "query_document/3 not yet implemented"}}
   end
@@ -1053,7 +1053,7 @@ defmodule ExLLM.Providers.Gemini do
     * `answer_style` - Answer style: "ABSTRACTIVE", "EXTRACTIVE", or "VERBOSE"
     * `options` - Options including `:model`, `:temperature`, `:safety_settings`
   """
-  def generate_answer(question, passages, answer_style, options \\ []) do
+  def generate_answer(_question, _passages, _answer_style, _options \\ []) do
     # TODO: Implement models.generateAnswer API
     {:error, {:function_not_implemented, "generate_answer/4 not yet implemented"}}
   end
@@ -1067,7 +1067,7 @@ defmodule ExLLM.Providers.Gemini do
     * `config` - Tuning configuration including base model, training data, etc.
     * `options` - Options including `:oauth_token`
   """
-  def create_tuned_model(config, options \\ []) do
+  def create_tuned_model(_config, _options \\ []) do
     # TODO: Implement tunedModels.create API
     {:error, {:function_not_implemented, "create_tuned_model/2 not yet implemented"}}
   end
@@ -1080,7 +1080,7 @@ defmodule ExLLM.Providers.Gemini do
     * `new_owner_email` - Email address of the new owner
     * `options` - Options including `:oauth_token`
   """
-  def transfer_tuned_model_ownership(model_name, new_owner_email, options \\ []) do
+  def transfer_tuned_model_ownership(_model_name, _new_owner_email, _options \\ []) do
     # TODO: Implement tunedModels.transferOwnership API
     {:error, {:function_not_implemented, "transfer_tuned_model_ownership/3 not yet implemented"}}
   end
@@ -1095,7 +1095,7 @@ defmodule ExLLM.Providers.Gemini do
     * `chunks` - List of chunk data
     * `options` - Options including `:oauth_token`
   """
-  def batch_create_chunks(document_name, chunks, options \\ []) do
+  def batch_create_chunks(_document_name, _chunks, _options \\ []) do
     # TODO: Implement chunks.batchCreate API
     {:error, {:function_not_implemented, "batch_create_chunks/3 not yet implemented"}}
   end

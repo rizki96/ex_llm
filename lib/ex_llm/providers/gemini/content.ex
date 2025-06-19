@@ -546,10 +546,10 @@ defmodule ExLLM.Providers.Gemini.Content do
                 send(parent, {chunks_ref, {:error, "Stream timeout"}})
             end
 
-          # Note: HTTPClient.stream_request currently always returns {:ok, :streaming} on success
-          # but keeping this clause for completeness
-          {:error, error} ->
-            send(parent, {chunks_ref, {:error, error}})
+            # Note: HTTPClient.stream_request currently always returns {:ok, :streaming} on success
+            # but keeping this clause for completeness in case of future changes
+            # {:error, error} ->
+            #   send(parent, {chunks_ref, {:error, error}})
         end
       end)
 

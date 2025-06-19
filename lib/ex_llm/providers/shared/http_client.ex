@@ -1394,7 +1394,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           _ -> {:ok, %{status: 200, body: response_with_metadata}}
         end
 
-      {:proceed, request_metadata} ->
+      {:proceed, _request_metadata} ->
         # Emit cache miss telemetry
         ExLLM.Infrastructure.Telemetry.emit_cache_miss(cache_key_from_request(url, ""))
 
@@ -1452,7 +1452,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           _ -> {:ok, %{status: 200, body: response_with_metadata}}
         end
 
-      {:proceed, request_metadata} ->
+      {:proceed, _request_metadata} ->
         # Emit cache miss telemetry
         ExLLM.Infrastructure.Telemetry.emit_cache_miss(cache_key_from_request(url, ""))
 
