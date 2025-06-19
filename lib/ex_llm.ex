@@ -1341,6 +1341,26 @@ defmodule ExLLM do
   end
 
   @doc """
+  Get a list of all supported providers.
+
+  Returns a list of atoms representing the providers that ExLLM supports.
+  Use this to discover available providers or validate provider names.
+
+  ## Examples
+
+      ExLLM.supported_providers()
+      # => [:openai, :anthropic, :gemini, :groq, :mistral, :openrouter, ...]
+
+      # Check if a provider is supported
+      :openai in ExLLM.supported_providers()
+      # => true
+  """
+  @spec supported_providers() :: [atom()]
+  def supported_providers do
+    Providers.supported_providers()
+  end
+
+  @doc """
   Check if a provider is configured and ready to use.
 
   This function now uses the pipeline architecture to validate configuration.

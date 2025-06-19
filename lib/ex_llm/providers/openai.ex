@@ -292,38 +292,49 @@ defmodule ExLLM.Providers.OpenAI do
   end
 
   defp infer_model_capabilities(model_id) do
-    # Base capabilities for all OpenAI models
-    base_features = [:streaming, :function_calling]
+    # Check if this is an embedding model
+    is_embedding = String.starts_with?(model_id, "text-embedding")
+    
+    if is_embedding do
+      # Embedding models have limited capabilities
+      %{
+        supports_streaming: false,
+        supports_functions: false,
+        supports_vision: false,
+        features: [:embeddings]
+      }
+    else
+      # Base capabilities for chat models
+      base_features = [:streaming, :function_calling]
 
-    # Add vision for multimodal models
-    features =
-      if String.contains?(model_id, "4o") || String.contains?(model_id, "4.1") do
-        [:vision | base_features]
-      else
-        base_features
-      end
+      # Add vision for multimodal models
+      features =
+        if String.contains?(model_id, "4o") || String.contains?(model_id, "4.1") do
+          [:vision | base_features]
+        else
+          base_features
+        end
 
-    %{
-      supports_streaming: true,
-      supports_functions: true,
-      supports_vision: :vision in features,
-      features: features
-    }
+      %{
+        supports_streaming: true,
+        supports_functions: true,
+        supports_vision: :vision in features,
+        features: features
+      }
+    end
   end
 
   # Transform config data to OpenAI model format
   defp openai_model_transformer(model_id, config) do
+    # Use inferred capabilities instead of raw config
+    capabilities = infer_model_capabilities(to_string(model_id))
+    
     %Types.Model{
       id: to_string(model_id),
       name: Map.get(config, :name, format_openai_model_name(to_string(model_id))),
       description: Map.get(config, :description),
       context_window: Map.get(config, :context_window, 128_000),
-      capabilities: %{
-        supports_streaming: :streaming in Map.get(config, :capabilities, []),
-        supports_functions: :function_calling in Map.get(config, :capabilities, []),
-        supports_vision: :vision in Map.get(config, :capabilities, []),
-        features: Map.get(config, :capabilities, [])
-      }
+      capabilities: capabilities
     }
   end
 

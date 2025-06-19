@@ -223,9 +223,9 @@ defmodule ExLLM.Core.EmbeddingsTest do
 
     @tag :embedding
     test "returns models for providers with embeddings support" do
-      {:ok, models} = ExLLM.list_embedding_models(:gemini)
+      {:ok, models} = ExLLM.list_embedding_models(:openai)
       assert length(models) > 0
-      assert "gemini/text-embedding-004" in models
+      assert "text-embedding-3-small" in models
     end
 
     test "returns error for unknown provider" do

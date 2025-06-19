@@ -67,6 +67,50 @@ defmodule ExLLM.Core.Embeddings do
   """
   @spec list_models(atom()) :: {:ok, [String.t()]} | {:error, term()}
   def list_models(provider) do
+    # Use the provider's list_models function to get normalized model data
+    case get_adapter(provider) do
+      {:ok, adapter} when is_atom(adapter) and not is_nil(adapter) ->
+        try do
+          case apply(adapter, :list_models, []) do
+            {:ok, models} ->
+              # Filter models that have :embeddings capability
+              embedding_models =
+                models
+                |> Enum.filter(fn model ->
+                  case model.capabilities do
+                    %{features: features} when is_list(features) ->
+                      :embeddings in features
+                    _ ->
+                      false
+                  end
+                end)
+                |> Enum.map(fn model -> model.id end)
+
+              if length(embedding_models) > 0 do
+                {:ok, embedding_models}
+              else
+                {:ok, []}
+              end
+
+            {:error, _} = error ->
+              error
+          end
+        rescue
+          UndefinedFunctionError ->
+            # Fallback to config-based approach for providers without list_models
+            fallback_list_models(provider)
+        end
+
+      {:error, _} = error ->
+        error
+
+      _ ->
+        {:error, {:invalid_adapter, provider}}
+    end
+  end
+
+  # Fallback method for providers that don't implement list_models
+  defp fallback_list_models(provider) do
     models_map = ModelConfig.get_all_models(provider)
 
     if map_size(models_map) == 0 do
@@ -75,11 +119,18 @@ defmodule ExLLM.Core.Embeddings do
       embedding_models =
         models_map
         |> Enum.filter(fn {_model_id, model} ->
-          case Map.get(model, :capabilities) do
-            nil -> false
-            caps when is_list(caps) -> "embeddings" in caps
-            _ -> false
-          end
+          # Check for embeddings in capabilities list
+          has_embeddings_capability = 
+            case Map.get(model, :capabilities) do
+              nil -> false
+              caps when is_list(caps) -> "embeddings" in caps
+              _ -> false
+            end
+          
+          # Check for embedding mode (used by OpenAI)
+          has_embedding_mode = Map.get(model, :mode) == "embedding"
+          
+          has_embeddings_capability or has_embedding_mode
         end)
         |> Enum.map(fn {model_id, _model} -> model_id end)
 
