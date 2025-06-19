@@ -229,7 +229,7 @@ defmodule ExLLM.Core.EmbeddingsTest do
     end
 
     test "returns error for unknown provider" do
-      assert {:error, :no_models_found} =
+      assert {:error, {:unsupported_provider, :unknown}} =
                ExLLM.list_embedding_models(:unknown)
     end
   end

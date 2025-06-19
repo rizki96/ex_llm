@@ -294,7 +294,7 @@ defmodule ExLLM.Providers.OpenAI do
   defp infer_model_capabilities(model_id) do
     # Check if this is an embedding model
     is_embedding = String.starts_with?(model_id, "text-embedding")
-    
+
     if is_embedding do
       # Embedding models have limited capabilities
       %{
@@ -328,7 +328,7 @@ defmodule ExLLM.Providers.OpenAI do
   defp openai_model_transformer(model_id, config) do
     # Use inferred capabilities instead of raw config
     capabilities = infer_model_capabilities(to_string(model_id))
-    
+
     %Types.Model{
       id: to_string(model_id),
       name: Map.get(config, :name, format_openai_model_name(to_string(model_id))),

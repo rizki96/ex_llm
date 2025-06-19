@@ -80,6 +80,7 @@ defmodule ExLLM.Core.Embeddings do
                   case model.capabilities do
                     %{features: features} when is_list(features) ->
                       :embeddings in features
+
                     _ ->
                       false
                   end
@@ -120,16 +121,16 @@ defmodule ExLLM.Core.Embeddings do
         models_map
         |> Enum.filter(fn {_model_id, model} ->
           # Check for embeddings in capabilities list
-          has_embeddings_capability = 
+          has_embeddings_capability =
             case Map.get(model, :capabilities) do
               nil -> false
               caps when is_list(caps) -> "embeddings" in caps
               _ -> false
             end
-          
+
           # Check for embedding mode (used by OpenAI)
           has_embedding_mode = Map.get(model, :mode) == "embedding"
-          
+
           has_embeddings_capability or has_embedding_mode
         end)
         |> Enum.map(fn {model_id, _model} -> model_id end)
