@@ -142,7 +142,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
   defp get_provider_endpoint(:openrouter), do: "/chat/completions"
   defp get_provider_endpoint(:perplexity), do: "/chat/completions"
   defp get_provider_endpoint(:xai), do: "/chat/completions"
-  defp get_provider_endpoint(:ollama), do: "/generate"
+  defp get_provider_endpoint(:ollama), do: "/chat"
   defp get_provider_endpoint(:lmstudio), do: "/chat/completions"
   defp get_provider_endpoint(_), do: "/chat/completions"
 

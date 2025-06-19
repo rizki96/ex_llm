@@ -70,6 +70,33 @@ ExLLM supports **14 providers** with access to **300+ models**:
 - **Bumblebee** - Local model inference with Elixir/Nx
 - **Mock Adapter** - For testing and development
 
+## Provider-Specific Notes
+
+### LM Studio
+
+LM Studio provides local model inference with an OpenAI-compatible API. Due to how LM Studio returns streaming responses, use the provider's direct streaming method:
+
+```elixir
+# Regular chat (works with high-level API)
+{:ok, response} = ExLLM.chat(:lmstudio, [
+  %{role: "user", content: "Hello, world!"}
+])
+
+# Streaming (use direct provider method)
+{:ok, stream} = ExLLM.Providers.LMStudio.stream_chat([
+  %{role: "user", content: "Count to 10"}
+], model: "gpt-4")
+
+Enum.each(stream, fn chunk ->
+  IO.write(chunk.content || "")
+end)
+```
+
+**Requirements:**
+1. Install LM Studio from https://lmstudio.ai
+2. Load a model in the LM Studio interface
+3. Start the local server (default: http://localhost:1234)
+
 ## Installation
 
 Add `ex_llm` to your list of dependencies in `mix.exs`:

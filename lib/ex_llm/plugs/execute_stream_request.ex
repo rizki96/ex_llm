@@ -236,6 +236,9 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       :groq -> config[:base_url] || "https://api.groq.com/openai/v1/chat/completions"
       :mistral -> config[:base_url] || "https://api.mistral.ai/v1/chat/completions"
       :ollama -> config[:base_url] || "http://localhost:11434/api/chat"
+      :lmstudio -> 
+        # Return relative path without leading slash so Tesla appends to base URL
+        "chat/completions"
       _ -> config[:base_url] || config[:endpoint] || "/"
     end
   end

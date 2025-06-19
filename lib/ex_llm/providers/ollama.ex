@@ -130,12 +130,23 @@ defmodule ExLLM.Providers.Ollama do
     # Default to 2 minutes, but allow override
     timeout = Keyword.get(options, :timeout, 120_000)
 
-    case HTTPClient.post_json(url, body, headers, provider: :ollama, timeout: timeout) do
-      {:ok, %{status: 200, body: response}} ->
-        {:ok, parse_response(response, model)}
-
-      {:ok, %{status: status, body: body}} ->
-        ExLLM.Infrastructure.Error.api_error(status, body)
+    result = HTTPClient.post_json(url, body, headers, provider: :ollama, timeout: timeout)
+    
+    case result do
+      {:ok, response} when is_map(response) ->
+        # Check if this is a raw JSON response or wrapped response
+        if Map.has_key?(response, :status) do
+          # Wrapped response from HTTPClient
+          case response do
+            %{status: 200, body: body} ->
+              {:ok, parse_response(body, model)}
+            %{status: status, body: body} ->
+              ExLLM.Infrastructure.Error.api_error(status, body)
+          end
+        else
+          # Raw JSON response from Ollama
+          {:ok, parse_response(response, model)}
+        end
 
       {:error, reason} ->
         ExLLM.Infrastructure.Error.connection_error(reason)

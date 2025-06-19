@@ -15,7 +15,7 @@
 Logger.configure(level: :info)
 
 Mix.install([
-  {:ex_llm, path: ".."},
+  {:ex_llm, "~> 0.8"},
   {:req, "~> 0.3"},
   {:jason, "~> 1.4"},
   {:instructor, "~> 0.1.0"}
@@ -105,7 +105,7 @@ defmodule ExLLM.ExampleApp do
     IO.puts("Using provider: #{config.name}")
     
     # Show provider capabilities
-    case ExLLM.ProviderCapabilities.get_capabilities(provider) do
+    case ExLLM.Infrastructure.Config.ProviderCapabilities.get_capabilities(provider) do
       {:ok, caps} ->
         IO.puts("\nProvider Capabilities:")
         IO.puts("  Endpoints: #{Enum.join(caps.endpoints, ", ")}")
@@ -155,7 +155,7 @@ defmodule ExLLM.ExampleApp do
   
   defp main_menu(provider) do
     # Get provider capabilities
-    capabilities = case ExLLM.ProviderCapabilities.get_capabilities(provider) do
+    capabilities = case ExLLM.Infrastructure.Config.ProviderCapabilities.get_capabilities(provider) do
       {:ok, caps} -> caps
       {:error, _} -> nil
     end
@@ -828,7 +828,7 @@ defmodule ExLLM.ExampleApp do
     IO.puts("This demonstrates how to use function calling with LLMs.\n")
     
     # This should only be called if provider supports it, but double-check
-    if not ExLLM.ProviderCapabilities.supports?(provider, :function_calling) do
+    if not ExLLM.Infrastructure.Config.ProviderCapabilities.supports?(provider, :function_calling) do
       IO.puts("⚠️  #{provider} doesn't support function calling.")
       wait_for_continue()
     else
@@ -1404,11 +1404,11 @@ defmodule ExLLM.ExampleApp do
     IO.puts("This demonstrates text embeddings and similarity search.\n")
     
     # Check if provider supports embeddings
-    if not ExLLM.ProviderCapabilities.supports?(provider, :embeddings) do
+    if not ExLLM.Infrastructure.Config.ProviderCapabilities.supports?(provider, :embeddings) do
       IO.puts("⚠️  #{provider} doesn't support embeddings.")
       IO.puts("This feature requires a provider with embedding capabilities.")
       IO.puts("\nProviders with embedding support:")
-      providers_with_embeddings = ExLLM.ProviderCapabilities.find_providers_with_features([:embeddings])
+      providers_with_embeddings = ExLLM.Infrastructure.Config.ProviderCapabilities.find_providers_with_features([:embeddings])
       Enum.each(providers_with_embeddings, fn p -> 
         IO.puts("  - #{p}")
       end)
@@ -1505,7 +1505,7 @@ defmodule ExLLM.ExampleApp do
     IO.puts("Configure your preferred model through environment variables or config files.")
     
     # Show general provider capabilities instead
-    case ExLLM.ProviderCapabilities.get_capabilities(provider) do
+    case ExLLM.Infrastructure.Config.ProviderCapabilities.get_capabilities(provider) do
       {:ok, caps} ->
         IO.puts("\nProvider features:")
         if length(caps.features) > 0 do
@@ -1993,7 +1993,7 @@ defmodule ExLLM.ExampleApp do
     IO.puts("This demonstrates automatic cost calculation.\n")
     
     # Check if provider supports cost tracking
-    if not ExLLM.ProviderCapabilities.supports?(provider, :cost_tracking) do
+    if not ExLLM.Infrastructure.Config.ProviderCapabilities.supports?(provider, :cost_tracking) do
       IO.puts("⚠️  #{provider} doesn't support cost tracking.")
       IO.puts("This is typically because:")
       case provider do
@@ -2506,9 +2506,9 @@ defmodule ExLLM.ExampleApp do
       IO.puts("   Required: #{req.required}")
       
       # Find providers that support this feature
-      providers = ExLLM.ProviderCapabilities.list_providers()
+      providers = ExLLM.Infrastructure.Config.ProviderCapabilities.list_providers()
       |> Enum.filter(fn p -> 
-        ExLLM.ProviderCapabilities.supports?(p, req.required)
+        ExLLM.Infrastructure.Config.ProviderCapabilities.supports?(p, req.required)
       end)
       |> Enum.take(3)
       

@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **LM Studio Provider** - Fixed streaming endpoint configuration
+  - Corrected endpoint path resolution for streaming requests
+  - Added documentation for streaming workaround due to LM Studio's SSE response format
+  - Direct provider streaming (`stream_chat/2`) works perfectly
+  
+- **Ollama Provider** - Fixed incorrect endpoint mapping
+  - Changed from `/generate` to `/chat` for chat completions
+  - Fixed response parsing to handle both wrapped and raw JSON responses
+
+### Added
+- **Provider Testing** - Comprehensive test suite for all providers
+  - Created test scripts for Ollama, OpenAI, Anthropic, and LM Studio
+  - Verified streaming, sessions, embeddings, and cost tracking
+  - Added provider test summary documentation
+
+### Changed
+- **Repository Cleanup** - Removed 100+ temporary and redundant files
+  - Consolidated streaming examples
+  - Removed single-use test scripts
+  - Cleaned up development artifacts
+  - Fixed test file naming conventions
+
 ## [0.8.1] - 2025-06-17
 
 ### Added

@@ -45,6 +45,22 @@ defmodule ExLLM.Providers.LMStudio do
 
   The native API provides additional information like model loading status,
   quantization details, architecture information, and performance metrics.
+
+  ## Streaming Support
+
+  LM Studio supports streaming responses. Due to how LM Studio returns streaming data,
+  the high-level `ExLLM.stream/4` API may not work as expected. Instead, use the
+  provider's direct streaming method:
+
+      # Recommended approach for streaming with LM Studio
+      {:ok, stream} = ExLLM.Providers.LMStudio.stream_chat(messages, model: "gpt-4")
+      
+      stream
+      |> Enum.each(fn chunk ->
+        IO.write(chunk.content || "")
+      end)
+
+  Regular non-streaming chat works perfectly with both the high-level and low-level APIs.
   """
 
   @behaviour ExLLM.Provider
