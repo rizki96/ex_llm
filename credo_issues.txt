@@ -1,0 +1,110 @@
+[R] ↘ lib/ex_llm/chat_builder.ex:35:9 The alias `ExLLM.Pipeline.Request` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/core/capabilities.ex:286:13 Function body is nested too deep (max depth is 3, was 4).
+[D] → lib/ex_llm/core/chat.ex:356:5 Found a TODO tag in a comment: # TODO: Implement StreamRecovery module
+[F] → lib/ex_llm/infrastructure/cache.ex:280:13 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/infrastructure/cache/storage/test_cache.ex:12:9 The alias `ExLLM.Testing.TestCacheTimestamp` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/infrastructure/cache/storage/test_cache.ex:92:7 Function is too complex (cyclomatic complexity is 14, max is 12).
+[F] → lib/ex_llm/infrastructure/cache/storage/test_cache.ex:134:17 Function body is nested too deep (max depth is 3, was 5).
+[F] → lib/ex_llm/infrastructure/cache/storage/test_cache.ex:397:17 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/infrastructure/cache/storage/test_cache.ex:535:15 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/infrastructure/config/model_capabilities.ex:152:17 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/infrastructure/config/model_capabilities.ex:845:8 Function is too complex (cyclomatic complexity is 20, max is 12).
+[F] → lib/ex_llm/infrastructure/config/model_config.ex:364:8 Function is too complex (cyclomatic complexity is 27, max is 12).
+[R] ↘ lib/ex_llm/infrastructure/config/model_loader.ex:11:16 The alias `ExLLM.Infrastructure.Logger` is not alphabetically ordered among its group.
+[R] ↘ lib/ex_llm/infrastructure/streaming/flow_controller.ex:46:41 The alias `ExLLM.Infrastructure.Streaming.StreamBuffer` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/infrastructure/streaming/flow_controller.ex:241:15 Function body is nested too deep (max depth is 3, was 4).
+[D] → lib/ex_llm/pipeline_optimizer.ex:256:5 Found a TODO tag in a comment: # TODO: Implement parallel execution for independent plugs
+[F] ↗ lib/ex_llm/plugs/execute_stream_request.ex:77:10 Avoid negated conditions in if-else blocks.
+[F] → lib/ex_llm/plugs/execute_stream_request.ex:323:8 Function is too complex (cyclomatic complexity is 16, max is 12).
+[R] ↘ lib/ex_llm/plugs/providers/bumblebee_handler.ex:11:16 The alias `ExLLM.Types` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/plugs/providers/groq_parse_list_models_response.ex:101:8 Function is too complex (cyclomatic complexity is 15, max is 12).
+[F] → lib/ex_llm/plugs/providers/groq_parse_list_models_response.ex:121:8 Function is too complex (cyclomatic complexity is 13, max is 12).
+[F] → lib/ex_llm/plugs/providers/groq_parse_list_models_response.ex:172:8 Function is too complex (cyclomatic complexity is 14, max is 12).
+[F] → lib/ex_llm/plugs/providers/mock_handler.ex:64:8 Function is too complex (cyclomatic complexity is 14, max is 12).
+[F] → lib/ex_llm/plugs/providers/mock_handler.ex:219:8 Function is too complex (cyclomatic complexity is 13, max is 12).
+[F] → lib/ex_llm/plugs/providers/ollama_parse_list_models_response.ex:135:8 Function is too complex (cyclomatic complexity is 24, max is 12).
+[F] ↗ lib/ex_llm/plugs/stream_coordinator.ex:28:8 Avoid negated conditions in if-else blocks.
+[F] → lib/ex_llm/providers.ex:23:7 Function is too complex (cyclomatic complexity is 40, max is 12).
+[R] ↘ lib/ex_llm/providers/anthropic.ex:52 The alias `ExLLM.Providers.Shared.ErrorHandler` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/providers/anthropic.ex:363:11 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/providers/bedrock.ex:53:16 The alias `ExLLM.Infrastructure.Logger` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/providers/bumblebee.ex:526:8 Function is too complex (cyclomatic complexity is 14, max is 12).
+[R] ↘ lib/ex_llm/providers/bumblebee/model_loader.ex:18:9 The alias `ExLLM.Providers.Bumblebee.EXLAConfig` is not alphabetically ordered among its group.
+[R] ↘ lib/ex_llm/providers/gemini.ex:65 The alias `ExLLM.Providers.Gemini.Content.GenerateContentRequest` is not alphabetically ordered among its group.
+[D] → lib/ex_llm/providers/gemini.ex:1028:5 Found a TODO tag in a comment: # TODO: Implement corpora.query API
+[D] → lib/ex_llm/providers/gemini.ex:1041:5 Found a TODO tag in a comment: # TODO: Implement documents.query API
+[D] → lib/ex_llm/providers/gemini.ex:1057:5 Found a TODO tag in a comment: # TODO: Implement models.generateAnswer API
+[D] → lib/ex_llm/providers/gemini.ex:1071:5 Found a TODO tag in a comment: # TODO: Implement tunedModels.create API
+[D] → lib/ex_llm/providers/gemini.ex:1084:5 Found a TODO tag in a comment: # TODO: Implement tunedModels.transferOwnership API
+[D] → lib/ex_llm/providers/gemini.ex:1099:5 Found a TODO tag in a comment: # TODO: Implement chunks.batchCreate API
+[F] → lib/ex_llm/providers/gemini/chunk.ex:672:5 Cond statements should contain at least two conditions besides `true`, consider using `if` instead.
+[F] → lib/ex_llm/providers/gemini/chunk.ex:682:7 Function is too complex (cyclomatic complexity is 15, max is 12).
+[F] ↗ lib/ex_llm/providers/gemini/corpus.ex:768:10 Avoid negated conditions in if-else blocks.
+[F] → lib/ex_llm/providers/gemini/document.ex:568:5 Cond statements should contain at least two conditions besides `true`, consider using `if` instead.
+[F] → lib/ex_llm/providers/gemini/embeddings.ex:295:14 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/providers/gemini/tuning.ex:726:7 Function is too complex (cyclomatic complexity is 15, max is 12).
+[F] ↗ lib/ex_llm/providers/gemini/tuning.ex:756:14 Avoid negated conditions in if-else blocks.
+[F] → lib/ex_llm/providers/gemini/tuning.ex:757:13 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/providers/lmstudio.ex:68:33 The alias `ExLLM.Providers.Shared.MessageFormatter` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/providers/lmstudio.ex:290:11 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/providers/mistral.ex:74:16 The alias `ExLLM.Infrastructure.Logger` is not alphabetically ordered among its group.
+[R] ↘ lib/ex_llm/providers/mistral.ex:76 The alias `ExLLM.Providers.Shared.ErrorHandler` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/providers/mistral.ex:487:11 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/providers/ollama.ex:70:47 The alias `ExLLM.Providers.Shared.HTTPClient` is not alphabetically ordered among its group.
+[R] ↘ lib/ex_llm/providers/openai.ex:53 The alias `ExLLM.Providers.Shared.ErrorHandler` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/providers/openai.ex:103:15 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/providers/openai.ex:3128:11 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/providers/openrouter.ex:69 The alias `ExLLM.Providers.Shared.HTTPClient` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/providers/openrouter.ex:192:17 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/providers/perplexity.ex:84:16 The alias `ExLLM.Infrastructure.Logger` is not alphabetically ordered among its group.
+[R] ↘ lib/ex_llm/providers/perplexity.ex:86 The alias `ExLLM.Providers.Shared.ErrorHandler` is not alphabetically ordered among its group.
+[F] ↗ lib/ex_llm/providers/perplexity.ex:559:9 Last clause in `with` is redundant.
+[R] ↘ lib/ex_llm/providers/shared/config_helper.ex:4:16 The alias `ExLLM.Infrastructure.ConfigProvider` is not alphabetically ordered among its group.
+[R] ↘ lib/ex_llm/providers/shared/enhanced_streaming_coordinator.ex:100:9 The alias `ExLLM.Providers.Shared` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/providers/shared/enhanced_streaming_coordinator.ex:466:17 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/providers/shared/http_client.ex:953:33 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/providers/shared/http_client.ex:1484:15 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/providers/shared/streaming_coordinator.ex:192:17 Function body is nested too deep (max depth is 3, was 4).
+[F] → lib/ex_llm/testing/cache/test_cache_detector.ex:136:8 Function is too complex (cyclomatic complexity is 14, max is 12).
+[F] → lib/ex_llm/testing/cache/test_cache_matcher.ex:303:15 Function body is nested too deep (max depth is 3, was 4).
+[R] ↘ lib/ex_llm/testing/cache/test_cache_stats.ex:10:9 The alias `ExLLM.Testing.TestCacheConfig` is not alphabetically ordered among its group.
+[F] → lib/ex_llm/testing/response_cache.ex:476:8 Function is too complex (cyclomatic complexity is 35, max is 12).
+[F] → lib/ex_llm/testing/response_cache.ex:704:8 Function is too complex (cyclomatic complexity is 19, max is 12).
+[R] ↘ test/ex_llm/pipeline_test.exs:6:22 The alias `ExLLM.Plugs.ValidateProvider` is not alphabetically ordered among its group.
+[R] ↗ test/ex_llm/providers/anthropic_public_api_test.exs:75:83 Numbers larger than 9999 should be written with underscores: 10_000
+[R] ↘ test/ex_llm/providers/anthropic_unit_test.exs:4:9 The alias `ExLLM.Types` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/content_unit_test.exs:8 The alias `ExLLM.Providers.Gemini.Content.GenerateContentRequest` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/corpus_unit_test.exs:6 The alias `ExLLM.Providers.Gemini.Corpus.CreateCorpusRequest` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/embeddings_unit_test.exs:10:44 The alias `ExLLM.Providers.Gemini.Embeddings.EmbedContentRequest` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/files_unit_test.exs:10:45 The alias `ExLLM.Providers.Gemini.Files.VideoFileMetadata` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/oauth2_apis_test.exs:6 The alias `ExLLM.Providers.Gemini.Corpus` is not alphabetically ordered among its group.
+[F] ↗ test/ex_llm/providers/gemini/oauth2_apis_test.exs:58:6 Avoid negated conditions in if-else blocks.
+[D] → test/ex_llm/providers/gemini/oauth2_apis_test.exs:139:7 Found a TODO tag in a comment: # TODO: Fix the Corpus.get_corpus/2 parsing issue - currently returns all nil fields
+[F] ↗ test/ex_llm/providers/gemini/permissions_oauth2_test.exs:11:6 Avoid negated conditions in if-else blocks.
+[R] ↘ test/ex_llm/providers/gemini/permissions_unit_test.exs:6 The alias `ExLLM.Providers.Gemini.Permissions.Permission` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/qa_unit_test.exs:6 The alias `ExLLM.Providers.Gemini.QA.GroundingPassages` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/retrieval_permissions_test.exs:6 The alias `ExLLM.Providers.Gemini.Permissions.Permission` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/tokens_unit_test.exs:17:41 The alias `ExLLM.Providers.Gemini.Content.GenerateContentRequest` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/providers/gemini/tuning_unit_test.exs:6 The alias `ExLLM.Providers.Gemini.Tuning.TunedModel` is not alphabetically ordered among its group.
+[R] ↗ test/ex_llm/providers/lmstudio_public_api_test.exs:68:82 Numbers larger than 9999 should be written with underscores: 10_000
+[R] ↗ test/ex_llm/providers/mistral_public_api_test.exs:49:81 Numbers larger than 9999 should be written with underscores: 10_000
+[R] ↘ test/ex_llm/providers/mistral_unit_test.exs:4:9 The alias `ExLLM.Types` is not alphabetically ordered among its group.
+[R] ↗ test/ex_llm/providers/ollama_public_api_test.exs:69:23 Numbers larger than 9999 should be written with underscores: 10_000
+[R] ↘ test/ex_llm/providers/openai_unit_test.exs:4:9 The alias `ExLLM.Types` is not alphabetically ordered among its group.
+[R] ↗ test/ex_llm/providers/openrouter_public_api_test.exs:80:23 Numbers larger than 9999 should be written with underscores: 10_000
+[R] ↘ test/ex_llm/providers/openrouter_unit_test.exs:4:9 The alias `ExLLM.Types` is not alphabetically ordered among its group.
+[R] ↗ test/ex_llm/providers/perplexity_public_api_test.exs:74:23 Numbers larger than 9999 should be written with underscores: 10_000
+[R] ↘ test/ex_llm/providers/perplexity_unit_test.exs:4:9 The alias `ExLLM.Types` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/testing/cache_metadata_test.exs:3:9 The alias `ExLLM.Providers.Shared.HTTPClient` is not alphabetically ordered among its group.
+[R] ↗ test/ex_llm/testing/test_cache_config_test.exs:88:28 Numbers larger than 9999 should be written with underscores: 3_600_000
+[R] ↘ test/ex_llm/testing/test_cache_detector_test.exs:3:9 The alias `ExLLM.Testing.TestCacheDetector` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/testing/test_cache_strategy_test.exs:3:9 The alias `ExLLM.Testing.TestCacheStrategy` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/testing/test_cache_timestamp_test.exs:3:9 The alias `ExLLM.Testing.TestCacheTimestamp` is not alphabetically ordered among its group.
+[R] ↘ test/ex_llm/testing/test_cache_ttl_test.exs:3:9 The alias `ExLLM.Testing.TestCacheTTL` is not alphabetically ordered among its group.
+[D] → test/old_tests_backup/gemini_comprehensive_test.exs:14:7 Found a TODO tag in a comment: # TODO: Re-enable caching once core API functionality is stable
+[D] → test/old_tests_backup/gemini_comprehensive_test.exs:1088:3 Found a TODO tag in a comment: # TODO: Re-enable once core API functionality is stable
+[R] ↘ test/old_tests_backup/gemini_integration_test.exs:14 The alias `ExLLM.Providers.Gemini.Models` is not alphabetically ordered among its group.
+[R] ↘ test/old_tests_backup/openai_advanced_features_test.exs:11:9 The alias `ExLLM.Types` is not alphabetically ordered among its group.
+[F] ↗ test/support/env_helper.ex:290:12 Avoid negated conditions in if-else blocks.
+[F] → test/support/testing_case.ex:71:8 Function is too complex (cyclomatic complexity is 24, max is 12).
+[F] → test/support/testing_case.ex:188:8 Function is too complex (cyclomatic complexity is 13, max is 12).

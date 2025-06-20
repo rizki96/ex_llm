@@ -74,14 +74,14 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       callback = request.config[:stream_callback]
       Logger.debug("Taking direct stream path, callback: #{inspect(callback)}")
 
-      if !is_function(callback, 1) do
+      if is_function(callback, 1) do
+        execute_direct_stream(request, client, endpoint, body, callback, opts)
+      else
         Request.halt_with_error(request, %{
           plug: __MODULE__,
           error: :no_stream_callback,
           message: "No stream callback function provided"
         })
-      else
-        execute_direct_stream(request, client, endpoint, body, callback, opts)
       end
     end
   end

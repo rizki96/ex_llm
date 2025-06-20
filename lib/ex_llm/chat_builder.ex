@@ -32,8 +32,8 @@ defmodule ExLLM.ChatBuilder do
       end)
   """
 
-  alias ExLLM.Pipeline.Request
   alias ExLLM.Pipeline
+  alias ExLLM.Pipeline.Request
   alias ExLLM.Providers
 
   @type pipeline_modification ::

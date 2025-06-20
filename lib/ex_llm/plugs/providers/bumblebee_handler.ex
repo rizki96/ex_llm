@@ -8,7 +8,7 @@ defmodule ExLLM.Plugs.Providers.BumblebeeHandler do
 
   use ExLLM.Plug
 
-  alias ExLLM.{Types, Pipeline.Request}
+  alias ExLLM.{Pipeline.Request, Types}
 
   @impl true
   def call(%Request{messages: messages, config: config} = request, _opts) do

@@ -25,13 +25,7 @@ defmodule ExLLM.Plugs.StreamCoordinator do
     # Ensure we have a callback
     callback = request.config[:stream_callback]
 
-    if !is_function(callback, 1) do
-      Request.halt_with_error(request, %{
-        plug: __MODULE__,
-        error: :no_callback,
-        message: "Streaming enabled but no callback provided"
-      })
-    else
+    if is_function(callback, 1) do
       # Create a unique reference for this stream
       stream_ref = make_ref()
 
@@ -42,6 +36,12 @@ defmodule ExLLM.Plugs.StreamCoordinator do
       |> Map.put(:stream_coordinator, coordinator)
       |> Map.put(:stream_ref, stream_ref)
       |> Request.assign(:streaming_enabled, true)
+    else
+      Request.halt_with_error(request, %{
+        plug: __MODULE__,
+        error: :no_callback,
+        message: "Streaming enabled but no callback provided"
+      })
     end
   end
 

@@ -9,8 +9,8 @@ defmodule ExLLM.Infrastructure.Cache.Storage.TestCache do
 
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
-  alias ExLLM.Testing.TestCacheTimestamp
   alias ExLLM.Testing.TestCacheIndex
+  alias ExLLM.Testing.TestCacheTimestamp
 
   @type cache_key :: String.t()
   @type cache_entry :: %{

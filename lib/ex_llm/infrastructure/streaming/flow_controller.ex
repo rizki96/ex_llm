@@ -43,7 +43,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
   use GenServer
   require Logger
 
-  alias ExLLM.Infrastructure.Streaming.{StreamBuffer, ChunkBatcher}
+  alias ExLLM.Infrastructure.Streaming.{ChunkBatcher, StreamBuffer}
   alias ExLLM.Types
 
   @default_buffer_capacity 100

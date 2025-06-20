@@ -51,11 +51,11 @@ defmodule ExLLM.Providers.Anthropic do
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
+    EnhancedStreamingCoordinator,
     ErrorHandler,
     HTTPClient,
     MessageFormatter,
     StreamingBehavior,
-    EnhancedStreamingCoordinator,
     Validation
   }
 

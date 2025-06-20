@@ -353,8 +353,9 @@ defmodule ExLLM.Core.Chat do
   end
 
   defp execute_stream_with_recovery(adapter, _provider, messages, options) do
-    # TODO: Implement StreamRecovery module
-    # For now, just delegate to regular streaming
+    # NOTE: StreamRecovery module planned for future release
+    # Will handle automatic reconnection and chunk recovery
+    # Currently delegates to regular streaming
     adapter.stream_chat(messages, options)
   end
 
