@@ -59,8 +59,13 @@ defmodule ExLLM.Plugs.ValidateConfiguration do
         validate_local_provider(provider, config)
 
       :bumblebee ->
-        # Bumblebee is always configured (local models)
-        {:ok, %{configured: true, type: :local}}
+        # Bumblebee requires the ModelLoader GenServer to be running
+        case ExLLM.Providers.Bumblebee.configured?() do
+          true ->
+            {:ok, %{configured: true, type: :local}}
+          false ->
+            {:error, "Bumblebee ModelLoader is not running. Local model inference is not available."}
+        end
 
       _ ->
         # Remote providers need API keys

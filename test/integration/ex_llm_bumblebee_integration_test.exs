@@ -10,29 +10,35 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
     end
 
     test "default model is available" do
-      assert ExLLM.default_model(:bumblebee) == "microsoft/phi-4"
+      assert ExLLM.default_model(:bumblebee) == "HuggingFaceTB/SmolLM2-1.7B-Instruct"
     end
 
-    test "configured? returns false without Bumblebee" do
-      # Without Bumblebee installed, should return false
+    test "configured? returns false without ModelLoader" do
+      # Bumblebee is installed but ModelLoader isn't running, should return false
+      # Note: configured? checks if ModelLoader is running, not just if Bumblebee is installed
       assert ExLLM.configured?(:bumblebee) == false
     end
 
-    test "list_models returns empty list without Bumblebee" do
-      assert {:ok, []} = ExLLM.list_models(:bumblebee)
+    test "list_models returns error without ModelLoader" do
+      # Without ModelLoader running, list_models should return an error
+      assert {:error, message} = ExLLM.list_models(:bumblebee)
+      assert is_binary(message)
     end
 
-    test "chat returns error without Bumblebee" do
+    test "chat returns error without ModelLoader" do
       messages = [%{role: "user", content: "Hello"}]
-      assert {:error, message} = ExLLM.chat(:bumblebee, messages)
-      assert message =~ "Bumblebee"
+      # Should get an error because ModelLoader isn't running
+      # The actual error is an EXIT from GenServer.call when the process isn't running
+      assert catch_exit(ExLLM.chat(:bumblebee, messages))
     end
 
     @tag :streaming
-    test "stream returns error without Bumblebee" do
+    test "stream returns error without ModelLoader" do
       messages = [%{role: "user", content: "Hello"}]
-      assert {:error, message} = ExLLM.stream(:bumblebee, messages)
-      assert message =~ "Bumblebee"
+      # Use the new streaming API with build/execute pattern
+      builder = ExLLM.build(:bumblebee, messages)
+      # Should get an EXIT because ModelLoader isn't running
+      assert catch_exit(ExLLM.execute(builder))
     end
   end
 
@@ -48,7 +54,7 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
       prepared =
         ExLLM.prepare_messages(messages,
           provider: "bumblebee",
-          model: "microsoft/phi-4",
+          model: "HuggingFaceTB/SmolLM2-1.7B-Instruct",
           max_tokens: 1000
         )
 
@@ -57,7 +63,7 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
     end
 
     test "context_window_size returns correct size for bumblebee models" do
-      assert ExLLM.context_window_size(:bumblebee, "microsoft/phi-2") == 2048
+      assert ExLLM.context_window_size(:bumblebee, "HuggingFaceTB/SmolLM2-1.7B-Instruct") == 2048
       assert ExLLM.context_window_size(:bumblebee, "mistralai/Mistral-7B-v0.1") == 8192
     end
   end

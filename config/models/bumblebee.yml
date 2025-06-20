@@ -1,5 +1,14 @@
 provider: bumblebee
 models:
+  HuggingFaceTB/SmolLM2-1.7B-Instruct:
+    context_window: 2048
+    max_output_tokens: 2048
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
   microsoft/phi-4:
     context_window: 16000
     max_output_tokens: 16000
@@ -30,6 +39,15 @@ models:
   meta-llama/Llama-3.1-8B:
     context_window: 128000
     max_output_tokens: 128000
+    pricing:
+      input: 0.0
+      output: 0.0
+    capabilities:
+    - streaming
+    - local_inference
+  mistralai/Mistral-7B-v0.1:
+    context_window: 8192
+    max_output_tokens: 8192
     pricing:
       input: 0.0
       output: 0.0
@@ -102,4 +120,4 @@ models:
     capabilities:
     - streaming
     - local_inference
-default_model: microsoft/phi-4
+default_model: HuggingFaceTB/SmolLM2-1.7B-Instruct
