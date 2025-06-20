@@ -32,11 +32,15 @@ defmodule ExLLM.Plugs.StreamCoordinator do
         message: "Streaming enabled but no callback provided"
       })
     else
+      # Create a unique reference for this stream
+      stream_ref = make_ref()
+      
       # Start stream coordinator process
       {:ok, coordinator} = start_coordinator(request, callback, opts)
 
       request
       |> Map.put(:stream_coordinator, coordinator)
+      |> Map.put(:stream_ref, stream_ref)
       |> Request.assign(:streaming_enabled, true)
     end
   end

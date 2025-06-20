@@ -58,9 +58,14 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
         %{role: "user", content: "Count from 1 to 3"}
       ]
 
-      case ExLLM.stream(:ollama, messages, model: "llama3.2:1b", max_tokens: 30) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:ollama, messages, collector, model: "llama3.2:1b", max_tokens: 30, timeout: 10000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
 
           assert length(chunks) > 0
 

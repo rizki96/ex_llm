@@ -66,6 +66,9 @@ defmodule ExLLM.MixProject do
       # WebSocket client for Live API
       {:gun, "~> 2.1"},
 
+      # HTTP client for streaming (Tesla adapter)
+      {:hackney, "~> 1.20"},
+
       # Configuration file parsing
       {:yaml_elixir, "~> 2.9"},
 

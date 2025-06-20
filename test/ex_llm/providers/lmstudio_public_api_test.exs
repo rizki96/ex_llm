@@ -60,9 +60,14 @@ defmodule ExLLM.Providers.LMStudioPublicAPITest do
         %{role: "user", content: "Count from 1 to 5 slowly"}
       ]
 
-      case ExLLM.stream(:lmstudio, messages, max_tokens: 50) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:lmstudio, messages, collector, max_tokens: 50, timeout: 10000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
 
           assert length(chunks) > 0
 

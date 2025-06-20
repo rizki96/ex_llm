@@ -29,12 +29,12 @@ defmodule ExLLM.TestCacheConfigTest do
 
       config = TestCacheConfig.get_config()
 
-      assert config.enabled == true
-      assert config.auto_detect == true
+      assert config.enabled == false
+      assert config.auto_detect == false
       assert config.cache_dir == "test/cache"
       assert config.organization == :by_provider
-      assert config.cache_integration_tests == true
-      assert config.cache_oauth2_tests == true
+      assert config.cache_integration_tests == false
+      assert config.cache_oauth2_tests == false
       assert config.replay_by_default == true
       assert config.save_on_miss == true
       # 7 days in milliseconds
@@ -65,7 +65,7 @@ defmodule ExLLM.TestCacheConfigTest do
       assert config.ttl == 3600
       assert config.fallback_strategy == :latest_any
       # Other values should be defaults
-      assert config.auto_detect == true
+      assert config.auto_detect == false
       assert config.max_entries_per_cache == 10
     end
 
@@ -291,7 +291,7 @@ defmodule ExLLM.TestCacheConfigTest do
       System.put_env("EX_LLM_TEST_CACHE_ENABLED", "invalid")
       config = TestCacheConfig.get_config()
       # Falls back to default
-      assert config.enabled == true
+      assert config.enabled == false
     end
 
     test "parses integer environment variables correctly" do

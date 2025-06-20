@@ -41,9 +41,14 @@ defmodule ExLLM.Providers.MistralPublicAPITest do
         %{role: "user", content: "List 3 French cities"}
       ]
 
-      case ExLLM.stream(:mistral, messages, max_tokens: 50) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:mistral, messages, collector, max_tokens: 50, timeout: 10000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
 
           assert length(chunks) > 0
 

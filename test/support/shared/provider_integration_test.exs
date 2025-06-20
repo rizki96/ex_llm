@@ -98,16 +98,22 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
         end
       end
 
-      describe "stream/3 via public API" do
+      describe "stream/4 via public API" do
         @tag :streaming
         test "streams chat responses" do
           messages = [
             %{role: "user", content: "Count from 1 to 5"}
           ]
 
-          case ExLLM.stream(@provider, messages, max_tokens: 50) do
-            {:ok, stream} ->
-              chunks = stream |> Enum.to_list()
+          # Collect chunks using the callback API
+          collector = fn chunk ->
+            send(self(), {:chunk, chunk})
+          end
+
+          case ExLLM.stream(@provider, messages, collector, max_tokens: 50, timeout: 10000) do
+            :ok ->
+              # Collect all chunks with shorter timeout
+              chunks = collect_stream_chunks([], 1000)
               assert length(chunks) > 0
 
               # Collect all content
@@ -121,6 +127,18 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
 
             {:error, reason} ->
               IO.puts("Stream failed for #{@provider}: #{inspect(reason)}")
+          end
+        end
+
+        # Helper function to collect stream chunks
+        defp collect_stream_chunks(chunks \\ [], timeout \\ 500)
+        
+        defp collect_stream_chunks(chunks, timeout) do
+          receive do
+            {:chunk, chunk} ->
+              collect_stream_chunks([chunk | chunks], timeout)
+          after
+            timeout -> Enum.reverse(chunks)
           end
         end
       end

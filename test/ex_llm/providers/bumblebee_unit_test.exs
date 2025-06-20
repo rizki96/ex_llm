@@ -343,7 +343,7 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
     test "implements all required callbacks" do
       # Ensure module is loaded
       assert Code.ensure_loaded?(ExLLM.Providers.Bumblebee)
-      
+
       callbacks = [
         {:chat, 2},
         {:stream_chat, 2},

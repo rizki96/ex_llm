@@ -7,11 +7,11 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   response reassembly for the test caching system.
   """
 
+  alias ExLLM.Infrastructure.Cache.Storage.TestCache
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
-  alias ExLLM.Testing.TestResponseMetadata
   alias ExLLM.Testing.TestCacheStrategy
+  alias ExLLM.Testing.TestResponseMetadata
 
   @type intercept_result ::
           {:cached, any()}

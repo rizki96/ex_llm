@@ -21,7 +21,10 @@ defmodule ExLLM.TestCacheStrategyTest do
       auto_detect: true,
       cache_dir: test_dir,
       ttl: :timer.hours(1),
-      fallback_strategy: :latest_success
+      fallback_strategy: :latest_success,
+      cache_integration_tests: true,
+      cache_oauth2_tests: true,
+      cache_live_api_tests: true
     })
 
     on_exit(fn ->

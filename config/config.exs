@@ -82,7 +82,7 @@ if Mix.env() == :test do
 
   # Test-specific configuration
   config :ex_llm,
-    cache_enabled: true,
+    cache_enabled: false,
     cache_persist_disk: false,
     # Minimal logging during tests
     log_level: :error,

@@ -70,9 +70,14 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
         %{role: "user", content: "Count to 3"}
       ]
 
-      case ExLLM.stream(:gemini, messages, max_tokens: 20) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:gemini, messages, collector, max_tokens: 20, timeout: 10000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
           last_chunk = List.last(chunks)
           # Gemini uses different finish reasons
           assert last_chunk.finish_reason in ["STOP", "MAX_TOKENS", "SAFETY", nil]

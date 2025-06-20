@@ -68,13 +68,19 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
         %{role: "user", content: "Count to 3"}
       ]
 
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
       # Try streaming with different underlying providers
-      case ExLLM.stream(:openrouter, messages,
+      case ExLLM.stream(:openrouter, messages, collector,
              model: "meta-llama/llama-3.2-3b-instruct",
-             max_tokens: 30
+             max_tokens: 30,
+             timeout: 10000
            ) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
 
           assert length(chunks) > 0
 

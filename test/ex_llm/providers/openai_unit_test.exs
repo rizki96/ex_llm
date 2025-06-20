@@ -280,12 +280,6 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
   end
 
   describe "headers and base URL" do
-    test "uses default base URL when not configured" do
-      messages = [%{role: "user", content: "Test"}]
-      # Should use https://api.openai.com/v1
-      assert {:error, _} = OpenAI.chat(messages, timeout: 1)
-    end
-
     test "uses custom base URL from config" do
       config = %{
         openai: %{

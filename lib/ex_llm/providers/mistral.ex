@@ -416,7 +416,7 @@ defmodule ExLLM.Providers.Mistral do
             id: model_id_str,
             name: ModelUtils.format_model_name(model_id_str),
             description: ModelUtils.generate_description(model_id_str, :mistral),
-            context_window: Map.get(config, :context_window) || 32000,
+            context_window: Map.get(config, :context_window) || 32_000,
             max_output_tokens: Map.get(config, :max_output_tokens) || 8191,
             pricing: Map.get(config, :pricing),
             capabilities: %{

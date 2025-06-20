@@ -1,12 +1,12 @@
 defmodule ExLLM.Testing.TestCacheStrategy do
   @moduledoc false
 
+  alias ExLLM.Infrastructure.Cache.Storage.TestCache
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
-  alias ExLLM.Testing.TestCacheTTL
   alias ExLLM.Testing.TestCacheIndex
   alias ExLLM.Testing.TestCacheMatcher
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.TestCacheTTL
 
   @type strategy_result ::
           {:cached, any(), map()}

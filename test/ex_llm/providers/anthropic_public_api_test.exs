@@ -67,9 +67,14 @@ defmodule ExLLM.Providers.AnthropicPublicAPITest do
         %{role: "user", content: "Say hello"}
       ]
 
-      case ExLLM.stream(:anthropic, messages, max_tokens: 10) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:anthropic, messages, collector, max_tokens: 10, timeout: 10000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
           last_chunk = List.last(chunks)
           assert last_chunk.finish_reason in ["end_turn", "stop_sequence", "max_tokens"]
 

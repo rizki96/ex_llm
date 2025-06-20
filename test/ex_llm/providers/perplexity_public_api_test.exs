@@ -63,12 +63,18 @@ defmodule ExLLM.Providers.PerplexityPublicAPITest do
         %{role: "user", content: "List 3 benefits of exercise"}
       ]
 
-      case ExLLM.stream(:perplexity, messages,
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:perplexity, messages, collector,
              model: "llama-3.1-sonar-small-128k-chat",
-             max_tokens: 100
+             max_tokens: 100,
+             timeout: 10000
            ) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
 
           assert length(chunks) > 0
 

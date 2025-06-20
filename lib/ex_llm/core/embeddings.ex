@@ -119,7 +119,9 @@ defmodule ExLLM.Core.Embeddings do
     else
       embedding_models =
         models_map
-        |> Enum.filter(fn {_model_id, model} ->
+        |> Enum.filter(fn {model_id, model} ->
+          model_id_str = to_string(model_id)
+          
           # Check for embeddings in capabilities list
           has_embeddings_capability =
             case Map.get(model, :capabilities) do
@@ -130,8 +132,12 @@ defmodule ExLLM.Core.Embeddings do
 
           # Check for embedding mode (used by OpenAI)
           has_embedding_mode = Map.get(model, :mode) == "embedding"
+          
+          # Check for embedding model name patterns (fallback)
+          has_embedding_name = String.contains?(model_id_str, "embedding") or 
+                              String.contains?(model_id_str, "embed")
 
-          has_embeddings_capability or has_embedding_mode
+          has_embeddings_capability or has_embedding_mode or has_embedding_name
         end)
         |> Enum.map(fn {model_id, _model} -> model_id end)
 

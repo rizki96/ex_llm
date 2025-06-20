@@ -104,10 +104,10 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseListModelsResponse do
       "gpt-4-turbo" <> _ -> 128_000
       "gpt-4-1106" <> _ -> 128_000
       "gpt-4-0125" <> _ -> 128_000
-      "gpt-4-32k" <> _ -> 32768
+      "gpt-4-32k" <> _ -> 32_768
       "gpt-4" <> _ -> 8192
-      "gpt-3.5-turbo-1106" -> 16385
-      "gpt-3.5-turbo-16k" <> _ -> 16385
+      "gpt-3.5-turbo-1106" -> 16_385
+      "gpt-3.5-turbo-16k" <> _ -> 16_385
       "gpt-3.5-turbo" <> _ -> 4096
       "o1-preview" <> _ -> 128_000
       "o1-mini" <> _ -> 128_000
@@ -120,8 +120,8 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseListModelsResponse do
       "gpt-4-turbo" <> _ -> 4096
       "gpt-4" <> _ -> 4096
       "gpt-3.5-turbo" <> _ -> 4096
-      "o1-preview" <> _ -> 32768
-      "o1-mini" <> _ -> 65536
+      "o1-preview" <> _ -> 32_768
+      "o1-mini" <> _ -> 65_536
       _ -> 4096
     end
   end

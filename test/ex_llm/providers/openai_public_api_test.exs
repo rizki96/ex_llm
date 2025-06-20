@@ -85,9 +85,14 @@ defmodule ExLLM.Providers.OpenAIPublicAPITest do
         }
       ]
 
-      case ExLLM.stream(:openai, messages, tools: tools, max_tokens: 100) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:openai, messages, collector, tools: tools, max_tokens: 100, timeout: 10000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
 
           # Check if function was called
           tool_calls =
@@ -110,9 +115,14 @@ defmodule ExLLM.Providers.OpenAIPublicAPITest do
         %{role: "user", content: "Say hello"}
       ]
 
-      case ExLLM.stream(:openai, messages, max_tokens: 10) do
-        {:ok, stream} ->
-          chunks = Enum.to_list(stream)
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+
+      case ExLLM.stream(:openai, messages, collector, max_tokens: 10, timeout: 10000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 1000)
           last_chunk = List.last(chunks)
           assert last_chunk.finish_reason in ["stop", "length", "tool_calls"]
 

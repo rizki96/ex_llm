@@ -699,15 +699,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, response_body, response_info)
 
-        # Add cache metadata to response body
-        response_with_metadata = add_cache_metadata(response_body)
-
         # Return in the format expected by the provider
         case provider do
           # OpenAI expects raw response
-          :openai -> {:ok, response_with_metadata}
+          :openai -> {:ok, response_body}
           # Most other providers expect wrapped format
-          _ -> {:ok, %{status: status, body: response_with_metadata}}
+          _ -> {:ok, %{status: status, body: response_body}}
         end
 
       {:ok, %{status: status, body: response_body}} ->
@@ -799,15 +796,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         TestResponseInterceptor.save_response(request_metadata, response_body, response_info)
 
-        # Add cache metadata to response body
-        response_with_metadata = add_cache_metadata(response_body)
-
         # Return in the format expected by the provider
         case provider do
           # OpenAI expects raw response
-          :openai -> {:ok, response_with_metadata}
+          :openai -> {:ok, response_body}
           # Most other providers expect wrapped format
-          _ -> {:ok, %{status: status, body: response_with_metadata}}
+          _ -> {:ok, %{status: status, body: response_body}}
         end
 
       {:ok, %{status: status, body: response_body}} ->
