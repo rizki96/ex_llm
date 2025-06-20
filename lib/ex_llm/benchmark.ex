@@ -25,8 +25,7 @@ defmodule ExLLM.Benchmark do
   alias ExLLM.Pipeline
   alias ExLLM.Pipeline.Request
   alias ExLLM.Providers
-
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @doc """
   Runs a comprehensive benchmark of chat operations.

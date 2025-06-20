@@ -85,7 +85,7 @@ defmodule ExLLM.TestCacheConfigTest do
       assert config.enabled == false
       assert config.cache_dir == "env/cache"
       # Converted to milliseconds
-      assert config.ttl == 3600_000
+      assert config.ttl == 3_600_000
       assert config.fallback_strategy == :latest_any
     end
 

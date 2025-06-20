@@ -6,14 +6,14 @@ defmodule ExLLM.Gemini.ContentTest do
   alias ExLLM.Types
 
   alias ExLLM.Providers.Gemini.Content.{
+    Candidate,
     GenerateContentRequest,
     GenerateContentResponse,
-    Part,
-    Candidate,
-    UsageMetadata,
     GenerationConfig,
+    Part,
     SafetySetting,
-    Tool
+    Tool,
+    UsageMetadata
   }
 
   alias ExLLM.Providers.Gemini.Content.Content, as: ContentStruct

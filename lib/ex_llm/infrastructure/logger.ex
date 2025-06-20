@@ -252,13 +252,9 @@ defmodule ExLLM.Infrastructure.Logger do
           metadata ++
           [ex_llm: true]
 
-      # Use Elixir's Logger with our metadata
-      case level do
-        :debug -> Logger.debug(message, final_metadata)
-        :info -> Logger.info(message, final_metadata)
-        :warning -> Logger.warning(message, final_metadata)
-        :error -> Logger.error(message, final_metadata)
-      end
+      # Use Erlang's logger directly to avoid Dialyzer issues
+      erlang_level = elixir_level_to_erlang(level)
+      :logger.log(erlang_level, message, Map.new(final_metadata))
     end
   end
 
@@ -275,9 +271,16 @@ defmodule ExLLM.Infrastructure.Logger do
   defp level_value(:debug), do: 0
   defp level_value(:info), do: 1
   defp level_value(:warn), do: 2
+  defp level_value(:warning), do: 2
   defp level_value(:error), do: 3
   defp level_value(:none), do: 4
   defp level_value(_), do: 1
+
+  defp elixir_level_to_erlang(:debug), do: :debug
+  defp elixir_level_to_erlang(:info), do: :info
+  defp elixir_level_to_erlang(:warning), do: :warning
+  defp elixir_level_to_erlang(:warn), do: :warning
+  defp elixir_level_to_erlang(:error), do: :error
 
   # Redaction functions
 

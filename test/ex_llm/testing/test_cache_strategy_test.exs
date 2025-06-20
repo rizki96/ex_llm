@@ -1,10 +1,10 @@
 defmodule ExLLM.TestCacheStrategyTest do
   use ExUnit.Case, async: false
-  alias ExLLM.Testing.TestCacheStrategy
-  alias ExLLM.Testing.TestCacheDetector
-  alias ExLLM.Testing.TestCacheConfig
-  alias ExLLM.Testing.TestCacheIndex
   alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.TestCacheConfig
+  alias ExLLM.Testing.TestCacheDetector
+  alias ExLLM.Testing.TestCacheIndex
+  alias ExLLM.Testing.TestCacheStrategy
 
   setup do
     # Store original configs

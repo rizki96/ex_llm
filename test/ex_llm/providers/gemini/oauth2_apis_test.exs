@@ -4,9 +4,9 @@ defmodule ExLLM.Providers.Gemini.OAuth2APIsTest do
   @moduletag timeout: 300_000
 
   alias ExLLM.Providers.Gemini.{
+    Chunk,
     Corpus,
     Document,
-    Chunk,
     Permissions,
     QA
   }
@@ -55,10 +55,10 @@ defmodule ExLLM.Providers.Gemini.OAuth2APIsTest do
   end
 
   # Skip entire module if OAuth2 is not available
-  if not GeminiOAuth2Helper.oauth_available?() do
-    @moduletag :skip
-  else
+  if GeminiOAuth2Helper.oauth_available?() do
     @moduletag :oauth2
+  else
+    @moduletag :skip
   end
 
   # Global cleanup before any tests run
@@ -136,7 +136,8 @@ defmodule ExLLM.Providers.Gemini.OAuth2APIsTest do
 
       # 2. Skip direct get test for now due to API response parsing issue
       # The creation already verified the corpus works, and cleanup confirms it exists
-      # TODO: Fix the Corpus.get_corpus/2 parsing issue - currently returns all nil fields
+      # KNOWN ISSUE: Corpus.get_corpus/2 parsing returns all nil fields
+      # This needs investigation into the API response format vs our parsing logic
 
       # 2b. Also check if it appears in list (eventual consistency test)
       # This is more of a "nice to have" test since direct get already proves it exists

@@ -1,8 +1,8 @@
 defmodule ExLLM.TestCacheTTLTest do
   use ExUnit.Case, async: false
-  alias ExLLM.Testing.TestCacheTTL
   alias ExLLM.Testing.TestCacheIndex
   alias ExLLM.Testing.TestCacheTimestamp
+  alias ExLLM.Testing.TestCacheTTL
 
   setup do
     # Create a temporary test directory

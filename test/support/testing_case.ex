@@ -19,6 +19,18 @@ defmodule ExLLM.Testing.Case do
       end
   """
 
+  # Provider API key mappings
+  @provider_api_keys %{
+    anthropic: ["ANTHROPIC_API_KEY"],
+    openai: ["OPENAI_API_KEY"],
+    gemini: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
+    openrouter: ["OPENROUTER_API_KEY"],
+    mistral: ["MISTRAL_API_KEY"],
+    perplexity: ["PERPLEXITY_API_KEY"],
+    groq: ["GROQ_API_KEY"],
+    xai: ["XAI_API_KEY"]
+  }
+
   use ExUnit.CaseTemplate
 
   using opts do
@@ -71,85 +83,46 @@ defmodule ExLLM.Testing.Case do
   defp check_api_key_requirement!(tags) do
     provider = tags[:provider] || infer_provider_from_test(tags)
 
-    result =
-      case provider do
-        :anthropic ->
-          if System.get_env("ANTHROPIC_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires ANTHROPIC_API_KEY environment variable"}
-          end
-
-        :openai ->
-          if System.get_env("OPENAI_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires OPENAI_API_KEY environment variable"}
-          end
-
-        :gemini ->
-          if System.get_env("GEMINI_API_KEY") || System.get_env("GOOGLE_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires GEMINI_API_KEY or GOOGLE_API_KEY environment variable"}
-          end
-
-        :openrouter ->
-          if System.get_env("OPENROUTER_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires OPENROUTER_API_KEY environment variable"}
-          end
-
-        :mistral ->
-          if System.get_env("MISTRAL_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires MISTRAL_API_KEY environment variable"}
-          end
-
-        :perplexity ->
-          if System.get_env("PERPLEXITY_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires PERPLEXITY_API_KEY environment variable"}
-          end
-
-        :groq ->
-          if System.get_env("GROQ_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires GROQ_API_KEY environment variable"}
-          end
-
-        :xai ->
-          if System.get_env("XAI_API_KEY") do
-            :ok
-          else
-            {:skip, "Test requires XAI_API_KEY environment variable"}
-          end
-
-        nil ->
-          {:skip, "Test requires API key but no provider specified"}
-
-        provider ->
-          # Generic check for other providers
-          env_var = "#{String.upcase(to_string(provider))}_API_KEY"
-
-          if System.get_env(env_var) do
-            :ok
-          else
-            {:skip, "Test requires #{env_var} environment variable"}
-          end
-      end
-
-    case result do
+    case check_provider_api_key(provider) do
       :ok ->
         :ok
 
       {:skip, reason} ->
         IO.puts("\n  Skipped: #{reason}")
         flunk(reason)
+    end
+  end
+
+  defp check_provider_api_key(nil) do
+    {:skip, "Test requires API key but no provider specified"}
+  end
+
+  defp check_provider_api_key(provider) do
+    case Map.get(@provider_api_keys, provider) do
+      nil ->
+        check_generic_provider_api_key(provider)
+
+      env_vars ->
+        check_known_provider_api_key(env_vars, provider)
+    end
+  end
+
+  defp check_generic_provider_api_key(provider) do
+    env_var = "#{String.upcase(to_string(provider))}_API_KEY"
+
+    if System.get_env(env_var) do
+      :ok
+    else
+      {:skip, "Test requires #{env_var} environment variable"}
+    end
+  end
+
+  defp check_known_provider_api_key(env_vars, provider) do
+    if Enum.any?(env_vars, &System.get_env/1) do
+      :ok
+    else
+      env_var_list = Enum.join(env_vars, " or ")
+      {:skip, "Test requires #{env_var_list} environment variable"}
     end
   end
 
@@ -188,43 +161,7 @@ defmodule ExLLM.Testing.Case do
   defp check_service_requirement!(tags) do
     service = tags[:requires_service]
 
-    result =
-      try do
-        case service do
-          :ollama ->
-            # Check if Ollama is running by trying to connect
-            case Req.get("http://localhost:11434/api/tags") do
-              {:ok, %{status: 200}} ->
-                :ok
-
-              _ ->
-                {:skip, "Test requires Ollama service to be running on localhost:11434"}
-            end
-
-          :lmstudio ->
-            # Check if LM Studio is running
-            case Req.get("http://localhost:1234/v1/models") do
-              {:ok, %{status: status}} when status in 200..299 ->
-                :ok
-
-              _ ->
-                {:skip, "Test requires LM Studio to be running on localhost:1234"}
-            end
-
-          service when is_atom(service) ->
-            {:skip, "Test requires #{service} service to be running"}
-
-          _ ->
-            {:skip, "Invalid service requirement: #{inspect(service)}"}
-        end
-      rescue
-        # Handle connection errors
-        _ ->
-          service_name = if is_atom(service), do: service, else: inspect(service)
-          {:skip, "Test requires #{service_name} service to be running (connection failed)"}
-      end
-
-    case result do
+    case check_service_availability(service) do
       :ok ->
         :ok
 
@@ -232,6 +169,44 @@ defmodule ExLLM.Testing.Case do
         IO.puts("\n  Skipped: #{reason}")
         flunk(reason)
     end
+  end
+
+  defp check_service_availability(service) do
+    try do
+      do_check_service(service)
+    rescue
+      _ ->
+        service_name = if is_atom(service), do: service, else: inspect(service)
+        {:skip, "Test requires #{service_name} service to be running (connection failed)"}
+    end
+  end
+
+  defp do_check_service(:ollama) do
+    case Req.get("http://localhost:11434/api/tags") do
+      {:ok, %{status: 200}} ->
+        :ok
+
+      _ ->
+        {:skip, "Test requires Ollama service to be running on localhost:11434"}
+    end
+  end
+
+  defp do_check_service(:lmstudio) do
+    case Req.get("http://localhost:1234/v1/models") do
+      {:ok, %{status: status}} when status in 200..299 ->
+        :ok
+
+      _ ->
+        {:skip, "Test requires LM Studio to be running on localhost:1234"}
+    end
+  end
+
+  defp do_check_service(service) when is_atom(service) do
+    {:skip, "Test requires #{service} service to be running"}
+  end
+
+  defp do_check_service(service) do
+    {:skip, "Invalid service requirement: #{inspect(service)}"}
   end
 
   defp check_resource_requirement!(tags) do

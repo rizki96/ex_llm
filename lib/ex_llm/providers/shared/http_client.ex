@@ -938,36 +938,37 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   end
 
   defp simulate_cached_stream(cached_response, opts) do
-    # Simulate streaming behavior from cached response
     case Keyword.get(opts, :into) do
       nil ->
-        # Return response directly if no collector
         {:ok, cached_response}
 
       collector when is_function(collector) ->
-        # Simulate streaming with collector function
-        case Map.get(cached_response, "chunks") do
-          chunks when is_list(chunks) ->
-            # Replay chunks through collector
-            Task.start(fn ->
-              Enum.each(chunks, fn chunk ->
-                collector.(chunk)
-                # Add small delay to simulate streaming
-                Process.sleep(10)
-              end)
-            end)
-
-            {:ok, cached_response}
-
-          _ ->
-            # No chunks available, return as single chunk
-            collector.(cached_response)
-            {:ok, cached_response}
-        end
+        simulate_streaming_with_collector(cached_response, collector)
 
       _ ->
         {:ok, cached_response}
     end
+  end
+
+  defp simulate_streaming_with_collector(cached_response, collector) do
+    case Map.get(cached_response, "chunks") do
+      chunks when is_list(chunks) ->
+        replay_chunks_through_collector(chunks, collector)
+        {:ok, cached_response}
+
+      _ ->
+        collector.(cached_response)
+        {:ok, cached_response}
+    end
+  end
+
+  defp replay_chunks_through_collector(chunks, collector) do
+    Task.start(fn ->
+      Enum.each(chunks, fn chunk ->
+        collector.(chunk)
+        Process.sleep(10)
+      end)
+    end)
   end
 
   defp start_streaming_request_with_caching(
@@ -1477,21 +1478,24 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
             Logger.log_response(provider, %{status: status, body: response_body}, duration)
 
             # Handle errors
-            if status >= 400 do
-              {:error, {:api_error, %{status: status, body: response_body}}}
-            else
-              # Return in the format expected by the provider
-              case provider do
-                :openai -> {:ok, response_body}
-                _ -> {:ok, %{status: status, body: response_body}}
-              end
-            end
+            format_delete_response(status, response_body, provider)
 
           {:error, exception} ->
             duration = System.monotonic_time(:millisecond) - start_time
             Logger.log_response(provider, %{error: exception}, duration)
             {:error, exception}
         end
+    end
+  end
+
+  defp format_delete_response(status, response_body, provider) do
+    if status >= 400 do
+      {:error, {:api_error, %{status: status, body: response_body}}}
+    else
+      case provider do
+        :openai -> {:ok, response_body}
+        _ -> {:ok, %{status: status, body: response_body}}
+      end
     end
   end
 

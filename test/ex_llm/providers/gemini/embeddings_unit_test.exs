@@ -7,7 +7,7 @@ defmodule ExLLM.Gemini.EmbeddingsUnitTest do
 
   use ExUnit.Case, async: true
   alias ExLLM.Providers.Gemini.Embeddings
-  alias ExLLM.Providers.Gemini.Embeddings.{EmbedContentRequest, ContentEmbedding}
+  alias ExLLM.Providers.Gemini.Embeddings.{ContentEmbedding, EmbedContentRequest}
   alias ExLLM.Providers.Gemini.Content.{Content, Part}
 
   describe "EmbedContentRequest struct" do

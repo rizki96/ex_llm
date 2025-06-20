@@ -57,7 +57,6 @@ defmodule ExLLM.Providers.OpenAI do
     MessageFormatter,
     ModelUtils,
     StreamingBehavior,
-    EnhancedStreamingCoordinator,
     Validation
   }
 
@@ -97,18 +96,7 @@ defmodule ExLLM.Providers.OpenAI do
         case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
           {:ok, response} ->
             result = parse_response(response, model)
-
-            # Emit rate limit telemetry if headers present
-            if rate_limit_remaining = get_in(response, ["headers", "x-ratelimit-remaining"]) do
-              if String.to_integer(rate_limit_remaining) < 10 do
-                :telemetry.execute(
-                  [:ex_llm, :provider, :rate_limit],
-                  %{remaining: rate_limit_remaining},
-                  metadata
-                )
-              end
-            end
-
+            emit_rate_limit_telemetry_if_needed(response, metadata)
             {:ok, result}
 
           {:error, {:api_error, %{status: status, body: body}}} ->
@@ -146,63 +134,87 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/chat/completions"
 
-      # Create stream with enhanced features
-      chunks_ref = make_ref()
-      parent = self()
-
-      # Setup callback that sends chunks to parent
-      callback = fn chunk ->
-        send(parent, {chunks_ref, {:chunk, chunk}})
-      end
-
-      # Enhanced streaming options with OpenAI-specific features
-      stream_options = [
-        parse_chunk_fn: &parse_openai_chunk/1,
-        provider: :openai,
-        model: model,
-        stream_recovery: Keyword.get(options, :stream_recovery, false),
-        track_metrics: Keyword.get(options, :track_metrics, false),
-        on_metrics: Keyword.get(options, :on_metrics),
-        transform_chunk: create_openai_transformer(options),
-        validate_chunk: create_openai_validator(options),
-        buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
-        timeout: Keyword.get(options, :timeout, 300_000),
-        # Enable enhanced features if requested
-        enable_flow_control: Keyword.get(options, :enable_flow_control, false),
-        enable_batching: Keyword.get(options, :enable_batching, false),
-        track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
-      ]
+      # Create stream with standard behavior
 
       Logger.with_context([provider: :openai, model: model], fn ->
-        case EnhancedStreamingCoordinator.start_stream(
-               url,
-               body,
-               headers,
-               callback,
-               stream_options
-             ) do
-          {:ok, stream_id} ->
-            # Create Elixir stream that receives chunks
-            stream =
-              Stream.resource(
-                fn -> {chunks_ref, stream_id} end,
-                fn {ref, _id} = state ->
-                  receive do
-                    {^ref, {:chunk, chunk}} -> {[chunk], state}
-                  after
-                    100 -> {[], state}
-                  end
-                end,
-                fn _ -> :ok end
-              )
-
-            {:ok, stream}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        # Create a stream using HTTPClient's streaming capabilities
+        stream = Stream.resource(
+          # Start function - initiates the HTTP request
+          fn ->
+            ref = make_ref()
+            parent = self()
+            
+            # Spawn a process to handle the streaming request
+            {:ok, pid} = start_streaming_task(parent, ref, url, body, headers)
+            
+            {ref, pid, ""}  # Return ref, pid, and empty buffer
+          end,
+          
+          # Next function - receives chunks and processes them
+          fn {ref, pid, buffer} ->
+            receive do
+              {^ref, {:chunk, chunk}} ->
+                process_stream_chunk(chunk, buffer, ref, pid)
+                
+              {^ref, :done} ->
+                process_stream_completion(buffer)
+            after
+              60_000 ->
+                {:halt, {ref, pid, buffer}}
+            end
+          end,
+          
+          # Cleanup function
+          fn
+            :done -> :ok
+            {_ref, pid, _buffer} -> Process.exit(pid, :normal)
+          end
+        )
+        
+        {:ok, stream}
       end)
     end
+  end
+
+  defp start_streaming_task(parent, ref, url, body, headers) do
+    Task.start_link(fn ->
+      HTTPClient.stream_request(url, body, headers, fn chunk ->
+        send(parent, {ref, {:chunk, chunk}})
+      end, provider: :openai)
+      
+      send(parent, {ref, :done})
+    end)
+  end
+
+  defp process_stream_chunk(chunk, buffer, ref, pid) do
+    # Accumulate chunks and parse SSE events
+    full_buffer = buffer <> chunk
+    {events, remaining} = parse_sse_events(full_buffer)
+    
+    # Convert events to StreamChunks
+    chunks = convert_events_to_chunks(events)
+    
+    {chunks, {ref, pid, remaining}}
+  end
+
+  defp process_stream_completion(buffer) do
+    # Process any remaining buffer
+    if buffer != "" do
+      {events, _} = parse_sse_events(buffer <> "\n\n")
+      chunks = convert_events_to_chunks(events)
+      {chunks, :done}
+    else
+      {:halt, :done}
+    end
+  end
+
+  defp convert_events_to_chunks(events) do
+    Enum.flat_map(events, fn event ->
+      case parse_openai_chunk(event) do
+        nil -> []
+        parsed -> [parsed]
+      end
+    end)
   end
 
   @impl true
@@ -295,6 +307,20 @@ defmodule ExLLM.Providers.OpenAI do
       "o1" -> "O1"
       "o1-mini" -> "O1 Mini"
       _ -> ModelUtils.format_model_name(model_id)
+    end
+  end
+
+  defp emit_rate_limit_telemetry_if_needed(response, metadata) do
+    case get_in(response, ["headers", "x-ratelimit-remaining"]) do
+      nil -> :ok
+      rate_limit_remaining ->
+        if String.to_integer(rate_limit_remaining) < 10 do
+          :telemetry.execute(
+            [:ex_llm, :provider, :rate_limit],
+            %{remaining: rate_limit_remaining},
+            metadata
+          )
+        end
     end
   end
 
@@ -453,6 +479,19 @@ defmodule ExLLM.Providers.OpenAI do
 
     # Enhanced usage tracking
     enhanced_usage = parse_enhanced_usage(usage)
+    
+    # Calculate cost info
+    cost_info = ExLLM.Core.Cost.calculate("openai", model, %{
+      input_tokens: enhanced_usage.input_tokens,
+      output_tokens: enhanced_usage.output_tokens
+    })
+    
+    # Extract just the total cost float for backward compatibility
+    cost_value = if is_map(cost_info) && Map.has_key?(cost_info, :total_cost) do
+      cost_info.total_cost
+    else
+      nil
+    end
 
     %Types.LLMResponse{
       content: message["content"] || "",
@@ -463,12 +502,13 @@ defmodule ExLLM.Providers.OpenAI do
       usage: enhanced_usage,
       model: model,
       finish_reason: choice["finish_reason"],
-      cost:
-        ExLLM.Core.Cost.calculate("openai", model, %{
-          input_tokens: enhanced_usage.input_tokens,
-          output_tokens: enhanced_usage.output_tokens
-        }),
-      metadata: response["metadata"] || %{}
+      cost: cost_value,
+      metadata: Map.merge(response["metadata"] || %{}, %{
+        cost_details: cost_info,
+        role: "assistant",
+        provider: :openai,
+        raw_response: response
+      })
     }
   end
 
@@ -3101,50 +3141,45 @@ defmodule ExLLM.Providers.OpenAI do
         nil
     end
   end
-
-  # StreamingCoordinator enhancement functions
-
-  defp create_openai_transformer(options) do
-    # Example: Add function call detection
-    if Keyword.get(options, :highlight_function_calls, false) do
-      fn chunk ->
-        if chunk.content && String.contains?(chunk.content, "function_call") do
-          # Highlight function calls
-          highlighted_content = "[FUNCTION] #{chunk.content}"
-          {:ok, %{chunk | content: highlighted_content}}
-        else
-          {:ok, chunk}
-        end
-      end
-    end
+  
+  
+  # Parse SSE events from buffer
+  defp parse_sse_events(buffer) do
+    lines = String.split(buffer, "\n")
+    
+    {events, remaining_lines} = parse_lines(lines, [], [])
+    
+    remaining_buffer = Enum.join(remaining_lines, "\n")
+    {events, remaining_buffer}
   end
-
-  defp create_openai_validator(options) do
-    # Validate content for moderation if requested
-    if Keyword.get(options, :content_moderation, false) do
-      fn chunk ->
-        if chunk.content do
-          # Simple moderation check
-          if contains_flagged_content?(chunk.content) do
-            {:error, "Content flagged by moderation"}
-          else
-            :ok
-          end
-        else
-          :ok
-        end
-      end
-    end
+  
+  defp parse_lines([], current_event, events) do
+    # No more lines, return what we have
+    events = if current_event != [], do: events ++ [Enum.join(current_event, "\n")], else: events
+    {events, []}
   end
-
-  defp contains_flagged_content?(content) do
-    # Placeholder for content moderation
-    # In production, this would use OpenAI's moderation API
-    flagged_patterns = ["violence", "hate", "self-harm"]
-
-    Enum.any?(flagged_patterns, fn pattern ->
-      String.contains?(String.downcase(content), pattern)
-    end)
+  
+  defp parse_lines(["" | rest], current_event, events) when current_event != [] do
+    # Empty line marks end of event
+    event = Enum.join(current_event, "\n")
+    parse_lines(rest, [], events ++ [event])
+  end
+  
+  defp parse_lines(["data: " <> data | rest], current_event, events) do
+    # Data line - add to current event
+    parse_lines(rest, current_event ++ [data], events)
+  end
+  
+  defp parse_lines([line | rest], current_event, events) do
+    # Other lines - check if it's a partial line at the end
+    if rest == [] and not String.ends_with?(line, "\n") do
+      # Last line might be incomplete, return it as remaining
+      events = if current_event != [], do: events ++ [Enum.join(current_event, "\n")], else: events
+      {events, [line]}
+    else
+      # Skip non-data lines
+      parse_lines(rest, current_event, events)
+    end
   end
 
   # Audio API helper functions

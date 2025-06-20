@@ -28,7 +28,11 @@ defmodule ExLLM.MixProject do
         "test.ci": :test,
         "test.all": :test
       ],
-      aliases: aliases()
+      aliases: aliases(),
+      dialyzer: [
+        plt_add_apps: [:mix, :ex_unit, :logger],
+        ignore_warnings: ".dialyzer_ignore.exs"
+      ]
     ]
   end
 

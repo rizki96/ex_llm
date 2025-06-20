@@ -4,8 +4,8 @@ defmodule ExLLM.Providers.Gemini.RetrievalPermissionsTest do
   alias ExLLM.Providers.Gemini.Permissions
 
   alias ExLLM.Providers.Gemini.Permissions.{
-    Permission,
-    ListPermissionsResponse
+    ListPermissionsResponse,
+    Permission
   }
 
   @api_key System.get_env("GEMINI_API_KEY") || "test-key"

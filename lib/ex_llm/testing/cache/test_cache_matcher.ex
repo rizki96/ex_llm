@@ -289,25 +289,37 @@ defmodule ExLLM.Testing.TestCacheMatcher do
           val1 = Map.get(map1, key)
           val2 = Map.get(map2, key)
 
-          cond do
-            val1 == val2 ->
-              1.0
-
-            is_map(val1) and is_map(val2) ->
-              map_similarity(val1, val2)
-
-            is_number(val1) and is_number(val2) ->
-              # For numbers, calculate relative similarity
-              diff = abs(val1 - val2)
-              max_val = max(abs(val1), abs(val2))
-              if max_val == 0, do: 1.0, else: 1.0 - min(diff / max_val, 1.0)
-
-            true ->
-              0.0
-          end
+          calculate_value_similarity(val1, val2)
         end)
 
       Enum.sum(scores) / length(scores)
+    end
+  end
+
+  defp calculate_value_similarity(val1, val2) do
+    cond do
+      val1 == val2 ->
+        1.0
+
+      is_map(val1) and is_map(val2) ->
+        map_similarity(val1, val2)
+
+      is_number(val1) and is_number(val2) ->
+        calculate_numeric_similarity(val1, val2)
+
+      true ->
+        0.0
+    end
+  end
+
+  defp calculate_numeric_similarity(val1, val2) do
+    diff = abs(val1 - val2)
+    max_val = max(abs(val1), abs(val2))
+    
+    if max_val == 0 do
+      1.0
+    else
+      1.0 - min(diff / max_val, 1.0)
     end
   end
 

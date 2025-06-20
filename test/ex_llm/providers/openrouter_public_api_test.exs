@@ -77,7 +77,7 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
       case ExLLM.stream(:openrouter, messages, collector,
              model: "meta-llama/llama-3.2-3b-instruct",
              max_tokens: 30,
-             timeout: 10000
+             timeout: 10_000
            ) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)

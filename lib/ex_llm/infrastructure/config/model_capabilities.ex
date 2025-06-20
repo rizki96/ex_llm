@@ -34,6 +34,28 @@ defmodule ExLLM.Infrastructure.Config.ModelCapabilities do
 
   # alias ExLLM.Types
 
+  # Capability string to atom mappings
+  @capability_string_mappings %{
+    "streaming" => :streaming,
+    "function_calling" => :function_calling,
+    "vision" => :vision,
+    "audio" => :audio,
+    "embeddings" => :embeddings,
+    "multi_turn" => :multi_turn,
+    "system_messages" => :system_messages,
+    "temperature_control" => :temperature_control,
+    "stop_sequences" => :stop_sequences,
+    "tools" => :tools,
+    "tool_choice" => :tool_choice,
+    "parallel_tool_calls" => :parallel_tool_calls,
+    "response_format" => :response_format,
+    "json_mode" => :json_mode,
+    "structured_output" => :structured_output,
+    "logprobs" => :logprobs,
+    "reasoning" => :reasoning,
+    "computer_use" => :computer_use
+  }
+
   defmodule Capability do
     @moduledoc """
     Represents a model capability or feature.
@@ -141,20 +163,7 @@ defmodule ExLLM.Infrastructure.Config.ModelCapabilities do
           # Convert capabilities list to Capability structs
           capabilities =
             (Map.get(config, :capabilities, []) || [])
-            |> Enum.map(fn
-              cap when is_atom(cap) ->
-                {cap, %Capability{feature: cap, supported: true}}
-
-              cap when is_binary(cap) ->
-                # Handle string capabilities from YAML safely
-                atom_cap = normalize_capability_string(cap)
-
-                if atom_cap do
-                  {atom_cap, %Capability{feature: atom_cap, supported: true}}
-                else
-                  nil
-                end
-            end)
+            |> Enum.map(&convert_capability_to_struct/1)
             |> Enum.filter(&(&1 != nil))
             |> Map.new()
 
@@ -843,26 +852,19 @@ defmodule ExLLM.Infrastructure.Config.ModelCapabilities do
 
   # Helper to safely convert capability strings to atoms
   defp normalize_capability_string(cap) when is_binary(cap) do
-    case cap do
-      "streaming" -> :streaming
-      "function_calling" -> :function_calling
-      "vision" -> :vision
-      "audio" -> :audio
-      "embeddings" -> :embeddings
-      "multi_turn" -> :multi_turn
-      "system_messages" -> :system_messages
-      "temperature_control" -> :temperature_control
-      "stop_sequences" -> :stop_sequences
-      "tools" -> :tools
-      "tool_choice" -> :tool_choice
-      "parallel_tool_calls" -> :parallel_tool_calls
-      "response_format" -> :response_format
-      "json_mode" -> :json_mode
-      "structured_output" -> :structured_output
-      "logprobs" -> :logprobs
-      "reasoning" -> :reasoning
-      "computer_use" -> :computer_use
-      _ -> nil
+    Map.get(@capability_string_mappings, cap)
+  end
+
+  # Helper function to convert capability to struct
+  defp convert_capability_to_struct(cap) when is_atom(cap) do
+    {cap, %Capability{feature: cap, supported: true}}
+  end
+
+  defp convert_capability_to_struct(cap) when is_binary(cap) do
+    # Handle string capabilities from YAML safely
+    case normalize_capability_string(cap) do
+      nil -> nil
+      atom_cap -> {atom_cap, %Capability{feature: atom_cap, supported: true}}
     end
   end
 end

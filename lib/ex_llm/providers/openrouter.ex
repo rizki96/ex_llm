@@ -68,8 +68,8 @@ defmodule ExLLM.Providers.OpenRouter do
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
-    HTTPClient,
-    EnhancedStreamingCoordinator
+    EnhancedStreamingCoordinator,
+    HTTPClient
   }
 
   alias ExLLM.{Infrastructure.Logger, Types}
@@ -179,18 +179,7 @@ defmodule ExLLM.Providers.OpenRouter do
              ) do
           {:ok, stream_id} ->
             # Create Elixir stream that receives chunks
-            stream =
-              Stream.resource(
-                fn -> {chunks_ref, stream_id} end,
-                fn {ref, _id} = state ->
-                  receive do
-                    {^ref, {:chunk, chunk}} -> {[chunk], state}
-                  after
-                    100 -> {[], state}
-                  end
-                end,
-                fn _ -> :ok end
-              )
+            stream = create_chunk_stream(chunks_ref, stream_id)
 
             {:ok, stream}
 
@@ -513,6 +502,22 @@ defmodule ExLLM.Providers.OpenRouter do
       supports_vision: model["supports_vision"] || false,
       features: features
     }
+  end
+
+  defp create_chunk_stream(chunks_ref, stream_id) do
+    Stream.resource(
+      fn -> {chunks_ref, stream_id} end,
+      &process_stream_chunks/1,
+      fn _ -> :ok end
+    )
+  end
+
+  defp process_stream_chunks({ref, _id} = state) do
+    receive do
+      {^ref, {:chunk, chunk}} -> {[chunk], state}
+    after
+      100 -> {[], state}
+    end
   end
 
   # Parse streaming chunk from OpenRouter.

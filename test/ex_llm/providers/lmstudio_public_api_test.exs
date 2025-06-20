@@ -65,7 +65,7 @@ defmodule ExLLM.Providers.LMStudioPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:lmstudio, messages, collector, max_tokens: 50, timeout: 10000) do
+      case ExLLM.stream(:lmstudio, messages, collector, max_tokens: 50, timeout: 10_000) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
 

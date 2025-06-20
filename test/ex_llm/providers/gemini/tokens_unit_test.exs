@@ -14,7 +14,7 @@ defmodule ExLLM.Gemini.TokensUnitTest do
     ModalityTokenCount
   }
 
-  alias ExLLM.Providers.Gemini.Content.{GenerateContentRequest, Content, Part}
+  alias ExLLM.Providers.Gemini.Content.{Content, GenerateContentRequest, Part}
 
   describe "CountTokensRequest struct" do
     test "creates struct with contents" do

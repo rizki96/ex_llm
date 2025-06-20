@@ -67,7 +67,7 @@ defmodule ExLLM.Providers.Ollama do
 
   @behaviour ExLLM.Provider
 
-  alias ExLLM.Providers.Shared.{ConfigHelper, HTTPClient, EnhancedStreamingCoordinator}
+  alias ExLLM.Providers.Shared.{ConfigHelper, EnhancedStreamingCoordinator, HTTPClient}
   alias ExLLM.{Infrastructure.Logger, Types}
 
   @default_base_url "http://localhost:11434"

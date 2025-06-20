@@ -71,16 +71,16 @@ defmodule ExLLM.Providers.Mistral do
   @behaviour ExLLM.Provider
   @behaviour ExLLM.Providers.Shared.StreamingBehavior
 
-  alias ExLLM.{Infrastructure.Logger, Infrastructure.Config.ModelConfig, Types}
+  alias ExLLM.{Infrastructure.Config.ModelConfig, Infrastructure.Logger, Types}
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
+    EnhancedStreamingCoordinator,
     ErrorHandler,
     HTTPClient,
     MessageFormatter,
     ModelUtils,
     ResponseBuilder,
-    EnhancedStreamingCoordinator,
     Validation
   }
 
@@ -479,20 +479,24 @@ defmodule ExLLM.Providers.Mistral do
   end
 
   defp create_mistral_validator(options) do
-    # Validate safe content if safe_prompt is enabled
     if Keyword.get(options, :safe_prompt, false) do
-      fn chunk ->
-        if chunk.content do
-          # Simple content validation
-          if contains_unsafe_content?(chunk.content) do
-            {:error, "Content violates safety guidelines"}
-          else
-            :ok
-          end
-        else
-          :ok
-        end
-      end
+      &validate_mistral_chunk/1
+    end
+  end
+
+  defp validate_mistral_chunk(chunk) do
+    if chunk.content do
+      validate_content_safety(chunk.content)
+    else
+      :ok
+    end
+  end
+
+  defp validate_content_safety(content) do
+    if contains_unsafe_content?(content) do
+      {:error, "Content violates safety guidelines"}
+    else
+      :ok
     end
   end
 

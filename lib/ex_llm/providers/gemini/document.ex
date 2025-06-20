@@ -565,12 +565,10 @@ defmodule ExLLM.Providers.Gemini.Document do
 
   @doc false
   def validate_list_opts(opts) do
-    cond do
-      opts[:page_size] && opts[:page_size] > 20 ->
-        {:error, %{message: "maximum size limit is 20 Documents per page"}}
-
-      true ->
-        :ok
+    if opts[:page_size] && opts[:page_size] > 20 do
+      {:error, %{message: "maximum size limit is 20 Documents per page"}}
+    else
+      :ok
     end
   end
 

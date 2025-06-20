@@ -8,14 +8,14 @@ defmodule ExLLM.Providers.Gemini.PermissionsOAuth2Test do
   import ExLLM.Testing.TestCacheHelpers
 
   # Skip entire module if OAuth2 is not available
-  if not GeminiOAuth2Helper.oauth_available?() do
-    @moduletag :skip
-  else
+  if GeminiOAuth2Helper.oauth_available?() do
     @moduletag :integration
     @moduletag :external
     @moduletag :oauth2
     @moduletag :requires_oauth
     @moduletag provider: :gemini
+  else
+    @moduletag :skip
   end
 
   setup context do

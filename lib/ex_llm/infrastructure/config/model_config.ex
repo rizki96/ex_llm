@@ -13,6 +13,40 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
 
   alias ExLLM.Infrastructure.Logger
 
+  # Known configuration keys for safe atomization
+  @config_key_mappings %{
+    # Top-level config fields
+    "provider" => :provider,
+    "default_model" => :default_model,
+    "models" => :models,
+    "metadata" => :metadata,
+    # Top-level model fields
+    "name" => :name,
+    "context_window" => :context_window,
+    "max_output_tokens" => :max_output_tokens,
+    "capabilities" => :capabilities,
+    "pricing" => :pricing,
+    "default" => :default,
+    "architecture" => :architecture,
+    "quantization" => :quantization,
+    "supports_streaming" => :supports_streaming,
+    "supports_tools" => :supports_tools,
+    "features" => :features,
+    # Pricing fields
+    "input" => :input,
+    "output" => :output,
+    # Capability fields  
+    "vision" => :vision,
+    "function_calling" => :function_calling,
+    "streaming" => :streaming,
+    "embeddings" => :embeddings,
+    "audio" => :audio,
+    "tools" => :tools,
+    # Feature flags
+    "supported" => :supported,
+    "formats" => :formats
+  }
+
   # Get the config directory path
   defp config_dir do
     # Try to find the config directory relative to the current file
@@ -362,40 +396,6 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
 
   # Safe atomization of known configuration keys
   defp safe_atomize_key(key) when is_binary(key) do
-    # Known top-level and nested keys in model configs
-    case key do
-      # Top-level config fields
-      "provider" -> :provider
-      "default_model" -> :default_model
-      "models" -> :models
-      "metadata" -> :metadata
-      # Top-level model fields
-      "name" -> :name
-      "context_window" -> :context_window
-      "max_output_tokens" -> :max_output_tokens
-      "capabilities" -> :capabilities
-      "pricing" -> :pricing
-      "default" -> :default
-      "architecture" -> :architecture
-      "quantization" -> :quantization
-      "supports_streaming" -> :supports_streaming
-      "supports_tools" -> :supports_tools
-      "features" -> :features
-      # Pricing fields
-      "input" -> :input
-      "output" -> :output
-      # Capability fields  
-      "vision" -> :vision
-      "function_calling" -> :function_calling
-      "streaming" -> :streaming
-      "embeddings" -> :embeddings
-      "audio" -> :audio
-      "tools" -> :tools
-      # Feature flags
-      "supported" -> :supported
-      "formats" -> :formats
-      # Keep model IDs as strings since they're dynamic
-      _ -> key
-    end
+    Map.get(@config_key_mappings, key, key)
   end
 end

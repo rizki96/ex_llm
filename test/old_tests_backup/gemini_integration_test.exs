@@ -12,16 +12,16 @@ defmodule ExLLM.Providers.Gemini.IntegrationTest do
   alias ExLLM.Types
 
   alias ExLLM.Providers.Gemini.{
-    Models,
-    Content,
-    Files,
     Caching,
-    Embeddings,
-    Tuning,
-    Permissions,
+    Chunk,
+    Content,
     Corpus,
     Document,
-    Chunk
+    Embeddings,
+    Files,
+    Models,
+    Permissions,
+    Tuning
   }
 
   @api_key System.get_env("GEMINI_API_KEY") || "test-key"

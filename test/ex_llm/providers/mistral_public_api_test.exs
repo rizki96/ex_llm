@@ -46,7 +46,7 @@ defmodule ExLLM.Providers.MistralPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:mistral, messages, collector, max_tokens: 50, timeout: 10000) do
+      case ExLLM.stream(:mistral, messages, collector, max_tokens: 50, timeout: 10_000) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
 

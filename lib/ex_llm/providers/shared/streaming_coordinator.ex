@@ -180,41 +180,54 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
 
     # Process lines and accumulate chunks
     {new_chunk_buffer, new_stats} =
-      Enum.reduce(complete_lines, {chunk_buffer, stats}, fn line, {chunks, st} ->
-        case parse_sse_line(line) do
-          {:data, event_data} ->
-            case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
-              {:ok, chunk} ->
-                # Add to buffer
-                new_chunks = chunks ++ [chunk]
-
-                # Flush buffer if it reaches the size limit
-                if length(new_chunks) >= buffer_size do
-                  flush_chunk_buffer(new_chunks, callback, st)
-                  {[], update_stream_stats(st, :chunk_count, length(new_chunks))}
-                else
-                  {new_chunks, st}
-                end
-
-              :skip ->
-                {chunks, st}
-            end
-
-          :done ->
-            # Flush any remaining chunks
-            if chunks != [] do
-              flush_chunk_buffer(chunks, callback, st)
-            end
-
-            Logger.debug("Stream #{recovery_id} completed after #{st.chunk_count} chunks")
-            {[], st}
-
-          :skip ->
-            {chunks, st}
-        end
+      Enum.reduce(complete_lines, {chunk_buffer, stats}, fn line, acc ->
+        process_stream_line(line, acc, parse_chunk_fn, recovery_id, options, callback, buffer_size)
       end)
 
     {last_line, new_chunk_buffer, new_stats}
+  end
+
+  defp process_stream_line(line, {chunks, st}, parse_chunk_fn, recovery_id, options, callback, buffer_size) do
+    case parse_sse_line(line) do
+      {:data, event_data} ->
+        process_event_data(event_data, chunks, st, parse_chunk_fn, recovery_id, options, callback, buffer_size)
+
+      :done ->
+        handle_stream_done(chunks, st, callback, recovery_id)
+
+      :skip ->
+        {chunks, st}
+    end
+  end
+
+  defp process_event_data(event_data, chunks, st, parse_chunk_fn, recovery_id, options, callback, buffer_size) do
+    case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
+      {:ok, chunk} ->
+        handle_new_chunk(chunk, chunks, st, callback, buffer_size)
+
+      :skip ->
+        {chunks, st}
+    end
+  end
+
+  defp handle_new_chunk(chunk, chunks, st, callback, buffer_size) do
+    new_chunks = chunks ++ [chunk]
+
+    if length(new_chunks) >= buffer_size do
+      flush_chunk_buffer(new_chunks, callback, st)
+      {[], update_stream_stats(st, :chunk_count, length(new_chunks))}
+    else
+      {new_chunks, st}
+    end
+  end
+
+  defp handle_stream_done(chunks, st, callback, recovery_id) do
+    if chunks != [] do
+      flush_chunk_buffer(chunks, callback, st)
+    end
+
+    Logger.debug("Stream #{recovery_id} completed after #{st.chunk_count} chunks")
+    {[], st}
   end
 
   @doc """

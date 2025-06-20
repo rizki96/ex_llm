@@ -353,9 +353,83 @@ defmodule ExLLM.Core.Chat do
   end
 
   defp execute_stream_with_recovery(adapter, _provider, messages, options) do
-    # TODO: Implement StreamRecovery module
-    # For now, just delegate to regular streaming
-    adapter.stream_chat(messages, options)
+    recovery_opts = Keyword.get(options, :recovery, [])
+    
+    # Create a function that starts the stream
+    stream_fn = fn resume_opts ->
+      # Merge resume options with original options
+      stream_options = 
+        options
+        |> Keyword.delete(:recovery)
+        |> Keyword.merge(resume_opts)
+      
+      case adapter.stream_chat(messages, stream_options) do
+        {:ok, stream} ->
+          # Convert stream to a process that sends chunks
+          pid = spawn_link(fn ->
+            recovery_pid = Keyword.get(resume_opts, :stream_recovery_pid)
+            _stream_ref = Keyword.get(resume_opts, :stream_ref)
+            
+            try do
+              Enum.each(stream, fn chunk ->
+                if recovery_pid do
+                  send(recovery_pid, {:stream_chunk, chunk})
+                end
+              end)
+              
+              if recovery_pid do
+                send(recovery_pid, {:stream_complete})
+              end
+            catch
+              kind, reason ->
+                if recovery_pid do
+                  send(recovery_pid, {:stream_error, {kind, reason}})
+                end
+            end
+          end)
+          
+          {:ok, pid}
+          
+        error ->
+          error
+      end
+    end
+    
+    # Create callback function
+    callback = Keyword.get(options, :on_chunk, &default_chunk_callback/1)
+    
+    # Start recoverable stream
+    case ExLLM.Infrastructure.Streaming.StreamRecovery.start_stream(
+      stream_fn,
+      callback,
+      recovery_opts
+    ) do
+      {:ok, recovery_pid} ->
+        # Create a stream that reads from the recovery process
+        stream = Stream.resource(
+          fn -> recovery_pid end,
+          fn pid ->
+            receive do
+              {:stream_chunk, _ref, chunk} -> {[chunk], pid}
+              {:stream_complete} -> {:halt, pid}
+              {:stream_error, error} -> raise "Stream error: #{inspect(error)}"
+            after
+              30_000 -> raise "Stream timeout"
+            end
+          end,
+          fn pid -> ExLLM.Infrastructure.Streaming.StreamRecovery.stop_stream(pid) end
+        )
+        
+        {:ok, stream}
+        
+      error ->
+        error
+    end
+  end
+  
+  defp default_chunk_callback(_chunk) do
+    # Default callback does nothing, just for compatibility
+    :ok
   end
 
   defp wrap_stream_with_telemetry(stream, provider, model, start_time) do

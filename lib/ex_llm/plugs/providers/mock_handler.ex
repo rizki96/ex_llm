@@ -62,66 +62,71 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   end
 
   defp handle_streaming_request(request, messages, config, opts) do
-    # Check multiple sources for mock stream response in priority order:
-    # 1. Mock agent configuration
-    # 2. Application environment (for test overrides)
-    # 3. Options passed to handler  
-    # 4. Default stream generation
-    stream_response =
-      case get_mock_agent_stream(messages, config) do
-        {:ok, stream} ->
-          stream
-
-        _ ->
-          case Application.get_env(:ex_llm, :mock_responses, %{})[:stream] do
-            nil ->
-              opts[:stream] || generate_mock_stream(messages, config)
-
-            chunks when is_list(chunks) ->
-              # Convert chunks list to stream
-              Stream.map(chunks, fn chunk ->
-                # Add small delay to simulate real streaming
-                Process.sleep(10)
-                chunk
-              end)
-
-            stream_fn when is_function(stream_fn, 2) ->
-              case stream_fn.(messages, config) do
-                {:ok, stream} -> stream
-                stream -> stream
-              end
-
-            _ ->
-              generate_mock_stream(messages, config)
-          end
-      end
-
-    # Check if we should simulate an error
+    stream_response = get_stream_response(messages, config, opts)
     error_to_simulate = get_mock_agent_error() || config[:mock_error] || opts[:error]
 
     if error_to_simulate do
-      # Use the Request error handling system properly
       Request.halt_with_error(request, %{
         error: error_to_simulate,
         plug: __MODULE__,
         mock_handler_called: true
       })
     else
-      # For streaming, call the callback directly if available
-      if callback = config[:stream_callback] do
-        # Process the stream and call callback for each chunk synchronously
-        # This avoids process context issues while still simulating streaming
-        Enum.each(stream_response, fn chunk ->
-          callback.(chunk)
-          # Small delay to simulate streaming behavior
-          Process.sleep(10)
-        end)
-      end
+      process_stream_callback(stream_response, config)
 
       request
       |> Map.put(:result, stream_response)
       |> Request.put_state(:completed)
       |> Request.assign(:mock_handler_called, true)
+    end
+  end
+
+  defp get_stream_response(messages, config, opts) do
+    case get_mock_agent_stream(messages, config) do
+      {:ok, stream} ->
+        stream
+
+      _ ->
+        get_stream_from_env_or_opts(messages, config, opts)
+    end
+  end
+
+  defp get_stream_from_env_or_opts(messages, config, opts) do
+    case Application.get_env(:ex_llm, :mock_responses, %{})[:stream] do
+      nil ->
+        opts[:stream] || generate_mock_stream(messages, config)
+
+      chunks when is_list(chunks) ->
+        convert_chunks_to_stream(chunks)
+
+      stream_fn when is_function(stream_fn, 2) ->
+        execute_stream_function(stream_fn, messages, config)
+
+      _ ->
+        generate_mock_stream(messages, config)
+    end
+  end
+
+  defp convert_chunks_to_stream(chunks) do
+    Stream.map(chunks, fn chunk ->
+      Process.sleep(10)
+      chunk
+    end)
+  end
+
+  defp execute_stream_function(stream_fn, messages, config) do
+    case stream_fn.(messages, config) do
+      {:ok, stream} -> stream
+      stream -> stream
+    end
+  end
+
+  defp process_stream_callback(stream_response, config) do
+    if callback = config[:stream_callback] do
+      Enum.each(stream_response, fn chunk ->
+        callback.(chunk)
+        Process.sleep(10)
+      end)
     end
   end
 
@@ -219,40 +224,64 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   defp normalize_app_response(app_response, _messages, config) do
     case app_response do
       %ExLLM.Types.LLMResponse{} = response ->
-        # Convert LLMResponse to pipeline format
-        %{
-          content: response.content,
-          role: "assistant",
-          model: response.model,
-          usage: response.usage,
-          provider: :mock,
-          mock_config: config,
-          function_call: response.function_call,
-          tool_calls: response.tool_calls
-        }
+        convert_llm_response_to_pipeline_format(response, config)
 
       response when is_map(response) ->
-        # Convert map to pipeline format
-        %{
-          content: response[:content] || response["content"] || "Mock response",
-          role: "assistant",
-          model: response[:model] || response["model"] || config[:model] || "mock-model",
-          usage:
-            response[:usage] || response["usage"] ||
-              %{
-                prompt_tokens: 10,
-                completion_tokens: 15,
-                total_tokens: 25
-              },
-          provider: :mock,
-          mock_config: config,
-          function_call: response[:function_call] || response["function_call"],
-          tool_calls: response[:tool_calls] || response["tool_calls"]
-        }
+        convert_map_response_to_pipeline_format(response, config)
 
       _ ->
         generate_mock_response([], config)
     end
+  end
+
+  defp convert_llm_response_to_pipeline_format(response, config) do
+    %{
+      content: response.content,
+      role: "assistant",
+      model: response.model,
+      usage: response.usage,
+      provider: :mock,
+      mock_config: config,
+      function_call: response.function_call,
+      tool_calls: response.tool_calls
+    }
+  end
+
+  defp convert_map_response_to_pipeline_format(response, config) do
+    %{
+      content: extract_content(response),
+      role: "assistant",
+      model: extract_model(response, config),
+      usage: extract_usage(response),
+      provider: :mock,
+      mock_config: config,
+      function_call: extract_function_call(response),
+      tool_calls: extract_tool_calls(response)
+    }
+  end
+
+  defp extract_content(response) do
+    response[:content] || response["content"] || "Mock response"
+  end
+
+  defp extract_model(response, config) do
+    response[:model] || response["model"] || config[:model] || "mock-model"
+  end
+
+  defp extract_usage(response) do
+    response[:usage] || response["usage"] || %{
+      prompt_tokens: 10,
+      completion_tokens: 15,
+      total_tokens: 25
+    }
+  end
+
+  defp extract_function_call(response) do
+    response[:function_call] || response["function_call"]
+  end
+
+  defp extract_tool_calls(response) do
+    response[:tool_calls] || response["tool_calls"]
   end
 
   defp generate_mock_response(messages, config) do

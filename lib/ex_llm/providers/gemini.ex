@@ -55,6 +55,19 @@ defmodule ExLLM.Providers.Gemini do
         ]
       ]
       {:ok, response} = ExLLM.Providers.Gemini.chat(messages, options)
+
+  ## Unimplemented Features
+
+  The following Gemini API features are not yet implemented but have placeholder
+  functions that return `{:error, {:function_not_implemented, message}}`:
+
+  - **Semantic Retrieval APIs**: `query_corpus/3`, `query_document/3`
+  - **Question Answering API**: `generate_answer/4` (grounded answer generation)
+  - **Model Tuning APIs**: `create_tuned_model/2`, `transfer_tuned_model_ownership/3`
+  - **Batch Operations**: `batch_create_chunks/3`
+
+  These features require additional implementation for complex API interactions,
+  training data handling, and semantic search capabilities.
   """
 
   @behaviour ExLLM.Provider
@@ -1025,7 +1038,8 @@ defmodule ExLLM.Providers.Gemini do
     * `options` - Options including `:max_results`, `:metadata_filters`, `:oauth_token`
   """
   def query_corpus(_corpus_name, _query, _options \\ []) do
-    # TODO: Implement corpora.query API
+    # UNIMPLEMENTED: corpora.query API
+    # This requires semantic search implementation with metadata filtering
     {:error, {:function_not_implemented, "query_corpus/3 not yet implemented"}}
   end
 
@@ -1038,7 +1052,8 @@ defmodule ExLLM.Providers.Gemini do
     * `options` - Options including `:max_results`, `:metadata_filters`, `:oauth_token`
   """
   def query_document(_document_name, _query, _options \\ []) do
-    # TODO: Implement documents.query API
+    # UNIMPLEMENTED: documents.query API
+    # This requires document-specific semantic search with chunk retrieval
     {:error, {:function_not_implemented, "query_document/3 not yet implemented"}}
   end
 
@@ -1054,7 +1069,8 @@ defmodule ExLLM.Providers.Gemini do
     * `options` - Options including `:model`, `:temperature`, `:safety_settings`
   """
   def generate_answer(_question, _passages, _answer_style, _options \\ []) do
-    # TODO: Implement models.generateAnswer API
+    # UNIMPLEMENTED: models.generateAnswer API
+    # This requires grounded answer generation with passage ranking and attribution
     {:error, {:function_not_implemented, "generate_answer/4 not yet implemented"}}
   end
 
@@ -1068,7 +1084,8 @@ defmodule ExLLM.Providers.Gemini do
     * `options` - Options including `:oauth_token`
   """
   def create_tuned_model(_config, _options \\ []) do
-    # TODO: Implement tunedModels.create API
+    # UNIMPLEMENTED: tunedModels.create API
+    # This requires complex handling of training data upload and model tuning parameters
     {:error, {:function_not_implemented, "create_tuned_model/2 not yet implemented"}}
   end
 
@@ -1081,7 +1098,8 @@ defmodule ExLLM.Providers.Gemini do
     * `options` - Options including `:oauth_token`
   """
   def transfer_tuned_model_ownership(_model_name, _new_owner_email, _options \\ []) do
-    # TODO: Implement tunedModels.transferOwnership API
+    # UNIMPLEMENTED: tunedModels.transferOwnership API
+    # This requires handling of ownership transfer permissions and validation
     {:error, {:function_not_implemented, "transfer_tuned_model_ownership/3 not yet implemented"}}
   end
 
@@ -1096,7 +1114,8 @@ defmodule ExLLM.Providers.Gemini do
     * `options` - Options including `:oauth_token`
   """
   def batch_create_chunks(_document_name, _chunks, _options \\ []) do
-    # TODO: Implement chunks.batchCreate API
+    # UNIMPLEMENTED: chunks.batchCreate API
+    # This requires batch processing logic and error handling for partial failures
     {:error, {:function_not_implemented, "batch_create_chunks/3 not yet implemented"}}
   end
 end

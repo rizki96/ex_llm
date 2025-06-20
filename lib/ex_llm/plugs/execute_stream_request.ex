@@ -21,6 +21,16 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   use ExLLM.Plug
   require Logger
 
+  # Default endpoints for each provider
+  @default_endpoints %{
+    openai: "https://api.openai.com/v1/chat/completions",
+    anthropic: "https://api.anthropic.com/v1/messages",
+    groq: "https://api.groq.com/openai/v1/chat/completions",
+    mistral: "https://api.mistral.ai/v1/chat/completions",
+    ollama: "http://localhost:11434/api/chat",
+    lmstudio: "chat/completions"
+  }
+
   @default_timeout 30_000
   @default_receive_timeout 60_000
 
@@ -239,27 +249,52 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   end
 
   defp handle_stream_messages(callback, parent, ref) do
+    # Initialize SSE parser for the stream
+    sse_parser = ExLLM.Infrastructure.Streaming.SSEParser.new()
+    handle_stream_messages(callback, parent, ref, sse_parser)
+  end
+  
+  defp handle_stream_messages(callback, parent, ref, sse_parser) do
     receive do
       # Hackney's actual message format for streaming
       {:hackney_response, :more, chunk} ->
         Logger.debug("Hackney data chunk received in handle_stream_messages: #{inspect(chunk)}")
-        # Parse and forward chunk
-        case parse_chunk(chunk) do
-          {:ok, parsed} ->
-            callback.(parsed)
-            handle_stream_messages(callback, parent, ref)
-
-          {:done, final} ->
-            callback.(Map.put(final, :done, true))
-            send(parent, {:stream_complete, ref})
-
-          {:error, _reason} ->
-            # Skip bad chunks
-            handle_stream_messages(callback, parent, ref)
+        
+        # Parse SSE events from chunk
+        {events, updated_parser} = ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
+        
+        # Process each event
+        stream_complete = Enum.any?(events, fn event ->
+          case format_stream_event(event) do
+            {:ok, parsed} ->
+              callback.(parsed)
+              false
+            {:done, _} ->
+              # Stream complete
+              true
+            {:error, reason} ->
+              Logger.warning("Failed to parse stream event: #{inspect(reason)}")
+              false
+          end
+        end)
+        
+        if stream_complete do
+          send(parent, {:stream_complete, ref})
+        else
+          # Continue processing
+          handle_stream_messages(callback, parent, ref, updated_parser)
         end
 
       {:hackney_response, :done, _} ->
         Logger.debug("Hackney stream ended in handle_stream_messages")
+        # Flush any remaining data in the parser
+        {final_events, _} = ExLLM.Infrastructure.Streaming.SSEParser.flush(sse_parser)
+        Enum.each(final_events, fn event ->
+          case format_stream_event(event) do
+            {:ok, parsed} -> callback.(parsed)
+            _ -> :ok
+          end
+        end)
         send(parent, {:stream_complete, ref})
 
       {:hackney_response, :error, reason} ->
@@ -268,19 +303,25 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
       # Legacy patterns for backward compatibility
       {:data, chunk} ->
-        # Parse and forward chunk
-        case parse_chunk(chunk) do
-          {:ok, parsed} ->
-            callback.(parsed)
-            handle_stream_messages(callback, parent, ref)
-
-          {:done, final} ->
-            callback.(Map.put(final, :done, true))
-            send(parent, {:stream_complete, ref})
-
-          {:error, _reason} ->
-            # Skip bad chunks
-            handle_stream_messages(callback, parent, ref)
+        # Use SSE parser for legacy format too
+        {events, updated_parser} = ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
+        
+        stream_complete = Enum.any?(events, fn event ->
+          case format_stream_event(event) do
+            {:ok, parsed} ->
+              callback.(parsed)
+              false
+            {:done, _} ->
+              true
+            _ ->
+              false
+          end
+        end)
+        
+        if stream_complete do
+          send(parent, {:stream_complete, ref})
+        else
+          handle_stream_messages(callback, parent, ref, updated_parser)
         end
 
       {:done, _} ->
@@ -292,60 +333,29 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
       other ->
         Logger.debug("Unexpected streaming message in handle_stream_messages: #{inspect(other)}")
-        handle_stream_messages(callback, parent, ref)
+        handle_stream_messages(callback, parent, ref, sse_parser)
     after
       60_000 ->
         send(parent, {:stream_error, ref, :timeout})
     end
   end
 
-  defp parse_chunk(chunk) when is_binary(chunk) do
-    # Handle Server-Sent Events format
-    chunk
-    |> String.split("\n")
-    |> Enum.reduce({:ok, %{}}, fn
-      "data: [DONE]", _acc ->
-        {:done, %{}}
-
-      "data: " <> json, _acc ->
-        case Jason.decode(json) do
-          {:ok, data} -> {:ok, data}
-          {:error, _} -> {:error, :invalid_json}
-        end
-
-      _, acc ->
-        acc
-    end)
+  # Format parsed SSE event into expected format
+  defp format_stream_event(%{"done" => true}), do: {:done, %{}}
+  defp format_stream_event(%{done: true}), do: {:done, %{}}
+  
+  defp format_stream_event(event) when is_map(event) do
+    {:ok, event}
   end
-
-  defp parse_chunk(_), do: {:error, :invalid_chunk}
+  
+  defp format_stream_event(other) do
+    {:error, {:unexpected_format, other}}
+  end
 
   defp get_endpoint(%Request{provider: provider, config: config}) do
     case provider do
-      :openai ->
-        config[:base_url] || "https://api.openai.com/v1/chat/completions"
-
-      :anthropic ->
-        config[:base_url] || "https://api.anthropic.com/v1/messages"
-
-      :gemini ->
-        build_gemini_endpoint(config)
-
-      :groq ->
-        config[:base_url] || "https://api.groq.com/openai/v1/chat/completions"
-
-      :mistral ->
-        config[:base_url] || "https://api.mistral.ai/v1/chat/completions"
-
-      :ollama ->
-        config[:base_url] || "http://localhost:11434/api/chat"
-
-      :lmstudio ->
-        # Return relative path without leading slash so Tesla appends to base URL
-        "chat/completions"
-
-      _ ->
-        config[:base_url] || config[:endpoint] || "/"
+      :gemini -> build_gemini_endpoint(config)
+      _ -> config[:base_url] || config[:endpoint] || Map.get(@default_endpoints, provider, "/")
     end
   end
 

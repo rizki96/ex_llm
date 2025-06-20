@@ -51,8 +51,7 @@ defmodule ExLLM do
   alias ExLLM.Pipeline
   alias ExLLM.Pipeline.Request
   alias ExLLM.Providers
-
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @doc """
   Sends a chat request to the specified provider.

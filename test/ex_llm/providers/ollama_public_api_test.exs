@@ -66,7 +66,7 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
       case ExLLM.stream(:ollama, messages, collector,
              model: "llama3.2:1b",
              max_tokens: 30,
-             timeout: 10000
+             timeout: 10_000
            ) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)

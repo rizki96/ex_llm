@@ -97,8 +97,8 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
   original implementation.
   """
 
-  alias ExLLM.Providers.Shared.{StreamingCoordinator, HTTPClient}
   alias ExLLM.Infrastructure.Streaming.FlowController
+  alias ExLLM.Providers.Shared.{HTTPClient, StreamingCoordinator}
   alias ExLLM.Types
 
   require Logger
@@ -458,38 +458,45 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
     # Process lines and send to flow controller
     new_stats =
       Enum.reduce(complete_lines, stats, fn line, st ->
-        case StreamingCoordinator.parse_sse_line(line) do
-          {:data, event_data} ->
-            case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
-              {:ok, chunk} ->
-                # Send to flow controller (which handles all buffering and batching)
-                case FlowController.push_chunk(flow_controller, chunk) do
-                  :ok ->
-                    update_stream_stats(st, :chunk_count, 1)
-
-                  {:error, :backpressure} ->
-                    Logger.debug("Backpressure applied for chunk in stream #{recovery_id}")
-                    # Still count the chunk as processed
-                    update_stream_stats(st, :chunk_count, 1)
-                end
-
-              :skip ->
-                st
-            end
-
-          :done ->
-            Logger.debug(
-              "Flow controlled stream #{recovery_id} completed after #{st.chunk_count} chunks"
-            )
-
-            st
-
-          :skip ->
-            st
-        end
+        process_flow_line(line, st, parse_chunk_fn, recovery_id, options, flow_controller)
       end)
 
     {last_line, new_stats}
+  end
+
+  defp process_flow_line(line, st, parse_chunk_fn, recovery_id, options, flow_controller) do
+    case StreamingCoordinator.parse_sse_line(line) do
+      {:data, event_data} ->
+        process_flow_event_data(event_data, st, parse_chunk_fn, recovery_id, options, flow_controller)
+
+      :done ->
+        Logger.debug("Flow controlled stream #{recovery_id} completed after #{st.chunk_count} chunks")
+        st
+
+      :skip ->
+        st
+    end
+  end
+
+  defp process_flow_event_data(event_data, st, parse_chunk_fn, recovery_id, options, flow_controller) do
+    case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
+      {:ok, chunk} ->
+        send_chunk_to_flow_controller(chunk, st, flow_controller, recovery_id)
+
+      :skip ->
+        st
+    end
+  end
+
+  defp send_chunk_to_flow_controller(chunk, st, flow_controller, recovery_id) do
+    case FlowController.push_chunk(flow_controller, chunk) do
+      :ok ->
+        update_stream_stats(st, :chunk_count, 1)
+
+      {:error, :backpressure} ->
+        Logger.debug("Backpressure applied for chunk in stream #{recovery_id}")
+        update_stream_stats(st, :chunk_count, 1)
+    end
   end
 
   defp handle_event_data(data, parse_chunk_fn, recovery_id, stats, options) do

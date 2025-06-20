@@ -753,20 +753,24 @@ defmodule ExLLM.Providers.Gemini.Tuning do
 
         _ ->
           # Handle direct field names if no mask
-          if !update_mask do
-            case field do
-              :display_name -> Map.put(acc, "displayName", update[:display_name])
-              :description -> Map.put(acc, "description", update[:description])
-              :temperature -> Map.put(acc, "temperature", update[:temperature])
-              :top_p -> Map.put(acc, "topP", update[:top_p])
-              :top_k -> Map.put(acc, "topK", update[:top_k])
-              _ -> acc
-            end
-          else
-            acc
-          end
+          handle_unmapped_field(acc, field, update, update_mask)
       end
     end)
+  end
+
+  defp handle_unmapped_field(acc, field, update, update_mask) do
+    if update_mask do
+      acc
+    else
+      case field do
+        :display_name -> Map.put(acc, "displayName", update[:display_name])
+        :description -> Map.put(acc, "description", update[:description])
+        :temperature -> Map.put(acc, "temperature", update[:temperature])
+        :top_p -> Map.put(acc, "topP", update[:top_p])
+        :top_k -> Map.put(acc, "topK", update[:top_k])
+        _ -> acc
+      end
+    end
   end
 
   defp get_api_key(opts) do

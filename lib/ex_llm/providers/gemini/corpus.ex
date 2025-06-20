@@ -765,14 +765,14 @@ defmodule ExLLM.Providers.Gemini.Corpus do
       end
 
     base_request =
-      if !Enum.empty?(request.metadata_filters) do
+      if Enum.empty?(request.metadata_filters) do
+        base_request
+      else
         Map.put(
           base_request,
           "metadataFilters",
           Enum.map(request.metadata_filters, &encode_metadata_filter/1)
         )
-      else
-        base_request
       end
 
     base_request

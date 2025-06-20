@@ -524,16 +524,22 @@ defmodule ExLLM.Providers.Bumblebee do
   end
 
   defp infer_context_window(model_id) do
-    cond do
-      String.contains?(model_id, "32b") or String.contains?(model_id, "32B") -> 32_768
-      String.contains?(model_id, "16k") -> 16_384
-      String.contains?(model_id, "8k") -> 8_192
-      String.contains?(model_id, "4k") -> 4_096
-      String.contains?(model_id, "long") -> 32_768
-      String.contains?(model_id, "7b") or String.contains?(model_id, "7B") -> 8_192
-      String.contains?(model_id, "3b") or String.contains?(model_id, "3B") -> 4_096
-      String.contains?(model_id, "1b") or String.contains?(model_id, "1B") -> 2_048
-      true -> 2_048
+    # Context window patterns for Bumblebee models
+    # Order matters - more specific patterns first
+    patterns = [
+      {"32b", 32_768}, {"32B", 32_768},
+      {"16k", 16_384},
+      {"8k", 8_192},
+      {"4k", 4_096},
+      {"long", 32_768},
+      {"7b", 8_192}, {"7B", 8_192},
+      {"3b", 4_096}, {"3B", 4_096},
+      {"1b", 2_048}, {"1B", 2_048}
+    ]
+
+    case Enum.find(patterns, fn {pattern, _} -> String.contains?(model_id, pattern) end) do
+      {_, context_window} -> context_window
+      nil -> 2_048
     end
   end
 

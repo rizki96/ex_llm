@@ -7,6 +7,54 @@ defmodule ExLLM.Plugs.Providers.GroqParseListModelsResponse do
 
   use ExLLM.Plug
 
+  # Model context windows
+  @context_windows %{
+    "llama-3.3-70b-versatile" => 128_000,
+    "llama-3.3-70b-specdec" => 8_192,
+    "llama-3.1-405b-reasoning" => 131_072,
+    "llama-3.1-70b-versatile" => 131_072,
+    "llama-3.1-8b-instant" => 131_072,
+    "llama3-70b-8192" => 8_192,
+    "llama3-8b-8192" => 8_192,
+    "llama2-70b-4096" => 4_096,
+    "mixtral-8x7b-32768" => 32_768,
+    "gemma2-9b-it" => 8_192,
+    "gemma-7b-it" => 8_192,
+    "deepseek-r1-distill-llama-70b" => 128_000,
+    "deepseek-r1-distill-qwen-32b" => 128_000
+  }
+
+  # Model max output tokens
+  @max_output_tokens %{
+    "llama-3.3-70b-versatile" => 32_768,
+    "llama-3.3-70b-specdec" => 8_192,
+    "llama-3.1-405b-reasoning" => 16_384,
+    "llama-3.1-70b-versatile" => 16_384,
+    "llama-3.1-8b-instant" => 16_384,
+    "llama3-70b-8192" => 8_192,
+    "llama3-8b-8192" => 8_192,
+    "llama2-70b-4096" => 4_096,
+    "mixtral-8x7b-32768" => 32_768,
+    "deepseek-r1-distill-llama-70b" => 8_000,
+    "deepseek-r1-distill-qwen-32b" => 8_000
+  }
+
+  # Model pricing per 1M tokens (as of Dec 2024)
+  @pricing %{
+    "llama-3.3-70b-versatile" => %{input: 0.59, output: 0.79},
+    "llama-3.3-70b-specdec" => %{input: 0.59, output: 0.99},
+    "llama-3.1-405b-reasoning" => %{input: 3.00, output: 15.00},
+    "llama-3.1-70b-versatile" => %{input: 0.59, output: 0.79},
+    "llama-3.1-8b-instant" => %{input: 0.05, output: 0.08},
+    "llama3-70b-8192" => %{input: 0.59, output: 0.79},
+    "llama3-8b-8192" => %{input: 0.05, output: 0.08},
+    "mixtral-8x7b-32768" => %{input: 0.24, output: 0.24},
+    "gemma2-9b-it" => %{input: 0.20, output: 0.20},
+    "gemma-7b-it" => %{input: 0.07, output: 0.07},
+    "deepseek-r1-distill-llama-70b" => %{input: 0.59, output: 0.79},
+    "deepseek-r1-distill-qwen-32b" => %{input: 0.27, output: 0.27}
+  }
+
   @impl true
   def call(%ExLLM.Pipeline.Request{response: %Tesla.Env{} = response} = request, _opts) do
     case response.status do
@@ -99,41 +147,11 @@ defmodule ExLLM.Plugs.Providers.GroqParseListModelsResponse do
   end
 
   defp get_context_window(model_id) do
-    # Known context windows for Groq models
-    case model_id do
-      "llama-3.3-70b-versatile" -> 128_000
-      "llama-3.3-70b-specdec" -> 8_192
-      "llama-3.1-405b-reasoning" -> 131_072
-      "llama-3.1-70b-versatile" -> 131_072
-      "llama-3.1-8b-instant" -> 131_072
-      "llama3-70b-8192" -> 8_192
-      "llama3-8b-8192" -> 8_192
-      "llama2-70b-4096" -> 4_096
-      "mixtral-8x7b-32768" -> 32_768
-      "gemma2-9b-it" -> 8_192
-      "gemma-7b-it" -> 8_192
-      "deepseek-r1-distill-llama-70b" -> 128_000
-      "deepseek-r1-distill-qwen-32b" -> 128_000
-      _ -> 32_768
-    end
+    Map.get(@context_windows, model_id, 32_768)
   end
 
   defp get_max_output_tokens(model_id) do
-    # Known max output tokens for Groq models
-    case model_id do
-      "llama-3.3-70b-versatile" -> 32_768
-      "llama-3.3-70b-specdec" -> 8_192
-      "llama-3.1-405b-reasoning" -> 16_384
-      "llama-3.1-70b-versatile" -> 16_384
-      "llama-3.1-8b-instant" -> 16_384
-      "llama3-70b-8192" -> 8_192
-      "llama3-8b-8192" -> 8_192
-      "llama2-70b-4096" -> 4_096
-      "mixtral-8x7b-32768" -> 32_768
-      "deepseek-r1-distill-llama-70b" -> 8_000
-      "deepseek-r1-distill-qwen-32b" -> 8_000
-      _ -> 8_192
-    end
+    Map.get(@max_output_tokens, model_id, 8_192)
   end
 
   defp get_capabilities(model_id) do
@@ -170,48 +188,7 @@ defmodule ExLLM.Plugs.Providers.GroqParseListModelsResponse do
   end
 
   defp get_pricing(model_id) do
-    # Groq pricing per 1M tokens (as of Dec 2024)
-    # Groq is known for very competitive pricing
-    case model_id do
-      "llama-3.3-70b-versatile" ->
-        %{input: 0.59, output: 0.79}
-
-      "llama-3.3-70b-specdec" ->
-        %{input: 0.59, output: 0.99}
-
-      "llama-3.1-405b-reasoning" ->
-        %{input: 3.00, output: 15.00}
-
-      "llama-3.1-70b-versatile" ->
-        %{input: 0.59, output: 0.79}
-
-      "llama-3.1-8b-instant" ->
-        %{input: 0.05, output: 0.08}
-
-      "llama3-70b-8192" ->
-        %{input: 0.59, output: 0.79}
-
-      "llama3-8b-8192" ->
-        %{input: 0.05, output: 0.08}
-
-      "mixtral-8x7b-32768" ->
-        %{input: 0.24, output: 0.24}
-
-      "gemma2-9b-it" ->
-        %{input: 0.20, output: 0.20}
-
-      "gemma-7b-it" ->
-        %{input: 0.07, output: 0.07}
-
-      "deepseek-r1-distill-llama-70b" ->
-        %{input: 0.59, output: 0.79}
-
-      "deepseek-r1-distill-qwen-32b" ->
-        %{input: 0.27, output: 0.27}
-
-      _ ->
-        %{input: 0.10, output: 0.10}
-    end
+    Map.get(@pricing, model_id, %{input: 0.10, output: 0.10})
   end
 
   defp extract_error_message(body) when is_map(body) do

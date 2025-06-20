@@ -4,15 +4,15 @@ defmodule ExLLM.Gemini.CorpusTest do
   alias ExLLM.Providers.Gemini.Corpus
 
   alias ExLLM.Providers.Gemini.Corpus.{
+    CorpusInfo,
     CreateCorpusRequest,
-    UpdateCorpusRequest,
-    QueryCorpusRequest,
     ListCorporaRequest,
     ListCorporaResponse,
-    QueryCorpusResponse,
-    CorpusInfo,
     MetadataFilter,
-    RelevantChunk
+    QueryCorpusRequest,
+    QueryCorpusResponse,
+    RelevantChunk,
+    UpdateCorpusRequest
   }
 
   @moduletag :gemini_corpus

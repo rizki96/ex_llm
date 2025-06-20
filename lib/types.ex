@@ -91,7 +91,7 @@ defmodule ExLLM.Types do
             usage: ExLLM.Types.token_usage() | nil,
             finish_reason: String.t() | nil,
             id: String.t() | nil,
-            cost: ExLLM.Types.cost_result() | nil,
+            cost: float() | nil,
             function_call: map() | nil,
             tool_calls: list(map()) | nil,
             refusal: String.t() | nil,
@@ -150,7 +150,7 @@ defmodule ExLLM.Types do
             embeddings: list(list(float())),
             model: String.t(),
             usage: ExLLM.Types.token_usage() | nil,
-            cost: ExLLM.Types.cost_result() | nil,
+            cost: float() | nil,
             metadata: map() | nil
           }
   end

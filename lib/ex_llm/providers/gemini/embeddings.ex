@@ -291,15 +291,19 @@ defmodule ExLLM.Providers.Gemini.Embeddings do
       {:error, %{reason: :invalid_params, message: "All requests must use the same model"}}
     else
       # Validate each request
-      case Enum.find_value(requests, fn req ->
-             case validate_embed_request(req) do
-               :ok -> nil
-               error -> error
-             end
-           end) do
-        nil -> :ok
-        error -> error
-      end
+      validate_all_embed_requests(requests)
+    end
+  end
+
+  defp validate_all_embed_requests(requests) do
+    case Enum.find_value(requests, fn req ->
+           case validate_embed_request(req) do
+             :ok -> nil
+             error -> error
+           end
+         end) do
+      nil -> :ok
+      error -> error
     end
   end
 

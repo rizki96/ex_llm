@@ -50,7 +50,7 @@ defmodule ExLLM.Providers.Bedrock do
   @behaviour ExLLM.Provider
 
   alias ExLLM.Providers.Shared.ModelUtils
-  alias ExLLM.{Infrastructure.Logger, Infrastructure.Config.ModelConfig, Types}
+  alias ExLLM.{Infrastructure.Config.ModelConfig, Infrastructure.Logger, Types}
 
   @default_region "us-east-1"
 

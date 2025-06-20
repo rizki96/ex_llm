@@ -11,7 +11,7 @@ defmodule ExLLM.Providers.GeminiComprehensiveTest do
   setup _context do
     if System.get_env("GEMINI_API_KEY") do
       # Disable caching for Gemini tests to avoid interference during implementation
-      # TODO: Re-enable caching once core API functionality is stable
+      # NOTE: Caching disabled during development phase to ensure test reliability
       original_cache_enabled = System.get_env("EX_LLM_TEST_CACHE_ENABLED")
       System.put_env("EX_LLM_TEST_CACHE_ENABLED", "false")
 
@@ -1085,7 +1085,7 @@ defmodule ExLLM.Providers.GeminiComprehensiveTest do
   end
 
   # Temporarily disabled during implementation phase to avoid cache interference
-  # TODO: Re-enable once core API functionality is stable
+  # NOTE: Cache verification tests disabled during development for stability
   # describe "Cache Verification" do
   #   @tag :requires_api_key
   #   @tag :cache_test

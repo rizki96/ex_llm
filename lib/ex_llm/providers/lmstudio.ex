@@ -65,7 +65,7 @@ defmodule ExLLM.Providers.LMStudio do
 
   @behaviour ExLLM.Provider
 
-  alias ExLLM.Providers.Shared.{MessageFormatter, ResponseBuilder, EnhancedStreamingCoordinator}
+  alias ExLLM.Providers.Shared.{EnhancedStreamingCoordinator, MessageFormatter, ResponseBuilder}
   alias ExLLM.Types
 
   @default_host "localhost"
@@ -282,20 +282,24 @@ defmodule ExLLM.Providers.LMStudio do
   end
 
   defp create_lmstudio_validator(opts) do
-    # Validate local model responses
     if Keyword.get(opts, :validate_local, false) do
-      fn chunk ->
-        if chunk.content do
-          # Simple validation for local model quality
-          if String.length(String.trim(chunk.content)) > 0 do
-            :ok
-          else
-            {:error, "Empty content from local model"}
-          end
-        else
-          :ok
-        end
-      end
+      &validate_lmstudio_chunk/1
+    end
+  end
+
+  defp validate_lmstudio_chunk(chunk) do
+    if chunk.content do
+      validate_chunk_content(chunk.content)
+    else
+      :ok
+    end
+  end
+
+  defp validate_chunk_content(content) do
+    if String.length(String.trim(content)) > 0 do
+      :ok
+    else
+      {:error, "Empty content from local model"}
     end
   end
 

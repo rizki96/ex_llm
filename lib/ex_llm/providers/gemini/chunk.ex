@@ -669,22 +669,26 @@ defmodule ExLLM.Providers.Gemini.Chunk do
 
   @doc false
   def validate_list_opts(opts) do
-    cond do
-      opts[:page_size] && opts[:page_size] > 100 ->
-        {:error, %{message: "maximum size limit is 100 chunks per page"}}
-
-      true ->
-        :ok
+    if opts[:page_size] && opts[:page_size] > 100 do
+      {:error, %{message: "maximum size limit is 100 chunks per page"}}
+    else
+      :ok
     end
   end
 
   @doc false
   def validate_update_params(updates, update_mask) do
+    with :ok <- validate_update_mask(update_mask),
+         :ok <- validate_update_data(updates) do
+      validate_custom_metadata(updates)
+    end
+  end
+
+  defp validate_update_mask(update_mask) do
     valid_fields = ["data", "customMetadata"]
 
     cond do
-      is_nil(update_mask) || (is_list(update_mask) && Enum.empty?(update_mask)) ||
-          (is_map(update_mask) && map_size(update_mask) == 0) ->
+      is_update_mask_empty?(update_mask) ->
         {:error, %{message: "updateMask is required"}}
 
       is_binary(update_mask) && update_mask not in valid_fields ->
@@ -693,14 +697,30 @@ defmodule ExLLM.Providers.Gemini.Chunk do
       is_list(update_mask) && not Enum.all?(update_mask, &(&1 in valid_fields)) ->
         {:error, %{message: "updateMask only supports updating data and customMetadata"}}
 
-      updates[:data] && updates[:data][:string_value] == "" ->
-        {:error, %{message: "string_value cannot be empty when updating data"}}
-
-      updates[:custom_metadata] && Enum.count(updates[:custom_metadata]) > 20 ->
-        {:error, %{message: "maximum of 20 CustomMetadata allowed"}}
-
       true ->
         :ok
+    end
+  end
+
+  defp is_update_mask_empty?(update_mask) do
+    is_nil(update_mask) ||
+      (is_list(update_mask) && Enum.empty?(update_mask)) ||
+      (is_map(update_mask) && map_size(update_mask) == 0)
+  end
+
+  defp validate_update_data(updates) do
+    if updates[:data] && updates[:data][:string_value] == "" do
+      {:error, %{message: "string_value cannot be empty when updating data"}}
+    else
+      :ok
+    end
+  end
+
+  defp validate_custom_metadata(updates) do
+    if updates[:custom_metadata] && Enum.count(updates[:custom_metadata]) > 20 do
+      {:error, %{message: "maximum of 20 CustomMetadata allowed"}}
+    else
+      :ok
     end
   end
 

@@ -93,61 +93,80 @@ defmodule ExLLM.Infrastructure.Cache.Storage.TestCache do
     config = TestCacheConfig.get_config()
 
     if config.enabled do
-      cache_dir = build_cache_dir(cache_key, config)
-      test_context = TestCacheDetector.get_current_test_context()
-
-      # Get TTL and fallback strategy for this context
-      test_tags = get_test_tags(test_context)
-      provider = extract_provider(cache_key)
-      ttl = TestCacheConfig.get_ttl(test_tags, provider)
-      strategy = TestCacheConfig.get_fallback_strategy(test_tags)
-
-      # Override with options if provided
-      ttl = Map.get(options, :ttl, ttl)
-      strategy = Map.get(options, :fallback_strategy, strategy)
-
-      case select_best_cache_entry(cache_dir, ttl, strategy) do
-        {:ok, filename} ->
-          file_path = Path.join(cache_dir, filename)
-
-          case File.read(file_path) do
-            {:ok, content} ->
-              case Jason.decode(content) do
-                {:ok, entry_data} ->
-                  {:ok, entry_data["response_data"]}
-
-                {:error, reason} ->
-                  {:error, "Failed to parse cached response: #{inspect(reason)}"}
-              end
-
-            {:error, reason} ->
-              {:error, "Failed to read cached file: #{inspect(reason)}"}
-          end
-
-        {:expired, latest_filename} ->
-          # Check if we should use expired cache as fallback
-          if Map.get(options, :allow_expired, false) do
-            file_path = Path.join(cache_dir, latest_filename)
-
-            case File.read(file_path) do
-              {:ok, content} ->
-                case Jason.decode(content) do
-                  {:ok, entry_data} -> {:ok, entry_data["response_data"]}
-                  {:error, _} -> :miss
-                end
-
-              {:error, _} ->
-                :miss
-            end
-          else
-            :miss
-          end
-
-        :none ->
-          :miss
-      end
+      perform_cache_lookup(cache_key, config, options)
     else
       :miss
+    end
+  end
+
+  defp perform_cache_lookup(cache_key, config, options) do
+    cache_dir = build_cache_dir(cache_key, config)
+    test_context = TestCacheDetector.get_current_test_context()
+
+    # Get TTL and fallback strategy for this context
+    test_tags = get_test_tags(test_context)
+    provider = extract_provider(cache_key)
+    ttl = TestCacheConfig.get_ttl(test_tags, provider)
+    strategy = TestCacheConfig.get_fallback_strategy(test_tags)
+
+    # Override with options if provided
+    ttl = Map.get(options, :ttl, ttl)
+    strategy = Map.get(options, :fallback_strategy, strategy)
+
+    case select_best_cache_entry(cache_dir, ttl, strategy) do
+      {:ok, filename} ->
+        read_cache_file(cache_dir, filename)
+
+      {:expired, latest_filename} ->
+        handle_expired_cache(cache_dir, latest_filename, options)
+
+      :none ->
+        :miss
+    end
+  end
+
+  defp read_cache_file(cache_dir, filename) do
+    file_path = Path.join(cache_dir, filename)
+
+    case File.read(file_path) do
+      {:ok, content} ->
+        parse_cache_content(content)
+
+      {:error, reason} ->
+        {:error, "Failed to read cached file: #{inspect(reason)}"}
+    end
+  end
+
+  defp parse_cache_content(content) do
+    case Jason.decode(content) do
+      {:ok, entry_data} ->
+        {:ok, entry_data["response_data"]}
+
+      {:error, reason} ->
+        {:error, "Failed to parse cached response: #{inspect(reason)}"}
+    end
+  end
+
+  defp handle_expired_cache(cache_dir, latest_filename, options) do
+    if Map.get(options, :allow_expired, false) do
+      read_expired_cache_file(cache_dir, latest_filename)
+    else
+      :miss
+    end
+  end
+
+  defp read_expired_cache_file(cache_dir, filename) do
+    file_path = Path.join(cache_dir, filename)
+
+    case File.read(file_path) do
+      {:ok, content} ->
+        case Jason.decode(content) do
+          {:ok, entry_data} -> {:ok, entry_data["response_data"]}
+          {:error, _} -> :miss
+        end
+
+      {:error, _} ->
+        :miss
     end
   end
 
@@ -393,12 +412,7 @@ defmodule ExLLM.Infrastructure.Cache.Storage.TestCache do
 
           case TestCacheTimestamp.parse_timestamp_from_filename(filename) do
             {:ok, timestamp} ->
-              size =
-                case File.stat(file_path) do
-                  {:ok, %{size: size}} -> size
-                  {:error, _} -> 0
-                end
-
+              size = get_file_size(file_path)
               content_hash = TestCacheTimestamp.get_content_hash(file_path)
               status = determine_entry_status(file_path)
 
@@ -425,6 +439,14 @@ defmodule ExLLM.Infrastructure.Cache.Storage.TestCache do
 
       {:error, _} ->
         []
+    end
+  end
+
+  # Helper function to get file size safely
+  defp get_file_size(file_path) do
+    case File.stat(file_path) do
+      {:ok, %{size: size}} -> size
+      {:error, _} -> 0
     end
   end
 
@@ -522,30 +544,45 @@ defmodule ExLLM.Infrastructure.Cache.Storage.TestCache do
   defp walk_cache_directories(current_path, base_path) do
     case File.ls(current_path) do
       {:ok, entries} ->
-        Enum.flat_map(entries, fn entry ->
-          entry_path = Path.join(current_path, entry)
-
-          cond do
-            File.dir?(entry_path) and entry != "index.json" ->
-              walk_cache_directories(entry_path, base_path)
-
-            String.ends_with?(entry, ".json") and entry != "index.json" ->
-              relative_dir = Path.relative_to(current_path, base_path)
-
-              if relative_dir == "." do
-                []
-              else
-                [relative_dir]
-              end
-
-            true ->
-              []
-          end
-        end)
+        entries
+        |> Enum.flat_map(&process_directory_entry(&1, current_path, base_path))
         |> Enum.uniq()
 
       {:error, _} ->
         []
+    end
+  end
+
+  defp process_directory_entry(entry, current_path, base_path) do
+    entry_path = Path.join(current_path, entry)
+
+    cond do
+      should_recurse_directory?(entry_path, entry) ->
+        walk_cache_directories(entry_path, base_path)
+
+      is_valid_cache_file?(entry) ->
+        get_relative_directory(current_path, base_path)
+
+      true ->
+        []
+    end
+  end
+
+  defp should_recurse_directory?(entry_path, entry) do
+    File.dir?(entry_path) and entry != "index.json"
+  end
+
+  defp is_valid_cache_file?(entry) do
+    String.ends_with?(entry, ".json") and entry != "index.json"
+  end
+
+  defp get_relative_directory(current_path, base_path) do
+    relative_dir = Path.relative_to(current_path, base_path)
+
+    if relative_dir == "." do
+      []
+    else
+      [relative_dir]
     end
   end
 

@@ -357,19 +357,23 @@ defmodule ExLLM.Providers.Anthropic do
   defp create_anthropic_validator(options) do
     # Validate response quality for Claude models
     if Keyword.get(options, :validate_quality, false) do
-      fn chunk ->
-        if chunk.content do
-          # Simple quality check
-          if String.length(chunk.content) > 0 &&
-               not String.match?(chunk.content, ~r/^\s*$/) do
-            :ok
-          else
-            {:error, "Low quality content detected"}
-          end
-        else
-          :ok
-        end
-      end
+      &validate_chunk_quality/1
+    end
+  end
+
+  defp validate_chunk_quality(chunk) do
+    if chunk.content do
+      validate_content_quality(chunk.content)
+    else
+      :ok
+    end
+  end
+
+  defp validate_content_quality(content) do
+    if String.length(content) > 0 && not String.match?(content, ~r/^\s*$/) do
+      :ok
+    else
+      {:error, "Low quality content detected"}
     end
   end
 

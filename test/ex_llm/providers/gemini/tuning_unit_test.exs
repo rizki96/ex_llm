@@ -4,15 +4,15 @@ defmodule ExLLM.Providers.Gemini.TuningUnitTest do
   alias ExLLM.Providers.Gemini.Tuning
 
   alias ExLLM.Providers.Gemini.Tuning.{
-    TunedModel,
-    TuningTask,
-    TuningSnapshot,
     Dataset,
-    TuningExamples,
-    TuningExample,
     Hyperparameters,
+    ListTunedModelsResponse,
+    TunedModel,
     TunedModelSource,
-    ListTunedModelsResponse
+    TuningExample,
+    TuningExamples,
+    TuningSnapshot,
+    TuningTask
   }
 
   describe "structs" do

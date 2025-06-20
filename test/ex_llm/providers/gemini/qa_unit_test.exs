@@ -6,10 +6,10 @@ defmodule ExLLM.Gemini.QATest do
   alias ExLLM.Providers.Gemini.QA.{
     GenerateAnswerRequest,
     GenerateAnswerResponse,
-    GroundingPassages,
     GroundingPassage,
-    SemanticRetrieverConfig,
-    InputFeedback
+    GroundingPassages,
+    InputFeedback,
+    SemanticRetrieverConfig
   }
 
   @moduletag :gemini_qa

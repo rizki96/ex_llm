@@ -7,7 +7,7 @@ defmodule ExLLM.Gemini.FilesUnitTest do
 
   use ExUnit.Case, async: true
   alias ExLLM.Providers.Gemini.Files
-  alias ExLLM.Providers.Gemini.Files.{File, VideoFileMetadata, Status}
+  alias ExLLM.Providers.Gemini.Files.{File, Status, VideoFileMetadata}
 
   describe "File struct" do
     test "creates file with all fields" do

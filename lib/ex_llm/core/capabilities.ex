@@ -275,19 +275,8 @@ defmodule ExLLM.Core.Capabilities do
 
       # Check if this string form exists in our mappings
       case Map.get(@capability_mappings, feature_string) do
-        nil ->
-          # Check if it's already a normalized capability name
-          feature_atom = String.to_atom(feature_string)
-
-          if feature_atom in Map.keys(@display_names) do
-            feature_atom
-          else
-            # Return the original atom if it's already an atom, otherwise return nil
-            if is_atom(feature), do: feature, else: nil
-          end
-
-        mapped ->
-          mapped
+        nil -> find_normalized_capability(feature_string, feature)
+        mapped -> mapped
       end
     end
   end
@@ -375,5 +364,16 @@ defmodule ExLLM.Core.Capabilities do
     (provider_features ++ model_features)
     |> Enum.uniq()
     |> Enum.sort()
+  end
+
+  # Helper function to find normalized capability
+  defp find_normalized_capability(feature_string, original_feature) do
+    feature_atom = String.to_atom(feature_string)
+    
+    cond do
+      feature_atom in Map.keys(@display_names) -> feature_atom
+      is_atom(original_feature) -> original_feature
+      true -> nil
+    end
   end
 end

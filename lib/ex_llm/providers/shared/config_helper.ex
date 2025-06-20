@@ -1,7 +1,7 @@
 defmodule ExLLM.Providers.Shared.ConfigHelper do
   @moduledoc false
 
-  alias ExLLM.{Infrastructure.ConfigProvider, Infrastructure.Config.ModelConfig}
+  alias ExLLM.{Infrastructure.Config.ModelConfig, Infrastructure.ConfigProvider}
 
   @doc """
   Get configuration for a specific adapter from the config provider.

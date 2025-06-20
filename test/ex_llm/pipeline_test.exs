@@ -3,7 +3,7 @@ defmodule ExLLM.PipelineTest do
 
   alias ExLLM.Pipeline
   alias ExLLM.Pipeline.Request
-  alias ExLLM.Plugs.{ValidateProvider, FetchConfig, ManageContext}
+  alias ExLLM.Plugs.{FetchConfig, ManageContext, ValidateProvider}
 
   describe "Pipeline.run/2" do
     test "executes plugs in sequence" do

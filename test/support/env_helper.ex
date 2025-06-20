@@ -287,11 +287,11 @@ defmodule ExLLM.Testing.EnvHelper do
       required ->
         missing = Enum.filter(required, &(System.get_env(&1) == nil))
 
-        if not Enum.empty?(missing) do
+        if Enum.empty?(missing) do
+          :ok
+        else
           Logger.error("Missing required environment variables: #{Enum.join(missing, ", ")}")
           {:error, {:missing_env_vars, missing}}
-        else
-          :ok
         end
     end
   end

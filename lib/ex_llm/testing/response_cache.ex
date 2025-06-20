@@ -58,6 +58,69 @@ defmodule ExLLM.Testing.ResponseCache do
   @cache_enabled_env "EX_LLM_CACHE_RESPONSES"
   @default_cache_dir Path.join([System.tmp_dir(), "ex_llm_cache"])
 
+  # Known cache key mappings for safe atomization
+  @cache_key_mappings %{
+    # CacheEntry struct fields
+    "request_hash" => :request_hash,
+    "provider" => :provider,
+    "endpoint" => :endpoint,
+    "request_data" => :request_data,
+    "response_data" => :response_data,
+    "cached_at" => :cached_at,
+    "model" => :model,
+    "response_time_ms" => :response_time_ms,
+    # Common fields in request/response data
+    "key" => :key,
+    "response" => :response,
+    "timestamp" => :timestamp,
+    "metadata" => :metadata,
+    "messages" => :messages,
+    "content" => :content,
+    "role" => :role,
+    "usage" => :usage,
+    "input_tokens" => :input_tokens,
+    "output_tokens" => :output_tokens,
+    "total_tokens" => :total_tokens,
+    "cost" => :cost,
+    "id" => :id,
+    "finish_reason" => :finish_reason,
+    "function_call" => :function_call,
+    "tool_calls" => :tool_calls,
+    # OpenAI/Compatible format fields
+    "choices" => :choices,
+    "message" => :message,
+    "prompt_tokens" => :prompt_tokens,
+    "completion_tokens" => :completion_tokens,
+    # Anthropic format fields
+    "stop_reason" => :stop_reason,
+    "text" => :text,
+    # Ollama format fields
+    "done" => :done,
+    "prompt_eval_count" => :prompt_eval_count,
+    "eval_count" => :eval_count
+  }
+
+  # Known provider name mappings
+  @provider_mappings %{
+    "openai" => :openai,
+    "anthropic" => :anthropic,
+    "gemini" => :gemini,
+    "groq" => :groq,
+    "ollama" => :ollama,
+    "openrouter" => :openrouter,
+    "bedrock" => :bedrock,
+    "mistral" => :mistral,
+    "cohere" => :cohere,
+    "perplexity" => :perplexity,
+    "deepseek" => :deepseek,
+    "together_ai" => :together_ai,
+    "anyscale" => :anyscale,
+    "replicate" => :replicate,
+    "xai" => :xai,
+    "bumblebee" => :bumblebee,
+    "mock" => :mock
+  }
+
   defmodule CacheEntry do
     @moduledoc false
     defstruct [
@@ -474,48 +537,7 @@ defmodule ExLLM.Testing.ResponseCache do
 
   # Safe atomization of known cache entry keys
   defp safe_atomize_cache_key(key) when is_binary(key) do
-    case key do
-      # CacheEntry struct fields
-      "request_hash" -> :request_hash
-      "provider" -> :provider
-      "endpoint" -> :endpoint
-      "request_data" -> :request_data
-      "response_data" -> :response_data
-      "cached_at" -> :cached_at
-      "model" -> :model
-      "response_time_ms" -> :response_time_ms
-      # Common fields in request/response data
-      "key" -> :key
-      "response" -> :response
-      "timestamp" -> :timestamp
-      "metadata" -> :metadata
-      "messages" -> :messages
-      "content" -> :content
-      "role" -> :role
-      "usage" -> :usage
-      "input_tokens" -> :input_tokens
-      "output_tokens" -> :output_tokens
-      "total_tokens" -> :total_tokens
-      "cost" -> :cost
-      "id" -> :id
-      "finish_reason" -> :finish_reason
-      "function_call" -> :function_call
-      "tool_calls" -> :tool_calls
-      # OpenAI/Compatible format fields
-      "choices" -> :choices
-      "message" -> :message
-      "prompt_tokens" -> :prompt_tokens
-      "completion_tokens" -> :completion_tokens
-      # Anthropic format fields
-      "stop_reason" -> :stop_reason
-      "text" -> :text
-      # Ollama format fields
-      "done" -> :done
-      "prompt_eval_count" -> :prompt_eval_count
-      "eval_count" -> :eval_count
-      # Keep as string if not a known key
-      _ -> key
-    end
+    Map.get(@cache_key_mappings, key, key)
   end
 
   defp determine_endpoint(options) do
@@ -702,26 +724,6 @@ defmodule ExLLM.Testing.ResponseCache do
 
   # Safe conversion of provider names to atoms
   defp safe_provider_to_atom(provider) when is_binary(provider) do
-    case provider do
-      "openai" -> :openai
-      "anthropic" -> :anthropic
-      "gemini" -> :gemini
-      "groq" -> :groq
-      "ollama" -> :ollama
-      "openrouter" -> :openrouter
-      "bedrock" -> :bedrock
-      "mistral" -> :mistral
-      "cohere" -> :cohere
-      "perplexity" -> :perplexity
-      "deepseek" -> :deepseek
-      "together_ai" -> :together_ai
-      "anyscale" -> :anyscale
-      "replicate" -> :replicate
-      "xai" -> :xai
-      "bumblebee" -> :bumblebee
-      "mock" -> :mock
-      # Return as string if not a known provider
-      _ -> provider
-    end
+    Map.get(@provider_mappings, provider, provider)
   end
 end

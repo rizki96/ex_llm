@@ -270,24 +270,8 @@ defmodule ExLLM.Infrastructure.Cache do
     else
       # Use regular caching system
       if should_cache?(opts) do
-        case get(cache_key) do
-          {:ok, cached_response} ->
-            # Return cached response wrapped in ok tuple
-            {:ok, cached_response}
-
-          :miss ->
-            # Execute function and cache result
-            case fun.() do
-              {:ok, response} = result ->
-                put(cache_key, response, opts)
-                result
-
-              error ->
-                error
-            end
-        end
+        handle_cache_lookup(cache_key, fun, opts)
       else
-        # Caching disabled, just execute
         fun.()
       end
     end
@@ -432,6 +416,26 @@ defmodule ExLLM.Infrastructure.Cache do
   end
 
   ## Private Functions
+
+  # Helper function to handle cache lookup and execution
+  defp handle_cache_lookup(cache_key, fun, opts) do
+    case get(cache_key) do
+      {:ok, cached_response} ->
+        # Return cached response wrapped in ok tuple
+        {:ok, cached_response}
+
+      :miss ->
+        # Execute function and cache result
+        case fun.() do
+          {:ok, response} = result ->
+            put(cache_key, response, opts)
+            result
+
+          error ->
+            error
+        end
+    end
+  end
 
   defp persist_to_disk_async(cache_key, cached_response, opts, state) do
     # Extract metadata for disk storage

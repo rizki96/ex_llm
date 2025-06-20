@@ -134,31 +134,33 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
 
   defp get_context_window(base_name) do
     # Known context windows for common Ollama models
-    cond do
-      base_name =~ ~r/llama3\.2/ -> 128_000
-      base_name =~ ~r/llama3\.1/ -> 128_000
-      base_name =~ ~r/llama3/ -> 8_192
-      base_name =~ ~r/llama2/ -> 4_096
-      base_name =~ ~r/mistral/ -> 32_768
-      base_name =~ ~r/mixtral/ -> 32_768
-      base_name =~ ~r/qwen2\.5/ -> 128_000
-      base_name =~ ~r/qwen2/ -> 32_768
-      base_name =~ ~r/qwen/ -> 8_192
-      base_name =~ ~r/deepseek-r1/ -> 64_000
-      base_name =~ ~r/deepseek-coder-v2/ -> 128_000
-      base_name =~ ~r/deepseek-v2/ -> 128_000
-      base_name =~ ~r/phi3/ -> 128_000
-      base_name =~ ~r/phi/ -> 2_048
-      base_name =~ ~r/gemma2/ -> 8_192
-      base_name =~ ~r/gemma/ -> 8_192
-      base_name =~ ~r/command-r/ -> 128_000
-      base_name =~ ~r/yi/ -> 200_000
-      base_name =~ ~r/solar/ -> 4_096
-      base_name =~ ~r/codellama/ -> 16_384
-      base_name =~ ~r/starcoder2/ -> 16_384
-      base_name =~ ~r/wizardlm2/ -> 65_536
-      true -> 4_096
-    end
+    # Order matters - more specific patterns first
+    context_patterns = [
+      {~r/llama3\.2/, 128_000},
+      {~r/llama3\.1/, 128_000},
+      {~r/llama3/, 8_192},
+      {~r/llama2/, 4_096},
+      {~r/mistral/, 32_768},
+      {~r/mixtral/, 32_768},
+      {~r/qwen2\.5/, 128_000},
+      {~r/qwen2/, 32_768},
+      {~r/qwen/, 8_192},
+      {~r/deepseek-r1/, 64_000},
+      {~r/deepseek-coder-v2/, 128_000},
+      {~r/deepseek-v2/, 128_000},
+      {~r/phi3/, 128_000},
+      {~r/phi/, 2_048},
+      {~r/gemma2/, 8_192},
+      {~r/gemma/, 8_192},
+      {~r/command-r/, 128_000},
+      {~r/yi/, 200_000},
+      {~r/solar/, 4_096},
+      {~r/codellama/, 16_384},
+      {~r/starcoder2/, 16_384},
+      {~r/wizardlm2/, 65_536}
+    ]
+
+    find_matching_value(base_name, context_patterns, 4_096)
   end
 
   defp get_max_output_tokens(base_name) do
@@ -215,5 +217,13 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       end
 
     Enum.uniq(capabilities)
+  end
+
+  # Helper function to find first matching pattern value
+  defp find_matching_value(string, patterns, default) do
+    case Enum.find(patterns, fn {pattern, _value} -> string =~ pattern end) do
+      {_pattern, value} -> value
+      nil -> default
+    end
   end
 end

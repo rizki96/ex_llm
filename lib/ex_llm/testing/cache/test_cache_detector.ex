@@ -136,34 +136,29 @@ defmodule ExLLM.Testing.TestCacheDetector do
   defp should_cache_current_test?(config) do
     case get_current_test_context() do
       {:ok, context} ->
-        cond do
-          # Primary detection: :live_api tag
-          :live_api in context.tags and config.cache_live_api_tests ->
-            true
-
-          # Legacy support: :integration tag
-          :integration in context.tags and config.cache_integration_tests ->
-            true
-
-          # OAuth2 tests
-          :oauth2 in context.tags and config.cache_oauth2_tests ->
-            true
-
-          # Module name-based detection (legacy)
-          String.contains?(to_string(context.module), "Integration") and
-              config.cache_integration_tests ->
-            true
-
-          String.contains?(to_string(context.module), "OAuth2") and config.cache_oauth2_tests ->
-            true
-
-          true ->
-            false
-        end
+        check_cache_conditions(context, config)
 
       :error ->
         false
     end
+  end
+
+  defp check_cache_conditions(context, config) do
+    check_tag_based_caching(context.tags, config) ||
+      check_module_based_caching(context.module, config)
+  end
+
+  defp check_tag_based_caching(tags, config) do
+    (:live_api in tags and config.cache_live_api_tests) ||
+      (:integration in tags and config.cache_integration_tests) ||
+      (:oauth2 in tags and config.cache_oauth2_tests)
+  end
+
+  defp check_module_based_caching(module, config) do
+    module_string = to_string(module)
+    
+    (String.contains?(module_string, "Integration") and config.cache_integration_tests) ||
+      (String.contains?(module_string, "OAuth2") and config.cache_oauth2_tests)
   end
 
   defp get_process_context do

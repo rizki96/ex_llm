@@ -81,16 +81,16 @@ defmodule ExLLM.Providers.Perplexity do
   @behaviour ExLLM.Provider
   @behaviour ExLLM.Providers.Shared.StreamingBehavior
 
-  alias ExLLM.{Infrastructure.Logger, Infrastructure.Config.ModelConfig, Types}
+  alias ExLLM.{Infrastructure.Config.ModelConfig, Infrastructure.Logger, Types}
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
+    EnhancedStreamingCoordinator,
     ErrorHandler,
     HTTPClient,
     MessageFormatter,
     ModelUtils,
     ResponseBuilder,
-    EnhancedStreamingCoordinator,
     Validation
   }
 
@@ -556,9 +556,8 @@ defmodule ExLLM.Providers.Perplexity do
     |> case do
       :ok ->
         # Validate image filters if provided
-        with :ok <- validate_image_filter_param(options, :image_domain_filter),
-             :ok <- validate_image_filter_param(options, :image_format_filter) do
-          :ok
+        with :ok <- validate_image_filter_param(options, :image_domain_filter) do
+          validate_image_filter_param(options, :image_format_filter)
         end
 
       error ->

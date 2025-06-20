@@ -71,7 +71,7 @@ defmodule ExLLM.Providers.PerplexityPublicAPITest do
       case ExLLM.stream(:perplexity, messages, collector,
              model: "llama-3.1-sonar-small-128k-chat",
              max_tokens: 100,
-             timeout: 10000
+             timeout: 10_000
            ) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)

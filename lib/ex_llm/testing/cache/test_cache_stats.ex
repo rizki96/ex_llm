@@ -7,8 +7,8 @@ defmodule ExLLM.Testing.TestCacheStats do
   performance improvements, and storage optimization metrics.
   """
 
-  alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheIndex
 
   use Agent

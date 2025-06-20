@@ -21,48 +21,12 @@ defmodule ExLLM.Providers do
   """
   @spec get_pipeline(atom(), pipeline_type()) :: Pipeline.pipeline()
   def get_pipeline(provider, type \\ :chat) do
-    case {provider, type} do
-      {:openai, :chat} -> openai_chat_pipeline()
-      {:openai, :stream} -> openai_stream_pipeline()
-      {:anthropic, :chat} -> anthropic_chat_pipeline()
-      {:anthropic, :stream} -> anthropic_stream_pipeline()
-      {:gemini, :chat} -> gemini_chat_pipeline()
-      {:gemini, :stream} -> gemini_stream_pipeline()
-      {:groq, :chat} -> groq_chat_pipeline()
-      {:groq, :stream} -> groq_stream_pipeline()
-      {:mistral, :chat} -> mistral_chat_pipeline()
-      {:mistral, :stream} -> mistral_stream_pipeline()
-      {:openrouter, :chat} -> openrouter_chat_pipeline()
-      {:openrouter, :stream} -> openrouter_stream_pipeline()
-      {:perplexity, :stream} -> perplexity_stream_pipeline()
-      {:xai, :chat} -> xai_chat_pipeline()
-      {:xai, :stream} -> xai_stream_pipeline()
-      {:ollama, :chat} -> ollama_chat_pipeline()
-      {:ollama, :stream} -> ollama_stream_pipeline()
-      {:lmstudio, :stream} -> lmstudio_stream_pipeline()
-      {:bedrock, :chat} -> bedrock_chat_pipeline()
-      {:bedrock, :stream} -> bedrock_stream_pipeline()
-      {:bumblebee, :chat} -> bumblebee_chat_pipeline()
-      {:bumblebee, :stream} -> bumblebee_stream_pipeline()
-      {:mock, :chat} -> mock_chat_pipeline()
-      {:mock, :stream} -> mock_stream_pipeline()
-      # Embeddings pipelines
-      {:openai, :embeddings} -> openai_embeddings_pipeline()
-      {:gemini, :embeddings} -> gemini_embeddings_pipeline()
-      {:ollama, :embeddings} -> ollama_embeddings_pipeline()
-      {:mock, :embeddings} -> mock_embeddings_pipeline()
-      {_, :embeddings} -> default_embeddings_pipeline()
-      # List models pipelines
-      {:openai, :list_models} -> openai_list_models_pipeline()
-      {:anthropic, :list_models} -> anthropic_list_models_pipeline()
-      {:gemini, :list_models} -> gemini_list_models_pipeline()
-      {:groq, :list_models} -> groq_list_models_pipeline()
-      {:openrouter, :list_models} -> openrouter_list_models_pipeline()
-      {:ollama, :list_models} -> ollama_list_models_pipeline()
-      {:mock, :list_models} -> mock_list_models_pipeline()
-      {_, :list_models} -> default_list_models_pipeline()
-      # Validation pipeline (all providers use the same)
-      {_, :validate} -> validation_pipeline()
+    case type do
+      :chat -> get_chat_pipeline(provider)
+      :stream -> get_stream_pipeline(provider)
+      :embeddings -> get_embeddings_pipeline(provider)
+      :list_models -> get_list_models_pipeline(provider)
+      :validate -> validation_pipeline()
       _ -> default_chat_pipeline()
     end
   end
@@ -95,6 +59,58 @@ defmodule ExLLM.Providers do
   @spec supported?(atom()) :: boolean()
   def supported?(provider) when is_atom(provider) do
     provider in supported_providers()
+  end
+
+  # Helper functions to reduce complexity of get_pipeline/2
+  defp get_chat_pipeline(:openai), do: openai_chat_pipeline()
+  defp get_chat_pipeline(:anthropic), do: anthropic_chat_pipeline()
+  defp get_chat_pipeline(:gemini), do: gemini_chat_pipeline()
+  defp get_chat_pipeline(:groq), do: groq_chat_pipeline()
+  defp get_chat_pipeline(:mistral), do: mistral_chat_pipeline()
+  defp get_chat_pipeline(:openrouter), do: openrouter_chat_pipeline()
+  defp get_chat_pipeline(:xai), do: xai_chat_pipeline()
+  defp get_chat_pipeline(:ollama), do: ollama_chat_pipeline()
+  defp get_chat_pipeline(:bedrock), do: bedrock_chat_pipeline()
+  defp get_chat_pipeline(:bumblebee), do: bumblebee_chat_pipeline()
+  defp get_chat_pipeline(:mock), do: mock_chat_pipeline()
+  defp get_chat_pipeline(_), do: default_chat_pipeline()
+
+  defp get_stream_pipeline(:openai), do: openai_stream_pipeline()
+  defp get_stream_pipeline(:anthropic), do: anthropic_stream_pipeline()
+  defp get_stream_pipeline(:gemini), do: gemini_stream_pipeline()
+  defp get_stream_pipeline(:groq), do: groq_stream_pipeline()
+  defp get_stream_pipeline(:mistral), do: mistral_stream_pipeline()
+  defp get_stream_pipeline(:openrouter), do: openrouter_stream_pipeline()
+  defp get_stream_pipeline(:perplexity), do: perplexity_stream_pipeline()
+  defp get_stream_pipeline(:xai), do: xai_stream_pipeline()
+  defp get_stream_pipeline(:ollama), do: ollama_stream_pipeline()
+  defp get_stream_pipeline(:lmstudio), do: lmstudio_stream_pipeline()
+  defp get_stream_pipeline(:bedrock), do: bedrock_stream_pipeline()
+  defp get_stream_pipeline(:bumblebee), do: bumblebee_stream_pipeline()
+  defp get_stream_pipeline(:mock), do: mock_stream_pipeline()
+  defp get_stream_pipeline(_), do: default_chat_pipeline()
+
+  defp get_embeddings_pipeline(provider) do
+    case provider do
+      :openai -> openai_embeddings_pipeline()
+      :gemini -> gemini_embeddings_pipeline()
+      :ollama -> ollama_embeddings_pipeline()
+      :mock -> mock_embeddings_pipeline()
+      _ -> default_embeddings_pipeline()
+    end
+  end
+
+  defp get_list_models_pipeline(provider) do
+    case provider do
+      :openai -> openai_list_models_pipeline()
+      :anthropic -> anthropic_list_models_pipeline()
+      :gemini -> gemini_list_models_pipeline()
+      :groq -> groq_list_models_pipeline()
+      :openrouter -> openrouter_list_models_pipeline()
+      :ollama -> ollama_list_models_pipeline()
+      :mock -> mock_list_models_pipeline()
+      _ -> default_list_models_pipeline()
+    end
   end
 
   # Pipeline definitions

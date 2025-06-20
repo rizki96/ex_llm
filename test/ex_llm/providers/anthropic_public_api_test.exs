@@ -72,7 +72,7 @@ defmodule ExLLM.Providers.AnthropicPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:anthropic, messages, collector, max_tokens: 10, timeout: 10000) do
+      case ExLLM.stream(:anthropic, messages, collector, max_tokens: 10, timeout: 10_000) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
           last_chunk = List.last(chunks)

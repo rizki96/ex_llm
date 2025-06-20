@@ -227,25 +227,8 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
 
           # When batcher is configured, process chunks immediately to ensure batches can complete
           # Otherwise, let the consumer task handle processing to enable backpressure
-          state =
-            if state.batcher do
-              fill_ratio = StreamBuffer.fill_percentage(new_buffer) / 100.0
-
-              if fill_ratio < state.config.backpressure_threshold do
-                process_all_chunks(state)
-              else
-                state
-              end
-            else
-              # Notify consumer task of new chunks
-              if state.consumer_task do
-                send(state.consumer_task, :chunks_available)
-              end
-
-              state
-            end
-
-          {:reply, :ok, state}
+          new_state = handle_successful_push(state, new_buffer)
+          {:reply, :ok, new_state}
 
         {:overflow, new_buffer} ->
           state = %{state | buffer: new_buffer}
@@ -367,6 +350,33 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
   end
 
   # Private functions
+
+  defp handle_successful_push(state, new_buffer) do
+    state = %{state | buffer: new_buffer}
+
+    if state.batcher do
+      handle_batcher_push(state, new_buffer)
+    else
+      notify_consumer_if_present(state)
+    end
+  end
+
+  defp handle_batcher_push(state, new_buffer) do
+    fill_ratio = StreamBuffer.fill_percentage(new_buffer) / 100.0
+
+    if fill_ratio < state.config.backpressure_threshold do
+      process_all_chunks(state)
+    else
+      state
+    end
+  end
+
+  defp notify_consumer_if_present(state) do
+    if state.consumer_task do
+      send(state.consumer_task, :chunks_available)
+    end
+    state
+  end
 
   defp start_consumer_task(state) do
     parent = self()

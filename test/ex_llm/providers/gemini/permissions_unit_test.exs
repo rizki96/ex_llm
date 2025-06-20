@@ -4,8 +4,8 @@ defmodule ExLLM.Providers.Gemini.PermissionsUnitTest do
   alias ExLLM.Providers.Gemini.Permissions
 
   alias ExLLM.Providers.Gemini.Permissions.{
-    Permission,
     ListPermissionsResponse,
+    Permission,
     TransferOwnershipRequest
   }
 

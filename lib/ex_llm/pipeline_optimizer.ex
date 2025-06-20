@@ -251,10 +251,24 @@ defmodule ExLLM.PipelineOptimizer do
   defp apply_optimization_strategy(pipeline, :parallelize_safe) do
     # Identify plugs that can run in parallel
     # This is complex and requires dependency analysis
-
-    # For now, just return original pipeline
-    # TODO: Implement parallel execution for independent plugs
-    pipeline
+    
+    # Analyze pipeline for parallelizable segments
+    segments = identify_parallel_segments(pipeline)
+    
+    # Wrap parallel segments with parallel execution
+    Enum.flat_map(segments, fn segment ->
+      case segment do
+        {:parallel, plugs} when length(plugs) > 1 ->
+          # Wrap multiple independent plugs in parallel executor
+          [{ExLLM.Plugs.ParallelExecutor, plugs: plugs}]
+          
+        {:sequential, plugs} ->
+          plugs
+          
+        plug ->
+          [plug]
+      end
+    end)
   end
 
   defp apply_optimization_strategy(pipeline, :optimize_memory) do
@@ -574,5 +588,137 @@ defmodule ExLLM.PipelineOptimizer do
       true ->
         "No significant improvement - optimization may not be beneficial"
     end
+  end
+  
+  ## Parallel Execution Analysis
+  
+  defp identify_parallel_segments(pipeline) do
+    # Build dependency graph for plugs
+    dependencies = analyze_plug_dependencies(pipeline)
+    
+    # Group plugs into segments that can be parallelized
+    group_by_dependencies(pipeline, dependencies)
+  end
+  
+  defp analyze_plug_dependencies(pipeline) do
+    # Map each plug to what it reads and writes
+    Enum.map(pipeline, fn plug_spec ->
+      plug = get_plug_module(plug_spec)
+      
+      %{
+        plug: plug_spec,
+        reads: get_plug_reads(plug),
+        writes: get_plug_writes(plug),
+        side_effects: has_side_effects?(plug)
+      }
+    end)
+  end
+  
+  defp get_plug_reads(plug) do
+    # Determine what request fields a plug reads
+    case plug do
+      ExLLM.Plugs.ValidateProvider -> [:provider]
+      ExLLM.Plugs.ValidateRequest -> [:messages, :options]
+      ExLLM.Plugs.ValidateConfiguration -> [:provider, :config]
+      ExLLM.Plugs.FetchConfig -> [:provider]
+      ExLLM.Plugs.BuildTeslaClient -> [:config]
+      ExLLM.Plugs.SetDefaults -> [:provider, :options]
+      ExLLM.Plugs.ExecuteRequest -> [:tesla_client, :request_body, :url]
+      ExLLM.Plugs.ParseResponse -> [:response]
+      ExLLM.Plugs.TrackCost -> [:response, :provider, :model]
+      ExLLM.Plugs.Cache -> [:provider, :messages, :options]
+      _ -> [:all]  # Unknown plug, assume it reads everything
+    end
+  end
+  
+  defp get_plug_writes(plug) do
+    # Determine what request fields a plug writes
+    case plug do
+      ExLLM.Plugs.ValidateProvider -> []
+      ExLLM.Plugs.ValidateRequest -> []
+      ExLLM.Plugs.ValidateConfiguration -> []
+      ExLLM.Plugs.FetchConfig -> [:config]
+      ExLLM.Plugs.BuildTeslaClient -> [:tesla_client]
+      ExLLM.Plugs.SetDefaults -> [:options, :model]
+      ExLLM.Plugs.ExecuteRequest -> [:response]
+      ExLLM.Plugs.ParseResponse -> [:parsed_response]
+      ExLLM.Plugs.TrackCost -> [:cost]
+      ExLLM.Plugs.Cache -> [:cached_response]
+      _ -> [:all]  # Unknown plug, assume it writes everything
+    end
+  end
+  
+  defp has_side_effects?(plug) do
+    # Determine if a plug has side effects (IO, network, etc)
+    plug in [
+      ExLLM.Plugs.ExecuteRequest,
+      ExLLM.Plugs.StreamRequest,
+      ExLLM.Plugs.Cache,
+      ExLLM.Plugs.TrackCost
+    ]
+  end
+  
+  defp group_by_dependencies(pipeline, dependencies) do
+    # Simple algorithm: group consecutive non-dependent plugs
+    {segments, current_group} = 
+      Enum.reduce(pipeline, {[], []}, fn plug_spec, {segments, group} ->
+        dep_info = Enum.find(dependencies, &(&1.plug == plug_spec))
+        
+        cond do
+          # Plug with side effects must run alone
+          dep_info && dep_info.side_effects ->
+            if group == [] do
+              {[plug_spec | segments], []}
+            else
+              {[plug_spec, {:parallel, Enum.reverse(group)} | segments], []}
+            end
+            
+          # Check if plug depends on anything in current group
+          dep_info && depends_on_group?(dep_info, group, dependencies) ->
+            if group == [] do
+              {[plug_spec | segments], []}
+            else
+              {[plug_spec, {:parallel, Enum.reverse(group)} | segments], []}
+            end
+            
+          # Can be added to current parallel group
+          true ->
+            {segments, [plug_spec | group]}
+        end
+      end)
+    
+    # Handle remaining group
+    final_segments = 
+      if current_group == [] do
+        segments
+      else
+        [{:parallel, Enum.reverse(current_group)} | segments]
+      end
+    
+    # Convert to proper format and reverse
+    final_segments
+    |> Enum.reverse()
+    |> Enum.map(fn
+      {:parallel, plugs} -> {:parallel, plugs}
+      plug -> {:sequential, [plug]}
+    end)
+  end
+  
+  defp depends_on_group?(dep_info, group, all_dependencies) do
+    # Check if any of dep_info's reads are written by plugs in the group
+    group_writes = 
+      group
+      |> Enum.flat_map(fn plug_spec ->
+        case Enum.find(all_dependencies, &(&1.plug == plug_spec)) do
+          nil -> []
+          info -> info.writes
+        end
+      end)
+      |> MapSet.new()
+    
+    dep_info.reads
+    |> MapSet.new()
+    |> MapSet.intersection(group_writes)
+    |> MapSet.size() > 0
   end
 end

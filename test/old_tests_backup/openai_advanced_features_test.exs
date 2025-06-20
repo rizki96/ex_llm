@@ -8,8 +8,8 @@ defmodule ExLLM.Providers.OpenAIAdvancedFeaturesTest do
   use ExUnit.Case, async: false
 
   alias ExLLM.Providers.OpenAI
-  alias ExLLM.Types
   alias ExLLM.Testing.ConfigProviderHelper
+  alias ExLLM.Types
 
   @moduletag :integration
   @moduletag :requires_api_key
