@@ -15,8 +15,8 @@ defmodule ExLLM.Providers.Bumblebee.ModelLoader do
   """
 
   use GenServer
-  alias ExLLM.Providers.Bumblebee.EXLAConfig
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Providers.Bumblebee.EXLAConfig
 
   @model_cache_dir Path.expand("~/.ex_llm/models")
 

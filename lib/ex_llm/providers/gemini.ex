@@ -63,11 +63,11 @@ defmodule ExLLM.Providers.Gemini do
   alias ExLLM.Providers.Shared.{ConfigHelper, ModelUtils}
 
   alias ExLLM.Providers.Gemini.Content.{
+    Content,
     GenerateContentRequest,
     GenerateContentResponse,
-    Content,
-    Part,
     GenerationConfig,
+    Part,
     SafetySetting,
     Tool
   }

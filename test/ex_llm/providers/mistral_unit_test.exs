@@ -1,8 +1,8 @@
 defmodule ExLLM.Providers.MistralUnitTest do
   use ExUnit.Case, async: true
   alias ExLLM.Providers.Mistral
-  alias ExLLM.Types
   alias ExLLM.Testing.ConfigProviderHelper
+  alias ExLLM.Types
 
   describe "configured?/1" do
     test "returns true when API key is available" do
