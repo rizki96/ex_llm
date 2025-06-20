@@ -75,7 +75,7 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:gemini, messages, collector, max_tokens: 20, timeout: 10000) do
+      case ExLLM.stream(:gemini, messages, collector, max_tokens: 20, timeout: 10_000) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
           last_chunk = List.last(chunks)

@@ -41,7 +41,11 @@ defmodule ExLLM.Providers.GroqPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:groq, messages, collector, model: "mixtral-8x7b-32768", max_tokens: 50, timeout: 10000) do
+      case ExLLM.stream(:groq, messages, collector,
+             model: "mixtral-8x7b-32768",
+             max_tokens: 50,
+             timeout: 10_000
+           ) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
 

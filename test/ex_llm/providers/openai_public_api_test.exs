@@ -90,7 +90,11 @@ defmodule ExLLM.Providers.OpenAIPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:openai, messages, collector, tools: tools, max_tokens: 100, timeout: 10000) do
+      case ExLLM.stream(:openai, messages, collector,
+             tools: tools,
+             max_tokens: 100,
+             timeout: 10_000
+           ) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
 
@@ -120,7 +124,7 @@ defmodule ExLLM.Providers.OpenAIPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:openai, messages, collector, max_tokens: 10, timeout: 10000) do
+      case ExLLM.stream(:openai, messages, collector, max_tokens: 10, timeout: 10_000) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
           last_chunk = List.last(chunks)

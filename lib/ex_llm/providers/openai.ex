@@ -254,18 +254,19 @@ defmodule ExLLM.Providers.OpenAI do
 
   defp is_chat_model?(model) do
     id = model["id"]
-    
+
     # Include embedding models
     is_embedding = String.contains?(id, "embedding") or String.contains?(id, "embed")
-    
+
     # Include GPT models, O models, and exclude instruction-tuned variants
     # Exclude old snapshots
-    is_chat = (String.contains?(id, "gpt") || String.starts_with?(id, "o")) &&
-      not String.contains?(id, "instruct") &&
-      not String.contains?(id, "0301") &&
-      not String.contains?(id, "0314") &&
-      not String.contains?(id, "0613")
-    
+    is_chat =
+      (String.contains?(id, "gpt") || String.starts_with?(id, "o")) &&
+        not String.contains?(id, "instruct") &&
+        not String.contains?(id, "0301") &&
+        not String.contains?(id, "0314") &&
+        not String.contains?(id, "0613")
+
     is_embedding or is_chat
   end
 

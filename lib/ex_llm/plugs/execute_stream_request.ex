@@ -89,9 +89,10 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   defp execute_coordinated_stream(request, client, endpoint, body, coordinator, opts) do
     # Use the existing stream_ref from the request that the coordinator is expecting
     stream_ref = request.stream_ref
-    
+
     if stream_ref == nil do
       Logger.error("No stream_ref found in request for coordinated streaming")
+
       Request.halt_with_error(request, %{
         plug: __MODULE__,
         error: :no_stream_ref,
@@ -128,15 +129,18 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   defp stream_to_coordinator(client, endpoint, body, coordinator, ref, opts) do
     # Prepare streaming request with Hackney adapter for proper streaming support
     request_opts = [
-      adapter: {Tesla.Adapter.Hackney, [
-        recv_timeout: opts[:receive_timeout] || 60_000,
-        stream_to: self()
-        # Remove async: :once as it conflicts with stream_to
-      ]}
+      adapter:
+        {Tesla.Adapter.Hackney,
+         [
+           recv_timeout: opts[:receive_timeout] || 60_000,
+           stream_to: self()
+           # Remove async: :once as it conflicts with stream_to
+         ]}
     ]
 
     # Start the request
     Logger.debug("Starting stream request to #{endpoint} with Hackney adapter")
+
     case Tesla.post(client, endpoint, body, request_opts) do
       {:ok, %Tesla.Env{status: status}} when status in 200..299 ->
         # Success - forward chunks to coordinator
@@ -201,11 +205,13 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   defp stream_response(client, endpoint, body, callback, parent, ref, opts) do
     # Prepare streaming request with Hackney adapter for proper streaming support
     request_opts = [
-      adapter: {Tesla.Adapter.Hackney, [
-        recv_timeout: opts[:receive_timeout] || 60_000,
-        stream_to: self()
-        # Remove async: :once as it conflicts with stream_to
-      ]}
+      adapter:
+        {Tesla.Adapter.Hackney,
+         [
+           recv_timeout: opts[:receive_timeout] || 60_000,
+           stream_to: self()
+           # Remove async: :once as it conflicts with stream_to
+         ]}
     ]
 
     # Start the request

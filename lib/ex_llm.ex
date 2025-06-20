@@ -47,10 +47,10 @@ defmodule ExLLM do
         default_model: "gpt-4"
   """
 
+  alias ExLLM.ChatBuilder
   alias ExLLM.Pipeline
   alias ExLLM.Pipeline.Request
   alias ExLLM.Providers
-  alias ExLLM.ChatBuilder
 
   require Logger
 

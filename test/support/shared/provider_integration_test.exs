@@ -110,7 +110,7 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
             send(self(), {:chunk, chunk})
           end
 
-          case ExLLM.stream(@provider, messages, collector, max_tokens: 50, timeout: 10000) do
+          case ExLLM.stream(@provider, messages, collector, max_tokens: 50, timeout: 10_000) do
             :ok ->
               # Collect all chunks with shorter timeout
               chunks = collect_stream_chunks([], 1000)
@@ -132,7 +132,7 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
 
         # Helper function to collect stream chunks
         defp collect_stream_chunks(chunks \\ [], timeout \\ 500)
-        
+
         defp collect_stream_chunks(chunks, timeout) do
           receive do
             {:chunk, chunk} ->

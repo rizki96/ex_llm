@@ -34,7 +34,7 @@ defmodule ExLLM.Plugs.StreamCoordinator do
     else
       # Create a unique reference for this stream
       stream_ref = make_ref()
-      
+
       # Start stream coordinator process
       {:ok, coordinator} = start_coordinator(request, callback, opts)
 
