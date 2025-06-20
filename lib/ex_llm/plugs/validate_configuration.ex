@@ -63,8 +63,10 @@ defmodule ExLLM.Plugs.ValidateConfiguration do
         case ExLLM.Providers.Bumblebee.configured?() do
           true ->
             {:ok, %{configured: true, type: :local}}
+
           false ->
-            {:error, "Bumblebee ModelLoader is not running. Local model inference is not available."}
+            {:error,
+             "Bumblebee ModelLoader is not running. Local model inference is not available."}
         end
 
       _ ->

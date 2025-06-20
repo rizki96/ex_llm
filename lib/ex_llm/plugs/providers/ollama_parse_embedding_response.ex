@@ -31,13 +31,21 @@ defmodule ExLLM.Plugs.Providers.OllamaParseEmbeddingResponse do
     body = response.body
 
     # Extract embedding data from Ollama's response format
+    # Ollama returns "embeddings" (plural) array
     embeddings =
-      case body["embedding"] do
-        embedding when is_list(embedding) ->
-          [embedding]
+      case body["embeddings"] do
+        embeddings when is_list(embeddings) and length(embeddings) > 0 ->
+          embeddings
 
         _ ->
-          []
+          # Fallback to check "embedding" (singular) for compatibility
+          case body["embedding"] do
+            embedding when is_list(embedding) ->
+              [embedding]
+
+            _ ->
+              []
+          end
       end
 
     # Estimate usage since Ollama doesn't provide detailed usage

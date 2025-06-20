@@ -31,7 +31,7 @@ defmodule ExLLM.Providers.Bumblebee.ModelLoader do
 
   ## Examples
 
-      {:ok, model} = ModelLoader.load_model("microsoft/phi-2")
+      {:ok, model} = ModelLoader.load_model("HuggingFaceTB/SmolLM2-1.7B-Instruct")
       {:ok, model} = ModelLoader.load_model("/path/to/local/model")
   """
   def load_model(model_identifier) do

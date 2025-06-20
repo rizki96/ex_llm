@@ -8,6 +8,7 @@ defmodule ExLLM.UnifiedCacheTest do
     case GenServer.whereis(ExLLM.Infrastructure.Cache) do
       nil ->
         {:ok, _} = ExLLM.Infrastructure.Cache.start_link()
+
       _pid ->
         :ok
     end

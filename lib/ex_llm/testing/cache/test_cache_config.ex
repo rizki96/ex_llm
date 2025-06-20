@@ -1,5 +1,23 @@
 defmodule ExLLM.Testing.TestCacheConfig do
-  @moduledoc false
+  @moduledoc """
+  Configuration for the ExLLM test caching system.
+  
+  Test caching is **disabled by default** to prevent interference with unit tests
+  that expect specific error conditions (timeouts, API errors, etc.).
+  
+  To enable test caching, set the environment variable:
+  ```
+  export EX_LLM_TEST_CACHE_ENABLED=true
+  ```
+  
+  Or configure it in your test configuration:
+  ```elixir
+  config :ex_llm, :test_cache, %{
+    enabled: true,
+    cache_live_api_tests: true
+  }
+  ```
+  """
 
   @type fallback_strategy :: :latest_success | :latest_any | :best_match
   @type timestamp_format :: :iso8601 | :unix | :compact
@@ -27,13 +45,13 @@ defmodule ExLLM.Testing.TestCacheConfig do
         }
 
   @defaults %{
-    enabled: true,
-    auto_detect: true,
+    enabled: false,
+    auto_detect: false,
     cache_dir: "test/cache",
     organization: :by_provider,
-    cache_integration_tests: true,
-    cache_oauth2_tests: true,
-    cache_live_api_tests: true,
+    cache_integration_tests: false,
+    cache_oauth2_tests: false,
+    cache_live_api_tests: false,
     cache_destructive_operations: false,
     replay_by_default: true,
     save_on_miss: true,

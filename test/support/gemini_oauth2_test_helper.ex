@@ -234,6 +234,19 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
     end
   end
 
+  def assert_oauth_error({:error, %{message: message, reason: :network_error}})
+      when is_binary(message) do
+    if String.contains?(message, "status: 401") or
+         String.contains?(message, "UNAUTHENTICATED") or
+         String.contains?(message, "API keys are not supported") or
+         String.contains?(message, "authentication") or
+         String.contains?(message, "unauthorized") do
+      :ok
+    else
+      {:error, "Expected OAuth2 authentication message, got: #{message}"}
+    end
+  end
+
   def assert_oauth_error(other) do
     {:error, "Expected OAuth2 authentication error (401), got: #{inspect(other)}"}
   end

@@ -27,14 +27,22 @@ defmodule ExLLM.Providers.Gemini.PermissionsOAuth2Test do
       ExLLM.Testing.TestCacheDetector.clear_test_context()
     end)
 
-    # Get OAuth token if available
-    case GeminiOAuth2Helper.get_valid_token() do
-      {:ok, token} ->
-        {:ok, oauth_token: token}
+    # Refresh OAuth tokens and get the token
+    context = ExLLM.Testing.EnvHelper.setup_oauth(context)
 
-      _ ->
-        # This shouldn't happen if module is tagged to skip
-        {:ok, oauth_token: nil}
+    # Double-check we have a token (should be set by setup_oauth if available)
+    if Map.has_key?(context, :oauth_token) do
+      context
+    else
+      # Fallback to the original method if setup_oauth didn't work
+      case GeminiOAuth2Helper.get_valid_token() do
+        {:ok, token} ->
+          Map.put(context, :oauth_token, token)
+
+        _ ->
+          # This shouldn't happen if module is tagged to skip
+          Map.put(context, :oauth_token, nil)
+      end
     end
   end
 
@@ -58,6 +66,15 @@ defmodule ExLLM.Providers.Gemini.PermissionsOAuth2Test do
           # Expected for non-existent models - this is fine
           assert true
 
+        {:error, %{message: message, reason: :network_error}} when is_binary(message) ->
+          # Handle wrapped API errors - extract the actual error from the message
+          if String.contains?(message, "status: 404") or String.contains?(message, "NOT_FOUND") do
+            # Expected 404 for non-existent model
+            assert true
+          else
+            flunk("Unexpected network error: #{message}")
+          end
+
         {:error, error} ->
           flunk("Unexpected error: #{inspect(error)}")
       end
@@ -70,8 +87,23 @@ defmodule ExLLM.Providers.Gemini.PermissionsOAuth2Test do
           oauth_token: token
         )
 
-      assert {:error, %{status: status}} = result
-      assert status in [403, 404]
+      case result do
+        {:error, %{status: status}} when status in [403, 404] ->
+          assert true
+
+        {:error, %{message: message, reason: :network_error}} when is_binary(message) ->
+          # Handle wrapped API errors - check for 403/404 in the message
+          if String.contains?(message, "status: 404") or String.contains?(message, "status: 403") or
+               String.contains?(message, "NOT_FOUND") or
+               String.contains?(message, "PERMISSION_DENIED") do
+            assert true
+          else
+            flunk("Expected 403/404 error, got: #{message}")
+          end
+
+        other ->
+          flunk("Expected 403/404 error, got: #{inspect(other)}")
+      end
     end
 
     @tag :manual_only
@@ -138,7 +170,23 @@ defmodule ExLLM.Providers.Gemini.PermissionsOAuth2Test do
           api_key: "some-api-key"
         )
 
-      assert {:error, %{status: 401}} = result
+      case result do
+        {:error, %{status: 401}} ->
+          assert true
+
+        {:error, %{message: message, reason: :network_error}} when is_binary(message) ->
+          # Handle wrapped API errors - check for OAuth requirement message
+          if String.contains?(message, "status: 401") or
+               String.contains?(message, "UNAUTHENTICATED") or
+               String.contains?(message, "API keys are not supported") do
+            assert true
+          else
+            flunk("Expected OAuth2 authentication error, got: #{message}")
+          end
+
+        other ->
+          flunk("Expected OAuth2 authentication error, got: #{inspect(other)}")
+      end
     end
   end
 

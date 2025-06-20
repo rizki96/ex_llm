@@ -23,8 +23,8 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
 
   describe "default_model/0" do
     @tag :unit
-    test "returns Qwen/Qwen3-0.6B as default" do
-      assert Bumblebee.default_model() == "Qwen/Qwen3-0.6B"
+    test "returns HuggingFaceTB/SmolLM2-1.7B-Instruct as default" do
+      assert Bumblebee.default_model() == "HuggingFaceTB/SmolLM2-1.7B-Instruct"
     end
   end
 
@@ -66,10 +66,20 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
       messages = [%{role: "user", content: "Test"}]
 
       # Invalid temperature - use a model that's available
-      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", temperature: 3.0)
+      assert {:error, msg} =
+               Bumblebee.chat(messages,
+                 model: "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+                 temperature: 3.0
+               )
+
       assert msg =~ "Temperature must be between 0 and 2"
 
-      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", temperature: -1)
+      assert {:error, msg} =
+               Bumblebee.chat(messages,
+                 model: "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+                 temperature: -1
+               )
+
       assert msg =~ "Temperature must be between 0 and 2"
     end
 
@@ -78,11 +88,19 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
       messages = [%{role: "user", content: "Test"}]
 
       # Invalid max_tokens - use a model that's available
-      assert {:error, msg} = Bumblebee.chat(messages, model: "microsoft/phi-2", max_tokens: -100)
+      assert {:error, msg} =
+               Bumblebee.chat(messages,
+                 model: "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+                 max_tokens: -100
+               )
+
       assert msg =~ "Max tokens must be a positive integer"
 
       assert {:error, msg} =
-               Bumblebee.chat(messages, model: "microsoft/phi-2", max_tokens: "not a number")
+               Bumblebee.chat(messages,
+                 model: "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+                 max_tokens: "not a number"
+               )
 
       assert msg =~ "Max tokens must be a positive integer"
     end
@@ -323,6 +341,9 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
     @tag :requires_deps
     @tag :unit
     test "implements all required callbacks" do
+      # Ensure module is loaded
+      assert Code.ensure_loaded?(ExLLM.Providers.Bumblebee)
+      
       callbacks = [
         {:chat, 2},
         {:stream_chat, 2},
@@ -332,7 +353,7 @@ defmodule ExLLM.Providers.BumblebeeUnitTest do
       ]
 
       for {func, arity} <- callbacks do
-        assert function_exported?(Bumblebee, func, arity)
+        assert function_exported?(ExLLM.Providers.Bumblebee, func, arity)
       end
     end
 

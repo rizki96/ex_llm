@@ -1,3 +1,37 @@
+# Compile test support files first
+Code.require_file("support/env_helper.ex", __DIR__)
+Code.require_file("support/testing_case.ex", __DIR__)
+Code.require_file("support/test_helpers.ex", __DIR__)
+Code.require_file("support/gemini_oauth2_test_helper.ex", __DIR__)
+Code.require_file("support/config_provider_helper.ex", __DIR__)
+Code.require_file("support/test_cache_helpers.ex", __DIR__)
+Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
+
+# Load environment variables from .env file if available
+case ExLLM.Testing.EnvHelper.load_env(warn_missing: false) do
+  :ok ->
+    # Check which API keys are available
+    available_keys =
+      ExLLM.Testing.EnvHelper.default_api_keys()
+      |> Enum.filter(fn key -> System.get_env(key) != nil end)
+
+    if length(available_keys) > 0 do
+      available_providers =
+        available_keys
+        |> Enum.map(fn key ->
+          key
+          |> String.replace("_API_KEY", "")
+          |> String.replace("_HOST", "")
+          |> String.downcase()
+        end)
+
+      IO.puts("\n✅ Loaded API keys from .env for: #{Enum.join(available_providers, ", ")}")
+    end
+
+  {:error, reason} ->
+    IO.puts("\n⚠️  Failed to load .env file: #{inspect(reason)}")
+end
+
 # Configure default exclusions for fast local development
 # These can be overridden with --include flags
 default_exclusions = [
@@ -25,11 +59,3 @@ end
 
 ExUnit.start()
 ExUnit.configure(exclude: default_exclusions)
-
-# Compile test support files
-Code.require_file("support/testing_case.ex", __DIR__)
-Code.require_file("support/test_helpers.ex", __DIR__)
-Code.require_file("support/gemini_oauth2_test_helper.ex", __DIR__)
-Code.require_file("support/config_provider_helper.ex", __DIR__)
-Code.require_file("support/test_cache_helpers.ex", __DIR__)
-Code.require_file("support/shared/provider_integration_test.exs", __DIR__)

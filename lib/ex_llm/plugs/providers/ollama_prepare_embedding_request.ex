@@ -26,7 +26,7 @@ defmodule ExLLM.Plugs.Providers.OllamaPrepareEmbeddingRequest do
     request
     |> Map.put(:provider_request, body)
     |> ExLLM.Pipeline.Request.assign(:http_method, :post)
-    |> ExLLM.Pipeline.Request.assign(:http_path, "/api/embeddings")
+    |> ExLLM.Pipeline.Request.assign(:http_path, "/embeddings")
   end
 
   defp get_input_from_request(request) do

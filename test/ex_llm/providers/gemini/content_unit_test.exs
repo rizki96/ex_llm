@@ -383,13 +383,13 @@ defmodule ExLLM.Gemini.ContentTest do
 
       case result do
         {:ok, stream} ->
-          # Try to consume the stream
-          chunks = Enum.to_list(stream)
-          # If we get chunks, check if any contain error info
-          assert is_list(chunks)
+          # Try to consume the stream - expect it to throw an error for invalid request
+          error = catch_throw(Enum.to_list(stream))
+          # Verify the thrown error is an API error as expected
+          assert match?({:error, {:api_error, %{status: 400}}}, error)
 
         {:error, error} ->
-          # Or immediately
+          # Or immediately return error
           assert Map.get(error, :status, 400) == 400 ||
                    Map.get(error, :reason, :api_error) in [
                      :invalid_request,

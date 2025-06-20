@@ -42,6 +42,7 @@ defmodule ExLLM.Providers do
       {:lmstudio, :stream} -> lmstudio_stream_pipeline()
       {:bedrock, :chat} -> bedrock_chat_pipeline()
       {:bedrock, :stream} -> bedrock_stream_pipeline()
+      {:bumblebee, :chat} -> bumblebee_chat_pipeline()
       {:bumblebee, :stream} -> bumblebee_stream_pipeline()
       {:mock, :chat} -> mock_chat_pipeline()
       {:mock, :stream} -> mock_stream_pipeline()
@@ -363,6 +364,17 @@ defmodule ExLLM.Providers do
     ]
   end
 
+  defp bumblebee_chat_pipeline do
+    # Bumblebee is a local provider that bypasses HTTP infrastructure
+    # Use direct provider call instead of building HTTP clients
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfig,
+      {Plugs.ManageContext, strategy: :none},
+      Plugs.Providers.BumblebeeHandler
+    ]
+  end
+
   defp bumblebee_stream_pipeline do
     # Bumblebee doesn't support streaming yet
     # Fall back to regular chat for now
@@ -370,9 +382,7 @@ defmodule ExLLM.Providers do
       Plugs.ValidateProvider,
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :none},
-      Plugs.Providers.BumblebeePrepareRequest,
-      Plugs.Providers.BumblebeeExecuteLocal,
-      Plugs.Providers.BumblebeeParseResponse
+      Plugs.Providers.BumblebeeHandler
     ]
   end
 

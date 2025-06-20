@@ -76,7 +76,11 @@ defmodule ExLLM.ModelCapabilitiesTest do
 
     test "returns error for unsupported capability" do
       assert {:error, :not_supported} =
-               ModelCapabilities.get_capability_details(:bumblebee, "microsoft/phi-2", :vision)
+               ModelCapabilities.get_capability_details(
+                 :bumblebee,
+                 "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+                 :vision
+               )
     end
 
     test "returns error for unknown model" do

@@ -17,7 +17,7 @@ defmodule ExLLM.Providers.Bumblebee do
 
   ## Available Models
 
-  - `microsoft/phi-2` - Phi-2 (2.7B) - Default
+  - `HuggingFaceTB/SmolLM2-1.7B-Instruct` - SmolLM2 (1.7B) - Default
   - `meta-llama/Llama-2-7b-hf` - Llama 2 (7B)
   - `mistralai/Mistral-7B-v0.1` - Mistral (7B)
   - `EleutherAI/gpt-neo-1.3B` - GPT-Neo (1.3B)
@@ -38,6 +38,7 @@ defmodule ExLLM.Providers.Bumblebee do
   alias ExLLM.Providers.Bumblebee.ModelLoader
 
   @available_models [
+    "HuggingFaceTB/SmolLM2-1.7B-Instruct",
     "microsoft/phi-2",
     "meta-llama/Llama-2-7b-hf",
     "mistralai/Mistral-7B-v0.1",
@@ -46,6 +47,11 @@ defmodule ExLLM.Providers.Bumblebee do
   ]
 
   @model_metadata %{
+    "HuggingFaceTB/SmolLM2-1.7B-Instruct" => %{
+      name: "SmolLM2 (1.7B)",
+      context_window: 2_048,
+      description: "HuggingFace's SmolLM2 - efficient 1.7B instruction-tuned model"
+    },
     "microsoft/phi-2" => %{
       name: "Phi-2 (2.7B)",
       context_window: 2_048,
@@ -101,7 +107,7 @@ defmodule ExLLM.Providers.Bumblebee do
 
   @impl true
   def default_model do
-    "Qwen/Qwen3-0.6B"
+    "HuggingFaceTB/SmolLM2-1.7B-Instruct"
   end
 
   @impl true
@@ -403,7 +409,7 @@ defmodule ExLLM.Providers.Bumblebee do
   end
 
   defp model_loader_running? do
-    case Process.whereis(ExLLM.Bumblebee.ModelLoader) do
+    case Process.whereis(ExLLM.Providers.Bumblebee.ModelLoader) do
       nil -> false
       _pid -> true
     end

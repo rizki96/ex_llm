@@ -515,6 +515,7 @@ defmodule ExLLM do
       :groq -> "llama-3.3-70b-instruct"
       :mistral -> "mistral-large-latest"
       :ollama -> "llama3.2"
+      :bumblebee -> "HuggingFaceTB/SmolLM2-1.7B-Instruct"
       _ -> "unknown"
     end
   end

@@ -124,8 +124,83 @@ export EX_LLM_LOG_LEVEL=debug
 
 ## Environment Setup
 
-### API Keys
-Set these environment variables for integration tests:
+### Using .env Files (Recommended)
+
+ExLLM now supports automatic loading of environment variables from `.env` files. This is the recommended approach for managing API keys:
+
+1. Copy the example file:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. Add your API keys to `.env`:
+   ```bash
+   # Core providers
+   OPENAI_API_KEY=sk-...
+   ANTHROPIC_API_KEY=sk-ant-...
+   GEMINI_API_KEY=...
+   GROQ_API_KEY=gsk_...
+   MISTRAL_API_KEY=...
+   
+   # Router providers
+   OPENROUTER_API_KEY=sk-or-...
+   PERPLEXITY_API_KEY=pplx-...
+   
+   # OAuth2 credentials (for Gemini OAuth APIs)
+   GOOGLE_CLIENT_ID=...
+   GOOGLE_CLIENT_SECRET=...
+   ```
+
+3. Environment variables are automatically loaded when tests run.
+
+#### Custom .env Location
+
+You can specify a custom .env file location:
+
+```bash
+# Via environment variable
+EX_LLM_ENV_FILE=.env.test mix test
+
+# Or in config/test.exs
+config :ex_llm, :env_file, ".env.test"
+```
+
+#### OAuth2 Token Refresh
+
+For tests that require OAuth2 authentication (like Gemini Permissions API), tokens are automatically refreshed when:
+- OAuth2 credentials are present in the environment
+- A `.gemini_tokens` file exists
+- The current token is expired or about to expire
+
+To enable automatic OAuth refresh in your tests:
+
+```elixir
+setup do
+  # Automatically refreshes OAuth tokens if needed
+  ExLLM.Testing.EnvHelper.setup_oauth()
+end
+```
+
+The OAuth refresh happens transparently during test setup, ensuring your tests always have valid tokens.
+
+#### Using EnvHelper in Tests
+
+For tests that require specific API keys:
+
+```elixir
+setup do
+  case ExLLM.Testing.EnvHelper.ensure_api_keys(["OPENAI_API_KEY"]) do
+    :ok -> 
+      :ok
+    {:error, missing} ->
+      {:skip, "Missing API keys: #{Enum.join(missing, ", ")}"}
+  end
+end
+```
+
+### Legacy Method: Export Variables
+
+Alternatively, you can still export environment variables directly:
 
 ```bash
 # Core providers

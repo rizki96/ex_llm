@@ -12,7 +12,7 @@ defmodule ExLLM.Providers.Bumblebee.TokenCounter do
 
   ## Examples
 
-      {:ok, count} = TokenCounter.count_tokens("Hello world", model: "microsoft/phi-2")
+      {:ok, count} = TokenCounter.count_tokens("Hello world", model: "HuggingFaceTB/SmolLM2-1.7B-Instruct")
       # => {:ok, 2}
       
       # Fallback when model not loaded
@@ -20,7 +20,7 @@ defmodule ExLLM.Providers.Bumblebee.TokenCounter do
       # => {:ok, 3}
   """
   def count_tokens(text, opts \\ []) do
-    model = Keyword.get(opts, :model, "microsoft/phi-2")
+    model = Keyword.get(opts, :model, "HuggingFaceTB/SmolLM2-1.7B-Instruct")
 
     if bumblebee_available?() do
       count_with_tokenizer(text, model)
@@ -39,10 +39,10 @@ defmodule ExLLM.Providers.Bumblebee.TokenCounter do
         %{role: "user", content: "Hello"},
         %{role: "assistant", content: "Hi there!"}
       ]
-      {:ok, count} = TokenCounter.count_messages(messages, model: "microsoft/phi-2")
+      {:ok, count} = TokenCounter.count_messages(messages, model: "HuggingFaceTB/SmolLM2-1.7B-Instruct")
   """
   def count_messages(messages, opts \\ []) when is_list(messages) do
-    model = Keyword.get(opts, :model, "microsoft/phi-2")
+    model = Keyword.get(opts, :model, "HuggingFaceTB/SmolLM2-1.7B-Instruct")
 
     # Format messages the same way the adapter does
     formatted = format_messages_for_counting(messages, model)

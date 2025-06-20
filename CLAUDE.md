@@ -102,8 +102,14 @@ mix test.all            # All tests including slow ones
 ```
 
 #### Test Caching (25x Speed Improvement)
+
+**Test caching is disabled by default** to prevent interference with unit tests that expect specific error conditions.
+
 ```bash
-# Tests with automatic caching
+# Enable test caching for faster integration test runs
+export EX_LLM_TEST_CACHE_ENABLED=true
+
+# Run integration tests with caching enabled
 mix test.anthropic --include live_api
 
 # Manage test cache
@@ -113,7 +119,6 @@ mix ex_llm.cache clear
 mix ex_llm.cache show anthropic
 
 # Enable cache debugging
-export EX_LLM_TEST_CACHE_ENABLED=true
 export EX_LLM_LOG_LEVEL=debug
 ```
 
