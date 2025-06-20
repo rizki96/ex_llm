@@ -4,8 +4,15 @@ defmodule ExLLM.UnifiedCacheTest do
   alias ExLLM.Testing.ResponseCache
 
   setup do
-    # Cache is already started by the application
-    # Just clear any existing cache
+    # Ensure cache GenServer is started
+    case GenServer.whereis(ExLLM.Infrastructure.Cache) do
+      nil ->
+        {:ok, _} = ExLLM.Infrastructure.Cache.start_link()
+      _pid ->
+        :ok
+    end
+
+    # Clear any existing cache
     Cache.clear()
     ResponseCache.clear_all_cache()
 
@@ -20,6 +27,9 @@ defmodule ExLLM.UnifiedCacheTest do
 
       # Store in cache
       Cache.put(key, value, provider: :test_provider)
+
+      # Wait for async put operation to complete
+      Process.sleep(10)
 
       # Retrieve from cache
       assert {:ok, ^value} = Cache.get(key)
@@ -59,6 +69,9 @@ defmodule ExLLM.UnifiedCacheTest do
         temperature: 0.7
       )
 
+      # Wait for async put operation to complete
+      Process.sleep(10)
+
       # Should be in ETS cache
       assert {:ok, ^value} = Cache.get(key)
 
@@ -94,6 +107,9 @@ defmodule ExLLM.UnifiedCacheTest do
         temperature: 0.5
       )
 
+      # Wait for async put operation to complete
+      Process.sleep(10)
+
       # Wait for disk persistence
       cache_file = Path.join(["/tmp/ex_llm_cache_test", "anthropic", "chat.json"])
       wait_for_file_creation(cache_file, 1000)
@@ -116,6 +132,9 @@ defmodule ExLLM.UnifiedCacheTest do
 
       Cache.put("openai_key", openai_value, provider: :openai, model: "gpt-4")
       Cache.put("anthropic_key", anthropic_value, provider: :anthropic, model: "claude-3-sonnet")
+
+      # Wait for async put operations to complete
+      Process.sleep(10)
 
       # Wait for persistence
       Process.sleep(200)
@@ -151,6 +170,9 @@ defmodule ExLLM.UnifiedCacheTest do
         stream: true
       )
 
+      # Wait for async put operations to complete
+      Process.sleep(10)
+
       # Wait for persistence of both files
       chat_file = Path.join(["/tmp/ex_llm_cache_test", "openai", "chat.json"])
       streaming_file = Path.join(["/tmp/ex_llm_cache_test", "openai", "streaming.json"])
@@ -181,7 +203,10 @@ defmodule ExLLM.UnifiedCacheTest do
 
         # Store something
         Cache.put("dir_test", %{content: "test"}, provider: :test)
-        
+
+        # Wait for async put operation to complete
+        Process.sleep(10)
+
         # Wait for custom directory file to be created
         custom_cache_file = Path.join([custom_dir, "test", "chat.json"])
         wait_for_file_creation(custom_cache_file, 1000)
@@ -207,6 +232,7 @@ defmodule ExLLM.UnifiedCacheTest do
       :ok
     else
       current_time = System.monotonic_time(:millisecond)
+
       if current_time - start_time >= timeout_ms do
         raise "File #{file_path} was not created within #{timeout_ms}ms"
       else
