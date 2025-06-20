@@ -36,9 +36,9 @@ defmodule ExLLM.StreamingTest do
       # Wait for chunks to arrive
       Process.sleep(100)
 
-      # Collect chunks
-      # Short timeout since chunks should be there
-      chunks = collect_chunks(50)
+      # Collect chunks with sufficient timeout for all 4 chunks
+      # 4 chunks * 10ms delay + buffer = 100ms timeout
+      chunks = collect_chunks(100)
 
       assert length(chunks) == 4
       assert Enum.at(chunks, 0).content == "Hello"

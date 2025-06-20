@@ -62,11 +62,11 @@ defmodule ExLLM.UnifiedCacheTest do
       # Should be in ETS cache
       assert {:ok, ^value} = Cache.get(key)
 
-      # Give async task time to complete
-      Process.sleep(200)
+      # Give async task time to complete and wait for file to exist
+      cache_file = Path.join(["/tmp/ex_llm_cache_test", "openai", "chat.json"])
+      wait_for_file_creation(cache_file, 1000)
 
       # Should also be persisted to disk (check file directly)
-      cache_file = Path.join(["/tmp/ex_llm_cache_test", "openai", "chat.json"])
       assert File.exists?(cache_file), "Cache file should exist"
 
       # Verify content
@@ -95,10 +95,10 @@ defmodule ExLLM.UnifiedCacheTest do
       )
 
       # Wait for disk persistence
-      Process.sleep(200)
+      cache_file = Path.join(["/tmp/ex_llm_cache_test", "anthropic", "chat.json"])
+      wait_for_file_creation(cache_file, 1000)
 
       # Verify response was cached to disk
-      cache_file = Path.join(["/tmp/ex_llm_cache_test", "anthropic", "chat.json"])
       assert File.exists?(cache_file), "Anthropic cache file should exist"
 
       # Verify content includes our cached response
@@ -151,12 +151,13 @@ defmodule ExLLM.UnifiedCacheTest do
         stream: true
       )
 
-      # Wait for persistence
-      Process.sleep(200)
-
-      # Should have different endpoint files
+      # Wait for persistence of both files
       chat_file = Path.join(["/tmp/ex_llm_cache_test", "openai", "chat.json"])
       streaming_file = Path.join(["/tmp/ex_llm_cache_test", "openai", "streaming.json"])
+      wait_for_file_creation(chat_file, 1000)
+      wait_for_file_creation(streaming_file, 1000)
+
+      # Should have different endpoint files
 
       assert File.exists?(chat_file), "Chat cache file should exist"
       assert File.exists?(streaming_file), "Streaming cache file should exist"
@@ -180,14 +181,37 @@ defmodule ExLLM.UnifiedCacheTest do
 
         # Store something
         Cache.put("dir_test", %{content: "test"}, provider: :test)
-        Process.sleep(100)
+        
+        # Wait for custom directory file to be created
+        custom_cache_file = Path.join([custom_dir, "test", "chat.json"])
+        wait_for_file_creation(custom_cache_file, 1000)
 
         # Should use custom directory
-        assert File.exists?(Path.join([custom_dir, "test", "chat.json"]))
+        assert File.exists?(custom_cache_file)
       after
         # Cleanup
         Cache.configure_disk_persistence(false)
         File.rm_rf(custom_dir)
+      end
+    end
+  end
+
+  # Helper function to wait for file creation with timeout
+  defp wait_for_file_creation(file_path, timeout_ms) do
+    start_time = System.monotonic_time(:millisecond)
+    wait_for_file_creation_loop(file_path, start_time, timeout_ms)
+  end
+
+  defp wait_for_file_creation_loop(file_path, start_time, timeout_ms) do
+    if File.exists?(file_path) do
+      :ok
+    else
+      current_time = System.monotonic_time(:millisecond)
+      if current_time - start_time >= timeout_ms do
+        raise "File #{file_path} was not created within #{timeout_ms}ms"
+      else
+        Process.sleep(10)
+        wait_for_file_creation_loop(file_path, start_time, timeout_ms)
       end
     end
   end
