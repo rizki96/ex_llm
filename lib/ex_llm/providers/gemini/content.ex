@@ -503,7 +503,10 @@ defmodule ExLLM.Providers.Gemini.Content do
 
       # Build URL with SSE support
       url = build_url(normalized_model, "streamGenerateContent", api_key) <> "&alt=sse"
-      headers = build_headers() ++ [{"Accept", "text/event-stream"}]
+
+      headers =
+        HTTPClient.build_provider_headers(:gemini, api_key: api_key) ++
+          [{"Accept", "text/event-stream"}]
 
       # Start async streaming request
       Task.start(fn ->
@@ -686,11 +689,15 @@ defmodule ExLLM.Providers.Gemini.Content do
         body
       end
 
-    if request.cached_content do
-      Map.put(body, "cachedContent", request.cached_content)
-    else
-      body
-    end
+    body =
+      if request.cached_content do
+        Map.put(body, "cachedContent", request.cached_content)
+      else
+        body
+      end
+
+    # Remove empty objects and nil values to match the working pipeline behavior
+    compact(body)
   end
 
   defp serialize_content(content) do
@@ -860,5 +867,12 @@ defmodule ExLLM.Providers.Gemini.Content do
       {:error, _} ->
         nil
     end
+  end
+
+  # Remove nil values and empty maps from the request body
+  defp compact(map) do
+    map
+    |> Enum.reject(fn {_k, v} -> is_nil(v) or v == %{} end)
+    |> Map.new()
   end
 end

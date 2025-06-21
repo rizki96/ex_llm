@@ -21,7 +21,7 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
       for model <- models_to_test do
         case ExLLM.chat(:openrouter, messages, model: model, max_tokens: 10) do
           {:ok, response} ->
-            assert response.provider == :openrouter
+            assert response.metadata.provider == :openrouter
             assert is_binary(response.content)
             # OpenRouter returns the actual model used
             assert is_binary(response.model)
@@ -111,7 +111,7 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
 
       case ExLLM.chat(:openrouter, messages, options) do
         {:ok, response} ->
-          assert response.provider == :openrouter
+          assert response.metadata.provider == :openrouter
           assert is_binary(response.content)
 
         {:error, _} ->
@@ -130,8 +130,8 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
           assert response.cost < 0.001
 
           # OpenRouter provides detailed usage
-          assert response.usage.input_tokens > 0
-          assert response.usage.output_tokens > 0
+          assert response.usage.prompt_tokens > 0
+          assert response.usage.completion_tokens > 0
 
         {:error, _} ->
           :ok

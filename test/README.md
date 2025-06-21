@@ -35,6 +35,14 @@ The test suite is organized following the ExLLM layered architecture:
 - **Tagged with**: `:integration` and excluded by default
 - **Requirements**: May require API keys depending on the test
 
+### OAuth2 Tests
+- **Location**: `test/ex_llm/providers/gemini/oauth2*/` and `test/ex_llm/providers/gemini/permissions_oauth2_test.exs`
+- **Purpose**: Test OAuth2-dependent APIs (Permissions, Corpus Management, etc.)
+- **Required Pattern**: **MUST use `ExLLM.Testing.OAuth2TestCase`**
+- **Tagged with**: `:oauth2` and excluded by default
+- **Requirements**: OAuth2 credentials (GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, .gemini_tokens)
+- **Documentation**: See [OAuth2 Testing Guide](OAUTH2_TESTING.md) for detailed setup
+
 ## Running Tests
 
 ### Quick Start

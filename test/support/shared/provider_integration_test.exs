@@ -44,9 +44,9 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
               assert %ExLLM.Types.LLMResponse{} = response
               assert is_binary(response.content)
               assert response.content != ""
-              assert response.provider == @provider
-              assert response.usage.input_tokens > 0
-              assert response.usage.output_tokens > 0
+              assert response.metadata.provider == @provider
+              assert response.usage.prompt_tokens > 0
+              assert response.usage.completion_tokens > 0
               assert response.cost > 0
 
             {:error, reason} ->

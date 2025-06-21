@@ -9,7 +9,7 @@ Add ExLLM to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.7.0"}
+    {:ex_llm, "~> 1.0.0-rc1"}
   ]
 end
 ```

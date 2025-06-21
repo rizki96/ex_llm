@@ -4,7 +4,14 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
 
   This module provides utilities for using OAuth2 tokens in tests,
   including automatic token refresh when needed.
+
+  NOTE: This module now uses the new generalized OAuth2 infrastructure
+  while maintaining backward compatibility with existing code.
   """
+
+  require Logger
+
+  alias ExLLM.Testing.OAuth2.Helper
 
   @token_file ".gemini_tokens"
   @token_refresh_script "scripts/refresh_oauth2_token.exs"
@@ -42,11 +49,8 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
   """
   @spec get_valid_token() :: {:ok, String.t()} | {:error, :no_token | String.t()}
   def get_valid_token do
-    # First check environment variable (for CI/CD)
-    case System.get_env("GEMINI_OAUTH_TOKEN") do
-      nil -> get_token_from_file()
-      token -> {:ok, token}
-    end
+    # Use new generalized OAuth2 infrastructure
+    Helper.get_valid_token(:google)
   end
 
   @doc """
@@ -54,10 +58,8 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
   """
   @spec oauth_available?() :: boolean()
   def oauth_available? do
-    case get_valid_token() do
-      {:ok, _} -> true
-      _ -> false
-    end
+    # Use new generalized OAuth2 infrastructure
+    Helper.oauth_available?(:google)
   end
 
   @doc """
@@ -139,13 +141,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
 
   # Private functions
 
-  defp get_token_from_file do
-    with {:ok, tokens} <- load_tokens(),
-         :ok <- ensure_token_valid(tokens) do
-      {:ok, tokens["access_token"]}
-    end
-  end
-
   defp load_tokens do
     token_path = Path.join(File.cwd!(), @token_file)
 
@@ -164,50 +159,27 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
     end
   end
 
-  defp ensure_token_valid(tokens) do
-    case tokens["expires_at"] do
-      nil ->
-        # No expiry info, assume valid
-        :ok
+  # This function is kept for backward compatibility but not currently used
+  # defp refresh_token do
+  #   refresh_script = Path.join(File.cwd!(), @token_refresh_script)
 
-      expires_at ->
-        case DateTime.from_iso8601(expires_at) do
-          {:ok, expiry_time, _} ->
-            if DateTime.compare(DateTime.utc_now(), expiry_time) == :lt do
-              :ok
-            else
-              # Token expired, try to refresh
-              IO.puts("\n🔄 OAuth2 token expired, attempting refresh...")
-              refresh_token()
-            end
+  #   if File.exists?(refresh_script) do
+  #     case System.cmd("elixir", [refresh_script], stderr_to_stdout: true) do
+  #       {output, 0} ->
+  #         if String.contains?(output, "✅") do
+  #           IO.puts("✅ Token refreshed successfully")
+  #           :ok
+  #         else
+  #           {:error, "Token refresh failed"}
+  #         end
 
-          _ ->
-            # Can't parse expiry, assume valid
-            :ok
-        end
-    end
-  end
-
-  defp refresh_token do
-    refresh_script = Path.join(File.cwd!(), @token_refresh_script)
-
-    if File.exists?(refresh_script) do
-      case System.cmd("elixir", [refresh_script], stderr_to_stdout: true) do
-        {output, 0} ->
-          if String.contains?(output, "✅") do
-            IO.puts("✅ Token refreshed successfully")
-            :ok
-          else
-            {:error, "Token refresh failed"}
-          end
-
-        {output, _} ->
-          {:error, "Token refresh failed: #{output}"}
-      end
-    else
-      {:error, "Refresh script not found. Token expired."}
-    end
-  end
+  #       {output, _} ->
+  #         {:error, "Token refresh failed: #{output}"}
+  #     end
+  #   else
+  #     {:error, "Refresh script not found. Token expired."}
+  #   end
+  # end
 
   @doc """
   Creates a mock OAuth2 token for testing error scenarios.
@@ -363,6 +335,10 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
   """
   @spec global_cleanup() :: :ok | :skip
   def global_cleanup do
+    # Use new generalized OAuth2 infrastructure
+    Helper.global_cleanup(:google)
+
+    # Keep existing cleanup logic for backward compatibility
     case get_valid_token() do
       {:ok, token} ->
         IO.puts("Performing global cleanup of test resources...")
@@ -490,6 +466,10 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
   """
   @spec quick_cleanup() :: :ok
   def quick_cleanup do
+    # Use new generalized OAuth2 infrastructure
+    Helper.cleanup(:google)
+
+    # Keep existing cleanup logic for backward compatibility
     case get_valid_token() do
       {:ok, token} ->
         cleanup_test_corpora(token)

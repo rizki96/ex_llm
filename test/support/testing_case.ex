@@ -272,16 +272,21 @@ defmodule ExLLM.Testing.Case do
 
   defp check_gemini_oauth do
     if Code.ensure_loaded?(ExLLM.Testing.GeminiOAuth2Helper) do
-      if ExLLM.Testing.GeminiOAuth2Helper.oauth_available?() do
-        case ExLLM.Testing.GeminiOAuth2Helper.get_valid_token() do
-          {:ok, _token} ->
-            :ok
+      try do
+        if apply(ExLLM.Testing.GeminiOAuth2Helper, :oauth_available?, []) do
+          case apply(ExLLM.Testing.GeminiOAuth2Helper, :get_valid_token, []) do
+            {:ok, _token} ->
+              :ok
 
-          _ ->
-            {:skip, "Test requires valid OAuth2 token - run: elixir scripts/setup_oauth2.exs"}
+            _ ->
+              {:skip, "Test requires valid OAuth2 token - run: elixir scripts/setup_oauth2.exs"}
+          end
+        else
+          {:skip, "Test requires OAuth2 authentication - run: elixir scripts/setup_oauth2.exs"}
         end
-      else
-        {:skip, "Test requires OAuth2 authentication - run: elixir scripts/setup_oauth2.exs"}
+      rescue
+        _ ->
+          {:skip, "OAuth2 test helper not fully loaded"}
       end
     else
       {:skip, "GeminiOAuth2Helper not available - OAuth2 tests disabled"}

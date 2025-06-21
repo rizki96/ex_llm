@@ -127,8 +127,13 @@ defmodule ExLLM.Providers.OpenAIPublicAPITest do
       case ExLLM.stream(:openai, messages, collector, max_tokens: 10, timeout: 10_000) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
-          last_chunk = List.last(chunks)
-          assert last_chunk.finish_reason in ["stop", "length", "tool_calls"]
+
+          if length(chunks) > 0 do
+            last_chunk = List.last(chunks)
+            assert last_chunk.finish_reason in ["stop", "length", "tool_calls"]
+          else
+            flunk("No chunks received from stream")
+          end
 
         {:error, _} ->
           :ok

@@ -36,7 +36,7 @@ Add ExLLM to your `mix.exs` dependencies:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 0.4.1"},
+    {:ex_llm, "~> 1.0.0-rc1"},
     # Included dependencies (automatically installed with ex_llm):
     # - {:instructor, "~> 0.1.0"} - For structured outputs
     # - {:bumblebee, "~> 0.5"} - For local model inference
@@ -204,7 +204,7 @@ IO.puts(response.content)
 }
 ```
 
-## Pipeline API (NEW in v0.9.0)
+## Pipeline API
 
 ExLLM now features a powerful Phoenix-style pipeline architecture that provides both simple and advanced APIs.
 

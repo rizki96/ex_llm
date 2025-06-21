@@ -47,7 +47,7 @@ defmodule ExLLM do
         default_model: "gpt-4"
   """
 
-  alias ExLLM.ChatBuilder
+  alias ExLLM.API.Delegator
   alias ExLLM.Infrastructure.Logger
   alias ExLLM.Pipeline
   alias ExLLM.Pipeline.Request
@@ -231,217 +231,51 @@ defmodule ExLLM do
     Pipeline.run(request, pipeline)
   end
 
-  @doc """
-  Creates a new chat builder for enhanced fluent API.
+  ## Chat Builder API Functions
 
-  The chat builder provides comprehensive pipeline customization capabilities
-  for advanced use cases while maintaining a simple interface.
+  @doc "Create a new chat builder for enhanced fluent API. See ExLLM.Builder.build/2 for details."
+  defdelegate build(provider, messages), to: ExLLM.Builder
 
-  ## Examples
+  @doc "Set the model for a chat builder. See ExLLM.Builder.with_model/2 for details."
+  defdelegate with_model(builder, model), to: ExLLM.Builder
 
-      # Basic usage
-      {:ok, response} = 
-        ExLLM.build(:openai, messages)
-        |> ExLLM.with_model("gpt-4")
-        |> ExLLM.with_temperature(0.7)
-        |> ExLLM.execute()
-        
-      # Advanced pipeline customization
-      {:ok, response} = 
-        ExLLM.build(:openai, messages)
-        |> ExLLM.with_cache(ttl: 3600)
-        |> ExLLM.with_custom_plug(MyApp.Plugs.Logger)
-        |> ExLLM.without_cost_tracking()
-        |> ExLLM.execute()
-        
-      # Streaming with builder
-      ExLLM.build(:openai, messages)
-      |> ExLLM.with_model("gpt-4")
-      |> ExLLM.stream(fn chunk ->
-        IO.write(chunk.content)
-      end)
-  """
-  @spec build(atom(), list(map())) :: ExLLM.ChatBuilder.t()
-  def build(provider, messages) do
-    ExLLM.ChatBuilder.new(provider, messages)
-  end
+  @doc "Sets the temperature for a chat builder. See ExLLM.Builder.with_temperature/2 for details."
+  defdelegate with_temperature(builder, temperature), to: ExLLM.Builder
 
-  @doc """
-  Sets the model for a chat builder.
+  @doc "Sets the maximum tokens for a chat builder. See ExLLM.Builder.with_max_tokens/2 for details."
+  defdelegate with_max_tokens(builder, max_tokens), to: ExLLM.Builder
 
-  ## Examples
+  @doc "Adds a custom plug to the pipeline. See ExLLM.Builder.with_plug/3 for details."
+  defdelegate with_plug(builder, plug, opts \\ []), to: ExLLM.Builder
 
-      builder
-      |> ExLLM.with_model("gpt-4-turbo")
-  """
-  @spec with_model(ExLLM.ChatBuilder.t(), String.t()) :: ExLLM.ChatBuilder.t()
-  def with_model(%ExLLM.ChatBuilder{} = builder, model) when is_binary(model) do
-    ExLLM.ChatBuilder.with_model(builder, model)
-  end
+  @doc "Executes a chat builder request. See ExLLM.Builder.execute/1 for details."
+  defdelegate execute(builder), to: ExLLM.Builder
 
-  @doc """
-  Sets the temperature for a chat builder.
-
-  ## Examples
-
-      builder
-      |> ExLLM.with_temperature(0.5)
-  """
-  @spec with_temperature(ExLLM.ChatBuilder.t(), float()) :: ExLLM.ChatBuilder.t()
-  def with_temperature(%ExLLM.ChatBuilder{} = builder, temperature)
-      when is_number(temperature) and temperature >= 0 and temperature <= 2 do
-    ExLLM.ChatBuilder.with_temperature(builder, temperature)
-  end
-
-  @doc """
-  Sets the maximum tokens for a chat builder.
-
-  ## Examples
-
-      builder
-      |> ExLLM.with_max_tokens(1000)
-  """
-  @spec with_max_tokens(ExLLM.ChatBuilder.t(), pos_integer()) :: ExLLM.ChatBuilder.t()
-  def with_max_tokens(%ExLLM.ChatBuilder{} = builder, max_tokens)
-      when is_integer(max_tokens) and max_tokens > 0 do
-    ExLLM.ChatBuilder.with_max_tokens(builder, max_tokens)
-  end
-
-  @doc """
-  Adds a custom plug to the pipeline.
-
-  ## Examples
-
-      builder
-      |> ExLLM.with_plug(MyApp.Plugs.Logger)
-      |> ExLLM.with_plug({ExLLM.Plugs.Cache, ttl: 3600})
-  """
-  @spec with_plug(ExLLM.ChatBuilder.t(), module(), keyword()) :: ExLLM.ChatBuilder.t()
-  def with_plug(%ExLLM.ChatBuilder{} = builder, plug, opts \\ []) do
-    ExLLM.ChatBuilder.with_custom_plug(builder, plug, opts)
-  end
-
-  @doc """
-  Executes a chat builder request.
-
-  ## Examples
-
-      {:ok, response} = 
-        ExLLM.build(:openai, messages)
-        |> ExLLM.with_model("gpt-4")
-        |> ExLLM.execute()
-  """
-  @spec execute(ExLLM.ChatBuilder.t()) :: {:ok, map()} | {:error, term()}
-  def execute(%ExLLM.ChatBuilder{} = builder) do
-    ExLLM.ChatBuilder.execute(builder)
-  end
-
-  @doc """
-  Streams a chat builder request.
-
-  ## Examples
-
-      ExLLM.build(:openai, messages)
-      |> ExLLM.with_model("gpt-4")
-      |> ExLLM.stream(fn chunk ->
-        IO.write(chunk.content)
-      end)
-  """
-  @spec stream(ExLLM.ChatBuilder.t(), function()) :: :ok | {:error, term()}
-  def stream(%ExLLM.ChatBuilder{} = builder, callback) when is_function(callback, 1) do
-    ExLLM.ChatBuilder.stream(builder, callback)
-  end
+  @doc "Streams a chat builder request. See ExLLM.Builder.stream/2 for details."
+  defdelegate stream(builder, callback), to: ExLLM.Builder
 
   ## Enhanced Builder API Methods
 
-  @doc """
-  Enables caching with configurable options on a chat builder.
+  @doc "Enables caching with configurable options on a chat builder. See ExLLM.Builder.with_cache/2 for details."
+  defdelegate with_cache(builder, opts \\ []), to: ExLLM.Builder
 
-  ## Examples
+  @doc "Disables caching for a chat builder request. See ExLLM.Builder.without_cache/1 for details."
+  defdelegate without_cache(builder), to: ExLLM.Builder
 
-      builder |> ExLLM.with_cache()
-      builder |> ExLLM.with_cache(ttl: 3600)
-  """
-  @spec with_cache(ChatBuilder.t(), keyword()) :: ChatBuilder.t()
-  def with_cache(%ChatBuilder{} = builder, opts \\ []) do
-    ChatBuilder.with_cache(builder, opts)
-  end
+  @doc "Disables cost tracking for a chat builder request. See ExLLM.Builder.without_cost_tracking/1 for details."
+  defdelegate without_cost_tracking(builder), to: ExLLM.Builder
 
-  @doc """
-  Disables caching for a chat builder request.
+  @doc "Adds a custom plug to the chat builder pipeline. See ExLLM.Builder.with_custom_plug/3 for details."
+  defdelegate with_custom_plug(builder, plug, opts \\ []), to: ExLLM.Builder
 
-  ## Examples
+  @doc "Sets a custom context management strategy for a chat builder. See ExLLM.Builder.with_context_strategy/3 for details."
+  defdelegate with_context_strategy(builder, strategy, opts \\ []), to: ExLLM.Builder
 
-      builder |> ExLLM.without_cache()
-  """
-  @spec without_cache(ChatBuilder.t()) :: ChatBuilder.t()
-  def without_cache(%ChatBuilder{} = builder) do
-    ChatBuilder.without_cache(builder)
-  end
+  @doc "Returns the pipeline that would be executed without running it. See ExLLM.Builder.inspect_pipeline/1 for details."
+  defdelegate inspect_pipeline(builder), to: ExLLM.Builder
 
-  @doc """
-  Disables cost tracking for a chat builder request.
-
-  ## Examples
-
-      builder |> ExLLM.without_cost_tracking()
-  """
-  @spec without_cost_tracking(ChatBuilder.t()) :: ChatBuilder.t()
-  def without_cost_tracking(%ChatBuilder{} = builder) do
-    ChatBuilder.without_cost_tracking(builder)
-  end
-
-  @doc """
-  Adds a custom plug to the chat builder pipeline.
-
-  ## Examples
-
-      builder |> ExLLM.with_custom_plug(MyApp.Plugs.Logger)
-      builder |> ExLLM.with_custom_plug(MyApp.Plugs.Auth, api_key: "secret")
-  """
-  @spec with_custom_plug(ChatBuilder.t(), module(), keyword()) :: ChatBuilder.t()
-  def with_custom_plug(%ChatBuilder{} = builder, plug, opts \\ []) do
-    ChatBuilder.with_custom_plug(builder, plug, opts)
-  end
-
-  @doc """
-  Sets a custom context management strategy for a chat builder.
-
-  ## Examples
-
-      builder |> ExLLM.with_context_strategy(:truncate, max_tokens: 8000)
-      builder |> ExLLM.with_context_strategy(:summarize, preserve_system: true)
-  """
-  @spec with_context_strategy(ChatBuilder.t(), atom(), keyword()) :: ChatBuilder.t()
-  def with_context_strategy(%ChatBuilder{} = builder, strategy, opts \\ []) do
-    ChatBuilder.with_context_strategy(builder, strategy, opts)
-  end
-
-  @doc """
-  Returns the pipeline that would be executed without running it.
-
-  ## Examples
-
-      pipeline = builder |> ExLLM.inspect_pipeline()
-      IO.inspect(pipeline, label: "Pipeline")
-  """
-  @spec inspect_pipeline(ChatBuilder.t()) :: Pipeline.pipeline()
-  def inspect_pipeline(%ChatBuilder{} = builder) do
-    ChatBuilder.inspect_pipeline(builder)
-  end
-
-  @doc """
-  Returns detailed debugging information about the chat builder state.
-
-  ## Examples
-
-      info = builder |> ExLLM.debug_info()
-      IO.inspect(info, label: "Builder State")
-  """
-  @spec debug_info(ChatBuilder.t()) :: map()
-  def debug_info(%ChatBuilder{} = builder) do
-    ChatBuilder.debug_info(builder)
-  end
+  @doc "Returns detailed debugging information about the chat builder state. See ExLLM.Builder.debug_info/1 for details."
+  defdelegate debug_info(builder), to: ExLLM.Builder
 
   # Private helpers
 
@@ -642,174 +476,41 @@ defmodule ExLLM do
 
   ## Session Management Functions
 
-  @doc """
-  Creates a new session for conversation management.
+  @doc "Creates a new session for conversation management. See ExLLM.Session.new_session/2 for details."
+  defdelegate new_session(provider, opts \\ []), to: ExLLM.Session
 
-  ## Examples
+  @doc "Adds a message to a session. See ExLLM.Session.add_message/3 for details."
+  defdelegate add_message(session, role, content), to: ExLLM.Session
 
-      session = ExLLM.new_session(:openai)
-      session = ExLLM.new_session(:anthropic, name: "Assistant Session")
-  """
-  def new_session(provider, opts \\ []) do
-    # Convert provider atom to string as expected by Session type
-    provider_string = if is_atom(provider), do: to_string(provider), else: provider
-    ExLLM.Core.Session.new(provider_string, opts)
-  end
+  @doc "Gets all messages from a session. See ExLLM.Session.get_messages/1 for details."
+  defdelegate get_messages(session), to: ExLLM.Session
 
-  @doc """
-  Adds a message to a session.
+  @doc "Gets session messages with limit. See ExLLM.Session.get_session_messages/2 for details."
+  defdelegate get_session_messages(session, limit \\ nil), to: ExLLM.Session
 
-  ## Examples
+  @doc "Adds a message to a session (alias for add_message). See ExLLM.Session.add_session_message/3 for details."
+  defdelegate add_session_message(session, role, content), to: ExLLM.Session
 
-      session = session |> ExLLM.add_message("user", "Hello!")
-  """
-  def add_message(session, role, content) do
-    ExLLM.Core.Session.add_message(session, role, content)
-  end
+  @doc "Gets total token usage for a session. See ExLLM.Session.session_token_usage/1 for details."
+  defdelegate session_token_usage(session), to: ExLLM.Session
 
-  @doc """
-  Gets all messages from a session.
+  @doc "Clears all messages from a session. See ExLLM.Session.clear_session/1 for details."
+  defdelegate clear_session(session), to: ExLLM.Session
 
-  ## Examples
+  @doc "Saves a session to a file. See ExLLM.Session.save_session/2 for details."
+  defdelegate save_session(session, path), to: ExLLM.Session
 
-      messages = ExLLM.get_messages(session)
-  """
-  def get_messages(session) do
-    ExLLM.Core.Session.get_messages(session)
-  end
+  @doc "Saves a session to JSON string. See ExLLM.Session.save_session/1 for details."
+  defdelegate save_session(session), to: ExLLM.Session
 
-  @doc """
-  Gets session messages with limit (alias for get_messages).
+  @doc "Loads a session from a file path or JSON string. See ExLLM.Session.load_session/1 for details."
+  defdelegate load_session(path_or_json), to: ExLLM.Session
 
-  ## Examples
+  @doc "Performs a chat with a session, managing context automatically. See ExLLM.Session.chat_session/3 for details."
+  defdelegate chat_session(session, content, opts \\ []), to: ExLLM.Session
 
-      messages = ExLLM.get_session_messages(session)
-      last_2 = ExLLM.get_session_messages(session, 2)
-  """
-  def get_session_messages(session, limit \\ nil) do
-    messages = ExLLM.Core.Session.get_messages(session)
-    if limit, do: Enum.take(messages, -limit), else: messages
-  end
-
-  @doc """
-  Adds a message to a session (alias for add_message).
-
-  ## Examples
-
-      session = ExLLM.add_session_message(session, "user", "Hello!")
-  """
-  def add_session_message(session, role, content) do
-    ExLLM.Core.Session.add_message(session, role, content)
-  end
-
-  @doc """
-  Gets total token usage for a session.
-
-  ## Examples
-
-      total = ExLLM.session_token_usage(session)
-  """
-  def session_token_usage(session) do
-    ExLLM.Core.Session.total_tokens(session)
-  end
-
-  @doc """
-  Clears all messages from a session.
-
-  ## Examples
-
-      session = session |> ExLLM.clear_session()
-  """
-  def clear_session(session) do
-    ExLLM.Core.Session.clear_messages(session)
-  end
-
-  @doc """
-  Saves a session to a file.
-
-  ## Examples
-
-      :ok = ExLLM.save_session(session, "path/to/session.json")
-  """
-  def save_session(session, path) do
-    ExLLM.Core.Session.save_to_file(session, path)
-  end
-
-  @doc """
-  Saves a session to JSON string.
-
-  ## Examples
-
-      {:ok, json} = ExLLM.save_session(session)
-  """
-  def save_session(session) do
-    ExLLM.Core.Session.to_json(session)
-  end
-
-  @doc """
-  Loads a session from a file path or JSON string.
-
-  ## Examples
-
-      {:ok, session} = ExLLM.load_session("path/to/session.json")
-      {:ok, session} = ExLLM.load_session(json_string)
-  """
-  def load_session(path_or_json) when is_binary(path_or_json) do
-    # Try to determine if this is a JSON string or a file path
-    # JSON strings typically start with { and end with }
-    if String.starts_with?(String.trim(path_or_json), "{") and
-         String.ends_with?(String.trim(path_or_json), "}") do
-      ExLLM.Core.Session.from_json(path_or_json)
-    else
-      ExLLM.Core.Session.load_from_file(path_or_json)
-    end
-  end
-
-  @doc """
-  Performs a chat with a session, managing context automatically.
-
-  ## Examples
-
-      {:ok, response} = ExLLM.chat_session(session, "What's the weather?")
-  """
-  def chat_session(session, content, opts \\ []) do
-    # Add user message to session
-    session = ExLLM.Core.Session.add_message(session, "user", content)
-
-    # Convert provider string back to atom for chat function
-    provider =
-      if is_binary(session.llm_backend),
-        do: String.to_atom(session.llm_backend),
-        else: session.llm_backend
-
-    # Perform chat with session messages
-    case chat(provider, ExLLM.Core.Session.get_messages(session), opts) do
-      {:ok, response} ->
-        # Add assistant message to session
-        session = ExLLM.Core.Session.add_message(session, "assistant", response.content)
-        {:ok, response, session}
-
-      error ->
-        error
-    end
-  end
-
-  @doc """
-  Performs a chat with a session, managing context automatically.
-
-  ## Examples
-
-      {:ok, {response, session}} = ExLLM.chat_with_session(session, "What's the weather?")
-  """
-  def chat_with_session(session, content, opts \\ []) do
-    case chat_session(session, content, opts) do
-      {:ok, response, updated_session} ->
-        {:ok, {response, updated_session}}
-
-      error ->
-        error
-    end
-  end
+  @doc "Performs a chat with a session, managing context automatically. See ExLLM.Session.chat_with_session/3 for details."
+  defdelegate chat_with_session(session, content, opts \\ []), to: ExLLM.Session
 
   ## Model Capability Functions
 
@@ -908,330 +609,35 @@ defmodule ExLLM do
 
   ## Embeddings Functions
 
-  @doc """
-  Find similar items based on embeddings.
+  @doc "Find similar items based on embeddings. See ExLLM.Embeddings.find_similar/3 for details."
+  defdelegate find_similar(query_embedding, items, opts \\ []), to: ExLLM.Embeddings
 
-  Finds the most similar items by comparing their embeddings with a query embedding.
-  Supports multiple similarity metrics and filtering options.
+  @doc "Calculate cosine similarity between two vectors. See ExLLM.Embeddings.cosine_similarity/2 for details."
+  defdelegate cosine_similarity(vector1, vector2), to: ExLLM.Embeddings
 
-  ## Parameters
+  @doc "List models that support embeddings for a provider. See ExLLM.Embeddings.list_models/1 for details."
+  defdelegate list_embedding_models(provider), to: ExLLM.Embeddings, as: :list_models
 
-    * `query_embedding` - The embedding vector to compare against
-    * `items` - List of items with embeddings (see formats below)
-    * `opts` - Options for similarity search
-    
-  ## Options
+  @doc "Calculate similarity between embeddings using different metrics. See ExLLM.Embeddings.similarity/3 for details."
+  defdelegate embedding_similarity(vector1, vector2, metric \\ :cosine),
+    to: ExLLM.Embeddings,
+    as: :similarity
 
-    * `:top_k` - Number of results to return (default: 10)
-    * `:metric` - Similarity metric: `:cosine`, `:euclidean`, `:dot_product` (default: `:cosine`)
-    * `:threshold` - Minimum similarity threshold (default: 0.0)
-    
-  ## Item Formats
+  @doc "Batch generate embeddings for multiple texts. See ExLLM.Embeddings.batch_generate/3 for details."
+  defdelegate batch_embeddings(provider, requests), to: ExLLM.Embeddings, as: :batch_generate
 
-  Items can be provided in several formats:
+  @doc "Get detailed information about an embedding model. See ExLLM.Embeddings.model_info/2 for details."
+  defdelegate get_embedding_model_info(provider, model_id), to: ExLLM.Embeddings, as: :model_info
 
-      # Tuple format
-      items = [
-        {"Document 1", [0.1, 0.2, 0.3, ...]},
-        {"Document 2", [0.4, 0.5, 0.6, ...]}
-      ]
-      
-      # Map format with :embedding key
-      items = [
-        %{id: 1, text: "Doc 1", embedding: [0.1, 0.2, ...]},
-        %{id: 2, text: "Doc 2", embedding: [0.4, 0.5, ...]}
-      ]
-
-  ## Examples
-
-      # Basic similarity search
-      results = ExLLM.find_similar(query_embedding, items, top_k: 5)
-      
-      # With threshold filtering
-      results = ExLLM.find_similar(query_embedding, items, 
-        top_k: 10,
-        threshold: 0.7,
-        metric: :cosine
-      )
-      
-      # Results format
-      [
-        %{item: {"Document 1", [...]}, similarity: 0.95},
-        %{item: {"Document 2", [...]}, similarity: 0.87}
-      ]
-  """
-  @spec find_similar([float()], list(), keyword()) :: list(%{item: any(), similarity: float()})
-  def find_similar(query_embedding, items, opts \\ []) do
-    ExLLM.Core.Embeddings.find_similar(query_embedding, items, opts)
-  end
-
-  @doc """
-  Calculate cosine similarity between two vectors.
-
-  Cosine similarity measures the cosine of the angle between two vectors,
-  providing a value between -1 and 1, where:
-  - 1 means identical direction
-  - 0 means perpendicular
-  - -1 means opposite direction
-
-  ## Examples
-
-      similarity = ExLLM.cosine_similarity([1.0, 2.0], [3.0, 4.0])
-      # => 0.9838699100999074
-      
-      # Identical vectors have similarity of 1.0
-      ExLLM.cosine_similarity([1, 2, 3], [1, 2, 3])
-      # => 1.0
-      
-      # Orthogonal vectors have similarity of 0.0
-      ExLLM.cosine_similarity([1, 0], [0, 1])
-      # => 0.0
-  """
-  @spec cosine_similarity([float()], [float()]) :: float()
-  def cosine_similarity(vector1, vector2) do
-    ExLLM.Core.Embeddings.similarity(vector1, vector2, :cosine)
-  end
-
-  @doc """
-  List models that support embeddings for a provider.
-
-  Returns a list of model IDs that support embedding generation for the specified provider.
-
-  ## Examples
-
-      {:ok, models} = ExLLM.list_embedding_models(:openai)
-      # => {:ok, ["text-embedding-3-small", "text-embedding-3-large", "text-embedding-ada-002"]}
-      
-      {:ok, models} = ExLLM.list_embedding_models(:gemini)
-      # => {:ok, ["text-embedding-004", "text-multilingual-embedding-002"]}
-  """
-  @spec list_embedding_models(atom()) :: {:ok, [String.t()]} | {:error, term()}
-  def list_embedding_models(provider) do
-    ExLLM.Core.Embeddings.list_embedding_models(provider)
-  end
-
-  @doc """
-  Calculate similarity between embeddings using different metrics.
-
-  Supports multiple similarity/distance metrics for comparing embedding vectors.
-
-  ## Parameters
-
-    * `vector1` - First embedding vector
-    * `vector2` - Second embedding vector  
-    * `metric` - Similarity metric (default: `:cosine`)
-    
-  ## Supported Metrics
-
-    * `:cosine` - Cosine similarity (0 to 1, higher is more similar)
-    * `:euclidean` - Euclidean distance (0 to ∞, lower is more similar)
-    * `:dot_product` - Dot product (can be any value)
-    
-  ## Examples
-
-      # Cosine similarity (default)
-      similarity = ExLLM.embedding_similarity([1.0, 2.0], [3.0, 4.0])
-      # => 0.9838699100999074
-      
-      # Euclidean distance
-      distance = ExLLM.embedding_similarity([1, 2, 3], [4, 5, 6], :euclidean)
-      # => 5.196152422706632
-      
-      # Dot product
-      dot = ExLLM.embedding_similarity([1, 2], [3, 4], :dot_product)
-      # => 11
-  """
-  @spec embedding_similarity([float()], [float()], atom()) :: float()
-  def embedding_similarity(vector1, vector2, metric \\ :cosine) do
-    ExLLM.Core.Embeddings.similarity(vector1, vector2, metric)
-  end
-
-  @doc """
-  Batch generate embeddings for multiple texts.
-
-  Efficiently processes multiple embedding requests in a batch. Each text
-  can have its own options (like different models).
-
-  ## Parameters
-
-    * `provider` - The LLM provider atom
-    * `requests` - List of {text, options} tuples
-    
-  ## Examples
-
-      # Batch with same options
-      requests = [
-        {"Document 1", []},
-        {"Document 2", []},
-        {"Document 3", []}
-      ]
-      {:ok, results} = ExLLM.batch_embeddings(:openai, requests)
-      
-      # Batch with different models
-      requests = [
-        {"Short text", [model: "text-embedding-3-small"]},
-        {"Long document", [model: "text-embedding-3-large", dimensions: 1024]}
-      ]
-      {:ok, results} = ExLLM.batch_embeddings(:openai, requests)
-      
-      # Results include batch index
-      [
-        %{embeddings: [[...]], batch_index: 0, ...},
-        %{embeddings: [[...]], batch_index: 1, ...}
-      ]
-  """
-  @spec batch_embeddings(atom(), [{String.t() | [String.t()], keyword()}]) ::
-          {:ok, list()} | {:error, term()}
-  def batch_embeddings(provider, requests) do
-    # Process each request through the pipeline
-    results =
-      requests
-      |> Enum.with_index()
-      |> Enum.map(fn {{input, opts}, index} ->
-        case embeddings(provider, input, opts) do
-          {:ok, response} ->
-            # Add batch index to response
-            response_with_index = Map.put(response, :batch_index, index)
-            {:ok, response_with_index}
-
-          {:error, error} ->
-            {:error, {index, error}}
-        end
-      end)
-
-    # Check if any failed
-    errors = Enum.filter(results, &match?({:error, _}, &1))
-
-    if Enum.empty?(errors) do
-      successes = Enum.map(results, fn {:ok, result} -> result end)
-      {:ok, successes}
-    else
-      {:error, {:batch_errors, errors}}
-    end
-  end
-
-  @doc """
-  Get detailed information about an embedding model.
-
-  Returns comprehensive information about a specific embedding model including
-  dimensions, pricing, and capabilities.
-
-  ## Examples
-
-      {:ok, info} = ExLLM.get_embedding_model_info(:openai, "text-embedding-3-large")
-      # => %{
-      #   id: "text-embedding-3-large",
-      #   dimensions: 3072,
-      #   max_input_tokens: 8191,
-      #   pricing: %{input: 0.13},
-      #   capabilities: ["embeddings"]
-      # }
-  """
-  @spec get_embedding_model_info(atom(), String.t()) :: {:ok, map()} | {:error, term()}
-  def get_embedding_model_info(provider, model_id) do
-    ExLLM.Core.Embeddings.get_model_info(provider, model_id)
-  end
-
-  @doc """
-  Compare models across providers.
-
-  ## Examples
-
-      comparison = ExLLM.compare_models([openai: "gpt-4", anthropic: "claude-3-5-sonnet-20241022"])
-  """
+  @doc "Compare models across providers."
   def compare_models(model_list) do
     ExLLM.Infrastructure.Config.ModelCapabilities.compare_models(model_list)
   end
 
-  @doc """
-  Create an embedding search index from texts.
-
-  Generates embeddings for a collection of texts and prepares them for
-  similarity search. This is useful for building semantic search systems.
-
-  ## Parameters
-
-    * `provider` - The LLM provider atom
-    * `texts` - List of texts or {id, text} tuples
-    * `opts` - Options for embedding generation
-    
-  ## Options
-
-    * `:model` - Embedding model to use
-    * `:batch_size` - Process texts in batches (default: 100)
-    * `:dimensions` - Output dimensions for models that support it
-    
-  ## Examples
-
-      # Simple text list
-      texts = ["Document 1", "Document 2", "Document 3"]
-      {:ok, index} = ExLLM.create_embedding_index(:openai, texts)
-      
-      # With IDs
-      texts = [
-        {1, "First document"},
-        {2, "Second document"},
-        {"doc3", "Third document"}
-      ]
-      {:ok, index} = ExLLM.create_embedding_index(:openai, texts,
-        model: "text-embedding-3-small"
-      )
-      
-      # Use the index for search
-      {:ok, query_resp} = ExLLM.embeddings(:openai, "search query")
-      results = ExLLM.find_similar(hd(query_resp.embeddings), index, top_k: 3)
-  """
-  @spec create_embedding_index(atom(), [String.t()] | [{any(), String.t()}], keyword()) ::
-          {:ok, list()} | {:error, term()}
-  def create_embedding_index(provider, texts, opts \\ []) do
-    batch_size = Keyword.get(opts, :batch_size, 100)
-    embedding_opts = Keyword.delete(opts, :batch_size)
-
-    # Normalize input format
-    normalized_texts = normalize_text_input(texts)
-
-    # Process in batches
-    normalized_texts
-    |> Enum.chunk_every(batch_size)
-    |> Enum.reduce_while({:ok, []}, fn batch, {:ok, acc} ->
-      # Extract texts for embedding
-      batch_texts = Enum.map(batch, fn {_id, text} -> text end)
-
-      case embeddings(provider, batch_texts, embedding_opts) do
-        {:ok, response} ->
-          # Combine IDs with embeddings
-          indexed_items =
-            batch
-            |> Enum.zip(response.embeddings)
-            |> Enum.map(fn {{id, text}, embedding} ->
-              %{
-                id: id,
-                text: text,
-                embedding: embedding,
-                metadata: %{
-                  model: response.model,
-                  timestamp: DateTime.utc_now()
-                }
-              }
-            end)
-
-          {:cont, {:ok, acc ++ indexed_items}}
-
-        {:error, error} ->
-          {:halt, {:error, {:batch_failed, error}}}
-      end
-    end)
-  end
-
-  defp normalize_text_input(texts) do
-    texts
-    |> Enum.with_index()
-    |> Enum.map(fn
-      {{id, text}, _index} when is_binary(text) -> {id, text}
-      {text, index} when is_binary(text) -> {index, text}
-      _ -> raise ArgumentError, "Invalid text input format"
-    end)
-  end
+  @doc "Create an embedding search index from texts. See ExLLM.Embeddings.create_index/3 for details."
+  defdelegate create_embedding_index(provider, texts, opts \\ []),
+    to: ExLLM.Embeddings,
+    as: :create_index
 
   ## Context Management Functions
 
@@ -1296,6 +702,223 @@ defmodule ExLLM do
   def estimate_tokens(messages) do
     ExLLM.Core.Cost.estimate_tokens(messages)
   end
+
+  @doc """
+  Count tokens for content using provider-specific token counting APIs.
+
+  This function provides accurate token counts by using the provider's native
+  token counting API, which is more precise than estimation methods.
+
+  Currently supported providers:
+  - `:gemini` - Uses Google's countTokens API
+
+  ## Parameters
+
+    * `provider` - The provider atom (currently only `:gemini`)
+    * `model` - The model name to use for counting
+    * `content` - The content to count tokens for
+
+  ## Content Types
+
+  For Gemini, content can be:
+  - A list of messages: `[%{role: "user", content: "Hello"}]`
+  - A string: `"Hello world"`
+  - Content structs for multimodal input
+
+  ## Examples
+
+      # Count tokens for a simple message
+      {:ok, response} = ExLLM.count_tokens(:gemini, "gemini-2.0-flash", "Hello world")
+      IO.puts("Total tokens: \#{response.total_tokens}")
+
+      # Count tokens for conversation messages
+      messages = [
+        %{role: "user", content: "What is machine learning?"},
+        %{role: "assistant", content: "Machine learning is..."}
+      ]
+      {:ok, response} = ExLLM.count_tokens(:gemini, "gemini-2.0-flash", messages)
+
+  ## Return Value
+
+  Returns `{:ok, token_response}` with:
+  - `total_tokens` - Total token count
+  - `cached_content_token_count` - Cached tokens (if applicable)
+  - `prompt_tokens_details` - Breakdown by modality
+  - `cache_tokens_details` - Cache token details
+
+  Returns `{:error, reason}` if the request fails.
+  """
+  @spec count_tokens(atom(), String.t(), term()) ::
+          {:ok, ExLLM.Providers.Gemini.Tokens.CountTokensResponse.t()} | {:error, term()}
+  def count_tokens(provider, model, content) do
+    case Delegator.delegate(:count_tokens, provider, [model, content]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Upload a file to the provider for use in multimodal models or fine-tuning.
+
+  ## Parameters
+
+    * `provider` - The provider atom (`:gemini` or `:openai`)
+    * `file_path` - Path to the file to upload
+    * `opts` - Upload options
+
+  ## Options
+
+  For Gemini:
+    * `:display_name` - Human-readable name for the file
+    * `:mime_type` - Override automatic MIME type detection
+    * `:config_provider` - Configuration provider
+
+  For OpenAI:
+    * `:purpose` - Purpose of the file ("fine-tune", "assistants", "vision", "user_data", etc.)
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      # Upload to Gemini
+      {:ok, file} = ExLLM.upload_file(:gemini, "/path/to/image.png", 
+        display_name: "My Image")
+      
+      # Upload to OpenAI for fine-tuning
+      {:ok, file} = ExLLM.upload_file(:openai, "/path/to/training.jsonl",
+        purpose: "fine-tune")
+
+  ## Return Value
+
+  Returns `{:ok, file_info}` with file metadata, or `{:error, reason}`.
+  """
+  @spec upload_file(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
+  def upload_file(provider, file_path, opts \\ []) do
+    case Delegator.delegate(:upload_file, provider, [file_path, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  List files uploaded to the provider.
+
+  ## Parameters
+
+    * `provider` - The provider atom (`:gemini` or `:openai`)
+    * `opts` - Listing options
+
+  ## Options
+
+  For Gemini:
+    * `:page_size` - Number of files per page (default: 10)
+    * `:page_token` - Token for pagination
+    * `:config_provider` - Configuration provider
+
+  For OpenAI:
+    * `:purpose` - Filter by file purpose ("fine-tune", "assistants", etc.)
+    * `:limit` - Number of files to return (max 100)
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      # List Gemini files
+      {:ok, response} = ExLLM.list_files(:gemini)
+      Enum.each(response.files, fn file ->
+        IO.puts("File: \#{file.display_name} (\#{file.name})")
+      end)
+      
+      # List OpenAI fine-tuning files
+      {:ok, response} = ExLLM.list_files(:openai, purpose: "fine-tune")
+
+  ## Return Value
+
+  Returns `{:ok, list_response}` with files and pagination info, or `{:error, reason}`.
+  """
+  @spec list_files(atom(), keyword()) :: {:ok, term()} | {:error, term()}
+  def list_files(provider, opts \\ []) do
+    case Delegator.delegate(:list_files, provider, [opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Get metadata for a specific file.
+
+  ## Parameters
+
+    * `provider` - The provider atom (currently only `:gemini`)
+    * `file_id` - The file identifier
+    * `opts` - Request options
+
+  ## Examples
+
+      {:ok, file} = ExLLM.get_file(:gemini, "files/abc-123")
+      IO.puts("File size: \#{file.size_bytes} bytes")
+
+  ## Return Value
+
+  Returns `{:ok, file_info}` with file metadata, or `{:error, reason}`.
+  """
+  @spec get_file(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
+  def get_file(provider, file_id, opts \\ []) do
+    case Delegator.delegate(:get_file, provider, [file_id, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Delete a file from the provider.
+
+  ## Parameters
+
+    * `provider` - The provider atom (currently only `:gemini`)
+    * `file_id` - The file identifier
+    * `opts` - Request options
+
+  ## Examples
+
+      :ok = ExLLM.delete_file(:gemini, "files/abc-123")
+
+  ## Return Value
+
+  Returns `:ok` on success, or `{:error, reason}` on failure.
+  """
+  @spec delete_file(atom(), String.t(), keyword()) :: :ok | {:error, term()}
+  def delete_file(provider, file_id, opts \\ []) do
+    case Delegator.delegate(:delete_file, provider, [file_id, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc "Create a knowledge base (corpus) for semantic retrieval. See ExLLM.KnowledgeBase.create_knowledge_base/3 for details."
+  defdelegate create_knowledge_base(provider, name, opts \\ []), to: ExLLM.KnowledgeBase
+
+  @doc "List available knowledge bases (corpora). See ExLLM.KnowledgeBase.list_knowledge_bases/2 for details."
+  defdelegate list_knowledge_bases(provider, opts \\ []), to: ExLLM.KnowledgeBase
+
+  @doc "Get metadata for a specific knowledge base. See ExLLM.KnowledgeBase.get_knowledge_base/3 for details."
+  defdelegate get_knowledge_base(provider, name, opts \\ []), to: ExLLM.KnowledgeBase
+
+  @doc "Delete a knowledge base. See ExLLM.KnowledgeBase.delete_knowledge_base/3 for details."
+  defdelegate delete_knowledge_base(provider, name, opts \\ []), to: ExLLM.KnowledgeBase
+
+  @doc "Add a document to a knowledge base. See ExLLM.KnowledgeBase.add_document/4 for details."
+  defdelegate add_document(provider, knowledge_base, document, opts \\ []),
+    to: ExLLM.KnowledgeBase
+
+  @doc "List documents in a knowledge base. See ExLLM.KnowledgeBase.list_documents/3 for details."
+  defdelegate list_documents(provider, knowledge_base, opts \\ []), to: ExLLM.KnowledgeBase
+
+  @doc "Get a specific document from a knowledge base. See ExLLM.KnowledgeBase.get_document/4 for details."
+  defdelegate get_document(provider, knowledge_base, document_id, opts \\ []),
+    to: ExLLM.KnowledgeBase
+
+  @doc "Delete a document from a knowledge base. See ExLLM.KnowledgeBase.delete_document/4 for details."
+  defdelegate delete_document(provider, knowledge_base, document_id, opts \\ []),
+    to: ExLLM.KnowledgeBase
 
   @doc """
   Prepare messages for a specific provider with context management.
@@ -1394,6 +1017,484 @@ defmodule ExLLM do
 
       _ ->
         false
+    end
+  end
+
+  @doc "Performs semantic search within a knowledge base. See ExLLM.KnowledgeBase.semantic_search/4 for details."
+  defdelegate semantic_search(provider, knowledge_base, query, opts \\ []),
+    to: ExLLM.KnowledgeBase
+
+  ## Context Caching Functions
+
+  @doc """
+  Creates cached content for efficient reuse across multiple requests.
+
+  Context caching allows you to cache large amounts of input content and reuse
+  it across multiple requests, reducing costs and improving performance.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:gemini` supported)
+    * `content` - The content to cache (can be messages, system instructions, etc.)
+    * `opts` - Options for caching
+
+  ## Options for Gemini
+    * `:model` - Model to use for caching (required)
+    * `:display_name` - Human-readable name for the cached content
+    * `:ttl` - Time-to-live in seconds (e.g., 3600 for 1 hour)
+    * `:system_instruction` - System instruction content
+    * `:tools` - Tools available to the model
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      # Cache conversation context
+      request = %{
+        model: "models/gemini-1.5-pro",
+        contents: [
+          %{role: "user", parts: [%{text: "Long document content..."}]}
+        ],
+        ttl: "3600s"
+      }
+      {:ok, cached} = ExLLM.create_cached_context(:gemini, request)
+
+  ## Return Value
+
+  Returns `{:ok, cached_content}` with the cached content details, or `{:error, reason}`.
+  """
+  @spec create_cached_context(atom(), map(), keyword()) :: {:ok, term()} | {:error, term()}
+  def create_cached_context(provider, content, opts \\ []) do
+    case Delegator.delegate(:create_cached_context, provider, [content, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Retrieves cached content by name.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:gemini` supported)
+    * `name` - The cached content name (e.g., "cachedContents/abc-123")
+    * `opts` - Options for retrieval
+
+  ## Examples
+
+      {:ok, cached} = ExLLM.get_cached_context(:gemini, "cachedContents/abc-123")
+
+  ## Return Value
+
+  Returns `{:ok, cached_content}` with the cached content details, or `{:error, reason}`.
+  """
+  @spec get_cached_context(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
+  def get_cached_context(provider, name, opts \\ []) do
+    case Delegator.delegate(:get_cached_context, provider, [name, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Updates cached content with new information.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:gemini` supported)
+    * `name` - The cached content name to update
+    * `updates` - Map of updates to apply
+    * `opts` - Options for the update
+
+  ## Options
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      updates = %{
+        display_name: "Updated name",
+        ttl: "7200s"
+      }
+      {:ok, updated} = ExLLM.update_cached_context(:gemini, "cachedContents/abc-123", updates)
+
+  ## Return Value
+
+  Returns `{:ok, updated_content}` with the updated cached content, or `{:error, reason}`.
+  """
+  @spec update_cached_context(atom(), String.t(), map(), keyword()) ::
+          {:ok, term()} | {:error, term()}
+  def update_cached_context(provider, name, updates, opts \\ []) do
+    case Delegator.delegate(:update_cached_context, provider, [name, updates, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Deletes cached content.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:gemini` supported)
+    * `name` - The cached content name to delete
+    * `opts` - Options for deletion
+
+  ## Examples
+
+      :ok = ExLLM.delete_cached_context(:gemini, "cachedContents/abc-123")
+
+  ## Return Value
+
+  Returns `:ok` if successful, or `{:error, reason}` if failed.
+  """
+  @spec delete_cached_context(atom(), String.t(), keyword()) :: :ok | {:error, term()}
+  def delete_cached_context(provider, name, opts \\ []) do
+    case Delegator.delegate(:delete_cached_context, provider, [name, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Lists all cached content.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:gemini` supported)
+    * `opts` - Options for listing
+
+  ## Options for Gemini
+    * `:page_size` - Number of results per page (max 100)
+    * `:page_token` - Token for pagination
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      {:ok, %{cached_contents: contents, next_page_token: token}} = ExLLM.list_cached_contexts(:gemini)
+      
+      # With pagination
+      {:ok, %{cached_contents: more_contents}} = ExLLM.list_cached_contexts(:gemini, 
+        page_token: token, page_size: 50)
+
+  ## Return Value
+
+  Returns `{:ok, %{cached_contents: list, next_page_token: token}}` or `{:error, reason}`.
+  """
+  @spec list_cached_contexts(atom(), keyword()) :: {:ok, map()} | {:error, term()}
+  def list_cached_contexts(provider, opts \\ []) do
+    case Delegator.delegate(:list_cached_contexts, provider, [opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  ## Fine-tuning Functions
+
+  @doc """
+  Creates a fine-tuning job.
+
+  Fine-tuning allows you to customize a model for your specific use case
+  by training it on your own data.
+
+  ## Parameters
+    * `provider` - The LLM provider (`:gemini` or `:openai`)
+    * `data` - Training data or file identifier (format varies by provider)
+    * `opts` - Options for fine-tuning
+
+  ## Options for Gemini
+    * `:base_model` - Base model to tune (required)
+    * `:display_name` - Human-readable name for the tuned model
+    * `:description` - Description of the tuned model
+    * `:temperature` - Temperature for tuning
+    * `:top_p` - Top-p value for tuning
+    * `:top_k` - Top-k value for tuning
+    * `:candidate_count` - Number of candidates
+    * `:max_output_tokens` - Maximum output tokens
+    * `:stop_sequences` - Stop sequences
+    * `:hyperparameters` - Training hyperparameters map
+    * `:config_provider` - Configuration provider
+
+  ## Options for OpenAI
+    * `:model` - Base model to fine-tune (default: "gpt-3.5-turbo")
+    * `:validation_file` - Validation file ID
+    * `:hyperparameters` - Training hyperparameters
+    * `:suffix` - Suffix for the fine-tuned model name
+    * `:integrations` - Third-party integration settings
+    * `:seed` - Random seed for training
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      # Gemini fine-tuning
+      dataset = %{
+        examples: %{
+          examples: [
+            %{text_input: "What is AI?", output: "AI is artificial intelligence..."}
+          ]
+        }
+      }
+      {:ok, tuned_model} = ExLLM.create_fine_tune(:gemini, dataset, 
+        base_model: "models/gemini-1.5-flash-001",
+        display_name: "My Custom Model"
+      )
+
+      # OpenAI fine-tuning
+      {:ok, job} = ExLLM.create_fine_tune(:openai, "file-abc123",
+        model: "gpt-3.5-turbo",
+        suffix: "my-model"
+      )
+
+  ## Return Value
+
+  Returns `{:ok, result}` with the fine-tuning job or model details, or `{:error, reason}`.
+  """
+  @spec create_fine_tune(atom(), term(), keyword()) :: {:ok, term()} | {:error, term()}
+  def create_fine_tune(provider, data, opts \\ []) do
+    case Delegator.delegate(:create_fine_tune, provider, [data, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Lists fine-tuning jobs or tuned models.
+
+  ## Parameters
+    * `provider` - The LLM provider (`:gemini` or `:openai`)
+    * `opts` - Options for listing
+
+  ## Options for Gemini
+    * `:page_size` - Number of results per page
+    * `:page_token` - Token for pagination
+    * `:config_provider` - Configuration provider
+
+  ## Options for OpenAI
+    * `:after` - Identifier for pagination
+    * `:limit` - Number of results to return (max 100)
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      # List Gemini tuned models
+      {:ok, %{tuned_models: models}} = ExLLM.list_fine_tunes(:gemini)
+
+      # List OpenAI fine-tuning jobs
+      {:ok, %{data: jobs}} = ExLLM.list_fine_tunes(:openai, limit: 20)
+
+  ## Return Value
+
+  Returns `{:ok, response}` with the list of fine-tuning jobs or models, or `{:error, reason}`.
+  """
+  @spec list_fine_tunes(atom(), keyword()) :: {:ok, term()} | {:error, term()}
+  def list_fine_tunes(provider, opts \\ []) do
+    case Delegator.delegate(:list_fine_tunes, provider, [opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Gets details of a specific fine-tuning job or tuned model.
+
+  ## Parameters
+    * `provider` - The LLM provider (`:gemini` or `:openai`)
+    * `id` - The fine-tuning job ID or tuned model name
+    * `opts` - Options for retrieval
+
+  ## Examples
+
+      # Get Gemini tuned model
+      {:ok, model} = ExLLM.get_fine_tune(:gemini, "tunedModels/my-model-abc123")
+
+      # Get OpenAI fine-tuning job
+      {:ok, job} = ExLLM.get_fine_tune(:openai, "ftjob-abc123")
+
+  ## Return Value
+
+  Returns `{:ok, details}` with the fine-tuning job or model details, or `{:error, reason}`.
+  """
+  @spec get_fine_tune(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
+  def get_fine_tune(provider, id, opts \\ []) do
+    case Delegator.delegate(:get_fine_tune, provider, [id, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Cancels or deletes a fine-tuning job or tuned model.
+
+  For OpenAI, this cancels a running fine-tuning job.
+  For Gemini, this deletes a tuned model.
+
+  ## Parameters
+    * `provider` - The LLM provider (`:gemini` or `:openai`)
+    * `id` - The fine-tuning job ID or tuned model name
+    * `opts` - Options for cancellation/deletion
+
+  ## Examples
+
+      # Delete Gemini tuned model
+      :ok = ExLLM.cancel_fine_tune(:gemini, "tunedModels/my-model-abc123")
+
+      # Cancel OpenAI fine-tuning job
+      {:ok, job} = ExLLM.cancel_fine_tune(:openai, "ftjob-abc123")
+
+  ## Return Value
+
+  Returns `:ok` or `{:ok, details}` if successful, or `{:error, reason}` if failed.
+  """
+  @spec cancel_fine_tune(atom(), String.t(), keyword()) :: :ok | {:ok, term()} | {:error, term()}
+  def cancel_fine_tune(provider, id, opts \\ []) do
+    case Delegator.delegate(:cancel_fine_tune, provider, [id, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  ## OpenAI Assistants API Functions
+
+  @doc "Create an AI assistant. See ExLLM.Assistants.create_assistant/2 for details."
+  defdelegate create_assistant(provider, opts \\ []), to: ExLLM.Assistants
+
+  @doc "List AI assistants. See ExLLM.Assistants.list_assistants/2 for details."
+  defdelegate list_assistants(provider, opts \\ []), to: ExLLM.Assistants
+
+  @doc "Retrieve an AI assistant by ID. See ExLLM.Assistants.get_assistant/3 for details."
+  defdelegate get_assistant(provider, assistant_id, opts \\ []), to: ExLLM.Assistants
+
+  @doc "Update an AI assistant. See ExLLM.Assistants.update_assistant/4 for details."
+  defdelegate update_assistant(provider, assistant_id, updates, opts \\ []), to: ExLLM.Assistants
+
+  @doc "Delete an AI assistant. See ExLLM.Assistants.delete_assistant/3 for details."
+  defdelegate delete_assistant(provider, assistant_id, opts \\ []), to: ExLLM.Assistants
+
+  @doc "Create a conversation thread. See ExLLM.Assistants.create_thread/2 for details."
+  defdelegate create_thread(provider, opts \\ []), to: ExLLM.Assistants
+
+  @doc "Create a message in a thread. See ExLLM.Assistants.create_message/4 for details."
+  defdelegate create_message(provider, thread_id, content, opts \\ []), to: ExLLM.Assistants
+
+  @doc "Run an assistant on a thread. See ExLLM.Assistants.run_assistant/4 for details."
+  defdelegate run_assistant(provider, thread_id, assistant_id, opts \\ []), to: ExLLM.Assistants
+
+  ## Anthropic Message Batches API Functions
+
+  @doc """
+  Creates a message batch for processing multiple requests.
+
+  Message batches allow you to process multiple chat requests asynchronously
+  at a 50% discount. Batches are processed within 24 hours.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:anthropic` supported)
+    * `messages_list` - List of message request objects
+    * `opts` - Batch options
+
+  ## Request Format
+
+  Each request in `messages_list` should be a map with:
+    * `:custom_id` - Unique identifier for tracking (required)
+    * `:params` - The message parameters:
+      * `:model` - Model to use (e.g., "claude-3-opus-20240229")
+      * `:messages` - List of message objects
+      * `:max_tokens` - Maximum tokens in response
+      * Other standard chat parameters
+
+  ## Options
+    * `:config_provider` - Configuration provider
+
+  ## Examples
+
+      requests = [
+        %{
+          custom_id: "req-1",
+          params: %{
+            model: "claude-3-opus-20240229",
+            messages: [%{role: "user", content: "Hello"}],
+            max_tokens: 1000
+          }
+        },
+        %{
+          custom_id: "req-2",
+          params: %{
+            model: "claude-3-opus-20240229",
+            messages: [%{role: "user", content: "How are you?"}],
+            max_tokens: 1000
+          }
+        }
+      ]
+      
+      {:ok, batch} = ExLLM.create_batch(:anthropic, requests)
+      IO.puts("Batch ID: \#{batch.id}")
+
+  ## Return Value
+
+  Returns `{:ok, batch}` with batch details including ID and status, or `{:error, reason}`.
+  """
+  @spec create_batch(atom(), list(map()), keyword()) :: {:ok, term()} | {:error, term()}
+  def create_batch(provider, messages_list, opts \\ []) do
+    case Delegator.delegate(:create_batch, provider, [messages_list, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Retrieves the status and details of a message batch.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:anthropic` supported)
+    * `batch_id` - The batch identifier
+    * `opts` - Request options
+
+  ## Examples
+
+      {:ok, batch} = ExLLM.get_batch(:anthropic, "batch_abc123")
+      
+      case batch.processing_status do
+        "in_progress" -> IO.puts("Still processing...")
+        "ended" -> IO.puts("Batch complete!")
+      end
+
+  ## Return Value
+
+  Returns `{:ok, batch}` with current batch status and metadata, or `{:error, reason}`.
+
+  The batch object includes:
+    * `:id` - Batch identifier
+    * `:processing_status` - "in_progress" or "ended"
+    * `:request_counts` - Map with succeeded/errored/processing/canceled counts
+    * `:ended_at` - Completion timestamp (if ended)
+    * `:expires_at` - Expiration timestamp
+  """
+  @spec get_batch(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
+  def get_batch(provider, batch_id, opts \\ []) do
+    case Delegator.delegate(:get_batch, provider, [batch_id, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Cancels a message batch that is still processing.
+
+  Canceling a batch will stop processing of any requests that haven't started yet.
+  Requests that are already being processed will complete.
+
+  ## Parameters
+    * `provider` - The LLM provider (currently only `:anthropic` supported)
+    * `batch_id` - The batch identifier to cancel
+    * `opts` - Request options
+
+  ## Examples
+
+      {:ok, batch} = ExLLM.cancel_batch(:anthropic, "batch_abc123")
+      IO.puts("Batch canceled. Status: \#{batch.processing_status}")
+
+  ## Return Value
+
+  Returns `{:ok, batch}` with updated batch details, or `{:error, reason}`.
+  """
+  @spec cancel_batch(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
+  def cancel_batch(provider, batch_id, opts \\ []) do
+    case Delegator.delegate(:cancel_batch, provider, [batch_id, opts]) do
+      {:ok, result} -> result
+      {:error, reason} -> {:error, reason}
     end
   end
 end

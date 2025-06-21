@@ -284,3 +284,31 @@ The `ExLLM.Application` module starts the supervision tree, including the option
 ## Provider Testing and API Keys
 
 - Anytime you run live API tests, use the `scripts/run_with_env.sh` script to set the api keys
+
+### OAuth2 Testing Requirements
+
+**MANDATORY**: All OAuth2 tests MUST use `ExLLM.Testing.OAuth2TestCase` for consistent token handling.
+
+```elixir
+# Required pattern for OAuth2 tests
+defmodule MyOAuth2Test do
+  use ExLLM.Testing.OAuth2TestCase, timeout: 300_000
+  
+  test "oauth2 functionality", %{oauth_token: token} do
+    # Test logic with automatic token refresh
+  end
+end
+```
+
+**OAuth2 Setup Requirements:**
+- Environment variables: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- Initial setup: `elixir scripts/setup_oauth2.exs`
+- Token file: `.gemini_tokens` (created by setup script)
+
+**Code Review Guidelines:**
+- Verify OAuth2 tests use `OAuth2TestCase` (not `ExUnit.Case`)
+- Check for proper error handling with `gemini_api_error?/2`
+- Ensure unique resource names with `unique_name/1`
+- Confirm automatic cleanup is not manually overridden
+
+See [OAuth2 Testing Guide](test/OAUTH2_TESTING.md) for complete documentation.

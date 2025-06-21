@@ -729,7 +729,10 @@ defmodule ExLLM.Providers.Gemini do
 
   # New helper functions for Content API integration
   defp build_content_request(messages, options) do
-    contents = Enum.map(messages, &convert_message_to_content/1)
+    contents =
+      messages
+      |> Enum.map(&convert_message_to_content/1)
+      |> merge_consecutive_same_role()
 
     # Extract system instruction if present
     {system_instruction, contents} = extract_system_instruction(contents)
@@ -861,6 +864,32 @@ defmodule ExLLM.Providers.Gemini do
           function_declarations: []
         }
     end
+  end
+
+  # Merge consecutive messages with the same role
+  # Gemini requires alternating user/model messages
+  defp merge_consecutive_same_role(contents) do
+    contents
+    |> Enum.reduce([], fn content, acc ->
+      case acc do
+        [] ->
+          [content]
+
+        [%Content{role: last_role} = last | rest] ->
+          if last_role == content.role do
+            # Merge parts from consecutive same-role messages
+            merged = %Content{
+              role: last_role,
+              parts: last.parts ++ content.parts
+            }
+
+            [merged | rest]
+          else
+            [content | acc]
+          end
+      end
+    end)
+    |> Enum.reverse()
   end
 
   defp convert_content_response_to_llm_response(%GenerateContentResponse{} = response, model) do

@@ -201,16 +201,34 @@ defmodule ExLLM.Testing.EnvHelper do
   """
   @spec setup_oauth(map()) :: map()
   def setup_oauth(context \\ %{}) do
+    # Use new generalized OAuth2 infrastructure
+    try do
+      ExLLM.Testing.OAuth2.Helper.setup_oauth(:google, context)
+    rescue
+      # Fallback to original implementation if new infrastructure is not available
+      error ->
+        IO.puts("⚠️  New OAuth2 infrastructure unavailable, using fallback: #{inspect(error)}")
+        setup_oauth_fallback(context)
+    end
+  end
+
+  # Fallback to original implementation
+  defp setup_oauth_fallback(context) do
     case refresh_oauth_tokens() do
       :ok ->
         # Also get the OAuth token if available
+        # Try to load the OAuth helper module if available
         if Code.ensure_loaded?(ExLLM.Testing.GeminiOAuth2Helper) do
-          case ExLLM.Testing.GeminiOAuth2Helper.get_valid_token() do
-            {:ok, token} ->
-              Map.put(context, :oauth_token, token)
+          try do
+            case apply(ExLLM.Testing.GeminiOAuth2Helper, :get_valid_token, []) do
+              {:ok, token} ->
+                Map.put(context, :oauth_token, token)
 
-            _ ->
-              context
+              _ ->
+                context
+            end
+          rescue
+            _ -> context
           end
         else
           context
@@ -329,10 +347,32 @@ defmodule ExLLM.Testing.EnvHelper do
   end
 
   defp refresh_gemini_oauth do
+    # Use new pure Elixir OAuth2 infrastructure instead of shell script
+    case ExLLM.Testing.OAuth2.Helper.refresh_token(:google) do
+      {:ok, _tokens} ->
+        IO.puts("✅ Gemini OAuth tokens refreshed")
+        :ok
+
+      {:error, reason} ->
+        IO.puts("❌ Gemini OAuth token refresh failed: #{reason}")
+        {:error, reason}
+    end
+  rescue
+    # Fallback to shell script if new infrastructure is not available
+    error ->
+      IO.puts(
+        "⚠️  New OAuth2 infrastructure unavailable, falling back to script: #{inspect(error)}"
+      )
+
+      refresh_gemini_oauth_fallback()
+  end
+
+  # Fallback to original shell script implementation
+  defp refresh_gemini_oauth_fallback do
     refresh_script = Path.join(File.cwd!(), "scripts/refresh_oauth2_token.exs")
 
     if File.exists?(refresh_script) do
-      IO.puts("🔄 Refreshing Gemini OAuth2 tokens...")
+      IO.puts("🔄 Refreshing Gemini OAuth2 tokens (fallback)...")
 
       case System.cmd("elixir", [refresh_script], stderr_to_stdout: true) do
         {output, 0} ->

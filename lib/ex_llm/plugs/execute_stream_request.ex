@@ -430,7 +430,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   defp extract_headers_from_client(%Tesla.Client{pre: middleware}) do
     # Find the Headers middleware and extract its headers
     Enum.find_value(middleware, [], fn
-      {Tesla.Middleware.Headers, :call, [headers | _]} -> headers
+      {Tesla.Middleware.Headers, headers} -> headers
       _ -> nil
     end)
   end

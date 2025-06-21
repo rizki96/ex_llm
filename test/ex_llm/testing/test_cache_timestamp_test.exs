@@ -1,6 +1,5 @@
 defmodule ExLLM.TestCacheTimestampTest do
   use ExUnit.Case, async: true
-  alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheTimestamp
 
   describe "generate_timestamp_filename/0" do
