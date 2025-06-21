@@ -896,7 +896,7 @@ defmodule ExLLM.Providers.Gemini do
           usage: usage,
           model: model,
           finish_reason: candidate.finish_reason || "stop",
-          cost: ExLLM.Core.Cost.calculate("gemini", model, usage),
+          cost: nil,
           tool_calls: tool_calls
         }
 

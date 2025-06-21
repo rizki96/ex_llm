@@ -41,21 +41,12 @@ defmodule ExLLM.Providers.Gemini.Base do
 
     # Use shared HTTPClient for caching support
     case make_http_request(method, url, body, headers, opts) do
-      {:ok, response_body} when is_map(response_body) ->
-        # Direct response body (successful request)
-        {:ok, response_body}
-
-      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
-        # HTTPClient wrapped response format
-        {:ok, response_body}
-
-      {:ok, %{status: status, body: response_body}} ->
-        # HTTPClient wrapped error format
-        {:error,
-         %{status: status, message: extract_error_message(response_body), body: response_body}}
-
       {:error, reason} ->
         {:error, %{reason: :network_error, message: inspect(reason)}}
+
+      {:ok, response_body} ->
+        # Direct response body (successful request)
+        {:ok, response_body}
     end
   end
 
@@ -82,21 +73,12 @@ defmodule ExLLM.Providers.Gemini.Base do
 
     # Use shared HTTPClient for caching support
     case make_http_request(method, url, body, headers, opts) do
-      {:ok, response_body} when is_map(response_body) ->
-        # Direct response body (successful request)
-        {:ok, response_body}
-
-      {:ok, %{status: status, body: response_body}} when status in 200..299 ->
-        # HTTPClient wrapped response format
-        {:ok, response_body}
-
-      {:ok, %{status: status, body: response_body}} ->
-        # Error response
-        {:error,
-         %{status: status, message: extract_error_message(response_body), body: response_body}}
-
       {:error, reason} ->
         {:error, %{reason: :network_error, message: inspect(reason)}}
+
+      {:ok, response_body} ->
+        # Direct response body (successful request)
+        {:ok, response_body}
     end
   end
 
@@ -165,8 +147,6 @@ defmodule ExLLM.Providers.Gemini.Base do
     end
   end
 
-  defp extract_error_message(%{"error" => %{"message" => message}}), do: message
-  defp extract_error_message(_), do: "Unknown error"
 
   # Helper function to route requests through shared HTTPClient for caching
   defp make_http_request(method, url, body, headers, opts) when method in [:post, :patch] do

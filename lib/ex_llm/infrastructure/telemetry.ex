@@ -29,7 +29,7 @@ defmodule ExLLM.Infrastructure.Telemetry do
       )
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   # Event definitions organized by component
   @chat_events [

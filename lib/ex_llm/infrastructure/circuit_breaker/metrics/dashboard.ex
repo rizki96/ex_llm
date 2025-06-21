@@ -28,7 +28,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.Dashboard do
       {:ok, csv} = ExLLM.Infrastructure.CircuitBreaker.Metrics.Dashboard.export_csv()
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   alias ExLLM.Infrastructure.CircuitBreaker
   alias ExLLM.Infrastructure.CircuitBreaker.HealthCheck
@@ -245,9 +245,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.Dashboard do
       {:ok, summaries} ->
         csv_data = build_csv_data(summaries)
         {:ok, csv_data}
-
-      error ->
-        error
     end
   end
 
@@ -317,13 +314,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.Dashboard do
             }
 
             {:ok, alert_summary}
-
-          error ->
-            error
         end
-
-      error ->
-        error
     end
   end
 

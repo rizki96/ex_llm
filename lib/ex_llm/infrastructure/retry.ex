@@ -165,8 +165,8 @@ defmodule ExLLM.Infrastructure.Retry do
       fn ->
         # Convert to new stream API - needs a callback
         callback = opts[:stream_callback] || fn _chunk -> :ok end
-        opts_map = Map.new(opts) |> Map.put(:stream, true)
-        ExLLM.stream(provider, messages, opts_map, callback)
+        opts_list = Keyword.put(opts, :stream, true)
+        ExLLM.stream(provider, messages, callback, opts_list)
       end,
       circuit_breaker: circuit_opts
     )

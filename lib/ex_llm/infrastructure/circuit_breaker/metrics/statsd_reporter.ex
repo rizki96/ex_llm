@@ -40,7 +40,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.StatsDReporter do
   """
 
   use GenServer
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @default_config %{
     host: "localhost",

@@ -320,10 +320,11 @@ defmodule ExLLM.Core.Capabilities do
       |> Enum.uniq()
 
     # Get all models and their capabilities
+    # Note: Some providers may not support list_models operation
     models =
       case ExLLM.list_models(provider) do
         {:ok, model_list} -> model_list
-        _ -> []
+        _error -> []
       end
 
     model_capabilities =
@@ -367,13 +368,13 @@ defmodule ExLLM.Core.Capabilities do
   end
 
   # Helper function to find normalized capability
-  defp find_normalized_capability(feature_string, original_feature) do
+  defp find_normalized_capability(feature_string, _original_feature) do
     feature_atom = String.to_atom(feature_string)
-    
-    cond do
-      feature_atom in Map.keys(@display_names) -> feature_atom
-      is_atom(original_feature) -> original_feature
-      true -> nil
+
+    if feature_atom in Map.keys(@display_names) do
+      feature_atom
+    else
+      nil
     end
   end
 end

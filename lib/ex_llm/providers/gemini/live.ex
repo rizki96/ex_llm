@@ -55,7 +55,7 @@ defmodule ExLLM.Providers.Gemini.Live do
   - **OAuth2**: Passed as Authorization header during WebSocket handshake
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
   use GenServer
 
   # Struct definitions for Live API messages
@@ -202,7 +202,7 @@ defmodule ExLLM.Providers.Gemini.Live do
     defstruct [:function_calls]
 
     @type t :: %__MODULE__{
-            function_calls: [FunctionCall.t()]
+            function_calls: [ExLLM.Providers.Gemini.Live.FunctionCall.t()]
           }
   end
 

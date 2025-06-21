@@ -15,7 +15,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
   alias ExLLM.Providers.Shared.HTTPClient
   alias ExLLM.Types
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @default_timeout :timer.minutes(5)
   # Log metrics every 1 second during streaming
@@ -181,16 +181,41 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Process lines and accumulate chunks
     {new_chunk_buffer, new_stats} =
       Enum.reduce(complete_lines, {chunk_buffer, stats}, fn line, acc ->
-        process_stream_line(line, acc, parse_chunk_fn, recovery_id, options, callback, buffer_size)
+        process_stream_line(
+          line,
+          acc,
+          parse_chunk_fn,
+          recovery_id,
+          options,
+          callback,
+          buffer_size
+        )
       end)
 
     {last_line, new_chunk_buffer, new_stats}
   end
 
-  defp process_stream_line(line, {chunks, st}, parse_chunk_fn, recovery_id, options, callback, buffer_size) do
+  defp process_stream_line(
+         line,
+         {chunks, st},
+         parse_chunk_fn,
+         recovery_id,
+         options,
+         callback,
+         buffer_size
+       ) do
     case parse_sse_line(line) do
       {:data, event_data} ->
-        process_event_data(event_data, chunks, st, parse_chunk_fn, recovery_id, options, callback, buffer_size)
+        process_event_data(
+          event_data,
+          chunks,
+          st,
+          parse_chunk_fn,
+          recovery_id,
+          options,
+          callback,
+          buffer_size
+        )
 
       :done ->
         handle_stream_done(chunks, st, callback, recovery_id)
@@ -200,7 +225,16 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     end
   end
 
-  defp process_event_data(event_data, chunks, st, parse_chunk_fn, recovery_id, options, callback, buffer_size) do
+  defp process_event_data(
+         event_data,
+         chunks,
+         st,
+         parse_chunk_fn,
+         recovery_id,
+         options,
+         callback,
+         buffer_size
+       ) do
     case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
       {:ok, chunk} ->
         handle_new_chunk(chunk, chunks, st, callback, buffer_size)
@@ -339,10 +373,12 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
 
   defp is_recoverable_error?(reason) do
     case reason do
-      {:timeout, _} -> true
-      {:closed, _} -> true
-      {:network_error, _} -> true
-      _ -> false
+      {:error, {:connection_failed, _}} -> true
+      {:api_error, _} -> false
+      {:authentication_error, _} -> false
+      {:rate_limit_error, _} -> false
+      {:service_unavailable, _} -> false
+      {:validation, _, _} -> false
     end
   end
 

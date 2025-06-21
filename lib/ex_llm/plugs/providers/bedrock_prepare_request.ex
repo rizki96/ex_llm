@@ -13,7 +13,7 @@ defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{config: config} = request, _opts) do

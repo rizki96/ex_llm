@@ -57,7 +57,7 @@ defmodule ExLLM.Providers.Gemini.QA do
     @type t :: %__MODULE__{
             contents: [map()],
             answer_style: :abstractive | :extractive | :verbose,
-            grounding_source: GroundingPassages.t() | SemanticRetrieverConfig.t(),
+            grounding_source: ExLLM.Providers.Gemini.QA.GroundingPassages.t() | ExLLM.Providers.Gemini.QA.SemanticRetrieverConfig.t(),
             safety_settings: [map()] | nil,
             temperature: float() | nil
           }
@@ -79,7 +79,7 @@ defmodule ExLLM.Providers.Gemini.QA do
     @type t :: %__MODULE__{
             answer: map() | nil,
             answerable_probability: float() | nil,
-            input_feedback: InputFeedback.t() | nil
+            input_feedback: ExLLM.Providers.Gemini.QA.InputFeedback.t() | nil
           }
 
     defstruct [
@@ -95,7 +95,7 @@ defmodule ExLLM.Providers.Gemini.QA do
     """
 
     @type t :: %__MODULE__{
-            passages: [GroundingPassage.t()]
+            passages: [ExLLM.Providers.Gemini.QA.GroundingPassage.t()]
           }
 
     defstruct [:passages]
@@ -185,7 +185,7 @@ defmodule ExLLM.Providers.Gemini.QA do
         api_key: "your-api-key"
       )
   """
-  @spec generate_answer(String.t(), [map()], atom(), Keyword.t()) ::
+  @spec generate_answer(String.t(), [map()], atom(), keyword()) ::
           {:ok, GenerateAnswerResponse.t()} | {:error, map()}
   def generate_answer(model, contents, answer_style, opts \\ []) do
     request = build_generate_answer_request(contents, answer_style, opts)
@@ -218,7 +218,7 @@ defmodule ExLLM.Providers.Gemini.QA do
   @doc """
   Builds a GenerateAnswerRequest struct from the given parameters.
   """
-  @spec build_generate_answer_request([map()], atom(), map()) :: GenerateAnswerRequest.t()
+  @spec build_generate_answer_request([map()], atom(), keyword()) :: GenerateAnswerRequest.t()
   def build_generate_answer_request(contents, answer_style, opts) do
     # Validate required fields
     validate_contents!(contents)

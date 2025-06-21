@@ -241,27 +241,23 @@ defmodule ExLLM.Providers.Ollama do
     ]
 
     Logger.with_context([provider: :ollama, model: model], fn ->
-      case EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
-        {:ok, stream_id} ->
-          # Create Elixir stream that receives chunks
-          stream =
-            Stream.resource(
-              fn -> {chunks_ref, stream_id} end,
-              fn {ref, _id} = state ->
-                receive do
-                  {^ref, {:chunk, chunk}} -> {[chunk], state}
-                after
-                  100 -> {[], state}
-                end
-              end,
-              fn _ -> :ok end
-            )
+      {:ok, stream_id} = EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options)
+      
+      # Create Elixir stream that receives chunks
+      stream =
+        Stream.resource(
+          fn -> {chunks_ref, stream_id} end,
+          fn {ref, _id} = state ->
+            receive do
+              {^ref, {:chunk, chunk}} -> {[chunk], state}
+            after
+              100 -> {[], state}
+            end
+          end,
+          fn _ -> :ok end
+        )
 
-          {:ok, stream}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      {:ok, stream}
     end)
   end
 
@@ -634,7 +630,7 @@ defmodule ExLLM.Providers.Ollama do
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
       tool_calls: parse_tool_calls(tool_calls),
-      cost: ExLLM.Core.Cost.calculate("ollama", model, usage)
+      cost: nil
     }
   end
 
@@ -1067,7 +1063,7 @@ defmodule ExLLM.Providers.Ollama do
 
             {:stream_error, error} ->
               Logger.error("Stream error: #{inspect(error)}")
-              throw(error)
+              {:halt, {:error, error}}
           after
             100 -> {[], state}
           end
@@ -1097,7 +1093,7 @@ defmodule ExLLM.Providers.Ollama do
       usage: usage,
       model: model,
       finish_reason: if(response["done"], do: "stop", else: nil),
-      cost: ExLLM.Core.Cost.calculate("ollama", model, usage),
+      cost: nil,
       metadata: metadata
     }
   end
@@ -1752,31 +1748,27 @@ defmodule ExLLM.Providers.Ollama do
 
   @impl true
   def list_embedding_models(options \\ []) do
-    case list_models(options) do
-      {:ok, models} ->
-        # Filter to only embedding models
-        embedding_models =
-          models
-          |> Enum.filter(fn model ->
-            String.contains?(model.name, "embed") ||
-              String.contains?(model.name, "embedding")
-          end)
-          |> Enum.map(fn model ->
-            %Types.EmbeddingModel{
-              name: model.name,
-              dimensions: estimate_embedding_dimensions(model.name),
-              # Ollama processes one at a time
-              max_inputs: 1,
-              provider: :ollama,
-              description: model.description
-            }
-          end)
+    {:ok, models} = list_models(options)
+    
+    # Filter to only embedding models
+    embedding_models =
+      models
+      |> Enum.filter(fn model ->
+        String.contains?(model.name, "embed") ||
+          String.contains?(model.name, "embedding")
+      end)
+      |> Enum.map(fn model ->
+        %Types.EmbeddingModel{
+          name: model.name,
+          dimensions: estimate_embedding_dimensions(model.name),
+          # Ollama processes one at a time
+          max_inputs: 1,
+          provider: :ollama,
+          description: model.description
+        }
+      end)
 
-        {:ok, embedding_models}
-
-      error ->
-        error
-    end
+    {:ok, embedding_models}
   end
 
   defp estimate_embedding_tokens(inputs) when is_list(inputs) do

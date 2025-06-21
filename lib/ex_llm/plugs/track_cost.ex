@@ -32,7 +32,7 @@ defmodule ExLLM.Plugs.TrackCost do
 
   use ExLLM.Plug
   alias ExLLM.Core.Cost
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def init(opts) do
@@ -128,38 +128,22 @@ defmodule ExLLM.Plugs.TrackCost do
         _ ->
           # Fallback pricing
           Logger.warning("No pricing found for #{provider}/#{model}, using defaults")
-          get_default_pricing(provider)
+          get_default_pricing(ensure_atom_provider(provider))
       end
     end
   end
 
-  defp get_default_pricing(:openai) do
-    # GPT-4 Turbo defaults
-    %{input: 3.00, output: 15.00}
+
+  defp get_default_pricing(provider) when is_atom(provider) do
+    case provider do
+      :openai -> %{input: 3.00, output: 15.00}
+      :anthropic -> %{input: 15.00, output: 75.00} 
+      :gemini -> %{input: 0.50, output: 1.50}
+      :groq -> %{input: 0.10, output: 0.10}
+      :mistral -> %{input: 2.00, output: 6.00}
+      _ -> %{input: 1.00, output: 3.00}
+    end
   end
 
-  defp get_default_pricing(:anthropic) do
-    # Claude 3 Opus defaults
-    %{input: 15.00, output: 75.00}
-  end
-
-  defp get_default_pricing(:gemini) do
-    # Gemini Pro defaults
-    %{input: 0.50, output: 1.50}
-  end
-
-  defp get_default_pricing(:groq) do
-    # Groq defaults
-    %{input: 0.10, output: 0.10}
-  end
-
-  defp get_default_pricing(:mistral) do
-    # Mistral defaults
-    %{input: 2.00, output: 6.00}
-  end
-
-  defp get_default_pricing(_) do
-    # Conservative defaults
-    %{input: 1.00, output: 3.00}
-  end
+  defp ensure_atom_provider(provider) when is_binary(provider), do: String.to_atom(provider)
 end

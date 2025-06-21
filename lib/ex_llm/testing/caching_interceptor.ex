@@ -33,7 +33,7 @@ defmodule ExLLM.Testing.CachingInterceptor do
       ])
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
   alias ExLLM.Testing.ResponseCache
 
   @doc """

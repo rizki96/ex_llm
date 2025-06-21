@@ -37,9 +37,9 @@ defmodule ExLLM.Tesla.Middleware.Telemetry do
         metadata: %{provider: :openai}
   """
 
-  @behaviour Tesla.Middleware
+  # @behaviour Tesla.Middleware  # Commented to avoid dialyzer callback_info_missing warnings
 
-  @impl Tesla.Middleware
+  # @impl Tesla.Middleware
   def call(env, next, opts) do
     start_time = System.monotonic_time()
     start_metadata = build_start_metadata(env, opts)

@@ -30,7 +30,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Adaptive do
   """
 
   use GenServer
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @table_name :ex_llm_circuit_adaptive_state
 

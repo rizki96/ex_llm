@@ -24,7 +24,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def init(opts) do

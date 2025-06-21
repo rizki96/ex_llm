@@ -57,7 +57,7 @@ defmodule ExLLM.Providers.Gemini.Document do
   @type t :: %__MODULE__{
           name: String.t() | nil,
           display_name: String.t() | nil,
-          custom_metadata: [CustomMetadata.t()] | nil,
+          custom_metadata: [ExLLM.Providers.Gemini.Document.CustomMetadata.t()] | nil,
           create_time: String.t() | nil,
           update_time: String.t() | nil
         }
@@ -78,7 +78,7 @@ defmodule ExLLM.Providers.Gemini.Document do
             key: String.t(),
             string_value: String.t() | nil,
             numeric_value: number() | nil,
-            string_list_value: StringList.t() | nil
+            string_list_value: ExLLM.Providers.Gemini.Document.StringList.t() | nil
           }
   end
 
@@ -103,7 +103,7 @@ defmodule ExLLM.Providers.Gemini.Document do
 
     @type t :: %__MODULE__{
             key: String.t(),
-            conditions: [Condition.t()]
+            conditions: [ExLLM.Providers.Gemini.Document.Condition.t()]
           }
   end
 
@@ -133,7 +133,7 @@ defmodule ExLLM.Providers.Gemini.Document do
     defstruct [:relevant_chunks]
 
     @type t :: %__MODULE__{
-            relevant_chunks: [RelevantChunk.t()]
+            relevant_chunks: [ExLLM.Providers.Gemini.Document.RelevantChunk.t()]
           }
   end
 
@@ -222,8 +222,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -278,8 +276,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_list_result(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -315,8 +311,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -380,8 +374,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -433,8 +425,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, _response} ->
           :ok
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -501,8 +491,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_query_result(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}

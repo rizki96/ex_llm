@@ -240,7 +240,13 @@ defmodule ExLLM.Infrastructure.Logger do
 
   # Private implementation
 
-  defp log(level, message, metadata) do
+  @doc """
+  Log a message at the specified level.
+  
+  Compatible with Elixir's Logger.log/3 function.
+  """
+  @spec log(atom(), String.t(), keyword()) :: :ok
+  def log(level, message, metadata \\ []) do
     if should_emit_log?(level) do
       # Get current context
       context = Process.get(@context_key, %{})

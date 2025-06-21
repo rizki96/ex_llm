@@ -45,7 +45,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
     headers = prepare_headers(headers)
 
-    # Check test cache before making request
+    # Check test cache before making request  
     case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
       {:cached, cached_response} ->
         # Emit cache hit telemetry
@@ -937,6 +937,15 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     end
   end
 
+  # These functions are used in caching paths that may be unreachable in current test environment
+  @compile {:nowarn_unused_function, [
+    simulate_cached_stream: 2,
+    simulate_streaming_with_collector: 2,
+    replay_chunks_through_collector: 2,
+    simulate_sse_from_cache: 3,
+    format_delete_response: 3
+  ]}
+
   defp simulate_cached_stream(cached_response, opts) do
     case Keyword.get(opts, :into) do
       nil ->
@@ -1267,7 +1276,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         [{"Authorization", "Bearer sk-..."}]
       )
   """
-  @spec post_multipart(String.t(), keyword(), list({String.t(), String.t()}), keyword()) ::
+  @spec post_multipart(String.t(), list(), list({String.t(), String.t()}), keyword()) ::
           {:ok, map()} | {:error, term()}
   def post_multipart(url, form_data, headers, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
@@ -1371,7 +1380,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   @doc """
   Make a GET request for binary content.
   """
-  @spec get_binary(String.t(), list({String.t(), String.t()}), keyword()) ::
+  @spec get_binary(String.t(), [{String.t(), String.t()}], keyword()) ::
           {:ok, map()} | {:error, term()}
   def get_binary(url, headers, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
@@ -1380,7 +1389,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     headers = prepare_headers(headers)
 
     # Check test cache before making request
-    case TestResponseInterceptor.intercept_request(url, "", headers, opts) do
+    case TestResponseInterceptor.intercept_request(url, %{}, headers, opts) do
       {:cached, cached_response} ->
         # Emit cache hit telemetry
         ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, ""))
@@ -1429,7 +1438,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   @doc """
   Make a DELETE request with JSON response.
   """
-  @spec delete_json(String.t(), list({String.t(), String.t()}), keyword()) ::
+  @spec delete_json(String.t(), [{String.t(), String.t()}], keyword()) ::
           {:ok, map()} | {:error, term()}
   def delete_json(url, headers, opts \\ []) do
     timeout = Keyword.get(opts, :timeout, @default_timeout)
@@ -1438,7 +1447,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     headers = prepare_headers(headers)
 
     # Check test cache before making request
-    case TestResponseInterceptor.intercept_request(url, "", headers, opts) do
+    case TestResponseInterceptor.intercept_request(url, %{}, headers, opts) do
       {:cached, cached_response} ->
         # Emit cache hit telemetry
         ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, ""))

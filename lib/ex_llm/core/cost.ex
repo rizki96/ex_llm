@@ -14,7 +14,7 @@ defmodule ExLLM.Core.Cost do
   @doc """
   Calculate cost for token usage.
   """
-  @spec calculate(String.t(), String.t(), Types.token_usage()) ::
+  @spec calculate(String.t() | atom(), String.t(), Types.token_usage()) ::
           Types.cost_result() | %{error: String.t()}
   def calculate(provider, model, token_usage) do
     case get_pricing(provider, model) do

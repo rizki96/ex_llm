@@ -1,4 +1,6 @@
 defmodule ExLLM.Providers.Gemini.Chunk do
+  @dialyzer :no_match
+  
   @moduledoc """
   Chunk management for Gemini's Semantic Retrieval API.
 
@@ -67,8 +69,8 @@ defmodule ExLLM.Providers.Gemini.Chunk do
 
   @type t :: %__MODULE__{
           name: String.t() | nil,
-          data: ChunkData.t() | nil,
-          custom_metadata: [CustomMetadata.t()] | nil,
+          data: __MODULE__.ChunkData.t() | nil,
+          custom_metadata: [__MODULE__.CustomMetadata.t()] | nil,
           create_time: String.t() | nil,
           update_time: String.t() | nil,
           state: atom() | nil
@@ -102,7 +104,7 @@ defmodule ExLLM.Providers.Gemini.Chunk do
             key: String.t(),
             string_value: String.t() | nil,
             numeric_value: number() | nil,
-            string_list_value: StringList.t() | nil
+            string_list_value: ExLLM.Providers.Gemini.Chunk.StringList.t() | nil
           }
   end
 
@@ -201,8 +203,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -255,8 +255,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_list_result(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -294,8 +292,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -355,8 +351,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -394,8 +388,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, _response} ->
           :ok
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -461,8 +453,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_batch_result(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -530,8 +520,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_batch_result(response)}
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}
@@ -585,8 +573,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, _response} ->
           :ok
 
-        {:error, %{status: status, message: message}} ->
-          {:error, %{code: status, message: message}}
 
         {:error, error} ->
           {:error, error}

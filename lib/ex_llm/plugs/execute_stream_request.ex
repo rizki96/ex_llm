@@ -19,7 +19,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   # Default endpoints for each provider
   @default_endpoints %{
@@ -253,31 +253,35 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     sse_parser = ExLLM.Infrastructure.Streaming.SSEParser.new()
     handle_stream_messages(callback, parent, ref, sse_parser)
   end
-  
+
   defp handle_stream_messages(callback, parent, ref, sse_parser) do
     receive do
       # Hackney's actual message format for streaming
       {:hackney_response, :more, chunk} ->
         Logger.debug("Hackney data chunk received in handle_stream_messages: #{inspect(chunk)}")
-        
+
         # Parse SSE events from chunk
-        {events, updated_parser} = ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
-        
+        {events, updated_parser} =
+          ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
+
         # Process each event
-        stream_complete = Enum.any?(events, fn event ->
-          case format_stream_event(event) do
-            {:ok, parsed} ->
-              callback.(parsed)
-              false
-            {:done, _} ->
-              # Stream complete
-              true
-            {:error, reason} ->
-              Logger.warning("Failed to parse stream event: #{inspect(reason)}")
-              false
-          end
-        end)
-        
+        stream_complete =
+          Enum.any?(events, fn event ->
+            case format_stream_event(event) do
+              {:ok, parsed} ->
+                callback.(parsed)
+                false
+
+              {:done, _} ->
+                # Stream complete
+                true
+
+              {:error, reason} ->
+                Logger.warning("Failed to parse stream event: #{inspect(reason)}")
+                false
+            end
+          end)
+
         if stream_complete do
           send(parent, {:stream_complete, ref})
         else
@@ -289,12 +293,14 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
         Logger.debug("Hackney stream ended in handle_stream_messages")
         # Flush any remaining data in the parser
         {final_events, _} = ExLLM.Infrastructure.Streaming.SSEParser.flush(sse_parser)
+
         Enum.each(final_events, fn event ->
           case format_stream_event(event) do
             {:ok, parsed} -> callback.(parsed)
             _ -> :ok
           end
         end)
+
         send(parent, {:stream_complete, ref})
 
       {:hackney_response, :error, reason} ->
@@ -304,20 +310,24 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       # Legacy patterns for backward compatibility
       {:data, chunk} ->
         # Use SSE parser for legacy format too
-        {events, updated_parser} = ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
-        
-        stream_complete = Enum.any?(events, fn event ->
-          case format_stream_event(event) do
-            {:ok, parsed} ->
-              callback.(parsed)
-              false
-            {:done, _} ->
-              true
-            _ ->
-              false
-          end
-        end)
-        
+        {events, updated_parser} =
+          ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
+
+        stream_complete =
+          Enum.any?(events, fn event ->
+            case format_stream_event(event) do
+              {:ok, parsed} ->
+                callback.(parsed)
+                false
+
+              {:done, _} ->
+                true
+
+              _ ->
+                false
+            end
+          end)
+
         if stream_complete do
           send(parent, {:stream_complete, ref})
         else
@@ -343,11 +353,11 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   # Format parsed SSE event into expected format
   defp format_stream_event(%{"done" => true}), do: {:done, %{}}
   defp format_stream_event(%{done: true}), do: {:done, %{}}
-  
+
   defp format_stream_event(event) when is_map(event) do
     {:ok, event}
   end
-  
+
   defp format_stream_event(other) do
     {:error, {:unexpected_format, other}}
   end

@@ -67,8 +67,7 @@ defmodule ExLLM.Plugs.Providers.AnthropicStaticModelsList do
       }
     ]
 
-    request
-    |> Map.put(:result, models)
+    %{request | result: models}
     |> ExLLM.Pipeline.Request.put_state(:completed)
   end
 end

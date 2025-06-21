@@ -43,7 +43,7 @@ defmodule ExLLM.Testing.TestResponseMetadata do
   @doc """
   Create comprehensive metadata for a cached response.
   """
-  @spec create_metadata(map(), any(), map()) :: response_metadata()
+  @spec create_metadata(map(), any(), map()) :: map()
   def create_metadata(request_metadata, response_data, response_info \\ %{}) do
     %{
       # Request Information
@@ -108,7 +108,7 @@ defmodule ExLLM.Testing.TestResponseMetadata do
   @doc """
   Sanitize metadata for storage (remove sensitive information).
   """
-  @spec sanitize_for_storage(response_metadata()) :: response_metadata()
+  @spec sanitize_for_storage(map()) :: map()
   def sanitize_for_storage(metadata) do
     metadata
     |> sanitize_request_data()

@@ -21,7 +21,7 @@ defmodule ExLLM.Plugs.ValidateConfiguration do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{provider: provider, config: config} = request, _opts) do
@@ -116,7 +116,6 @@ defmodule ExLLM.Plugs.ValidateConfiguration do
 
   defp get_default_base_url(:ollama), do: "http://localhost:11434"
   defp get_default_base_url(:lmstudio), do: "http://localhost:1234"
-  defp get_default_base_url(_), do: nil
 
   defp get_env_var_name(:openai), do: "OPENAI_API_KEY"
   defp get_env_var_name(:anthropic), do: "ANTHROPIC_API_KEY"

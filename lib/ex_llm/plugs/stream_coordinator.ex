@@ -10,7 +10,7 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   # 60 seconds
   @default_timeout 60_000
@@ -32,9 +32,7 @@ defmodule ExLLM.Plugs.StreamCoordinator do
       # Start stream coordinator process
       {:ok, coordinator} = start_coordinator(request, callback, opts)
 
-      request
-      |> Map.put(:stream_coordinator, coordinator)
-      |> Map.put(:stream_ref, stream_ref)
+      %{request | stream_pid: coordinator, stream_ref: stream_ref}
       |> Request.assign(:streaming_enabled, true)
     else
       Request.halt_with_error(request, %{

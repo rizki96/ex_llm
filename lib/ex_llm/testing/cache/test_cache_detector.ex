@@ -156,7 +156,7 @@ defmodule ExLLM.Testing.TestCacheDetector do
 
   defp check_module_based_caching(module, config) do
     module_string = to_string(module)
-    
+
     (String.contains?(module_string, "Integration") and config.cache_integration_tests) ||
       (String.contains?(module_string, "OAuth2") and config.cache_oauth2_tests)
   end

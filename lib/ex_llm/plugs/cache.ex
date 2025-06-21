@@ -30,7 +30,7 @@ defmodule ExLLM.Plugs.Cache do
 
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Cache
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   # 5 minutes
   @default_ttl 300

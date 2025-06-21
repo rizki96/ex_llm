@@ -138,39 +138,41 @@ defmodule ExLLM.Providers.OpenAI do
 
       Logger.with_context([provider: :openai, model: model], fn ->
         # Create a stream using HTTPClient's streaming capabilities
-        stream = Stream.resource(
-          # Start function - initiates the HTTP request
-          fn ->
-            ref = make_ref()
-            parent = self()
-            
-            # Spawn a process to handle the streaming request
-            {:ok, pid} = start_streaming_task(parent, ref, url, body, headers)
-            
-            {ref, pid, ""}  # Return ref, pid, and empty buffer
-          end,
-          
-          # Next function - receives chunks and processes them
-          fn {ref, pid, buffer} ->
-            receive do
-              {^ref, {:chunk, chunk}} ->
-                process_stream_chunk(chunk, buffer, ref, pid)
-                
-              {^ref, :done} ->
-                process_stream_completion(buffer)
-            after
-              60_000 ->
-                {:halt, {ref, pid, buffer}}
+        stream =
+          Stream.resource(
+            # Start function - initiates the HTTP request
+            fn ->
+              ref = make_ref()
+              parent = self()
+
+              # Spawn a process to handle the streaming request
+              {:ok, pid} = start_streaming_task(parent, ref, url, body, headers)
+
+              # Return ref, pid, and empty buffer
+              {ref, pid, ""}
+            end,
+
+            # Next function - receives chunks and processes them
+            fn {ref, pid, buffer} ->
+              receive do
+                {^ref, {:chunk, chunk}} ->
+                  process_stream_chunk(chunk, buffer, ref, pid)
+
+                {^ref, :done} ->
+                  process_stream_completion(buffer)
+              after
+                60_000 ->
+                  {:halt, {ref, pid, buffer}}
+              end
+            end,
+
+            # Cleanup function
+            fn
+              :done -> :ok
+              {_ref, pid, _buffer} -> Process.exit(pid, :normal)
             end
-          end,
-          
-          # Cleanup function
-          fn
-            :done -> :ok
-            {_ref, pid, _buffer} -> Process.exit(pid, :normal)
-          end
-        )
-        
+          )
+
         {:ok, stream}
       end)
     end
@@ -178,10 +180,16 @@ defmodule ExLLM.Providers.OpenAI do
 
   defp start_streaming_task(parent, ref, url, body, headers) do
     Task.start_link(fn ->
-      HTTPClient.stream_request(url, body, headers, fn chunk ->
-        send(parent, {ref, {:chunk, chunk}})
-      end, provider: :openai)
-      
+      HTTPClient.stream_request(
+        url,
+        body,
+        headers,
+        fn chunk ->
+          send(parent, {ref, {:chunk, chunk}})
+        end,
+        provider: :openai
+      )
+
       send(parent, {ref, :done})
     end)
   end
@@ -190,10 +198,10 @@ defmodule ExLLM.Providers.OpenAI do
     # Accumulate chunks and parse SSE events
     full_buffer = buffer <> chunk
     {events, remaining} = parse_sse_events(full_buffer)
-    
+
     # Convert events to StreamChunks
     chunks = convert_events_to_chunks(events)
-    
+
     {chunks, {ref, pid, remaining}}
   end
 
@@ -312,7 +320,9 @@ defmodule ExLLM.Providers.OpenAI do
 
   defp emit_rate_limit_telemetry_if_needed(response, metadata) do
     case get_in(response, ["headers", "x-ratelimit-remaining"]) do
-      nil -> :ok
+      nil ->
+        :ok
+
       rate_limit_remaining ->
         if String.to_integer(rate_limit_remaining) < 10 do
           :telemetry.execute(
@@ -479,19 +489,16 @@ defmodule ExLLM.Providers.OpenAI do
 
     # Enhanced usage tracking
     enhanced_usage = parse_enhanced_usage(usage)
-    
+
     # Calculate cost info
-    cost_info = ExLLM.Core.Cost.calculate("openai", model, %{
-      input_tokens: enhanced_usage.input_tokens,
-      output_tokens: enhanced_usage.output_tokens
-    })
-    
+    cost_info =
+      ExLLM.Core.Cost.calculate("openai", model, %{
+        input_tokens: enhanced_usage.input_tokens,
+        output_tokens: enhanced_usage.output_tokens
+      })
+
     # Extract just the total cost float for backward compatibility
-    cost_value = if is_map(cost_info) && Map.has_key?(cost_info, :total_cost) do
-      cost_info.total_cost
-    else
-      nil
-    end
+    cost_value = Map.get(cost_info, :total_cost)
 
     %Types.LLMResponse{
       content: message["content"] || "",
@@ -503,12 +510,13 @@ defmodule ExLLM.Providers.OpenAI do
       model: model,
       finish_reason: choice["finish_reason"],
       cost: cost_value,
-      metadata: Map.merge(response["metadata"] || %{}, %{
-        cost_details: cost_info,
-        role: "assistant",
-        provider: :openai,
-        raw_response: response
-      })
+      metadata:
+        Map.merge(response["metadata"] || %{}, %{
+          cost_details: cost_info,
+          role: "assistant",
+          provider: :openai,
+          raw_response: response
+        })
     }
   end
 
@@ -893,7 +901,7 @@ defmodule ExLLM.Providers.OpenAI do
         # Add cost tracking if enabled
         embedding_response =
           if Keyword.get(options, :track_cost, true) do
-            cost = ExLLM.Core.Cost.calculate(:openai, model, embedding_response.usage)
+            cost = ExLLM.Core.Cost.calculate("openai", model, embedding_response.usage)
             %{embedding_response | cost: cost}
           else
             embedding_response
@@ -2454,8 +2462,13 @@ defmodule ExLLM.Providers.OpenAI do
       url = "#{get_base_url(config)}/audio/speech"
 
       case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
-        {:ok, audio_data} when is_binary(audio_data) ->
-          {:ok, audio_data}
+        {:ok, response} ->
+          # TTS responses should contain binary audio data
+          case Map.get(response, "audio") || Map.get(response, :audio) do
+            nil -> {:error, "No audio data in response"}
+            audio_data when is_binary(audio_data) -> {:ok, audio_data}
+            _ -> {:error, "Invalid audio data format"}
+          end
 
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
@@ -2787,11 +2800,8 @@ defmodule ExLLM.Providers.OpenAI do
              timeout: 60_000,
              provider: :openai
            ) do
-        {:ok, response} when is_binary(response) ->
-          {:ok, response}
-
         {:ok, response} ->
-          # If response is JSON, convert to string
+          # Convert response to string
           {:ok, Jason.encode!(response)}
 
         {:error, {:api_error, %{status: status, body: body}}} ->
@@ -3141,40 +3151,41 @@ defmodule ExLLM.Providers.OpenAI do
         nil
     end
   end
-  
-  
+
   # Parse SSE events from buffer
   defp parse_sse_events(buffer) do
     lines = String.split(buffer, "\n")
-    
+
     {events, remaining_lines} = parse_lines(lines, [], [])
-    
+
     remaining_buffer = Enum.join(remaining_lines, "\n")
     {events, remaining_buffer}
   end
-  
+
   defp parse_lines([], current_event, events) do
     # No more lines, return what we have
     events = if current_event != [], do: events ++ [Enum.join(current_event, "\n")], else: events
     {events, []}
   end
-  
+
   defp parse_lines(["" | rest], current_event, events) when current_event != [] do
     # Empty line marks end of event
     event = Enum.join(current_event, "\n")
     parse_lines(rest, [], events ++ [event])
   end
-  
+
   defp parse_lines(["data: " <> data | rest], current_event, events) do
     # Data line - add to current event
     parse_lines(rest, current_event ++ [data], events)
   end
-  
+
   defp parse_lines([line | rest], current_event, events) do
     # Other lines - check if it's a partial line at the end
     if rest == [] and not String.ends_with?(line, "\n") do
       # Last line might be incomplete, return it as remaining
-      events = if current_event != [], do: events ++ [Enum.join(current_event, "\n")], else: events
+      events =
+        if current_event != [], do: events ++ [Enum.join(current_event, "\n")], else: events
+
       {events, [line]}
     else
       # Skip non-data lines

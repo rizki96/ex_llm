@@ -315,7 +315,7 @@ defmodule ExLLM.Testing.TestCacheMatcher do
   defp calculate_numeric_similarity(val1, val2) do
     diff = abs(val1 - val2)
     max_val = max(abs(val1), abs(val2))
-    
+
     if max_val == 0 do
       1.0
     else

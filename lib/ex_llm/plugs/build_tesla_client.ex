@@ -25,7 +25,7 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{provider: provider, config: config} = request, _opts) do

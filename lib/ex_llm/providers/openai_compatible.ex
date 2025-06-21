@@ -122,15 +122,13 @@ defmodule ExLLM.Providers.OpenAICompatible do
       # API key validation moved to shared Validation module
 
       @impl ExLLM.Provider
-      def stream_chat(messages, options \\ [], callback) when is_function(callback, 1) do
-        config_provider = get_config_provider(options)
-        config = get_config(config_provider)
-
-        api_key = get_api_key(config)
-
-        case Validation.validate_api_key(api_key) do
-          {:ok, _} -> do_stream_chat(messages, options, callback, config, api_key)
-          {:error, _} -> {:error, "#{provider_name()} API key not configured"}
+      def stream_chat(messages, options \\ []) do
+        with :ok <- MessageFormatter.validate_messages(messages),
+             config_provider <- ConfigHelper.get_config_provider(options),
+             config <- ConfigHelper.get_config(@provider, config_provider),
+             api_key <- get_api_key(config),
+             {:ok, _} <- Validation.validate_api_key(api_key) do
+          do_stream_chat(messages, options, config, api_key)
         end
       end
 
@@ -182,7 +180,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
         end
       end
 
-      defp do_stream_chat(messages, options, callback, config, api_key) do
+      defp do_stream_chat(messages, options, config, api_key) do
         model = Keyword.get(options, :model, get_default_model(config))
 
         request = build_chat_request(messages, model, options)
@@ -192,19 +190,16 @@ defmodule ExLLM.Providers.OpenAICompatible do
         headers = get_headers(api_key, options)
         url = "#{get_base_url(config)}/chat/completions"
 
-        stream_id = generate_stream_id()
         provider_name = get_provider_name()
 
-        # Use HTTPClient's stream_request which returns immediately
-        # HTTPClient.stream_request always returns {:ok, :streaming}
-        {:ok, :streaming} =
-          HTTPClient.stream_request(url, request, headers, callback,
-            provider: provider_name,
-            timeout: 60_000,
-            stream_id: stream_id
-          )
-
-        {:ok, stream_id}
+        # Use HTTPClient streaming
+        case HTTPClient.post_json(url, request, headers, 
+               provider: provider_name, 
+               timeout: 60_000, 
+               stream: true) do
+          {:ok, stream} -> {:ok, stream}
+          error -> error
+        end
       end
 
       defp build_chat_request(messages, model, options) do
@@ -377,7 +372,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       defp add_cost_tracking(response, options) do
         if Keyword.get(options, :track_cost, true) && response.usage do
-          cost = ExLLM.Core.Cost.calculate(@provider, response.model, response.usage)
+          cost = ExLLM.Core.Cost.calculate(Atom.to_string(@provider), response.model, response.usage)
 
           if Map.has_key?(cost, :error) do
             response
@@ -592,7 +587,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       # Allow overriding all functions
       defoverridable chat: 2,
-                     stream_chat: 3,
+                     stream_chat: 2,
                      configured?: 1,
                      list_models: 1,
                      get_base_url: 1,

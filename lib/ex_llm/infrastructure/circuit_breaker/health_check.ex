@@ -39,7 +39,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.HealthCheck do
       ExLLM.Infrastructure.CircuitBreaker.HealthCheck.health_report()
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   alias ExLLM.Infrastructure.CircuitBreaker
 
@@ -169,9 +169,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.HealthCheck do
     else
       {:error, :circuit_not_found} ->
         {:error, :circuit_not_found}
-
-      error ->
-        {:error, {:health_check_failed, error}}
     end
   end
 
@@ -245,7 +242,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.HealthCheck do
   @doc """
   Get circuits that need immediate attention.
   """
-  @spec critical_circuits(keyword()) :: {:ok, [String.t()]} | {:error, term()}
+  @spec critical_circuits(keyword()) :: {:ok, [String.t()]}
   def critical_circuits(opts \\ []) do
     case health_summary(opts) do
       {:ok, summaries} ->
@@ -255,9 +252,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.HealthCheck do
           |> Enum.map(fn %{circuit_name: name} -> name end)
 
         {:ok, critical}
-
-      error ->
-        error
     end
   end
 

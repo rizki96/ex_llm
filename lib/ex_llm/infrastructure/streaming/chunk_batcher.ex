@@ -30,7 +30,7 @@ defmodule ExLLM.Infrastructure.Streaming.ChunkBatcher do
   """
 
   use GenServer
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   alias ExLLM.Types
 

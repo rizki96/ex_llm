@@ -46,7 +46,7 @@ defmodule ExLLM.Plug do
       defmodule MyApp.LoggingPlug do
         use ExLLM.Plug
         
-        require Logger
+        alias ExLLM.Infrastructure.Logger
         
         @impl true
         def call(request, _opts) do

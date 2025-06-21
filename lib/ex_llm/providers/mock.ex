@@ -159,9 +159,6 @@ defmodule ExLLM.Providers.Mock do
 
       :no_cache ->
         {:error, "No cached responses found for provider: #{provider}"}
-
-      error ->
-        error
     end
   end
 

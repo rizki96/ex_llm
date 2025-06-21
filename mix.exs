@@ -30,7 +30,7 @@ defmodule ExLLM.MixProject do
       ],
       aliases: aliases(),
       dialyzer: [
-        plt_add_apps: [:mix, :ex_unit, :logger],
+        plt_add_apps: [:mix, :ex_unit, :logger, :telemetry, :req, :tesla, :ecto, :yaml_elixir],
         ignore_warnings: ".dialyzer_ignore.exs"
       ]
     ]

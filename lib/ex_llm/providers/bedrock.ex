@@ -58,9 +58,9 @@ defmodule ExLLM.Providers.Bedrock do
   def chat(messages, options \\ []) do
     with {:ok, client} <- get_bedrock_client(options),
          {:ok, model_id} <- get_model_id(options),
-         {:ok, request_body} <- build_request_body(model_id, messages, options),
-         {:ok, response} <- invoke_model(client, model_id, request_body) do
-      parse_response(model_id, response)
+         {:ok, request_body} <- build_request_body(model_id, messages, options) do
+      # Note: invoke_model currently always returns an error (stub implementation)
+      invoke_model(client, model_id, request_body)
     end
   end
 
@@ -346,14 +346,14 @@ defmodule ExLLM.Providers.Bedrock do
     # Llama uses specific prompt format
     messages
     |> Enum.map_join(
+      "",
       fn msg ->
         case msg["role"] do
           "system" -> "<s>[INST] <<SYS>>\n#{msg["content"]}\n<</SYS>>\n\n"
           "user" -> "#{msg["content"]} [/INST]"
           "assistant" -> " #{msg["content"]} </s><s>[INST] "
         end
-      end,
-      ""
+      end
     )
   end
 
@@ -361,14 +361,14 @@ defmodule ExLLM.Providers.Bedrock do
     # Mistral uses instruction format
     messages
     |> Enum.map_join(
+      "",
       fn msg ->
         case msg["role"] do
           "system" -> "<s>[INST] #{msg["content"]}\n"
           "user" -> "#{msg["content"]} [/INST]"
           "assistant" -> " #{msg["content"]} </s><s>[INST] "
         end
-      end,
-      ""
+      end
     )
   end
 

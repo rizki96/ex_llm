@@ -269,11 +269,12 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   end
 
   defp extract_usage(response) do
-    response[:usage] || response["usage"] || %{
-      prompt_tokens: 10,
-      completion_tokens: 15,
-      total_tokens: 25
-    }
+    response[:usage] || response["usage"] ||
+      %{
+        prompt_tokens: 10,
+        completion_tokens: 15,
+        total_tokens: 25
+      }
   end
 
   defp extract_function_call(response) do

@@ -59,7 +59,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
       ExLLM.Infrastructure.CircuitBreaker.Metrics.get_metrics("api_service")
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   # Check if optional dependencies are available at compile time
   @prometheus_available Code.ensure_loaded?(Prometheus)
@@ -338,10 +338,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
     # When no metrics backends are available, only handle error case
     defp log_setup_result(backend, {:error, reason}) do
       Logger.warning("Failed to initialize #{backend} metrics backend: #{inspect(reason)}")
-    end
-
-    defp log_setup_result(backend, other) do
-      Logger.warning("Unexpected setup result for #{backend}: #{inspect(other)}")
     end
   end
 

@@ -90,7 +90,7 @@ defmodule ExLLM.Providers.Gemini.Corpus do
     @type t :: %__MODULE__{
             name: String.t(),
             query: String.t(),
-            metadata_filters: [MetadataFilter.t()],
+            metadata_filters: [ExLLM.Providers.Gemini.Corpus.MetadataFilter.t()],
             results_count: integer() | nil
           }
 
@@ -131,7 +131,7 @@ defmodule ExLLM.Providers.Gemini.Corpus do
     """
 
     @type t :: %__MODULE__{
-            relevant_chunks: [RelevantChunk.t()]
+            relevant_chunks: [ExLLM.Providers.Gemini.Corpus.RelevantChunk.t()]
           }
 
     defstruct [:relevant_chunks]
@@ -144,7 +144,7 @@ defmodule ExLLM.Providers.Gemini.Corpus do
 
     @type t :: %__MODULE__{
             key: String.t(),
-            conditions: [Condition.t()]
+            conditions: [ExLLM.Providers.Gemini.Corpus.Condition.t()]
           }
 
     defstruct [:key, :conditions]

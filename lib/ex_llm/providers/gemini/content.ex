@@ -451,34 +451,16 @@ defmodule ExLLM.Providers.Gemini.Content do
       headers = build_headers()
 
       case HTTPClient.post_json(url, body, headers, provider: :gemini) do
-        {:ok, %{status: 200, body: response_body}} ->
-          {:ok, parse_response(response_body)}
-
-        {:ok, response_body} when is_map(response_body) ->
-          # Handle raw response format (e.g., from cache)
-          {:ok, parse_response(response_body)}
-
-        {:ok, %{status: 400, body: body}} ->
-          {:error, %{status: 400, message: "Bad request", body: body}}
-
-        {:ok, %{status: 401, body: body}} ->
-          {:error, %{status: 401, message: "API key not valid", body: body}}
-
-        {:ok, %{status: 403, body: body}} ->
-          # Safety blocking
-          response = parse_response(body)
-
-          if response.prompt_feedback && response.prompt_feedback["blockReason"] do
-            {:ok, response}
+        {:ok, response_body} ->
+          # Check if the response contains an error
+          parsed = parse_response(response_body)
+          
+          # Check for safety blocking
+          if parsed.prompt_feedback && parsed.prompt_feedback["blockReason"] do
+            {:ok, parsed}
           else
-            {:error, %{status: 403, message: "Forbidden", body: body}}
+            {:ok, parsed}
           end
-
-        {:ok, %{status: 404}} ->
-          {:error, %{status: 404, message: "Model not found: #{model}"}}
-
-        {:ok, %{status: status, body: body}} ->
-          {:error, %{status: status, message: "API error", body: body}}
 
         {:error, reason} ->
           {:error, %{reason: :network_error, message: inspect(reason)}}

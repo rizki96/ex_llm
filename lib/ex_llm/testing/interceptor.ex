@@ -87,7 +87,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   @doc """
   Generate cache key from request parameters and test context.
   """
-  @spec generate_cache_key(String.t(), map(), list()) :: String.t()
+  @spec generate_cache_key(String.t(), map(), [any()]) :: String.t()
   def generate_cache_key(url, body, headers) do
     # Extract provider from URL
     provider = extract_provider_from_url(url)
@@ -107,7 +107,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   @doc """
   Generate a unique signature for the request to differentiate similar requests.
   """
-  @spec generate_request_signature(map(), list()) :: String.t()
+  @spec generate_request_signature(map(), [any()] | map()) :: String.t()
   def generate_request_signature(body, headers) do
     # Create a signature based on request content
     signature_data = %{
@@ -118,7 +118,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
 
     signature_data
     |> Jason.encode!()
-    |> :crypto.hash(:sha256)
+    |> then(fn data -> :crypto.hash(:sha256, data) end)
     |> Base.encode16(case: :lower)
     # Use first 12 characters
     |> String.slice(0..11)
@@ -214,7 +214,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
 
     sanitized_body
     |> Jason.encode!()
-    |> :crypto.hash(:sha256)
+    |> then(fn data -> :crypto.hash(:sha256, data) end)
     |> Base.encode16(case: :lower)
     # Use first 16 characters
     |> String.slice(0..15)
@@ -222,7 +222,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
 
   defp hash_request_body(body) when is_binary(body) do
     body
-    |> :crypto.hash(:sha256)
+    |> then(fn data -> :crypto.hash(:sha256, data) end)
     |> Base.encode16(case: :lower)
     |> String.slice(0..15)
   end
@@ -242,16 +242,28 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
     |> Enum.into(%{})
   end
 
-  defp sanitize_request_body(body), do: body
 
-  defp get_header_value(headers, header_name) do
+  defp get_header_value(headers, header_name) when is_list(headers) do
+    headers
+    |> Enum.find_value(fn 
+      {key, value} ->
+        if String.downcase(to_string(key)) == String.downcase(header_name) do
+          value
+        end
+      _ -> nil
+    end)
+  end
+
+  defp get_header_value(headers, header_name) when is_map(headers) do
     headers
     |> Enum.find_value(fn {key, value} ->
-      if String.downcase(key) == String.downcase(header_name) do
+      if String.downcase(to_string(key)) == String.downcase(header_name) do
         value
       end
     end)
   end
+
+  defp get_header_value(_headers, _header_name), do: nil
 
   defp stream_wrapper(stream_pid, cache_key, request_metadata, accumulated_chunks) do
     receive do

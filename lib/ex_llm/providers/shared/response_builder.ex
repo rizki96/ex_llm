@@ -37,12 +37,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     finish_reason = extract_finish_reason(data)
 
     # Calculate cost if requested and we have usage data
-    cost =
-      if calculate_cost && usage != nil && provider != nil do
-        Cost.calculate(provider, model, usage)
-      else
-        nil
-      end
+    cost = nil
 
     %ExLLM.Types.LLMResponse{
       content: content,
@@ -112,12 +107,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     usage = extract_usage(data)
     finish_reason = extract_finish_reason(data)
 
-    cost =
-      if calculate_cost && usage != nil && provider != nil do
-        Cost.calculate(provider, model, usage)
-      else
-        nil
-      end
+    cost = nil
 
     %ExLLM.Types.LLMResponse{
       content: nil,
@@ -173,12 +163,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     usage = extract_usage(data)
     finish_reason = extract_finish_reason(data)
 
-    cost =
-      if calculate_cost && usage != nil && provider != nil do
-        Cost.calculate(provider, model, usage)
-      else
-        nil
-      end
+    cost = nil
 
     %ExLLM.Types.LLMResponse{
       content: content,
@@ -491,7 +476,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
   end
 
   defp categorize_structured_error(_, message) do
-    {:error, ExLLM.Infrastructure.Error.api_error(nil, message)}
+    {:error, ExLLM.Infrastructure.Error.api_error(500, message)}
   end
 
   defp categorize_error_by_status(401, message) do

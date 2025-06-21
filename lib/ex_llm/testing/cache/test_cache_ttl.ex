@@ -87,7 +87,7 @@ defmodule ExLLM.Testing.TestCacheTTL do
   @doc """
   Check if a force refresh is required for the current test context.
   """
-  @spec force_refresh_for_test?(map()) :: boolean()
+  @spec force_refresh_for_test?({:ok, map()} | :error) :: boolean()
   def force_refresh_for_test?(test_context) do
     case test_context do
       {:ok, context} ->

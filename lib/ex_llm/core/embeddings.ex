@@ -194,8 +194,8 @@ defmodule ExLLM.Core.Embeddings do
     |> Enum.filter(fn provider ->
       case ProviderCapabilities.get_capabilities(provider) do
         {:ok, capabilities} ->
-          :embeddings in (capabilities.features || []) or
-            :embeddings in (capabilities.endpoints || [])
+          :embeddings in capabilities.features or
+            :embeddings in capabilities.endpoints
 
         {:error, _} ->
           false
@@ -299,7 +299,6 @@ defmodule ExLLM.Core.Embeddings do
     case ProviderCapabilities.get_adapter_module(provider) do
       nil -> {:error, {:unsupported_provider, provider}}
       adapter when is_atom(adapter) -> {:ok, adapter}
-      _ -> {:error, {:invalid_adapter, provider}}
     end
   end
 

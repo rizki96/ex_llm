@@ -236,8 +236,7 @@ defmodule ExLLM.ChatBuilder do
       
       builder |> with_pipeline(custom_pipeline)
   """
-  @spec with_pipeline(t(), Pipeline.pipeline()) :: t()
-  def with_pipeline(%__MODULE__{} = builder, pipeline) when is_list(pipeline) do
+  def with_pipeline(%__MODULE__{} = builder, pipeline) do
     %{builder | pipeline_mods: [{:custom_pipeline, pipeline}]}
   end
 

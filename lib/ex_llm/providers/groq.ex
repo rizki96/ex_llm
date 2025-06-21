@@ -37,6 +37,8 @@ defmodule ExLLM.Providers.Groq do
   alias ExLLM.Providers.Shared.{ConfigHelper, ErrorHandler, ModelUtils}
   import ExLLM.Providers.Shared.ModelUtils, only: [format_model_name: 1]
 
+  @dialyzer :no_match
+
   use ExLLM.Providers.OpenAICompatible,
     provider: :groq,
     base_url: "https://api.groq.com/openai/v1",

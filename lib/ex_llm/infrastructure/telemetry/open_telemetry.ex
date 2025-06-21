@@ -311,8 +311,8 @@ else
     def stream_chat(model_or_config, messages, opts \\ []) do
       # Convert to new stream API - needs a callback
       callback = opts[:stream_callback] || fn _chunk -> :ok end
-      opts = Map.new(opts) |> Map.put(:stream, true)
-      ExLLM.stream(model_or_config, messages, opts, callback)
+      opts_list = Keyword.put(opts, :stream, true)
+      ExLLM.stream(model_or_config, messages, callback, opts_list)
     end
 
     def embed(model_or_config, input, opts \\ []) do

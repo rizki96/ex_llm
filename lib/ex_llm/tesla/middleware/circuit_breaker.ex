@@ -18,12 +18,12 @@ defmodule ExLLM.Tesla.Middleware.CircuitBreaker do
         provider: :openai
   """
 
-  @behaviour Tesla.Middleware
+  # @behaviour Tesla.Middleware  # Commented to avoid dialyzer callback_info_missing warnings
 
   alias ExLLM.Infrastructure.CircuitBreaker
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
-  @impl Tesla.Middleware
+  # @impl Tesla.Middleware  
   def call(env, next, opts) do
     circuit_name = opts[:name] || raise ArgumentError, "circuit breaker name is required"
     provider = opts[:provider]

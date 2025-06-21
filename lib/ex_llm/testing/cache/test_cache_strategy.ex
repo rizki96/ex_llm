@@ -1,6 +1,14 @@
 defmodule ExLLM.Testing.TestCacheStrategy do
   @moduledoc false
 
+  # Functions used in code paths that may be unreachable due to caching issues
+  @compile {:nowarn_unused_function, [
+    record_cache_hit: 2,
+    record_cache_miss: 2,
+    sanitize_response_for_storage: 1,
+    sanitize_metadata_for_storage: 1
+  ]}
+
   alias ExLLM.Infrastructure.Cache.Storage.TestCache
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
@@ -341,7 +349,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
     endpoint = extract_endpoint_from_url(url)
 
     # Generate base cache key using test context
-    base_key = TestCacheDetector.generate_cache_key(provider, endpoint)
+    base_key = TestCacheDetector.generate_cache_key(String.to_atom(provider), endpoint)
 
     # Add request signature for uniqueness
     request_signature = TestCacheMatcher.generate_request_signature(request)
@@ -405,7 +413,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
     sanitized_metadata = sanitize_metadata_for_storage(metadata)
 
     case TestCache.store(cache_key, sanitized_response, sanitized_metadata) do
-      {:ok, _} -> :ok
+      :ok -> :ok
       error -> error
     end
   end
@@ -593,8 +601,6 @@ defmodule ExLLM.Testing.TestCacheStrategy do
         "unknown"
     end
   end
-
-  defp hash_map(_), do: "unknown"
 
   defp parse_datetime(nil), do: nil
 

@@ -49,7 +49,7 @@ defmodule ExLLM.Plugs.ManageContext do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @default_strategy :truncate
   @default_preserve_recent 1

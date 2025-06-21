@@ -46,7 +46,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.ConfigManager do
   """
 
   use GenServer
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @table_name :ex_llm_circuit_breaker_configs
   @history_table :ex_llm_circuit_breaker_config_history

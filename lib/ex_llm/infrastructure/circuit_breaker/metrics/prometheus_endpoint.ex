@@ -33,7 +33,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.PrometheusEndpoint do
       {:ok, metrics_text} = ExLLM.CircuitBreaker.Metrics.PrometheusEndpoint.export()
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   # Check if optional dependencies are available
   @plug_available Code.ensure_loaded?(Plug.Conn)
@@ -83,8 +83,14 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.PrometheusEndpoint do
   @doc """
   Phoenix controller action for metrics endpoint.
   """
-  def metrics(conn, _params) do
-    call(conn, [])
+  if @plug_available do
+    def metrics(conn, _params) do
+      call(conn, [])
+    end
+  else
+    def metrics(_conn, _params) do
+      raise RuntimeError, "Plug dependency not available - cannot handle HTTP requests"
+    end
   end
 
   @doc """

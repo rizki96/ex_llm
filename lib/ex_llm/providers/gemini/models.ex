@@ -216,8 +216,8 @@ defmodule ExLLM.Providers.Gemini.Models do
 
   defp validate_api_key(_), do: {:ok, :valid}
 
-  defp normalize_model_name(nil),
-    do: {:error, %{reason: :invalid_params, message: "Model name is required"}}
+  # defp normalize_model_name(nil),
+  #   do: {:error, %{reason: :invalid_params, message: "Model name is required"}}
 
   defp normalize_model_name(""),
     do: {:error, %{reason: :invalid_params, message: "Model name is required"}}
@@ -236,8 +236,8 @@ defmodule ExLLM.Providers.Gemini.Models do
     end
   end
 
-  defp normalize_model_name(_),
-    do: {:error, %{reason: :invalid_params, message: "Model name must be a string"}}
+  # defp normalize_model_name(_),
+  #   do: {:error, %{reason: :invalid_params, message: "Model name must be a string"}}
 
   defp get_api_key(config) do
     config[:api_key] || System.get_env("GOOGLE_API_KEY") || System.get_env("GEMINI_API_KEY")

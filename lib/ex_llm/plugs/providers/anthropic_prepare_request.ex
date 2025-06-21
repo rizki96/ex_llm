@@ -11,7 +11,7 @@ defmodule ExLLM.Plugs.Providers.AnthropicPrepareRequest do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{} = request, _opts) do

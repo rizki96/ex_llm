@@ -36,7 +36,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Bulkhead do
       end)
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   alias ExLLM.Infrastructure.CircuitBreaker.BulkheadWorker
 

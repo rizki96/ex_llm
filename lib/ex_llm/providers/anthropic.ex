@@ -148,27 +148,23 @@ defmodule ExLLM.Providers.Anthropic do
         track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
       ]
 
-      case EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options) do
-        {:ok, stream_id} ->
-          # Create Elixir stream that receives chunks
-          stream =
-            Stream.resource(
-              fn -> {chunks_ref, stream_id} end,
-              fn {ref, _id} = state ->
-                receive do
-                  {^ref, {:chunk, chunk}} -> {[chunk], state}
-                after
-                  100 -> {[], state}
-                end
-              end,
-              fn _ -> :ok end
-            )
+      {:ok, stream_id} = EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options)
+      
+      # Create Elixir stream that receives chunks
+      stream =
+        Stream.resource(
+          fn -> {chunks_ref, stream_id} end,
+          fn {ref, _id} = state ->
+            receive do
+              {^ref, {:chunk, chunk}} -> {[chunk], state}
+            after
+              100 -> {[], state}
+            end
+          end,
+          fn _ -> :ok end
+        )
 
-          {:ok, stream}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      {:ok, stream}
     end
   end
 

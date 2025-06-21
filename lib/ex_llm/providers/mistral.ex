@@ -167,33 +167,29 @@ defmodule ExLLM.Providers.Mistral do
       ]
 
       Logger.with_context([provider: :mistral, model: model], fn ->
-        case EnhancedStreamingCoordinator.start_stream(
-               url,
-               body,
-               headers,
-               callback,
-               stream_options
-             ) do
-          {:ok, stream_id} ->
-            # Create Elixir stream that receives chunks
-            stream =
-              Stream.resource(
-                fn -> {chunks_ref, stream_id} end,
-                fn {ref, _id} = state ->
-                  receive do
-                    {^ref, {:chunk, chunk}} -> {[chunk], state}
-                  after
-                    100 -> {[], state}
-                  end
-                end,
-                fn _ -> :ok end
-              )
+        {:ok, stream_id} = EnhancedStreamingCoordinator.start_stream(
+          url,
+          body,
+          headers,
+          callback,
+          stream_options
+        )
+        
+        # Create Elixir stream that receives chunks
+        stream =
+          Stream.resource(
+            fn -> {chunks_ref, stream_id} end,
+            fn {ref, _id} = state ->
+              receive do
+                {^ref, {:chunk, chunk}} -> {[chunk], state}
+              after
+                100 -> {[], state}
+              end
+            end,
+            fn _ -> :ok end
+          )
 
-            {:ok, stream}
-
-          {:error, reason} ->
-            {:error, reason}
-        end
+        {:ok, stream}
       end)
     end
   end
@@ -296,28 +292,31 @@ defmodule ExLLM.Providers.Mistral do
         content = delta["content"]
 
         if content || finish_reason do
-          %Types.StreamChunk{
+          {:ok, %Types.StreamChunk{
             content: content,
             finish_reason: finish_reason
-          }
+          }}
         else
-          nil
+          {:ok, nil}
         end
 
       {:ok, %{"choices" => [%{"delta" => delta} | _]}} ->
         content = delta["content"]
 
         if content do
-          %Types.StreamChunk{
+          {:ok, %Types.StreamChunk{
             content: content,
             finish_reason: nil
-          }
+          }}
         else
-          nil
+          {:ok, nil}
         end
 
+      {:error, _} = error ->
+        error
+
       _ ->
-        nil
+        {:ok, nil}
     end
   end
 

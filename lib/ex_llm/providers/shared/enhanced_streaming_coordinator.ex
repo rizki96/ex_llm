@@ -101,7 +101,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
   alias ExLLM.Providers.Shared.{HTTPClient, StreamingCoordinator}
   alias ExLLM.Types
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @default_timeout :timer.minutes(5)
   @default_metrics_interval 1000
@@ -467,10 +467,20 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
   defp process_flow_line(line, st, parse_chunk_fn, recovery_id, options, flow_controller) do
     case StreamingCoordinator.parse_sse_line(line) do
       {:data, event_data} ->
-        process_flow_event_data(event_data, st, parse_chunk_fn, recovery_id, options, flow_controller)
+        process_flow_event_data(
+          event_data,
+          st,
+          parse_chunk_fn,
+          recovery_id,
+          options,
+          flow_controller
+        )
 
       :done ->
-        Logger.debug("Flow controlled stream #{recovery_id} completed after #{st.chunk_count} chunks")
+        Logger.debug(
+          "Flow controlled stream #{recovery_id} completed after #{st.chunk_count} chunks"
+        )
+
         st
 
       :skip ->
@@ -478,7 +488,14 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
     end
   end
 
-  defp process_flow_event_data(event_data, st, parse_chunk_fn, recovery_id, options, flow_controller) do
+  defp process_flow_event_data(
+         event_data,
+         st,
+         parse_chunk_fn,
+         recovery_id,
+         options,
+         flow_controller
+       ) do
     case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
       {:ok, chunk} ->
         send_chunk_to_flow_controller(chunk, st, flow_controller, recovery_id)
@@ -576,9 +593,9 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
 
   defp is_recoverable_error?(reason) do
     case reason do
-      {:timeout, _} -> true
-      {:closed, _} -> true
-      {:network_error, _} -> true
+      {:error, {:connection_failed, _}} -> true
+      {:service_unavailable, _} -> true
+      {:rate_limit_error, _} -> true
       _ -> false
     end
   end
@@ -713,16 +730,11 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
 
     # Add flow controller metrics if available
     if flow_controller do
-      case FlowController.get_metrics(flow_controller) do
-        flow_metrics when is_map(flow_metrics) ->
-          Map.merge(base_metrics, %{
-            flow_control: flow_metrics,
-            status: FlowController.get_status(flow_controller)
-          })
-
-        _ ->
-          base_metrics
-      end
+      flow_metrics = FlowController.get_metrics(flow_controller)
+      Map.merge(base_metrics, %{
+        flow_control: flow_metrics,
+        status: FlowController.get_status(flow_controller)
+      })
     else
       base_metrics
     end

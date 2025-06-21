@@ -42,7 +42,7 @@ defmodule ExLLM.Plugs.FetchConfig do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{provider: provider, options: options} = request, _opts) do

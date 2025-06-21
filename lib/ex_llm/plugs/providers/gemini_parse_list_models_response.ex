@@ -40,8 +40,7 @@ defmodule ExLLM.Plugs.Providers.GeminiParseListModelsResponse do
           []
       end
 
-    request
-    |> Map.put(:result, models)
+    %{request | result: models}
     |> ExLLM.Pipeline.Request.put_state(:completed)
   end
 

@@ -48,7 +48,7 @@ defmodule ExLLM.Pipeline do
   """
 
   alias ExLLM.Pipeline.Request
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @type plug :: module() | {module(), ExLLM.Plug.opts()}
   @type pipeline :: [plug()]

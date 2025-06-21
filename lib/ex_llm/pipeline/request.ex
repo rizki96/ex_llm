@@ -45,13 +45,13 @@ defmodule ExLLM.Pipeline.Request do
           halted: boolean(),
           state: state(),
 
-          # Provider-specific
-          tesla_client: Tesla.Client.t() | nil,
+          # Provider-specific  
+          tesla_client: term() | nil,
           provider_request: map() | nil,
 
           # Response data
-          response: Tesla.Env.t() | nil,
-          result: map() | nil,
+          response: term() | nil,
+          result: term() | nil,
 
           # Extensibility
           assigns: map(),

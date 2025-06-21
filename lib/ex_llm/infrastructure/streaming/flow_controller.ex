@@ -41,7 +41,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
   """
 
   use GenServer
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   alias ExLLM.Infrastructure.Streaming.{ChunkBatcher, StreamBuffer}
   alias ExLLM.Types
@@ -69,6 +69,22 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
 
   defmodule Metrics do
     @moduledoc false
+    
+    @type t :: %__MODULE__{
+            chunks_received: non_neg_integer(),
+            chunks_delivered: non_neg_integer(),
+            chunks_dropped: non_neg_integer(),
+            bytes_received: non_neg_integer(),
+            bytes_delivered: non_neg_integer(),
+            backpressure_events: non_neg_integer(),
+            consumer_errors: non_neg_integer(),
+            average_latency_ms: float(),
+            current_buffer_size: non_neg_integer(),
+            max_buffer_size: non_neg_integer(),
+            start_time: DateTime.t() | nil,
+            last_report_time: DateTime.t() | nil
+          }
+    
     defstruct chunks_received: 0,
               chunks_delivered: 0,
               chunks_dropped: 0,
@@ -129,7 +145,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
   @doc """
   Gets current metrics from the flow controller.
   """
-  @spec get_metrics(GenServer.server()) :: Metrics.t()
+  @spec get_metrics(GenServer.server()) :: __MODULE__.Metrics.t()
   def get_metrics(controller) do
     GenServer.call(controller, :get_metrics)
   end
@@ -375,6 +391,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
     if state.consumer_task do
       send(state.consumer_task, :chunks_available)
     end
+
     state
   end
 

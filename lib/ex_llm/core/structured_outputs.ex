@@ -144,7 +144,7 @@ defmodule ExLLM.Core.StructuredOutputs do
         response_model: %{name: :string, age: :integer}
       )
   """
-  @spec chat(ExLLM.provider(), ExLLM.messages(), keyword()) ::
+  @spec chat(ExLLM.Types.provider(), ExLLM.Types.message(), keyword()) ::
           {:ok, struct() | map()} | {:error, term()}
   def chat(provider, messages, options) do
     do_structured_chat(provider, messages, options)
@@ -505,15 +505,11 @@ defmodule ExLLM.Core.StructuredOutputs do
         response_model: schema
       )
   """
-  @spec simple_schema(map(), keyword()) :: module() | {:error, term()}
+  @spec simple_schema(map(), keyword()) :: {:error, term()}
   def simple_schema(_fields, _validations \\ []) do
-    unless available?() do
-      {:error, :instructor_not_available}
-    else
-      # This would require runtime module creation which is complex
-      # For now, return an error suggesting to use type specs instead
-      {:error, :use_type_spec_instead}
-    end
+    # This would require runtime module creation which is complex
+    # For now, return an error suggesting to use type specs instead
+    {:error, :use_type_spec_instead}
   end
 
   # Handle mock provider structured output directly

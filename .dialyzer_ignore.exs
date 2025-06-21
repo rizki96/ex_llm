@@ -16,5 +16,24 @@
   {"lib/mix/tasks/ex_llm.config.ex", :callback_info_missing},
   
   # Mix.shell is dynamically resolved at runtime
-  ~r/Function Mix\.shell\/0 does not exist/
+  ~r/Function Mix\.shell\/0 does not exist/,
+  
+  # Telemetry is a transitive dependency
+  # These calls are valid but Dialyzer can't find them
+  ~r/Function :telemetry\.execute\/[23] does not exist/,
+  ~r/Function :telemetry\.attach_many\/4 does not exist/,
+  ~r/Function :telemetry\.detach\/1 does not exist/,
+  
+  # Other transitive dependencies
+  ~r/Function Req\./,
+  ~r/Function Tesla\./,
+  ~r/Function YamlElixir\./,
+  ~r/Function Ecto\./,
+  ~r/Function ExUnit\./,
+  
+  # Gun WebSocket library (transitive via :gun)
+  ~r/Function :gun\./,
+  
+  # Mix.env is available at compile time but not in PLT
+  ~r/Function Mix\.env\/0 does not exist/
 ]

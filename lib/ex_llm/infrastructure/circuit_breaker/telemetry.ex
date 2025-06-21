@@ -6,7 +6,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Telemetry do
   for monitoring circuit breaker behavior and performance.
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @events [
     # Circuit lifecycle events

@@ -7,6 +7,11 @@ defmodule ExLLM.Types do
   """
 
   # Type definitions must come first
+  @type provider :: 
+          :anthropic | :openai | :gemini | :groq | :ollama | 
+          :openrouter | :mistral | :perplexity | :lmstudio | 
+          :bumblebee | :bedrock | :mock | atom()
+  
   @type message :: %{
           required(:role) => String.t(),
           required(:content) => String.t() | list(content_part()),

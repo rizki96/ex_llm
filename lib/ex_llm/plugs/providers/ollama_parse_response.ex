@@ -7,7 +7,7 @@ defmodule ExLLM.Plugs.Providers.OllamaParseResponse do
   """
 
   use ExLLM.Plug
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{response: nil} = request, _opts) do

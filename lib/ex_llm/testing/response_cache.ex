@@ -52,7 +52,7 @@ defmodule ExLLM.Testing.ResponseCache do
   Each file contains an array of cached request/response pairs with metadata.
   """
 
-  require Logger
+  alias ExLLM.Infrastructure.Logger
 
   @cache_dir_env "EX_LLM_CACHE_DIR"
   @cache_enabled_env "EX_LLM_CACHE_RESPONSES"
