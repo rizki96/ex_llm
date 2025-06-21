@@ -268,7 +268,7 @@ defmodule ExLLM.Session do
 
   Returns a JSON string representation of the session.
   """
-  @spec save_session(Session.t()) :: String.t()
+  @spec save_session(Session.t()) :: {:ok, String.t()} | {:error, term()}
   def save_session(session) do
     CoreSession.to_json(session)
   end
@@ -296,7 +296,7 @@ defmodule ExLLM.Session do
 
   Returns the loaded session struct or raises an error if loading fails.
   """
-  @spec load_session(String.t()) :: Session.t()
+  @spec load_session(String.t()) :: {:ok, Session.t()} | {:error, term()}
   def load_session(input) when is_binary(input) do
     # Determine if input is JSON or file path
     if String.starts_with?(String.trim(input), "{") do

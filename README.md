@@ -230,6 +230,13 @@ mix ex_llm.cache clean --older-than 7d
 - **Model Discovery**: Query available models and capabilities
 - **OAuth2 Integration**: Complete OAuth2 flow for Gemini and other providers
 
+### Additional Documentation
+
+- 📋 **[Unified API Guide](docs/UNIFIED_API_GUIDE.md)** - Complete unified API documentation
+- 🔄 **[Migration Guide](MIGRATION_GUIDE_V1.md)** - Upgrading to v1.0.0
+- ✅ **[Release Checklist](RELEASE_CHECKLIST.md)** - Automated release process
+- 📚 **[API Reference](https://hexdocs.pm/ex_llm)** - Detailed API documentation on HexDocs
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

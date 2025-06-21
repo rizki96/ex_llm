@@ -148,7 +148,7 @@ defmodule ExLLM.Plugs.TrackCost do
   end
 
   defp ensure_atom_provider(provider) when is_binary(provider), do: String.to_atom(provider)
-  defp ensure_atom_provider(provider) when is_atom(provider), do: provider
+  defp ensure_atom_provider(provider), do: provider
 
   # Helper functions for struct/map compatibility
   defp get_usage(%{usage: usage}), do: usage || %{}
