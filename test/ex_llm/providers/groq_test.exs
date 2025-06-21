@@ -5,8 +5,15 @@ defmodule ExLLM.Providers.GroqTest do
 
   describe "Groq adapter" do
     test "configured?/1 returns false when no API key" do
-      provider = ConfigProviderHelper.setup_static_provider(%{groq: %{}})
-      refute Groq.configured?(config_provider: provider)
+      # Temporarily disable environment API keys to test true "no key" scenario
+      restore_env = ConfigProviderHelper.disable_env_api_keys()
+      
+      try do
+        provider = ConfigProviderHelper.setup_static_provider(%{groq: %{}})
+        refute Groq.configured?(config_provider: provider)
+      after
+        restore_env.()
+      end
     end
 
     test "configured?/1 returns true when API key is set" do

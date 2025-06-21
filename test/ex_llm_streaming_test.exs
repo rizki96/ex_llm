@@ -99,7 +99,7 @@ defmodule ExLLM.StreamingTest do
       # Run coordinator plug
       result = ExLLM.Plugs.StreamCoordinator.call(request, [])
 
-      assert is_pid(Map.get(result, :stream_coordinator))
+      assert is_pid(result.stream_pid)
       assert result.assigns.streaming_enabled == true
     end
   end

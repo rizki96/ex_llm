@@ -20,6 +20,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseResponse do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.LLMResponse
 
   @impl true
   def call(%Request{response: nil} = request, _opts) do
@@ -72,14 +73,16 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseResponse do
         {:error, :no_choices}
 
       choice ->
-        parsed = %{
+        parsed = %LLMResponse{
           content: extract_content(choice),
-          role: extract_role(choice),
           model: response["model"] || request.config[:model],
           usage: parse_usage(usage),
           finish_reason: choice["finish_reason"],
-          provider: :openai,
-          raw_response: response
+          metadata: %{
+            role: extract_role(choice),
+            provider: :openai,
+            raw_response: response
+          }
         }
 
         # Add optional fields
@@ -156,19 +159,19 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseResponse do
 
   defp maybe_add_function_call(parsed, %{"message" => %{"function_call" => fc}})
        when not is_nil(fc) do
-    Map.put(parsed, :function_call, parse_function_call(fc))
+    %{parsed | function_call: parse_function_call(fc)}
   end
 
   defp maybe_add_function_call(parsed, _), do: parsed
 
   defp maybe_add_tool_calls(parsed, %{"message" => %{"tool_calls" => tc}}) when is_list(tc) do
-    Map.put(parsed, :tool_calls, Enum.map(tc, &parse_tool_call/1))
+    %{parsed | tool_calls: Enum.map(tc, &parse_tool_call/1)}
   end
 
   defp maybe_add_tool_calls(parsed, _), do: parsed
 
   defp maybe_add_system_fingerprint(parsed, %{"system_fingerprint" => fp}) when not is_nil(fp) do
-    Map.put(parsed, :system_fingerprint, fp)
+    %{parsed | metadata: Map.put(parsed.metadata, :system_fingerprint, fp)}
   end
 
   defp maybe_add_system_fingerprint(parsed, _), do: parsed

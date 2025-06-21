@@ -22,20 +22,26 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
 
   defp handle_chat_request(request, messages, config, opts) do
     # Check multiple sources for mock response in priority order:
-    # 1. Mock agent configuration
-    # 2. Application environment (for cache tests)  
-    # 3. Options passed to handler
+    # 1. Options passed to handler (explicit override)
+    # 2. Mock agent configuration
+    # 3. Application environment (for cache tests)  
     # 4. Default echo response
     response =
-      case get_mock_agent_response(messages, config) do
-        {:ok, agent_response} ->
-          agent_response
+      case opts[:response] do
+        nil ->
+          case get_mock_agent_response(messages, config) do
+            {:ok, agent_response} ->
+              agent_response
 
-        _ ->
-          case Application.get_env(:ex_llm, :mock_responses, %{})[:chat] do
-            nil -> opts[:response] || generate_mock_response(messages, config)
-            app_response -> normalize_app_response(app_response, messages, config)
+            _ ->
+              case Application.get_env(:ex_llm, :mock_responses, %{})[:chat] do
+                nil -> generate_mock_response(messages, config)
+                app_response -> normalize_app_response(app_response, messages, config)
+              end
           end
+        
+        explicit_response ->
+          explicit_response
       end
 
     # Simulate some processing time if configured
@@ -295,8 +301,8 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
       model: config[:model] || "mock-model",
       usage: %{
         prompt_tokens: 10,
-        completion_tokens: 15,
-        total_tokens: 25
+        completion_tokens: 20,
+        total_tokens: 30
       },
       provider: :mock,
       mock_config: config

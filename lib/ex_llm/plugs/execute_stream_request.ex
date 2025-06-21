@@ -72,7 +72,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     Logger.debug("Endpoint: #{endpoint}")
 
     # Check if we have a stream coordinator
-    coordinator = request.stream_coordinator
+    coordinator = request.assigns[:stream_coordinator] || request.stream_pid
     Logger.debug("Stream coordinator: #{inspect(coordinator)}")
 
     if coordinator do
@@ -137,29 +137,45 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   end
 
   defp stream_to_coordinator(client, endpoint, body, coordinator, ref, opts) do
-    # Prepare streaming request with Hackney adapter for proper streaming support
-    request_opts = [
-      adapter:
-        {Tesla.Adapter.Hackney,
-         [
-           recv_timeout: opts[:receive_timeout] || 60_000,
-           stream_to: self()
-           # Remove async: :once as it conflicts with stream_to
-         ]}
-    ]
+    # Extract headers from the client's middleware
+    Logger.debug("Original client: #{inspect(client)}")
+    headers = extract_headers_from_client(client)
+    Logger.debug("Extracted headers: #{inspect(headers)}")
+    
+    # Build a new client specifically for streaming
+    stream_client = Tesla.client([
+      {Tesla.Middleware.Headers, headers},
+      Tesla.Middleware.JSON
+    ], {Tesla.Adapter.Hackney, [recv_timeout: opts[:receive_timeout] || 60_000, stream_to: self()]})
 
     # Start the request
-    Logger.debug("Starting stream request to #{endpoint} with Hackney adapter")
+    Logger.debug("Starting stream request to #{endpoint}")
 
-    case Tesla.post(client, endpoint, body, request_opts) do
-      {:ok, %Tesla.Env{status: status}} when status in 200..299 ->
-        # Success - forward chunks to coordinator
+    result = Tesla.post(stream_client, endpoint, body)
+    Logger.debug("Tesla.post result: #{inspect(result)}")
+    
+    case result do
+      {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
+        # Success - check if we got the full body or if it's streaming
         Logger.debug("Stream request successful, status: #{status}")
-        forward_chunks_to_coordinator(coordinator, ref)
+        Logger.debug("Response headers: #{inspect(env.headers)}")
+        
+        if env.body && env.body != "" do
+          # We got the full body, parse it as SSE events
+          Logger.debug("Got full SSE body, parsing events")
+          parse_and_forward_sse_body(env.body, coordinator, ref)
+        else
+          # Body is empty, expect streaming chunks
+          Logger.debug("Empty body, waiting for streaming chunks")
+          forward_chunks_to_coordinator(coordinator, ref)
+        end
 
-      %Tesla.Env{status: status} when status in 200..299 ->
+      %Tesla.Env{status: status} = env when status in 200..299 ->
         # Success (unwrapped response from streaming) - forward chunks to coordinator
         Logger.debug("Stream request successful (unwrapped), status: #{status}")
+        Logger.debug("Response headers: #{inspect(env.headers)}")
+        Logger.debug("Response body: #{inspect(env.body)}")
+        # The body has already been consumed by streaming, so we receive chunks via messages
         forward_chunks_to_coordinator(coordinator, ref)
 
       {:ok, %Tesla.Env{} = env} ->
@@ -177,19 +193,33 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   end
 
   defp forward_chunks_to_coordinator(coordinator, ref) do
+    Logger.debug("Waiting for chunks to forward to coordinator #{inspect(coordinator)}")
     receive do
       # Hackney's actual message format for streaming
+      {:hackney_response, _ref, :more, chunk} ->
+        Logger.debug("Hackney data chunk received (4-tuple): #{inspect(chunk)}")
+        send(coordinator, {:stream_chunk, ref, chunk})
+        forward_chunks_to_coordinator(coordinator, ref)
+        
       {:hackney_response, :more, chunk} ->
-        Logger.debug("Hackney data chunk received: #{inspect(chunk)}")
+        Logger.debug("Hackney data chunk received (3-tuple): #{inspect(chunk)}")
         send(coordinator, {:stream_chunk, ref, chunk})
         forward_chunks_to_coordinator(coordinator, ref)
 
+      {:hackney_response, _ref, :done, _} ->
+        Logger.debug("Hackney stream ended (4-tuple)")
+        send(coordinator, {:stream_complete, ref})
+        
       {:hackney_response, :done, _} ->
-        Logger.debug("Hackney stream ended")
+        Logger.debug("Hackney stream ended (3-tuple)")
         send(coordinator, {:stream_complete, ref})
 
+      {:hackney_response, _ref, :error, reason} ->
+        Logger.debug("Hackney stream error (4-tuple): #{inspect(reason)}")
+        send(coordinator, {:stream_error, ref, reason})
+        
       {:hackney_response, :error, reason} ->
-        Logger.debug("Hackney stream error: #{inspect(reason)}")
+        Logger.debug("Hackney stream error (3-tuple): #{inspect(reason)}")
         send(coordinator, {:stream_error, ref, reason})
 
       # Legacy patterns for backward compatibility
@@ -204,28 +234,37 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
         send(coordinator, {:stream_error, ref, reason})
 
       other ->
-        Logger.debug("Unexpected streaming message: #{inspect(other)}")
-        forward_chunks_to_coordinator(coordinator, ref)
+        Logger.warning("Unexpected streaming message in forward_chunks: #{inspect(other)}")
+        # Check if it's some other message we should handle
+        case other do
+          {:tcp, _, _} -> 
+            Logger.debug("Received raw TCP data, continuing...")
+            forward_chunks_to_coordinator(coordinator, ref)
+          {:ssl, _, _} -> 
+            Logger.debug("Received raw SSL data, continuing...")
+            forward_chunks_to_coordinator(coordinator, ref)
+          _ ->
+            forward_chunks_to_coordinator(coordinator, ref)
+        end
     after
-      60_000 ->
+      5_000 ->
+        Logger.error("Timeout waiting for stream chunks after 5 seconds")
         send(coordinator, {:stream_error, ref, :timeout})
     end
   end
 
   defp stream_response(client, endpoint, body, callback, parent, ref, opts) do
-    # Prepare streaming request with Hackney adapter for proper streaming support
-    request_opts = [
-      adapter:
-        {Tesla.Adapter.Hackney,
-         [
-           recv_timeout: opts[:receive_timeout] || 60_000,
-           stream_to: self()
-           # Remove async: :once as it conflicts with stream_to
-         ]}
-    ]
+    # Extract headers from the client's middleware
+    headers = extract_headers_from_client(client)
+    
+    # Build a new client specifically for streaming
+    stream_client = Tesla.client([
+      {Tesla.Middleware.Headers, headers},
+      Tesla.Middleware.JSON
+    ], {Tesla.Adapter.Hackney, [recv_timeout: opts[:receive_timeout] || 60_000, stream_to: self()]})
 
     # Start the request
-    case Tesla.post(client, endpoint, body, request_opts) do
+    case Tesla.post(stream_client, endpoint, body) do
       {:ok, %Tesla.Env{status: status}} when status in 200..299 ->
         # Success - stream will arrive as messages
         handle_stream_messages(callback, parent, ref)
@@ -373,5 +412,20 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     model = config[:model] || "gemini-pro"
     base = config[:base_url] || "https://generativelanguage.googleapis.com/v1beta"
     "#{base}/models/#{model}:streamGenerateContent"
+  end
+
+  defp extract_headers_from_client(%Tesla.Client{pre: middleware}) do
+    # Find the Headers middleware and extract its headers
+    Enum.find_value(middleware, [], fn
+      {Tesla.Middleware.Headers, :call, [headers | _]} -> headers
+      _ -> nil
+    end)
+  end
+
+  defp parse_and_forward_sse_body(body, coordinator, ref) do
+    # Send the entire body as one chunk - the coordinator's parser will handle it
+    send(coordinator, {:stream_chunk, ref, body})
+    
+    # Don't send completion here - let the parser detect the end
   end
 end

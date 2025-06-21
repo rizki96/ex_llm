@@ -46,43 +46,45 @@ defmodule ExLLM.Plugs.TrackCost do
   end
 
   def call(%Request{result: result} = request, opts) do
-    usage = result[:usage] || %{}
+    usage = get_usage(result)
 
     if usage == %{} do
       # No usage data available
       request
     else
       # Calculate cost
-      cost = calculate_cost(request, usage, opts)
+      cost_data = calculate_cost(request, usage, opts)
 
-      # Update result with cost
-      updated_result = Map.put(result, :cost, cost)
+      # Update result with cost (as float) and detailed cost breakdown
+      updated_result = result
+      |> put_cost(cost_data.total)
+      |> put_cost_details(cost_data)
 
       # Emit telemetry event
       :telemetry.execute(
         [:ex_llm, :cost, :calculated],
         %{
-          cost: cost.total,
+          cost: cost_data.total,
           input_tokens: usage[:prompt_tokens] || 0,
           output_tokens: usage[:completion_tokens] || 0
         },
         %{
           provider: request.provider,
-          model: result[:model] || request.config[:model]
+          model: get_model(result) || request.config[:model]
         }
       )
 
       request
       |> Map.put(:result, updated_result)
-      |> Request.put_metadata(:cost, cost)
-      |> Request.put_metadata(:cost_usd, cost.total)
+      |> Request.put_metadata(:cost, cost_data.total)
+      |> Request.put_metadata(:cost_usd, cost_data.total)
       |> Request.assign(:cost_tracked, true)
     end
   end
 
   defp calculate_cost(request, usage, opts) do
     provider = request.provider
-    model = request.result[:model] || request.config[:model]
+    model = get_model(request.result) || request.config[:model]
 
     # Get pricing
     pricing = get_pricing(provider, model, opts)
@@ -145,4 +147,26 @@ defmodule ExLLM.Plugs.TrackCost do
   end
 
   defp ensure_atom_provider(provider) when is_binary(provider), do: String.to_atom(provider)
+  defp ensure_atom_provider(provider) when is_atom(provider), do: provider
+
+  # Helper functions for struct/map compatibility
+  defp get_usage(%{usage: usage}), do: usage || %{}
+  defp get_usage(result) when is_map(result), do: result[:usage] || %{}
+  defp get_usage(_), do: %{}
+
+  defp put_cost(%{__struct__: _} = struct, cost), do: %{struct | cost: cost}
+  defp put_cost(result, cost) when is_map(result), do: Map.put(result, :cost, cost)
+  defp put_cost(result, _cost), do: result
+
+  defp get_model(%{model: model}), do: model
+  defp get_model(result) when is_map(result), do: result[:model]
+  defp get_model(_), do: nil
+
+  defp put_cost_details(%{__struct__: _} = struct, cost_data) do
+    %{struct | metadata: Map.put(struct.metadata || %{}, :cost_details, cost_data)}
+  end
+  defp put_cost_details(result, cost_data) when is_map(result) do
+    Map.put(result, :cost_details, cost_data)
+  end
+  defp put_cost_details(result, _cost_data), do: result
 end

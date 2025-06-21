@@ -31,43 +31,56 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseStreamResponse do
   Parses Anthropic's streaming event format.
   """
   def parse_anthropic_chunk(data) when is_binary(data) do
-    data
-    |> String.split("\n")
-    |> Enum.reduce({:continue, []}, fn
-      "event: message_stop", _acc ->
-        {:done, %{done: true}}
-
-      "event: " <> event_type, acc ->
-        # Store event type for next data line
-        put_elem(acc, 1, [{:event_type, event_type} | elem(acc, 1)])
-
-      "data: " <> json, {:continue, chunks} ->
-        case Jason.decode(json) do
-          {:ok, parsed} ->
-            # Get the last event type
-            {event_type, remaining} = extract_event_type(chunks)
-            chunk_data = parse_event_data(event_type, parsed)
-            {:continue, remaining ++ [chunk_data]}
-
-          {:error, _} ->
-            {:continue, chunks}
-        end
-
-      _, acc ->
-        acc
-    end)
-  end
-
-  defp extract_event_type(chunks) do
-    case Enum.find_index(chunks, &match?({:event_type, _}, &1)) do
-      nil ->
-        {nil, chunks}
-
-      idx ->
-        {:event_type, type} = Enum.at(chunks, idx)
-        {type, List.delete_at(chunks, idx)}
+    # Parse all SSE events from the data
+    events = data
+    |> String.split("\n\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.flat_map(&parse_single_sse_event/1)
+    |> Enum.reject(&is_nil/1)
+    
+    # Check if we're done
+    if Enum.any?(events, &match?(%{done: true}, &1)) do
+      # Find the final chunk with stop_reason
+      final = Enum.find(events, &Map.has_key?(&1, :stop_reason)) || %{done: true}
+      {:done, final}
+    else
+      {:continue, events}
     end
   end
+  
+  defp parse_single_sse_event(event) do
+    lines = String.split(event, "\n")
+    
+    # Extract event type and data
+    event_type = Enum.find_value(lines, fn
+      "event: " <> type -> type
+      _ -> nil
+    end)
+    
+    data_json = Enum.find_value(lines, fn
+      "data: " <> json -> json
+      _ -> nil
+    end)
+    
+    # Handle special events
+    case event_type do
+      "message_stop" ->
+        [%{done: true}]
+        
+      _ when data_json != nil ->
+        case Jason.decode(data_json) do
+          {:ok, parsed} ->
+            [parse_event_data(event_type, parsed)]
+          {:error, _} ->
+            []
+        end
+        
+      _ ->
+        []
+    end
+  end
+
 
   defp parse_event_data("message_start", %{"message" => message}) do
     %{

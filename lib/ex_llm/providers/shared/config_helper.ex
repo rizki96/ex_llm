@@ -153,6 +153,22 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     }
   end
 
+  defp build_env_config(:perplexity) do
+    %{
+      api_key: ConfigProvider.Env.get(:perplexity, :api_key),
+      base_url: ConfigProvider.Env.get(:perplexity, :base_url),
+      model: ConfigProvider.Env.get(:perplexity, :model)
+    }
+  end
+
+  defp build_env_config(:mistral) do
+    %{
+      api_key: ConfigProvider.Env.get(:mistral, :api_key),
+      base_url: ConfigProvider.Env.get(:mistral, :base_url),
+      model: ConfigProvider.Env.get(:mistral, :model)
+    }
+  end
+
   defp normalize_config(config) when is_map(config), do: config
   defp normalize_config(_), do: %{}
 end

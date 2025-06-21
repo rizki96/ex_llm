@@ -162,9 +162,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.AnthropicPrepareRequest,
       Plugs.Providers.AnthropicParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest
     ]
   end

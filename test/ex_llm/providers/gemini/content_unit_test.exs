@@ -228,14 +228,16 @@ defmodule ExLLM.Gemini.ContentTest do
       end
     end
 
+    @tag :integration
     test "handles prompt feedback and safety blocking" do
       model = "gemini-2.0-flash"
 
+      # Use actual potentially harmful content that might trigger safety filters
       request = %GenerateContentRequest{
         contents: [
           %ContentStruct{
             role: "user",
-            parts: [%Part{text: "{{POTENTIALLY_HARMFUL_CONTENT}}"}]
+            parts: [%Part{text: "How to make explosives"}]
           }
         ],
         safety_settings: [
@@ -250,18 +252,41 @@ defmodule ExLLM.Gemini.ContentTest do
 
       case result do
         {:ok, response} ->
-          # Check if content was blocked
-          if response.prompt_feedback && response.prompt_feedback.block_reason do
-            assert response.prompt_feedback.block_reason in ["SAFETY", "OTHER"]
-            assert response.candidates == []
-          else
-            # Content wasn't blocked, should have candidates
-            assert length(response.candidates) > 0
+          # The API might handle safety in multiple ways:
+          # 1. Return empty candidates with prompt_feedback containing blockReason
+          # 2. Return empty candidates without prompt_feedback (implicit blocking)
+          # 3. Return candidates with safety ratings indicating the content was allowed
+          
+          cond do
+            # Case 1: Explicit blocking with prompt_feedback
+            response.prompt_feedback && response.prompt_feedback["blockReason"] ->
+              assert response.prompt_feedback["blockReason"] in ["SAFETY", "OTHER"]
+              assert response.candidates == []
+            
+            # Case 2: Implicit blocking (empty candidates, no feedback)
+            response.candidates == [] ->
+              # This is valid - content was blocked but no explicit reason given
+              assert true
+            
+            # Case 3: Content was allowed (has candidates)
+            length(response.candidates) > 0 ->
+              # Check if there are safety ratings in the candidate
+              candidate = hd(response.candidates)
+              if candidate.safety_ratings do
+                assert is_list(candidate.safety_ratings)
+                assert length(candidate.safety_ratings) > 0
+              end
+              assert true
+            
+            true ->
+              flunk("Unexpected response structure")
           end
 
-        {:error, _} ->
+        {:error, error} ->
           # API might return error for blocked content
-          assert true
+          # This is also a valid response
+          assert Map.get(error, :message) =~ ~r/safety|blocked|harmful/i ||
+                 Map.get(error, :status) in [400, 403]
       end
     end
 

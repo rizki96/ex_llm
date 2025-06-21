@@ -20,10 +20,17 @@ defmodule ExLLM.Providers.PerplexityUnitTest do
     end
 
     test "returns false with no API key" do
-      config = %{perplexity: %{}}
-      provider = ConfigProviderHelper.setup_static_provider(config)
+      # Temporarily disable environment API keys to test true "no key" scenario
+      restore_env = ConfigProviderHelper.disable_env_api_keys()
+      
+      try do
+        config = %{perplexity: %{}}
+        provider = ConfigProviderHelper.setup_static_provider(config)
 
-      refute Perplexity.configured?(config_provider: provider)
+        refute Perplexity.configured?(config_provider: provider)
+      after
+        restore_env.()
+      end
     end
   end
 
@@ -189,7 +196,7 @@ defmodule ExLLM.Providers.PerplexityUnitTest do
     test "parses standard OpenAI-style streaming chunks" do
       chunk_data = ~s({"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]})
 
-      chunk = Perplexity.parse_stream_chunk(chunk_data)
+      {:ok, chunk} = Perplexity.parse_stream_chunk(chunk_data)
       assert %Types.StreamChunk{content: "Hello", finish_reason: nil} = chunk
     end
 
@@ -197,7 +204,7 @@ defmodule ExLLM.Providers.PerplexityUnitTest do
       chunk_data =
         ~s({"choices":[{"delta":{"content":"The weather today [1] shows..."},"finish_reason":null}]})
 
-      chunk = Perplexity.parse_stream_chunk(chunk_data)
+      {:ok, chunk} = Perplexity.parse_stream_chunk(chunk_data)
 
       assert %Types.StreamChunk{content: "The weather today [1] shows...", finish_reason: nil} =
                chunk
@@ -206,14 +213,14 @@ defmodule ExLLM.Providers.PerplexityUnitTest do
     test "handles finish reason in streaming" do
       chunk_data = ~s({"choices":[{"delta":{},"finish_reason":"stop"}]})
 
-      chunk = Perplexity.parse_stream_chunk(chunk_data)
+      {:ok, chunk} = Perplexity.parse_stream_chunk(chunk_data)
       assert %Types.StreamChunk{content: nil, finish_reason: "stop"} = chunk
     end
 
     test "handles invalid streaming data" do
-      assert nil == Perplexity.parse_stream_chunk("invalid json")
-      assert nil == Perplexity.parse_stream_chunk("")
-      assert nil == Perplexity.parse_stream_chunk("{}")
+      assert match?({:error, _}, Perplexity.parse_stream_chunk("invalid json"))
+      assert match?({:error, _}, Perplexity.parse_stream_chunk(""))
+      assert match?({:ok, nil}, Perplexity.parse_stream_chunk("{}"))
     end
   end
 
@@ -228,23 +235,30 @@ defmodule ExLLM.Providers.PerplexityUnitTest do
     end
 
     test "provides helpful error messages" do
-      messages = [%{role: "user", content: "Test"}]
+      # Temporarily disable environment API keys to test true "no key" scenario
+      restore_env = ConfigProviderHelper.disable_env_api_keys()
+      
+      try do
+        messages = [%{role: "user", content: "Test"}]
 
-      # No API key
-      {:error, msg1} = Perplexity.chat(messages)
-      assert msg1 =~ "API key"
+        # No API key
+        {:error, msg1} = Perplexity.chat(messages)
+        assert is_binary(msg1) and String.contains?(msg1, "API key")
 
-      # Invalid search mode
-      config = %{perplexity: %{api_key: "test"}}
-      provider = ConfigProviderHelper.setup_static_provider(config)
+        # Invalid search mode
+        config = %{perplexity: %{api_key: "test"}}
+        provider = ConfigProviderHelper.setup_static_provider(config)
 
-      {:error, msg2} =
-        Perplexity.chat(messages,
-          config_provider: provider,
-          search_mode: "invalid"
-        )
+        {:error, msg2} =
+          Perplexity.chat(messages,
+            config_provider: provider,
+            search_mode: "invalid"
+          )
 
-      assert msg2 =~ "search_mode"
+        assert is_binary(msg2) and String.contains?(msg2, "search_mode")
+      after
+        restore_env.()
+      end
     end
   end
 

@@ -85,6 +85,16 @@ defmodule ExLLM.Plugs.Providers.AnthropicPrepareRequest do
           }
         }
 
+      %{type: "image", image: %{data: data, media_type: media_type}} ->
+        %{
+          "type" => "image",
+          "source" => %{
+            "type" => "base64",
+            "media_type" => media_type,
+            "data" => data
+          }
+        }
+
       %{type: "image_url", image_url: %{url: url}} when is_binary(url) ->
         # Convert data URLs to Anthropic format
         case parse_data_url(url) do

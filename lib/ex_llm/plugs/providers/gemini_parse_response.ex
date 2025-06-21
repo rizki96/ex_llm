@@ -8,6 +8,7 @@ defmodule ExLLM.Plugs.Providers.GeminiParseResponse do
 
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Types.LLMResponse
 
   @impl true
   def call(%Request{response: nil} = request, _opts) do
@@ -59,15 +60,17 @@ defmodule ExLLM.Plugs.Providers.GeminiParseResponse do
     if candidate do
       content = extract_content(candidate)
 
-      result = %{
+      result = %LLMResponse{
         content: content,
-        role: "assistant",
         model: extract_model_name(body),
         finish_reason: candidate["finishReason"],
-        safety_ratings: candidate["safetyRatings"],
         usage: parse_usage(body["usageMetadata"]),
-        provider: :gemini,
-        raw_response: body
+        metadata: %{
+          role: "assistant",
+          provider: :gemini,
+          safety_ratings: candidate["safetyRatings"],
+          raw_response: body
+        }
       }
 
       {:ok, result}

@@ -28,11 +28,13 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
 
   @impl true
   def call(%Request{provider: provider, config: config} = request, _opts) do
-    client = build_client(provider, config)
+    # Check if this is a streaming request
+    is_streaming = config[:stream] == true
+    client = build_client(provider, config, is_streaming)
     %{request | tesla_client: client}
   end
 
-  defp build_client(provider, config) do
+  defp build_client(provider, config, is_streaming) do
     base_url = get_base_url(provider, config)
 
     middleware =
@@ -72,7 +74,16 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
       |> List.flatten()
       |> Enum.reject(&is_nil/1)
 
-    Tesla.client(middleware)
+    # Configure adapter based on whether this is a streaming request
+    adapter_opts = if is_streaming do
+      # For streaming, we need to delay setting stream_to until the actual request
+      # So we'll handle this in ExecuteStreamRequest
+      [recv_timeout: 60_000]
+    else
+      [recv_timeout: 60_000]
+    end
+    
+    Tesla.client(middleware, {Tesla.Adapter.Hackney, adapter_opts})
   end
 
   defp get_base_url(:openai, config) do

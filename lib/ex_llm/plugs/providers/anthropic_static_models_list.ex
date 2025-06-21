@@ -6,63 +6,79 @@ defmodule ExLLM.Plugs.Providers.AnthropicStaticModelsList do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.Model
 
   @impl true
   def call(%ExLLM.Pipeline.Request{} = request, _opts) do
     models = [
-      %{
+      %Model{
         id: "claude-3-5-sonnet-20241022",
         name: "Claude 3.5 Sonnet",
         context_window: 200_000,
         max_output_tokens: 8192,
-        capabilities: ["chat", "vision", "function_calling"],
+        capabilities: %{
+          features: ["chat", "vision", "function_calling", "streaming"]
+        },
         pricing: %{
-          input: 0.003,
-          output: 0.015
+          input_cost_per_token: 0.003 / 1_000_000,
+          output_cost_per_token: 0.015 / 1_000_000,
+          currency: "USD"
         }
       },
-      %{
+      %Model{
         id: "claude-3-5-haiku-20241022",
         name: "Claude 3.5 Haiku",
         context_window: 200_000,
         max_output_tokens: 8192,
-        capabilities: ["chat", "vision"],
+        capabilities: %{
+          features: ["chat", "vision", "streaming"]
+        },
         pricing: %{
-          input: 0.0008,
-          output: 0.004
+          input_cost_per_token: 0.0008 / 1_000_000,
+          output_cost_per_token: 0.004 / 1_000_000,
+          currency: "USD"
         }
       },
-      %{
+      %Model{
         id: "claude-3-opus-20240229",
         name: "Claude 3 Opus",
         context_window: 200_000,
         max_output_tokens: 4096,
-        capabilities: ["chat", "vision", "function_calling"],
+        capabilities: %{
+          features: ["chat", "vision", "function_calling", "streaming"]
+        },
         pricing: %{
-          input: 0.015,
-          output: 0.075
+          input_cost_per_token: 0.015 / 1_000_000,
+          output_cost_per_token: 0.075 / 1_000_000,
+          currency: "USD"
         }
       },
-      %{
+      %Model{
         id: "claude-3-sonnet-20240229",
         name: "Claude 3 Sonnet",
         context_window: 200_000,
         max_output_tokens: 4096,
-        capabilities: ["chat", "vision", "function_calling"],
+        capabilities: %{
+          features: ["chat", "vision", "function_calling", "streaming"]
+        },
         pricing: %{
-          input: 0.003,
-          output: 0.015
+          input_cost_per_token: 0.003 / 1_000_000,
+          output_cost_per_token: 0.015 / 1_000_000,
+          currency: "USD"
         }
       },
-      %{
+      %Model{
         id: "claude-3-haiku-20240307",
         name: "Claude 3 Haiku",
         context_window: 200_000,
         max_output_tokens: 4096,
-        capabilities: ["chat", "vision"],
+        capabilities: %{
+          features: ["chat", "vision", "streaming"]
+        },
         pricing: %{
-          input: 0.00025,
-          output: 0.00125
+          input_cost_per_token: 0.00025 / 1_000_000,
+          output_cost_per_token: 0.00125 / 1_000_000,
+          currency: "USD"
         }
       }
     ]

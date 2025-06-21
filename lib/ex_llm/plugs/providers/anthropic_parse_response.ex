@@ -8,6 +8,7 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseResponse do
 
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Types.LLMResponse
 
   @impl true
   def call(%Request{response: nil} = request, _opts) do
@@ -55,14 +56,16 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseResponse do
   defp parse_response(body) when is_map(body) do
     content = extract_content(body)
 
-    result = %{
+    result = %LLMResponse{
       content: content,
-      role: "assistant",
       model: body["model"],
-      stop_reason: body["stop_reason"],
+      finish_reason: body["stop_reason"],
       usage: parse_usage(body["usage"]),
-      provider: :anthropic,
-      raw_response: body
+      metadata: %{
+        role: "assistant",
+        provider: :anthropic,
+        raw_response: body
+      }
     }
 
     {:ok, result}

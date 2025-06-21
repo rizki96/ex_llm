@@ -48,6 +48,12 @@ defmodule ExLLM.Core.Streaming.RecoveryTest do
     end
 
     test "handles non-existent recovery ID" do
+      # Ensure the GenServer is started
+      case Process.whereis(ExLLM.Core.Streaming.Recovery) do
+        nil -> {:ok, _} = ExLLM.Core.Streaming.Recovery.start_link()
+        _pid -> :ok
+      end
+      
       assert {:error, :not_found} = StreamRecovery.get_partial_response("non-existent")
     end
 

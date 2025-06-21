@@ -147,17 +147,17 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Telemetry do
   defp handle_telemetry_event(event, _measurements, metadata, %{handler_type: :logger}) do
     case event do
       [:ex_llm, :circuit_breaker, :state_change] ->
-        Logger.info(
-          "Circuit breaker #{metadata.circuit_name} state changed: #{metadata.old_state} -> #{metadata.new_state}"
-        )
+        # Use spawn to log in a separate process that inherits the group leader
+        message = "Circuit breaker #{metadata.circuit_name} state changed: #{metadata.old_state} -> #{metadata.new_state}"
+        spawn(fn -> Logger.info(message) end)
 
       [:ex_llm, :circuit_breaker, :call_rejected] ->
-        Logger.info("Circuit breaker #{metadata.circuit_name} rejected call: #{metadata.reason}")
+        message = "Circuit breaker #{metadata.circuit_name} rejected call: #{metadata.reason}"
+        spawn(fn -> Logger.info(message) end)
 
       [:ex_llm, :circuit_breaker, :failure_recorded] ->
-        Logger.info(
-          "Circuit breaker #{metadata.circuit_name} recorded failure (#{metadata.failure_count}/#{metadata.threshold})"
-        )
+        message = "Circuit breaker #{metadata.circuit_name} recorded failure (#{metadata.failure_count}/#{metadata.threshold})"
+        spawn(fn -> Logger.info(message) end)
 
       _ ->
         :ok

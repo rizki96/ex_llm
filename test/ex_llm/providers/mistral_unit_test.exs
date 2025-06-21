@@ -20,10 +20,17 @@ defmodule ExLLM.Providers.MistralUnitTest do
     end
 
     test "returns false with no API key" do
-      config = %{mistral: %{}}
-      provider = ConfigProviderHelper.setup_static_provider(config)
+      # Temporarily disable environment API keys to test true "no key" scenario
+      restore_env = ConfigProviderHelper.disable_env_api_keys()
+      
+      try do
+        config = %{mistral: %{}}
+        provider = ConfigProviderHelper.setup_static_provider(config)
 
-      refute Mistral.configured?(config_provider: provider)
+        refute Mistral.configured?(config_provider: provider)
+      after
+        restore_env.()
+      end
     end
   end
 
@@ -188,21 +195,21 @@ defmodule ExLLM.Providers.MistralUnitTest do
     test "parses streaming chunks correctly" do
       chunk_data = ~s({"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]})
 
-      chunk = Mistral.parse_stream_chunk(chunk_data)
+      {:ok, chunk} = Mistral.parse_stream_chunk(chunk_data)
       assert %Types.StreamChunk{content: "Hello", finish_reason: nil} = chunk
     end
 
     test "handles finish reason in streaming" do
       chunk_data = ~s({"choices":[{"delta":{},"finish_reason":"stop"}]})
 
-      chunk = Mistral.parse_stream_chunk(chunk_data)
+      {:ok, chunk} = Mistral.parse_stream_chunk(chunk_data)
       assert %Types.StreamChunk{content: nil, finish_reason: "stop"} = chunk
     end
 
     test "handles invalid streaming data" do
-      assert nil == Mistral.parse_stream_chunk("invalid json")
-      assert nil == Mistral.parse_stream_chunk("")
-      assert nil == Mistral.parse_stream_chunk("{}")
+      assert match?({:error, _}, Mistral.parse_stream_chunk("invalid json"))
+      assert match?({:error, _}, Mistral.parse_stream_chunk(""))
+      assert match?({:ok, nil}, Mistral.parse_stream_chunk("{}"))
     end
   end
 
@@ -270,7 +277,8 @@ defmodule ExLLM.Providers.MistralUnitTest do
           if length(models) > 0 do
             model = hd(models)
             assert %Types.Model{} = model
-            assert String.contains?(model.id, "mistral/")
+            # Mistral models don't have "mistral/" prefix, just check for valid Mistral model names
+            assert model.id != nil and model.id != ""
           end
 
         {:error, _} ->
@@ -288,29 +296,36 @@ defmodule ExLLM.Providers.MistralUnitTest do
     end
 
     test "functions are actually callable and return expected patterns" do
-      # Verify that the functions can be called and return appropriate error messages
-      # when missing required configuration
-      messages = [%{role: "user", content: "test"}]
+      # Temporarily disable environment API keys to test true "no config" scenario
+      restore_env = ConfigProviderHelper.disable_env_api_keys()
+      
+      try do
+        # Verify that the functions can be called and return appropriate error messages
+        # when missing required configuration
+        messages = [%{role: "user", content: "test"}]
 
-      # chat/2 should return {:ok, response} or {:error, reason}
-      result = Mistral.chat(messages)
-      assert match?({:error, _}, result)
+        # chat/2 should return {:ok, response} or {:error, reason}
+        result = Mistral.chat(messages)
+        assert match?({:error, _}, result)
 
-      # stream_chat/2 should return {:ok, stream} or {:error, reason}
-      result = Mistral.stream_chat(messages)
-      assert match?({:error, _}, result)
+        # stream_chat/2 should return {:ok, stream} or {:error, reason}
+        result = Mistral.stream_chat(messages)
+        assert match?({:error, _}, result)
 
-      # embeddings/2 should return {:ok, response} or {:error, reason}
-      result = Mistral.embeddings("test")
-      assert match?({:error, _}, result)
+        # embeddings/2 should return {:ok, response} or {:error, reason}
+        result = Mistral.embeddings("test")
+        assert match?({:error, _}, result)
 
-      # list_models/1 should return {:ok, models} or {:error, reason}
-      result = Mistral.list_models()
-      assert match?({:ok, _}, result) or match?({:error, _}, result)
+        # list_models/1 should return {:ok, models} or {:error, reason}
+        result = Mistral.list_models()
+        assert match?({:ok, _}, result) or match?({:error, _}, result)
 
-      # configured?/1 should return boolean
-      result = Mistral.configured?()
-      assert is_boolean(result)
+        # configured?/1 should return boolean
+        result = Mistral.configured?()
+        assert is_boolean(result)
+      after
+        restore_env.()
+      end
 
       # default_model/0 should return string
       result = Mistral.default_model()

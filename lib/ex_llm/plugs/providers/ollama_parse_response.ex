@@ -7,6 +7,7 @@ defmodule ExLLM.Plugs.Providers.OllamaParseResponse do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.LLMResponse
   alias ExLLM.Infrastructure.Logger
 
   @impl true
@@ -56,14 +57,16 @@ defmodule ExLLM.Plugs.Providers.OllamaParseResponse do
     # Ollama chat response format
     content = extract_content(body)
 
-    result = %{
+    result = %LLMResponse{
       content: content,
-      role: "assistant",
       model: body["model"],
-      done: body["done"],
       usage: parse_usage(body),
-      provider: :ollama,
-      raw_response: body
+      metadata: %{
+        role: "assistant",
+        provider: :ollama,
+        done: body["done"],
+        raw_response: body
+      }
     }
 
     # Add optional fields if present
@@ -103,8 +106,11 @@ defmodule ExLLM.Plugs.Providers.OllamaParseResponse do
     }
   end
 
-  defp maybe_add_field(map, _key, nil), do: map
-  defp maybe_add_field(map, key, value), do: Map.put(map, key, value)
+  defp maybe_add_field(struct, _key, nil), do: struct
+  defp maybe_add_field(struct, key, value) do
+    metadata = Map.put(struct.metadata, key, value)
+    %{struct | metadata: metadata}
+  end
 
   defp parse_error_response(body, status) when is_map(body) do
     %{

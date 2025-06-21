@@ -247,6 +247,14 @@ defmodule ExLLM.Providers.Mistral do
              timeout: 30_000,
              provider: :mistral
            ) do
+        {:ok, %{body: %{"data" => models}}} ->
+          parsed_models =
+            models
+            |> Enum.map(&parse_model_info/1)
+            |> Enum.sort_by(& &1.id)
+
+          {:ok, parsed_models}
+
         {:ok, %{"data" => models}} ->
           parsed_models =
             models

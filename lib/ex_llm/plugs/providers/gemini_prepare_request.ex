@@ -100,6 +100,14 @@ defmodule ExLLM.Plugs.Providers.GeminiPrepareRequest do
           }
         }
 
+      %{type: "image", image: %{data: data, media_type: media_type}} ->
+        %{
+          "inlineData" => %{
+            "mimeType" => media_type,
+            "data" => data
+          }
+        }
+
       %{type: "image_url", image_url: %{url: url}} ->
         # Convert data URLs to Gemini format
         case parse_data_url(url) do

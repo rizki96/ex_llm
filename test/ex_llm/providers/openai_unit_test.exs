@@ -43,8 +43,11 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
         %{role: "assistant", content: "Hi there!"}
       ]
 
-      # Test that messages are properly formatted
-      assert {:error, _} = OpenAI.chat(messages, timeout: 1)
+      # Test with invalid API key to ensure error response
+      config = %{openai: %{api_key: "invalid-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
+      assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
 
     test "handles system messages" do
@@ -53,7 +56,11 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
         %{role: "user", content: "Hello"}
       ]
 
-      assert {:error, _} = OpenAI.chat(messages, timeout: 1)
+      # Test with invalid API key to ensure error response
+      config = %{openai: %{api_key: "invalid-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
+      assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
 
     test "handles multimodal content with images" do
@@ -72,8 +79,11 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
         }
       ]
 
-      # Should handle multimodal content
-      assert {:error, _} = OpenAI.chat(messages, timeout: 1)
+      # Test with invalid API key to ensure error response
+      config = %{openai: %{api_key: "invalid-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
+      assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
 
     test "handles audio content" do
@@ -93,7 +103,11 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
         }
       ]
 
-      assert {:error, _} = OpenAI.chat(messages, timeout: 1)
+      # Test with invalid API key to ensure error response
+      config = %{openai: %{api_key: "invalid-key"}}
+      provider = ConfigProviderHelper.setup_static_provider(config)
+      
+      assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
   end
 
@@ -409,15 +423,22 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
 
   describe "error handling" do
     test "validates API key format" do
-      invalid_configs = [
-        %{openai: %{api_key: nil}},
-        %{openai: %{api_key: ""}},
-        %{openai: %{}}
-      ]
+      # Temporarily disable environment API keys to test true "no key" scenario
+      restore_env = ConfigProviderHelper.disable_env_api_keys()
+      
+      try do
+        invalid_configs = [
+          %{openai: %{api_key: nil}},
+          %{openai: %{api_key: ""}},
+          %{openai: %{}}
+        ]
 
-      for config <- invalid_configs do
-        provider = ConfigProviderHelper.setup_static_provider(config)
-        refute OpenAI.configured?(config_provider: provider)
+        for config <- invalid_configs do
+          provider = ConfigProviderHelper.setup_static_provider(config)
+          refute OpenAI.configured?(config_provider: provider)
+        end
+      after
+        restore_env.()
       end
     end
   end
@@ -525,12 +546,19 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
       File.write!(tmp_path, "test")
       on_exit(fn -> File.rm(tmp_path) end)
 
-      # No API key
-      config = %{openai: %{}}
-      provider = ConfigProviderHelper.setup_static_provider(config)
+      # Temporarily disable environment API keys to test true "no key" scenario
+      restore_env = ConfigProviderHelper.disable_env_api_keys()
+      
+      try do
+        # No API key
+        config = %{openai: %{}}
+        provider = ConfigProviderHelper.setup_static_provider(config)
 
-      result = OpenAI.upload_file(tmp_path, "fine-tune", config_provider: provider)
-      assert {:error, "API key not configured"} = result
+        result = OpenAI.upload_file(tmp_path, "fine-tune", config_provider: provider)
+        assert {:error, "API key not configured"} = result
+      after
+        restore_env.()
+      end
     end
 
     test "upload_file handles non-existent file" do

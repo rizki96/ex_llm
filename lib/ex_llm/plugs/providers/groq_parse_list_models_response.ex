@@ -6,6 +6,7 @@ defmodule ExLLM.Plugs.Providers.GroqParseListModelsResponse do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.Model
 
   # Model context windows
   @context_windows %{
@@ -130,19 +131,23 @@ defmodule ExLLM.Plugs.Providers.GroqParseListModelsResponse do
   defp transform_model(model) do
     model_id = model["id"]
 
-    %{
+    %Model{
       id: model_id,
       name: model_id,
-      created: model["created"],
-      owned_by: model["owned_by"] || "groq",
       context_window: get_context_window(model_id),
       max_output_tokens: get_max_output_tokens(model_id),
-      capabilities: get_capabilities(model_id),
-      pricing: get_pricing(model_id),
-      metadata: %{
-        active: model["active"] != false,
-        type: "chat.completion"
-      }
+      capabilities: %{
+        features: get_capabilities(model_id)
+      },
+      pricing: normalize_pricing(get_pricing(model_id))
+    }
+  end
+
+  defp normalize_pricing(%{input: input, output: output}) do
+    %{
+      input_cost_per_token: input / 1_000_000,
+      output_cost_per_token: output / 1_000_000,
+      currency: "USD"
     }
   end
 

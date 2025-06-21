@@ -10,6 +10,8 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.StreamChunk
+  alias ExLLM.Infrastructure.Logger
 
   # 60 seconds
   @default_timeout 60_000
@@ -28,11 +30,15 @@ defmodule ExLLM.Plugs.StreamCoordinator do
       # Create a unique reference for this stream
       stream_ref = make_ref()
 
-      # Start stream coordinator process
-      {:ok, coordinator} = start_coordinator(request, callback, opts)
+      # Update request with stream_ref first
+      request_with_ref = %{request | stream_ref: stream_ref}
 
-      %{request | stream_pid: coordinator, stream_ref: stream_ref}
+      # Start stream coordinator process with the updated request
+      {:ok, coordinator} = start_coordinator(request_with_ref, callback, opts)
+
+      %{request_with_ref | stream_pid: coordinator}
       |> Request.assign(:streaming_enabled, true)
+      |> Request.assign(:stream_coordinator, coordinator)
     else
       Request.halt_with_error(request, %{
         plug: __MODULE__,
@@ -54,8 +60,11 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   end
 
   defp coordinate_stream(request, callback, opts) do
+    Logger.debug("StreamCoordinator started for request: #{inspect(request.stream_ref)}")
+    
     # Get parser config from request
     parser_config = request.private[:stream_parser] || default_parser_config()
+    Logger.debug("Using parser config: #{inspect(Map.keys(parser_config))}")
 
     # Initialize accumulator
     accumulator = parser_config.accumulator
@@ -67,16 +76,20 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   defp receive_chunks(request, callback, parser_config, accumulator, timeout) do
     receive do
       {:stream_chunk, ref, data} when ref == request.stream_ref ->
+        Logger.debug("StreamCoordinator received chunk: #{inspect(data)}")
         case parser_config.parse_chunk.(data) do
           {:continue, chunks} ->
+            Logger.debug("Parsed chunks: #{inspect(chunks)}")
             # Process each chunk
             new_acc =
               Enum.reduce(chunks, accumulator, fn chunk, acc ->
                 # Merge chunk data into accumulator
                 merged = merge_chunk(acc, chunk)
 
-                # Send to callback
-                callback.(chunk)
+                # Convert to StreamChunk and send to callback
+                stream_chunk = to_stream_chunk(chunk, merged)
+                Logger.debug("Sending StreamChunk to callback: #{inspect(stream_chunk)}")
+                callback.(stream_chunk)
 
                 merged
               end)
@@ -84,9 +97,12 @@ defmodule ExLLM.Plugs.StreamCoordinator do
             receive_chunks(request, callback, parser_config, new_acc, timeout)
 
           {:done, final_chunk} ->
+            Logger.debug("Stream done, final chunk: #{inspect(final_chunk)}")
             # Stream complete
             final = Map.merge(accumulator, final_chunk)
-            callback.(Map.put(final, :done, true))
+            # Convert to StreamChunk with finish_reason
+            stream_chunk = to_stream_chunk(final, final)
+            callback.(stream_chunk)
 
             # Emit telemetry
             :telemetry.execute(
@@ -142,10 +158,22 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   end
 
   defp default_parse_chunk(data) do
-    # Basic text chunk
+    # For SSE events, we should not be using the default parser
+    # This is a fallback that just passes through the data
+    Logger.warning("Using default parser for streaming data - should use provider-specific parser")
     {:continue, [%{content: to_string(data)}]}
   end
 
   defp format_error(error) when is_binary(error), do: error
   defp format_error(error), do: inspect(error)
+
+  defp to_stream_chunk(chunk, accumulator) do
+    %StreamChunk{
+      content: chunk[:content],
+      finish_reason: chunk[:stop_reason] || chunk[:finish_reason],
+      model: chunk[:model] || accumulator[:model],
+      id: chunk[:id],
+      metadata: Map.drop(chunk, [:content, :stop_reason, :finish_reason, :model, :id])
+    }
+  end
 end

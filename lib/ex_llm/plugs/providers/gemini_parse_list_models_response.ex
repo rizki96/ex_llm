@@ -6,6 +6,7 @@ defmodule ExLLM.Plugs.Providers.GeminiParseListModelsResponse do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.Model
 
   @impl true
   def call(%ExLLM.Pipeline.Request{response: %Tesla.Env{} = response} = request, _opts) do
@@ -87,17 +88,22 @@ defmodule ExLLM.Plugs.Providers.GeminiParseListModelsResponse do
 
   defp transform_model(model) do
     model_name = extract_model_name(model["name"])
+    pricing = get_pricing(model_name)
 
-    %{
+    %Model{
       id: model_name,
       name: model["displayName"] || model_name,
       description: model["description"],
-      version: model["version"],
       context_window: get_context_window(model),
       max_output_tokens: get_max_output_tokens(model),
-      capabilities: get_capabilities(model),
-      pricing: get_pricing(model_name),
-      supported_generation_methods: model["supportedGenerationMethods"] || []
+      capabilities: %{
+        features: get_capabilities(model)
+      },
+      pricing: %{
+        input_cost_per_token: (pricing[:input] || 0) / 1_000_000,
+        output_cost_per_token: (pricing[:output] || 0) / 1_000_000,
+        currency: "USD"
+      }
     }
   end
 

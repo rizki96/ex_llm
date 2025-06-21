@@ -86,3 +86,4 @@ Thumbs.db
 .venv/
 
 EOF < /dev/null
+.aider*

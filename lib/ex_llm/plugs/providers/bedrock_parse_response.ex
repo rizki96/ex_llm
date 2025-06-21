@@ -6,6 +6,7 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.LLMResponse
 
   @impl true
   def call(%Request{response: nil} = request, _opts) do
@@ -75,22 +76,30 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
     }
 
     {:ok,
-     %{
+     %LLMResponse{
        content: text,
-       role: "assistant",
        finish_reason: data["stop_reason"] || "stop",
-       usage: usage
+       usage: usage,
+       metadata: %{
+         role: "assistant",
+         provider: :bedrock,
+         raw_response: data
+       }
      }}
   end
 
   defp parse_claude_response(%{"completion" => text} = data) do
     # Older Claude format
     {:ok,
-     %{
+     %LLMResponse{
        content: text,
-       role: "assistant",
        finish_reason: data["stop_reason"] || "stop",
-       usage: %{}
+       usage: %{},
+       metadata: %{
+         role: "assistant",
+         provider: :bedrock,
+         raw_response: data
+       }
      }}
   end
 
@@ -98,9 +107,8 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
 
   defp parse_titan_response(%{"results" => [%{"outputText" => text} | _]} = data) do
     {:ok,
-     %{
+     %LLMResponse{
        content: text,
-       role: "assistant",
        finish_reason: data["completionReason"] || "FINISH",
        usage: %{
          prompt_tokens: data["inputTextTokenCount"] || 0,
@@ -108,6 +116,11 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
          total_tokens:
            (data["inputTextTokenCount"] || 0) +
              (data["results"] |> List.first() |> Map.get("tokenCount", 0))
+       },
+       metadata: %{
+         role: "assistant",
+         provider: :bedrock,
+         raw_response: data
        }
      }}
   end
@@ -116,14 +129,18 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
 
   defp parse_llama_response(%{"generation" => text} = data) do
     {:ok,
-     %{
+     %LLMResponse{
        content: text,
-       role: "assistant",
        finish_reason: data["stop_reason"] || "stop",
        usage: %{
          prompt_tokens: data["prompt_token_count"] || 0,
          completion_tokens: data["generation_token_count"] || 0,
          total_tokens: (data["prompt_token_count"] || 0) + (data["generation_token_count"] || 0)
+       },
+       metadata: %{
+         role: "assistant",
+         provider: :bedrock,
+         raw_response: data
        }
      }}
   end
@@ -132,23 +149,31 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
 
   defp parse_cohere_response(%{"generations" => [%{"text" => text} | _]} = data) do
     {:ok,
-     %{
+     %LLMResponse{
        content: text,
-       role: "assistant",
        finish_reason: data["finish_reason"] || "COMPLETE",
-       usage: %{}
+       usage: %{},
+       metadata: %{
+         role: "assistant",
+         provider: :bedrock,
+         raw_response: data
+       }
      }}
   end
 
   defp parse_cohere_response(_), do: {:error, :invalid_cohere_response}
 
-  defp parse_mistral_response(%{"outputs" => [%{"text" => text} | _]}) do
+  defp parse_mistral_response(%{"outputs" => [%{"text" => text} | _]} = data) do
     {:ok,
-     %{
+     %LLMResponse{
        content: text,
-       role: "assistant",
        finish_reason: "stop",
-       usage: %{}
+       usage: %{},
+       metadata: %{
+         role: "assistant",
+         provider: :bedrock,
+         raw_response: data
+       }
      }}
   end
 
@@ -159,14 +184,18 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
     usage = data["usage"] || %{}
 
     {:ok,
-     %{
+     %LLMResponse{
        content: content,
-       role: "assistant",
        finish_reason: data["choices"] |> List.first() |> Map.get("finish_reason", "stop"),
        usage: %{
          prompt_tokens: usage["prompt_tokens"] || 0,
          completion_tokens: usage["completion_tokens"] || 0,
          total_tokens: usage["total_tokens"] || 0
+       },
+       metadata: %{
+         role: "assistant",
+         provider: :bedrock,
+         raw_response: data
        }
      }}
   end

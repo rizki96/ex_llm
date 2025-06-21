@@ -208,6 +208,8 @@ defmodule ExLLM.TestCacheConfigTest do
     test "returns OAuth2-specific TTL when OAuth2 tag present" do
       Application.put_env(:ex_llm, :test_cache, %{ttl: 5000})
       System.put_env("EX_LLM_TEST_CACHE_OAUTH2_TTL", "10")
+      # Ensure no provider-specific TTL is set for this test
+      System.delete_env("EX_LLM_TEST_CACHE_GEMINI_TTL")
 
       assert TestCacheConfig.get_ttl([:oauth2], :gemini) == 10_000
       assert TestCacheConfig.get_ttl([:integration], :gemini) == 5000

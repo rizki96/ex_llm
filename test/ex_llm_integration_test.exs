@@ -16,10 +16,16 @@ defmodule ExLLM.IntegrationTest do
       assert response.content =~ "Mock response"
       assert response.role == "assistant"
       assert response.provider == :mock
-      assert response.usage.total_tokens == 25
+      assert response.usage.total_tokens == 30
     end
 
     test "custom pipeline with mock provider" do
+      # Reset mock provider to ensure clean state
+      ExLLM.Providers.Mock.reset()
+      
+      # Also clear Application environment to ensure clean state
+      Application.delete_env(:ex_llm, :mock_responses)
+      
       messages = [%{role: "user", content: "Test message"}]
 
       # Build a custom pipeline

@@ -6,6 +6,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseListModelsResponse do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Types.Model
 
   @impl true
   def call(%ExLLM.Pipeline.Request{response: %Tesla.Env{} = response} = request, _opts) do
@@ -86,15 +87,23 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseListModelsResponse do
   end
 
   defp transform_model(model) do
-    %{
+    %Model{
       id: model["id"],
       name: model["id"],
-      created: model["created"],
-      owned_by: model["owned_by"],
       context_window: get_context_window(model["id"]),
       max_output_tokens: get_max_output_tokens(model["id"]),
-      capabilities: get_capabilities(model["id"]),
-      pricing: get_pricing(model["id"])
+      capabilities: %{
+        features: get_capabilities(model["id"])
+      },
+      pricing: normalize_pricing(get_pricing(model["id"]))
+    }
+  end
+
+  defp normalize_pricing(%{input: input, output: output}) do
+    %{
+      input_cost_per_token: input / 1_000_000,
+      output_cost_per_token: output / 1_000_000,
+      currency: "USD"
     }
   end
 
