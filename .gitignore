@@ -82,7 +82,6 @@ Thumbs.db
 # Other
 .claude/
 .elixir_ls/
-.github/
 .goose/
 .venv/
 

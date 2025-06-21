@@ -1,0 +1,276 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+
+env:
+  MIX_ENV: test
+
+jobs:
+  validate:
+    name: Release Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.18.4'
+        otp-version: '27.0'
+
+    - name: Cache deps
+      uses: actions/cache@v3
+      with:
+        path: |
+          deps
+          _build
+        key: ${{ runner.os }}-mix-release-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-mix-release-
+
+    - name: Install dependencies
+      run: mix deps.get
+
+    - name: ✅ Check formatting
+      run: mix format --check-formatted
+
+    - name: ✅ Run Credo (strict)
+      run: mix credo --strict
+
+    - name: ✅ Compile without warnings
+      run: mix compile --warnings-as-errors
+
+    - name: ✅ Run all tests
+      run: |
+        # Enable test caching for faster integration tests
+        export EX_LLM_TEST_CACHE_ENABLED=true
+        mix test --include integration --exclude live_api
+      env:
+        # Mock API keys for integration tests with caching
+        OPENAI_API_KEY: "test-key"
+        ANTHROPIC_API_KEY: "test-key"
+        GEMINI_API_KEY: "test-key"
+
+    - name: ✅ Security audit
+      run: mix deps.audit
+
+    - name: ✅ Generate documentation
+      run: mix docs
+
+    - name: ✅ Check unused dependencies
+      run: mix deps.unlock --check-unused
+
+    - name: Upload docs artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: release-docs
+        path: doc/
+
+  dialyzer:
+    name: Dialyzer Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.18.4'
+        otp-version: '27.0'
+
+    - name: Cache deps
+      uses: actions/cache@v3
+      with:
+        path: deps
+        key: ${{ runner.os }}-mix-dialyzer-${{ hashFiles('**/mix.lock') }}
+        restore-keys: ${{ runner.os }}-mix-dialyzer-
+
+    - name: Cache PLT
+      uses: actions/cache@v3
+      id: plt_cache
+      with:
+        path: priv/plts
+        key: ${{ runner.os }}-plt-${{ hashFiles('**/mix.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-plt-
+
+    - name: Install dependencies
+      run: mix deps.get
+
+    - name: Create PLTs
+      if: steps.plt_cache.outputs.cache-hit != 'true'
+      run: mix dialyzer --plt
+
+    - name: ✅ Run Dialyzer
+      run: mix dialyzer
+
+  version-check:
+    name: Version Consistency Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract version from tag
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="${GITHUB_REF#refs/tags/}"
+        fi
+        echo "version=${VERSION#v}" >> $GITHUB_OUTPUT
+        echo "tag=${VERSION}" >> $GITHUB_OUTPUT
+
+    - name: Check version in mix.exs
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if ! grep -q "@version \"$VERSION\"" mix.exs; then
+          echo "❌ Version $VERSION not found in mix.exs"
+          echo "Current version in mix.exs:"
+          grep "@version" mix.exs
+          exit 1
+        fi
+        echo "✅ Version $VERSION matches mix.exs"
+
+    - name: Check CHANGELOG.md
+      run: |
+        VERSION="${{ steps.version.outputs.version }}"
+        if ! grep -q "## \[$VERSION\]" CHANGELOG.md; then
+          echo "❌ Version $VERSION not found in CHANGELOG.md"
+          echo "Available versions in CHANGELOG.md:"
+          grep "^## \[" CHANGELOG.md | head -5
+          exit 1
+        fi
+        echo "✅ Version $VERSION found in CHANGELOG.md"
+
+  build-package:
+    name: Build Hex Package
+    runs-on: ubuntu-latest
+    needs: [validate, dialyzer, version-check]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.18.4'
+        otp-version: '27.0'
+
+    - name: Install dependencies
+      run: mix deps.get
+
+    - name: Build package
+      run: mix hex.build
+
+    - name: Upload package artifact
+      uses: actions/upload-artifact@v3
+      with:
+        name: hex-package
+        path: "*.tar"
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, dialyzer, version-check, build-package]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract version info
+      id: version
+      run: |
+        VERSION="${GITHUB_REF#refs/tags/}"
+        echo "version=${VERSION}" >> $GITHUB_OUTPUT
+        echo "version_number=${VERSION#v}" >> $GITHUB_OUTPUT
+
+    - name: Extract changelog
+      id: changelog
+      run: |
+        VERSION="${{ steps.version.outputs.version_number }}"
+        # Extract changelog section for this version
+        awk "/^## \[$VERSION\]/{flag=1; next} /^## \[/{flag=0} flag" CHANGELOG.md > changelog_section.md
+        echo "changelog_file=changelog_section.md" >> $GITHUB_OUTPUT
+
+    - name: Download package artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: hex-package
+
+    - name: Download docs artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: release-docs
+        path: docs/
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: ${{ steps.version.outputs.version }}
+        body_path: changelog_section.md
+        files: |
+          *.tar
+        draft: false
+        prerelease: ${{ contains(steps.version.outputs.version, 'rc') || contains(steps.version.outputs.version, 'beta') || contains(steps.version.outputs.version, 'alpha') }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-hex:
+    name: Publish to Hex
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && !contains(github.ref, 'rc') && !contains(github.ref, 'beta') && !contains(github.ref, 'alpha')
+    environment: production
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Elixir
+      uses: erlef/setup-beam@v1
+      with:
+        elixir-version: '1.18.4'
+        otp-version: '27.0'
+
+    - name: Install dependencies
+      run: mix deps.get
+
+    - name: Publish to Hex
+      run: mix hex.publish --yes
+      env:
+        HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+
+  notify:
+    name: Post-Release Notifications
+    runs-on: ubuntu-latest
+    needs: [create-release]
+    if: always() && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - name: Release Status
+      run: |
+        if [ "${{ needs.create-release.result }}" = "success" ]; then
+          echo "✅ Release ${{ github.ref }} created successfully!"
+          echo "📖 Documentation: https://hexdocs.pm/ex_llm"
+          echo "📦 Package: https://hex.pm/packages/ex_llm"
+        else
+          echo "❌ Release ${{ github.ref }} failed!"
+        fi
