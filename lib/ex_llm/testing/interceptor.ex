@@ -7,7 +7,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   response reassembly for the test caching system.
   """
 
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.LiveApiCacheStorage
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
   alias ExLLM.Testing.TestCacheStrategy
@@ -51,7 +51,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
 
       cache_key ->
         metadata = build_response_metadata(request_metadata, response_data, response_info)
-        TestCache.store(cache_key, response_data, metadata)
+        LiveApiCacheStorage.store(cache_key, response_data, metadata)
     end
   end
 

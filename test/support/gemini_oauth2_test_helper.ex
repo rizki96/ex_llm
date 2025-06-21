@@ -279,10 +279,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
               :ok ->
                 :ok
 
-              # Already deleted
-              {:error, 404} ->
-                :ok
-
               error ->
                 IO.warn("Failed to delete corpus #{display_name}: #{inspect(error)}")
                 error
@@ -470,10 +466,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
               :ok ->
                 :ok
 
-              # Already deleted
-              {:error, 404} ->
-                :ok
-
               error ->
                 IO.warn("Failed to delete corpus #{display_name}: #{inspect(error)}")
                 error
@@ -510,9 +502,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
 
   # Raw HTTP request functions to bypass caching
 
-  @doc """
-  List all corpora using raw HTTP requests to bypass caching.
-  """
   @spec list_corpora_raw(String.t()) :: {:ok, [map()]} | {:error, String.t()}
   defp list_corpora_raw(oauth_token) do
     url = "https://generativelanguage.googleapis.com/v1beta/corpora"
@@ -541,9 +530,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
     end
   end
 
-  @doc """
-  Delete a corpus using raw HTTP requests to bypass caching.
-  """
   @spec delete_corpus_raw(String.t(), String.t()) :: :ok | {:error, integer() | String.t()}
   defp delete_corpus_raw(corpus_name, oauth_token) do
     url = "https://generativelanguage.googleapis.com/v1beta/#{corpus_name}"
@@ -597,9 +583,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
       String.starts_with?(name, "Test Document")
   end
 
-  @doc """
-  List documents in a corpus using raw HTTP requests to bypass caching.
-  """
   @spec list_documents_raw(String.t(), String.t()) :: {:ok, [map()]} | {:error, String.t()}
   defp list_documents_raw(corpus_name, oauth_token) do
     url = "https://generativelanguage.googleapis.com/v1beta/#{corpus_name}/documents"
@@ -628,9 +611,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
     end
   end
 
-  @doc """
-  Delete a document using raw HTTP requests to bypass caching.
-  """
   @spec delete_document_raw(String.t(), String.t()) :: :ok | {:error, integer() | String.t()}
   defp delete_document_raw(document_name, oauth_token) do
     url = "https://generativelanguage.googleapis.com/v1beta/#{document_name}"

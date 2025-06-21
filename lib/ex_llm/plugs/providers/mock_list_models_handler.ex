@@ -93,6 +93,7 @@ defmodule ExLLM.Plugs.Providers.MockListModelsHandler do
   end
 
   defp ensure_model_struct(%Model{} = model), do: model
+
   defp ensure_model_struct(model_map) when is_map(model_map) do
     %Model{
       id: model_map.id || model_map[:id],
@@ -106,12 +107,15 @@ defmodule ExLLM.Plugs.Providers.MockListModelsHandler do
   end
 
   defp normalize_capabilities(nil), do: nil
+
   defp normalize_capabilities(capabilities) when is_list(capabilities) do
     %{features: capabilities}
   end
+
   defp normalize_capabilities(capabilities) when is_map(capabilities), do: capabilities
 
   defp normalize_pricing(nil), do: nil
+
   defp normalize_pricing(%{input: input, output: output} = pricing) do
     %{
       input_cost_per_token: (input || 0) / 1_000_000,
@@ -119,5 +123,6 @@ defmodule ExLLM.Plugs.Providers.MockListModelsHandler do
       currency: pricing[:currency] || "USD"
     }
   end
+
   defp normalize_pricing(pricing) when is_map(pricing), do: pricing
 end

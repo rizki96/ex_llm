@@ -64,7 +64,9 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.TelemetryTest do
         fn event, measurements, metadata, _config ->
           send(test_pid, {:state_change_event, event, measurements, metadata})
           # Also send the expected log message to verify logging functionality
-          log_message = "Circuit breaker #{metadata.circuit_name} state changed: #{metadata.old_state} -> #{metadata.new_state}"
+          log_message =
+            "Circuit breaker #{metadata.circuit_name} state changed: #{metadata.old_state} -> #{metadata.new_state}"
+
           send(test_pid, {:log_message, log_message})
         end,
         nil
@@ -83,7 +85,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.TelemetryTest do
 
       # Verify event was fired
       assert_receive {:state_change_event, _, _, %{old_state: :closed, new_state: :open}}
-      
+
       # Verify the log message content (even though we can't capture it from the telemetry handler)
       assert_receive {:log_message, log_message}
       assert log_message =~ "Circuit breaker test_circuit state changed: closed -> open"
@@ -96,14 +98,16 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.TelemetryTest do
 
       # Attach test handler to capture rejection events
       test_pid = self()
-      
+
       :telemetry.attach(
         "test_call_rejected",
         [:ex_llm, :circuit_breaker, :call_rejected],
         fn event, measurements, metadata, _config ->
           send(test_pid, {:call_rejected_event, event, measurements, metadata})
           # Send expected log message
-          log_message = "Circuit breaker #{metadata.circuit_name} rejected call: #{metadata.reason}"
+          log_message =
+            "Circuit breaker #{metadata.circuit_name} rejected call: #{metadata.reason}"
+
           send(test_pid, {:log_message, log_message})
         end,
         nil
@@ -136,14 +140,16 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.TelemetryTest do
 
       # Attach test handler to capture failure events
       test_pid = self()
-      
+
       :telemetry.attach(
         "test_failure_recorded",
         [:ex_llm, :circuit_breaker, :failure_recorded],
         fn event, measurements, metadata, _config ->
           send(test_pid, {:failure_recorded_event, event, measurements, metadata})
           # Send expected log message
-          log_message = "Circuit breaker #{metadata.circuit_name} recorded failure (#{metadata.failure_count}/#{metadata.threshold})"
+          log_message =
+            "Circuit breaker #{metadata.circuit_name} recorded failure (#{metadata.failure_count}/#{metadata.threshold})"
+
           send(test_pid, {:log_message, log_message})
         end,
         nil

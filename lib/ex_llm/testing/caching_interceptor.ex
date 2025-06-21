@@ -34,7 +34,7 @@ defmodule ExLLM.Testing.CachingInterceptor do
   """
 
   alias ExLLM.Infrastructure.Logger
-  alias ExLLM.Testing.ResponseCache
+  alias ExLLM.Testing.MockResponseRecorder
 
   @doc """
   Wraps an adapter call to automatically cache the response.
@@ -163,7 +163,7 @@ defmodule ExLLM.Testing.CachingInterceptor do
   This modifies the adapter's behavior to automatically cache all responses.
   """
   def enable_auto_caching(provider) do
-    if ResponseCache.caching_enabled?() do
+    if MockResponseRecorder.caching_enabled?() do
       # This would require more sophisticated interception
       # For now, we'll just log that it's enabled
       Logger.info("Auto-caching enabled for #{provider}")
@@ -203,8 +203,8 @@ defmodule ExLLM.Testing.CachingInterceptor do
   # Private helper functions
 
   defp cache_response(provider, endpoint, request_data, response_data, response_time_ms) do
-    if ResponseCache.caching_enabled?() do
-      ResponseCache.store_response(
+    if MockResponseRecorder.caching_enabled?() do
+      MockResponseRecorder.store_response(
         to_string(provider),
         endpoint,
         request_data,

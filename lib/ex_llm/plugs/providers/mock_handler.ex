@@ -39,7 +39,7 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
                 app_response -> normalize_app_response(app_response, messages, config)
               end
           end
-        
+
         explicit_response ->
           explicit_response
       end

@@ -117,7 +117,7 @@ defmodule ExLLM.Testing.Case do
     end
   end
 
-  defp check_known_provider_api_key(env_vars, provider) do
+  defp check_known_provider_api_key(env_vars, _provider) do
     if Enum.any?(env_vars, &System.get_env/1) do
       :ok
     else
@@ -132,17 +132,7 @@ defmodule ExLLM.Testing.Case do
     result =
       case provider do
         :gemini ->
-          if ExLLM.Testing.GeminiOAuth2Helper.oauth_available?() do
-            case ExLLM.Testing.GeminiOAuth2Helper.get_valid_token() do
-              {:ok, _token} ->
-                :ok
-
-              _ ->
-                {:skip, "Test requires valid OAuth2 token - run: elixir scripts/setup_oauth2.exs"}
-            end
-          else
-            {:skip, "Test requires OAuth2 authentication - run: elixir scripts/setup_oauth2.exs"}
-          end
+          check_gemini_oauth()
 
         _ ->
           {:skip, "OAuth2 not implemented for provider: #{provider}"}
@@ -277,6 +267,24 @@ defmodule ExLLM.Testing.Case do
       {:skip, reason} ->
         IO.puts("\n  Skipped: #{reason}")
         flunk(reason)
+    end
+  end
+
+  defp check_gemini_oauth do
+    if Code.ensure_loaded?(ExLLM.Testing.GeminiOAuth2Helper) do
+      if ExLLM.Testing.GeminiOAuth2Helper.oauth_available?() do
+        case ExLLM.Testing.GeminiOAuth2Helper.get_valid_token() do
+          {:ok, _token} ->
+            :ok
+
+          _ ->
+            {:skip, "Test requires valid OAuth2 token - run: elixir scripts/setup_oauth2.exs"}
+        end
+      else
+        {:skip, "Test requires OAuth2 authentication - run: elixir scripts/setup_oauth2.exs"}
+      end
+    else
+      {:skip, "GeminiOAuth2Helper not available - OAuth2 tests disabled"}
     end
   end
 

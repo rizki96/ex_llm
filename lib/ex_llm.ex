@@ -48,10 +48,10 @@ defmodule ExLLM do
   """
 
   alias ExLLM.ChatBuilder
+  alias ExLLM.Infrastructure.Logger
   alias ExLLM.Pipeline
   alias ExLLM.Pipeline.Request
   alias ExLLM.Providers
-  alias ExLLM.Infrastructure.Logger
 
   @doc """
   Sends a chat request to the specified provider.

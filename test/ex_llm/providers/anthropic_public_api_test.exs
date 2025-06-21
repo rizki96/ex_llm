@@ -70,7 +70,7 @@ defmodule ExLLM.Providers.AnthropicPublicAPITest do
 
       # We need to capture the test PID since the callback runs in a different process
       test_pid = self()
-      
+
       # Collect chunks using the callback API
       collector = fn chunk ->
         send(test_pid, {:chunk, chunk})
@@ -80,14 +80,14 @@ defmodule ExLLM.Providers.AnthropicPublicAPITest do
         :ok ->
           # Give streaming time to start and send chunks
           Process.sleep(100)
-          
+
           chunks = collect_stream_chunks([], 2000)
           assert length(chunks) > 0, "No chunks received"
-          
+
           # Filter out non-StreamChunk structs
           stream_chunks = Enum.filter(chunks, &match?(%ExLLM.Types.StreamChunk{}, &1))
           assert length(stream_chunks) > 0, "No StreamChunk structs received"
-          
+
           last_chunk = List.last(stream_chunks)
           assert last_chunk != nil, "Last chunk is nil"
           assert last_chunk.finish_reason in ["end_turn", "stop_sequence", "max_tokens"]

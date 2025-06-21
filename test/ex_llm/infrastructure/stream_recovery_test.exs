@@ -53,7 +53,7 @@ defmodule ExLLM.Core.Streaming.RecoveryTest do
         nil -> {:ok, _} = ExLLM.Core.Streaming.Recovery.start_link()
         _pid -> :ok
       end
-      
+
       assert {:error, :not_found} = StreamRecovery.get_partial_response("non-existent")
     end
 

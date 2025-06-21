@@ -1,7 +1,7 @@
 defmodule ExLLM.Infrastructure.CacheMetadataTest do
   use ExUnit.Case, async: false
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
   alias ExLLM.Providers.Shared.HTTPClient
+  alias ExLLM.Testing.LiveApiCacheStorage
 
   setup do
     # Enable test cache
@@ -9,10 +9,10 @@ defmodule ExLLM.Infrastructure.CacheMetadataTest do
     Application.put_env(:ex_llm, :debug_test_cache, false)
 
     # Clear cache before test
-    TestCache.clear(:all)
+    LiveApiCacheStorage.clear(:all)
 
     on_exit(fn ->
-      TestCache.clear(:all)
+      LiveApiCacheStorage.clear(:all)
     end)
 
     :ok
@@ -54,7 +54,7 @@ defmodule ExLLM.Infrastructure.CacheMetadataTest do
         response_time_ms: 100
       }
 
-      TestCache.store(cache_key, response_data, metadata)
+      LiveApiCacheStorage.store(cache_key, response_data, metadata)
 
       # Mock the interceptor to return our cached response
       # We'll directly test the add_cache_metadata function

@@ -1,6 +1,6 @@
 defmodule ExLLM.TestCacheStrategyTest do
   use ExUnit.Case, async: false
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.LiveApiCacheStorage
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
   alias ExLLM.Testing.TestCacheIndex
@@ -106,7 +106,7 @@ defmodule ExLLM.TestCacheStrategyTest do
         endpoint: "/v1/chat/completions"
       }
 
-      {:ok, _} = TestCache.store(cache_key, cached_response, metadata)
+      {:ok, _} = LiveApiCacheStorage.store(cache_key, cached_response, metadata)
 
       # Execute strategy
       assert {:cached, response, cache_metadata} = TestCacheStrategy.execute(request)
@@ -167,7 +167,7 @@ defmodule ExLLM.TestCacheStrategyTest do
       # Store an old response
       cache_key = TestCacheStrategy.generate_cache_key(request)
       cached_response = %{status: 200, body: %{}, headers: []}
-      {:ok, _} = TestCache.store(cache_key, cached_response, %{})
+      {:ok, _} = LiveApiCacheStorage.store(cache_key, cached_response, %{})
 
       # Wait for TTL to expire
       Process.sleep(150)
@@ -331,7 +331,7 @@ defmodule ExLLM.TestCacheStrategyTest do
         headers: []
       }
 
-      {:ok, _} = TestCache.store(cache_key, cached_response, %{})
+      {:ok, _} = LiveApiCacheStorage.store(cache_key, cached_response, %{})
 
       request = %{url: "test", body: %{}, headers: []}
       fallback_opts = [strategy: :latest_success]
@@ -362,10 +362,10 @@ defmodule ExLLM.TestCacheStrategyTest do
       error_response = %{status: 500, body: %{"error" => true}, headers: []}
       success_response = %{status: 200, body: %{"success" => true}, headers: []}
 
-      {:ok, _} = TestCache.store(cache_key, error_response, %{status: :error})
+      {:ok, _} = LiveApiCacheStorage.store(cache_key, error_response, %{status: :error})
       # Ensure different timestamps
       Process.sleep(10)
-      {:ok, _} = TestCache.store(cache_key, success_response, %{status: :success})
+      {:ok, _} = LiveApiCacheStorage.store(cache_key, success_response, %{status: :success})
 
       # With latest_success strategy, should return the success response
       fallback_opts = [strategy: :latest_success]

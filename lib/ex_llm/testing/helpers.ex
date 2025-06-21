@@ -6,7 +6,7 @@ defmodule ExLLM.Testing.TestCacheHelpers do
   the caching system, including cache warming, clearing, and debugging.
   """
 
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.LiveApiCacheStorage
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
   alias ExLLM.Testing.TestCacheIndex
@@ -53,7 +53,7 @@ defmodule ExLLM.Testing.TestCacheHelpers do
       clear_test_cache("AnthropicIntegrationTest")
   """
   def clear_test_cache(scope \\ :all) do
-    TestCache.clear(scope)
+    LiveApiCacheStorage.clear(scope)
   end
 
   @doc """
@@ -74,7 +74,7 @@ defmodule ExLLM.Testing.TestCacheHelpers do
   Verify cache integrity and check for issues.
   """
   def verify_cache_integrity do
-    cache_keys = TestCache.list_cache_keys()
+    cache_keys = LiveApiCacheStorage.list_cache_keys()
 
     issues =
       Enum.flat_map(cache_keys, fn cache_key ->
@@ -187,7 +187,7 @@ defmodule ExLLM.Testing.TestCacheHelpers do
     config = TestCacheConfig.get_config()
 
     cleanup_report =
-      TestCache.list_cache_keys()
+      LiveApiCacheStorage.list_cache_keys()
       |> Enum.map(fn cache_key ->
         cache_dir = Path.join(config.cache_dir, cache_key)
         TestCacheTimestamp.cleanup_old_entries(cache_dir, 0, max_age)
@@ -217,7 +217,7 @@ defmodule ExLLM.Testing.TestCacheHelpers do
   def deduplicate_cache_content(cache_pattern \\ :all) do
     cache_keys =
       case cache_pattern do
-        :all -> TestCache.list_cache_keys()
+        :all -> LiveApiCacheStorage.list_cache_keys()
         pattern -> [pattern]
       end
 

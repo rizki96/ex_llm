@@ -1,4 +1,4 @@
-defmodule ExLLM.Infrastructure.Cache.Storage.TestCache do
+defmodule ExLLM.Testing.LiveApiCacheStorage do
   @moduledoc """
   Specialized storage backend for timestamp-based test response caching.
 

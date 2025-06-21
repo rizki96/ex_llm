@@ -22,10 +22,10 @@ defmodule ExLLM.IntegrationTest do
     test "custom pipeline with mock provider" do
       # Reset mock provider to ensure clean state
       ExLLM.Providers.Mock.reset()
-      
+
       # Also clear Application environment to ensure clean state
       Application.delete_env(:ex_llm, :mock_responses)
-      
+
       messages = [%{role: "user", content: "Test message"}]
 
       # Build a custom pipeline

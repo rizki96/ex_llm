@@ -4,7 +4,6 @@ Code.require_file("support/testing_case.ex", __DIR__)
 Code.require_file("support/test_helpers.ex", __DIR__)
 Code.require_file("support/gemini_oauth2_test_helper.ex", __DIR__)
 Code.require_file("support/config_provider_helper.ex", __DIR__)
-Code.require_file("support/test_cache_helpers.ex", __DIR__)
 Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
 
 # Load environment variables from .env file if available

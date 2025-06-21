@@ -446,7 +446,7 @@ defmodule ExLLM.Infrastructure.Cache do
     # Use Task.start to avoid blocking ETS operations
     Task.start(fn ->
       try do
-        ExLLM.Testing.ResponseCache.store_from_cache(
+        ExLLM.Testing.MockResponseRecorder.store_from_cache(
           cache_key,
           cached_response,
           provider,

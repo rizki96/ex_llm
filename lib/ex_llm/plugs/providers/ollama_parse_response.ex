@@ -7,8 +7,8 @@ defmodule ExLLM.Plugs.Providers.OllamaParseResponse do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Types.LLMResponse
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Types.LLMResponse
 
   @impl true
   def call(%Request{response: nil} = request, _opts) do
@@ -107,6 +107,7 @@ defmodule ExLLM.Plugs.Providers.OllamaParseResponse do
   end
 
   defp maybe_add_field(struct, _key, nil), do: struct
+
   defp maybe_add_field(struct, key, value) do
     metadata = Map.put(struct.metadata, key, value)
     %{struct | metadata: metadata}

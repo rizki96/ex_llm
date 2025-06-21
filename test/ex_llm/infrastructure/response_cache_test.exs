@@ -2,7 +2,7 @@ defmodule ExLLM.ResponseCacheTest do
   use ExUnit.Case, async: false
   alias ExLLM.Providers.Mock
   alias ExLLM.Testing.CachingInterceptor
-  alias ExLLM.Testing.ResponseCache
+  alias ExLLM.Testing.MockResponseRecorder
   alias ExLLM.Types
 
   @moduletag :cache_test
@@ -56,10 +56,11 @@ defmodule ExLLM.ResponseCacheTest do
       }
 
       # Store the response
-      assert :ok = ResponseCache.store_response("openai", "chat", request_data, response_data)
+      assert :ok =
+               MockResponseRecorder.store_response("openai", "chat", request_data, response_data)
 
       # Retrieve the response
-      cached_entry = ResponseCache.get_response("openai", "chat", request_data)
+      cached_entry = MockResponseRecorder.get_response("openai", "chat", request_data)
       assert cached_entry != nil
       assert cached_entry.provider == "openai"
       assert cached_entry.endpoint == "chat"
@@ -77,23 +78,26 @@ defmodule ExLLM.ResponseCacheTest do
         request = %{messages: [%{role: "user", content: "Test #{i}"}]}
         response = %{"choices" => [%{"message" => %{"content" => "Response #{i}"}}]}
 
-        ResponseCache.store_response("test_provider", "chat", request, response)
+        MockResponseRecorder.store_response("test_provider", "chat", request, response)
       end
 
       # Load all responses for the provider
-      responses = ResponseCache.load_provider_responses("test_provider")
+      responses = MockResponseRecorder.load_provider_responses("test_provider")
       assert length(responses) == 3
 
       # Check they're properly structured
-      assert Enum.all?(responses, &match?(%ResponseCache.CacheEntry{}, &1))
+      assert Enum.all?(responses, &match?(%MockResponseRecorder.CacheEntry{}, &1))
     end
 
     test "lists cached providers" do
       # Store responses for multiple providers
-      ResponseCache.store_response("openai", "chat", %{test: "data1"}, %{response: "1"})
-      ResponseCache.store_response("anthropic", "messages", %{test: "data2"}, %{response: "2"})
+      MockResponseRecorder.store_response("openai", "chat", %{test: "data1"}, %{response: "1"})
 
-      providers = ResponseCache.list_cached_providers()
+      MockResponseRecorder.store_response("anthropic", "messages", %{test: "data2"}, %{
+        response: "2"
+      })
+
+      providers = MockResponseRecorder.list_cached_providers()
       provider_names = Enum.map(providers, fn {name, _count} -> name end)
 
       assert "openai" in provider_names
@@ -124,10 +128,10 @@ defmodule ExLLM.ResponseCacheTest do
         }
       }
 
-      ResponseCache.store_response("openai", "chat", request_data, response_data)
+      MockResponseRecorder.store_response("openai", "chat", request_data, response_data)
 
       # Configure mock to use cached responses
-      assert :ok = ResponseCache.configure_mock_provider("openai")
+      assert :ok = MockResponseRecorder.configure_mock_provider("openai")
 
       # Test that mock now returns cached response with same request structure
       messages = [%{role: "user", content: "What is 2+2?"}]
@@ -157,7 +161,10 @@ defmodule ExLLM.ResponseCacheTest do
       # Verify it was cached
       # Empty since we can't capture the actual request in this simple test
       request_data = %{}
-      cached = ResponseCache.get_response("test_provider", "chat_completions", request_data)
+
+      cached =
+        MockResponseRecorder.get_response("test_provider", "chat_completions", request_data)
+
       assert cached != nil
     end
 
@@ -205,7 +212,7 @@ defmodule ExLLM.ResponseCacheTest do
 
       # Verify streaming response was cached (try exact match first, then fuzzy)
       cached =
-        ResponseCache.get_response("test_provider", "streaming", %{
+        MockResponseRecorder.get_response("test_provider", "streaming", %{
           messages: messages,
           model: "test-model"
         })
@@ -233,23 +240,23 @@ defmodule ExLLM.ResponseCacheTest do
 
       request = %{messages: [%{role: "user", content: "Hello"}]}
 
-      ResponseCache.store_response("openai", "chat", request, openai_response)
-      ResponseCache.store_response("anthropic", "chat", request, anthropic_response)
+      MockResponseRecorder.store_response("openai", "chat", request, openai_response)
+      MockResponseRecorder.store_response("anthropic", "chat", request, anthropic_response)
 
       # Test OpenAI cached responses
-      assert :ok = ResponseCache.configure_mock_provider("openai")
+      assert :ok = MockResponseRecorder.configure_mock_provider("openai")
       {:ok, response1} = Mock.chat([%{role: "user", content: "Hello"}])
       assert response1.content == "OpenAI response"
 
       # Switch to Anthropic cached responses
-      assert :ok = ResponseCache.configure_mock_provider("anthropic")
+      assert :ok = MockResponseRecorder.configure_mock_provider("anthropic")
       {:ok, response2} = Mock.chat([%{role: "user", content: "Hello"}])
       assert response2.content == "Anthropic response"
     end
 
     test "handles cache miss gracefully" do
       # Configure mock with empty cache
-      assert :no_cache = ResponseCache.configure_mock_provider("nonexistent_provider")
+      assert :no_cache = MockResponseRecorder.configure_mock_provider("nonexistent_provider")
 
       # Mock should still work with default responses
       {:ok, response} = Mock.chat([%{role: "user", content: "Hello"}])
@@ -261,7 +268,7 @@ defmodule ExLLM.ResponseCacheTest do
       System.put_env("EX_LLM_CACHE_RESPONSES", "false")
 
       # Try to store a response
-      result = ResponseCache.store_response("test", "endpoint", %{}, %{})
+      result = MockResponseRecorder.store_response("test", "endpoint", %{}, %{})
       assert result == :disabled
 
       # Re-enable for other tests
@@ -327,8 +334,8 @@ defmodule ExLLM.ResponseCacheTest do
       }
 
       request_data = %{messages: [%{role: "user", content: "test"}]}
-      ResponseCache.store_response("openai", "chat", request_data, openai_response)
-      ResponseCache.configure_mock_provider("openai")
+      MockResponseRecorder.store_response("openai", "chat", request_data, openai_response)
+      MockResponseRecorder.configure_mock_provider("openai")
 
       {:ok, response} = Mock.chat([%{role: "user", content: "test"}])
       assert response.content == "Hello from OpenAI"

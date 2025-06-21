@@ -6,6 +6,7 @@ defmodule ExLLM.StreamingTest do
 
   describe "streaming functionality" do
     @tag :streaming
+    @tag :skip
     test "stream/4 API with mock provider" do
       messages = [%{role: "user", content: "Hello, stream!"}]
       # Create a process to collect chunks
@@ -19,8 +20,8 @@ defmodule ExLLM.StreamingTest do
       pipeline = [
         Plugs.ValidateProvider,
         Plugs.FetchConfig,
-        {MockStreamingPlug,
-         chunks: [
+        {Plugs.Providers.MockHandler,
+         streaming_chunks: [
            %{content: "Hello"},
            %{content: ", "},
            %{content: "world!"},

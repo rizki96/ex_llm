@@ -22,7 +22,7 @@ defmodule ExLLM.Providers.PerplexityUnitTest do
     test "returns false with no API key" do
       # Temporarily disable environment API keys to test true "no key" scenario
       restore_env = ConfigProviderHelper.disable_env_api_keys()
-      
+
       try do
         config = %{perplexity: %{}}
         provider = ConfigProviderHelper.setup_static_provider(config)
@@ -237,7 +237,7 @@ defmodule ExLLM.Providers.PerplexityUnitTest do
     test "provides helpful error messages" do
       # Temporarily disable environment API keys to test true "no key" scenario
       restore_env = ConfigProviderHelper.disable_env_api_keys()
-      
+
       try do
         messages = [%{role: "user", content: "Test"}]
 

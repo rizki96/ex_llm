@@ -22,7 +22,7 @@ defmodule ExLLM.Providers.MistralUnitTest do
     test "returns false with no API key" do
       # Temporarily disable environment API keys to test true "no key" scenario
       restore_env = ConfigProviderHelper.disable_env_api_keys()
-      
+
       try do
         config = %{mistral: %{}}
         provider = ConfigProviderHelper.setup_static_provider(config)
@@ -277,6 +277,7 @@ defmodule ExLLM.Providers.MistralUnitTest do
           if length(models) > 0 do
             model = hd(models)
             assert %Types.Model{} = model
+
             # Mistral models don't have "mistral/" prefix, just check for valid Mistral model names
             assert model.id != nil and model.id != ""
           end
@@ -298,7 +299,7 @@ defmodule ExLLM.Providers.MistralUnitTest do
     test "functions are actually callable and return expected patterns" do
       # Temporarily disable environment API keys to test true "no config" scenario
       restore_env = ConfigProviderHelper.disable_env_api_keys()
-      
+
       try do
         # Verify that the functions can be called and return appropriate error messages
         # when missing required configuration

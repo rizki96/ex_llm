@@ -16,7 +16,7 @@ defmodule ExLLM.Testing.TestCacheStats do
               count_expired_uses: 1
             ]}
 
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.LiveApiCacheStorage
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheIndex
 
@@ -99,7 +99,7 @@ defmodule ExLLM.Testing.TestCacheStats do
   """
   @spec get_stats_by_provider() :: [provider_stats()]
   def get_stats_by_provider do
-    cache_keys = TestCache.list_cache_keys()
+    cache_keys = LiveApiCacheStorage.list_cache_keys()
 
     cache_keys
     |> Enum.group_by(&extract_provider_from_key/1)
@@ -123,7 +123,7 @@ defmodule ExLLM.Testing.TestCacheStats do
   """
   @spec get_stats_by_test_suite() :: [test_suite_stats()]
   def get_stats_by_test_suite do
-    cache_keys = TestCache.list_cache_keys()
+    cache_keys = LiveApiCacheStorage.list_cache_keys()
 
     cache_keys
     |> Enum.group_by(&extract_test_module_from_key/1)

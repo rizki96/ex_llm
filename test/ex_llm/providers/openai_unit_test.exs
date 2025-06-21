@@ -46,7 +46,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
       # Test with invalid API key to ensure error response
       config = %{openai: %{api_key: "invalid-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
 
@@ -59,7 +59,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
       # Test with invalid API key to ensure error response
       config = %{openai: %{api_key: "invalid-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
 
@@ -82,7 +82,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
       # Test with invalid API key to ensure error response
       config = %{openai: %{api_key: "invalid-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
 
@@ -106,7 +106,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
       # Test with invalid API key to ensure error response
       config = %{openai: %{api_key: "invalid-key"}}
       provider = ConfigProviderHelper.setup_static_provider(config)
-      
+
       assert {:error, _} = OpenAI.chat(messages, config_provider: provider, timeout: 100)
     end
   end
@@ -425,7 +425,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
     test "validates API key format" do
       # Temporarily disable environment API keys to test true "no key" scenario
       restore_env = ConfigProviderHelper.disable_env_api_keys()
-      
+
       try do
         invalid_configs = [
           %{openai: %{api_key: nil}},
@@ -548,7 +548,7 @@ defmodule ExLLM.Providers.OpenAIUnitTest do
 
       # Temporarily disable environment API keys to test true "no key" scenario
       restore_env = ConfigProviderHelper.disable_env_api_keys()
-      
+
       try do
         # No API key
         config = %{openai: %{}}

@@ -15,7 +15,7 @@ defmodule Mix.Tasks.ExLlm.Cache do
 
   use Mix.Task
 
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.LiveApiCacheStorage
   alias ExLLM.Testing.TestCacheHelpers
   alias ExLLM.Testing.TestCacheStats
 
@@ -105,7 +105,7 @@ defmodule Mix.Tasks.ExLlm.Cache do
 
     Mix.shell().info("Clearing cache for: #{scope}")
 
-    case TestCache.clear(scope) do
+    case LiveApiCacheStorage.clear(scope) do
       :ok ->
         Mix.shell().info("✅ Cache cleared successfully")
 
@@ -151,7 +151,7 @@ defmodule Mix.Tasks.ExLlm.Cache do
   end
 
   defp list_cache_keys(opts) do
-    keys = TestCache.list_cache_keys()
+    keys = LiveApiCacheStorage.list_cache_keys()
 
     keys =
       if opts[:provider] do
@@ -165,7 +165,7 @@ defmodule Mix.Tasks.ExLlm.Cache do
     Mix.shell().info(String.duplicate("-", 50))
 
     Enum.each(keys, fn key ->
-      stats = TestCache.get_stats(key)
+      stats = LiveApiCacheStorage.get_stats(key)
       size_str = format_bytes(stats.total_size)
       entries_str = "#{stats.total_entries} entries"
       Mix.shell().info("  #{key} (#{entries_str}, #{size_str})")

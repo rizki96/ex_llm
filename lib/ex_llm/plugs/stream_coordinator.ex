@@ -10,8 +10,8 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Types.StreamChunk
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Types.StreamChunk
 
   # 60 seconds
   @default_timeout 60_000
@@ -61,7 +61,7 @@ defmodule ExLLM.Plugs.StreamCoordinator do
 
   defp coordinate_stream(request, callback, opts) do
     Logger.debug("StreamCoordinator started for request: #{inspect(request.stream_ref)}")
-    
+
     # Get parser config from request
     parser_config = request.private[:stream_parser] || default_parser_config()
     Logger.debug("Using parser config: #{inspect(Map.keys(parser_config))}")
@@ -77,6 +77,7 @@ defmodule ExLLM.Plugs.StreamCoordinator do
     receive do
       {:stream_chunk, ref, data} when ref == request.stream_ref ->
         Logger.debug("StreamCoordinator received chunk: #{inspect(data)}")
+
         case parser_config.parse_chunk.(data) do
           {:continue, chunks} ->
             Logger.debug("Parsed chunks: #{inspect(chunks)}")
@@ -160,7 +161,10 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   defp default_parse_chunk(data) do
     # For SSE events, we should not be using the default parser
     # This is a fallback that just passes through the data
-    Logger.warning("Using default parser for streaming data - should use provider-specific parser")
+    Logger.warning(
+      "Using default parser for streaming data - should use provider-specific parser"
+    )
+
     {:continue, [%{content: to_string(data)}]}
   end
 

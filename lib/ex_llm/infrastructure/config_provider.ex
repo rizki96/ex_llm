@@ -74,6 +74,7 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
     This is an alias for the Env provider for backward compatibility.
     """
 
+    @deprecated "Use ExLLM.Infrastructure.ConfigProvider.Env instead"
     @behaviour ExLLM.Infrastructure.ConfigProvider
 
     @impl true

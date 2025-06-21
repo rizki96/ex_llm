@@ -56,9 +56,10 @@ defmodule ExLLM.Plugs.TrackCost do
       cost_data = calculate_cost(request, usage, opts)
 
       # Update result with cost (as float) and detailed cost breakdown
-      updated_result = result
-      |> put_cost(cost_data.total)
-      |> put_cost_details(cost_data)
+      updated_result =
+        result
+        |> put_cost(cost_data.total)
+        |> put_cost_details(cost_data)
 
       # Emit telemetry event
       :telemetry.execute(
@@ -165,8 +166,10 @@ defmodule ExLLM.Plugs.TrackCost do
   defp put_cost_details(%{__struct__: _} = struct, cost_data) do
     %{struct | metadata: Map.put(struct.metadata || %{}, :cost_details, cost_data)}
   end
+
   defp put_cost_details(result, cost_data) when is_map(result) do
     Map.put(result, :cost_details, cost_data)
   end
+
   defp put_cost_details(result, _cost_data), do: result
 end

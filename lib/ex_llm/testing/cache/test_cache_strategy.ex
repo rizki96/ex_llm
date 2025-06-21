@@ -10,7 +10,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
               sanitize_metadata_for_storage: 1
             ]}
 
-  alias ExLLM.Infrastructure.Cache.Storage.TestCache
+  alias ExLLM.Testing.LiveApiCacheStorage
   alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
   alias ExLLM.Testing.TestCacheIndex
@@ -146,7 +146,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
   """
   @spec get_cache_performance_stats() :: map()
   def get_cache_performance_stats do
-    cache_keys = TestCache.list_cache_keys()
+    cache_keys = LiveApiCacheStorage.list_cache_keys()
 
     total_stats =
       Enum.reduce(
@@ -159,7 +159,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
           error_count: 0
         },
         fn cache_key, acc ->
-          key_stats = TestCache.get_stats(cache_key)
+          key_stats = LiveApiCacheStorage.get_stats(cache_key)
 
           %{
             total_requests: acc.total_requests + get_stat(key_stats, :total_requests, 0),
@@ -190,7 +190,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
 
     if config.enabled do
       # Check if we have recent entries that might be expiring soon
-      case TestCache.get_stats(cache_pattern) do
+      case LiveApiCacheStorage.get_stats(cache_pattern) do
         %{newest_entry: newest} when not is_nil(newest) ->
           TestCacheTTL.should_warm_cache?(newest, config.ttl)
 
@@ -208,7 +208,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
   """
   @spec invalidate_cache(String.t() | :all) :: :ok | {:error, term()}
   def invalidate_cache(pattern) do
-    TestCache.clear(pattern)
+    LiveApiCacheStorage.clear(pattern)
   end
 
   # Private functions
@@ -413,7 +413,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
     sanitized_response = sanitize_response_for_storage(response)
     sanitized_metadata = sanitize_metadata_for_storage(metadata)
 
-    case TestCache.store(cache_key, sanitized_response, sanitized_metadata) do
+    case LiveApiCacheStorage.store(cache_key, sanitized_response, sanitized_metadata) do
       :ok -> :ok
       {:ok, _path} -> :ok
       error -> error

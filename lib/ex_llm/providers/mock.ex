@@ -149,7 +149,7 @@ defmodule ExLLM.Providers.Mock do
   def use_cached_responses(provider) when is_atom(provider) do
     ensure_started()
 
-    case ExLLM.Testing.ResponseCache.configure_mock_provider(provider) do
+    case ExLLM.Testing.MockResponseRecorder.configure_mock_provider(provider) do
       :ok ->
         Agent.update(__MODULE__, fn state ->
           %{state | response_mode: :cached, cached_provider: provider}
@@ -166,7 +166,7 @@ defmodule ExLLM.Providers.Mock do
   Lists available cached providers.
   """
   def list_cached_providers do
-    ExLLM.Testing.ResponseCache.list_cached_providers()
+    ExLLM.Testing.MockResponseRecorder.list_cached_providers()
   end
 
   @doc """

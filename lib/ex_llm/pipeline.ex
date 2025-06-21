@@ -47,8 +47,8 @@ defmodule ExLLM.Pipeline do
     * `[:ex_llm, :pipeline, :plug, :error]` - Plug raised an error
   """
 
-  alias ExLLM.Pipeline.Request
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Pipeline.Request
 
   @type plug :: module() | {module(), ExLLM.Plug.opts()}
   @type pipeline :: [plug()]

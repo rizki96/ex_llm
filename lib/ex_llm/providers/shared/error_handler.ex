@@ -32,17 +32,16 @@ defmodule ExLLM.Providers.Shared.ErrorHandler do
     end
   end
 
-  def handle_provider_error(:openai, status, %{"error" => error}) when is_map(error) do
+  # OpenAI-compatible providers that use the same error format
+  @openai_compatible_providers [:openai, :groq, :mistral, :perplexity, :xai, :together_ai]
+
+  def handle_provider_error(provider, status, %{"error" => error})
+      when provider in @openai_compatible_providers and is_map(error) do
     handle_openai_error(status, error)
   end
 
   def handle_provider_error(:anthropic, status, %{"error" => error}) when is_map(error) do
     handle_anthropic_error(status, error)
-  end
-
-  def handle_provider_error(:groq, status, %{"error" => error}) do
-    # Groq uses OpenAI-compatible errors
-    handle_openai_error(status, error)
   end
 
   def handle_provider_error(:gemini, status, %{"error" => error}) when is_map(error) do
@@ -51,21 +50,6 @@ defmodule ExLLM.Providers.Shared.ErrorHandler do
 
   def handle_provider_error(:openrouter, status, %{"error" => error}) do
     handle_openrouter_error(status, error)
-  end
-
-  def handle_provider_error(:mistral, status, %{"error" => error}) do
-    # Mistral uses OpenAI-compatible errors
-    handle_openai_error(status, error)
-  end
-
-  def handle_provider_error(:perplexity, status, %{"error" => error}) do
-    # Perplexity uses OpenAI-compatible errors
-    handle_openai_error(status, error)
-  end
-
-  def handle_provider_error(:xai, status, %{"error" => error}) do
-    # XAI uses OpenAI-compatible errors
-    handle_openai_error(status, error)
   end
 
   def handle_provider_error(:ollama, status, %{"error" => error}) when is_binary(error) do
@@ -78,11 +62,6 @@ defmodule ExLLM.Providers.Shared.ErrorHandler do
 
   def handle_provider_error(:cohere, status, body) when is_map(body) do
     handle_cohere_error(status, body)
-  end
-
-  def handle_provider_error(:together_ai, status, %{"error" => error}) do
-    # Together AI uses OpenAI-compatible errors
-    handle_openai_error(status, error)
   end
 
   def handle_provider_error(:replicate, status, body) when is_map(body) do

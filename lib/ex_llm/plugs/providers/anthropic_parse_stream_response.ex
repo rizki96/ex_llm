@@ -32,13 +32,14 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseStreamResponse do
   """
   def parse_anthropic_chunk(data) when is_binary(data) do
     # Parse all SSE events from the data
-    events = data
-    |> String.split("\n\n")
-    |> Enum.map(&String.trim/1)
-    |> Enum.reject(&(&1 == ""))
-    |> Enum.flat_map(&parse_single_sse_event/1)
-    |> Enum.reject(&is_nil/1)
-    
+    events =
+      data
+      |> String.split("\n\n")
+      |> Enum.map(&String.trim/1)
+      |> Enum.reject(&(&1 == ""))
+      |> Enum.flat_map(&parse_single_sse_event/1)
+      |> Enum.reject(&is_nil/1)
+
     # Check if we're done
     if Enum.any?(events, &match?(%{done: true}, &1)) do
       # Find the final chunk with stop_reason
@@ -48,39 +49,41 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseStreamResponse do
       {:continue, events}
     end
   end
-  
+
   defp parse_single_sse_event(event) do
     lines = String.split(event, "\n")
-    
+
     # Extract event type and data
-    event_type = Enum.find_value(lines, fn
-      "event: " <> type -> type
-      _ -> nil
-    end)
-    
-    data_json = Enum.find_value(lines, fn
-      "data: " <> json -> json
-      _ -> nil
-    end)
-    
+    event_type =
+      Enum.find_value(lines, fn
+        "event: " <> type -> type
+        _ -> nil
+      end)
+
+    data_json =
+      Enum.find_value(lines, fn
+        "data: " <> json -> json
+        _ -> nil
+      end)
+
     # Handle special events
     case event_type do
       "message_stop" ->
         [%{done: true}]
-        
+
       _ when data_json != nil ->
         case Jason.decode(data_json) do
           {:ok, parsed} ->
             [parse_event_data(event_type, parsed)]
+
           {:error, _} ->
             []
         end
-        
+
       _ ->
         []
     end
   end
-
 
   defp parse_event_data("message_start", %{"message" => message}) do
     %{

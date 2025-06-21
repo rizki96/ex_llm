@@ -1,4 +1,4 @@
-defmodule ExLLM.Testing.ResponseCache do
+defmodule ExLLM.Testing.MockResponseRecorder do
   @moduledoc """
   Response caching system for collecting and storing real provider responses.
 

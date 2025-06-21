@@ -1,7 +1,7 @@
 defmodule ExLLM.UnifiedCacheTest do
   use ExUnit.Case
   alias ExLLM.Infrastructure.Cache
-  alias ExLLM.Testing.ResponseCache
+  alias ExLLM.Testing.MockResponseRecorder
 
   setup do
     # Ensure cache GenServer is started
@@ -15,7 +15,7 @@ defmodule ExLLM.UnifiedCacheTest do
 
     # Clear any existing cache
     Cache.clear()
-    ResponseCache.clear_all_cache()
+    MockResponseRecorder.clear_all_cache()
 
     :ok
   end
@@ -36,7 +36,7 @@ defmodule ExLLM.UnifiedCacheTest do
       assert {:ok, ^value} = Cache.get(key)
 
       # Should not have persisted to disk
-      assert [] = ResponseCache.list_cached_providers()
+      assert [] = MockResponseRecorder.list_cached_providers()
     end
   end
 
@@ -48,7 +48,7 @@ defmodule ExLLM.UnifiedCacheTest do
       on_exit(fn ->
         # Disable disk persistence and clean up
         Cache.configure_disk_persistence(false)
-        ResponseCache.clear_all_cache()
+        MockResponseRecorder.clear_all_cache()
       end)
 
       :ok

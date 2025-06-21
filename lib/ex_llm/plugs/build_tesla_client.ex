@@ -75,14 +75,15 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
       |> Enum.reject(&is_nil/1)
 
     # Configure adapter based on whether this is a streaming request
-    adapter_opts = if is_streaming do
-      # For streaming, we need to delay setting stream_to until the actual request
-      # So we'll handle this in ExecuteStreamRequest
-      [recv_timeout: 60_000]
-    else
-      [recv_timeout: 60_000]
-    end
-    
+    adapter_opts =
+      if is_streaming do
+        # For streaming, we need to delay setting stream_to until the actual request
+        # So we'll handle this in ExecuteStreamRequest
+        [recv_timeout: 60_000]
+      else
+        [recv_timeout: 60_000]
+      end
+
     Tesla.client(middleware, {Tesla.Adapter.Hackney, adapter_opts})
   end
 
