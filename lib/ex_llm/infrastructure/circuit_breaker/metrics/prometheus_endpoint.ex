@@ -33,8 +33,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.PrometheusEndpoint do
       {:ok, metrics_text} = ExLLM.CircuitBreaker.Metrics.PrometheusEndpoint.export()
   """
 
-  alias ExLLM.Infrastructure.Logger
-
   # Check if optional dependencies are available
   @plug_available Code.ensure_loaded?(Plug.Conn)
   @cowboy_available Code.ensure_loaded?(:cowboy)

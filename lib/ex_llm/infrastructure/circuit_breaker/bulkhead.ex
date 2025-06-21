@@ -36,8 +36,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Bulkhead do
       end)
   """
 
-  alias ExLLM.Infrastructure.Logger
-
   alias ExLLM.Infrastructure.CircuitBreaker.BulkheadWorker
 
   # Registry name for this bulkhead system

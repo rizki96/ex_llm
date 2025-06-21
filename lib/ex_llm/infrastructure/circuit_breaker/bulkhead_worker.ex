@@ -7,7 +7,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.BulkheadWorker do
   """
 
   use GenServer
-  alias ExLLM.Infrastructure.Logger
 
   @vsn 1
 

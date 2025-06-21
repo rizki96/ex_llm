@@ -28,8 +28,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.Dashboard do
       {:ok, csv} = ExLLM.Infrastructure.CircuitBreaker.Metrics.Dashboard.export_csv()
   """
 
-  alias ExLLM.Infrastructure.Logger
-
   alias ExLLM.Infrastructure.CircuitBreaker
   alias ExLLM.Infrastructure.CircuitBreaker.HealthCheck
 

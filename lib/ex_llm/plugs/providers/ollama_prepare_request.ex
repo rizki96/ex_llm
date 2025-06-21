@@ -8,7 +8,6 @@ defmodule ExLLM.Plugs.Providers.OllamaPrepareRequest do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{} = request, _opts) do

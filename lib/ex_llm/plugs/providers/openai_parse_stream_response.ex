@@ -7,7 +7,6 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{} = request, _opts) do

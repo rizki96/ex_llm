@@ -10,7 +10,6 @@ defmodule ExLLM.Plugs.StreamCoordinator do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Infrastructure.Logger
 
   # 60 seconds
   @default_timeout 60_000

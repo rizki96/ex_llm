@@ -152,9 +152,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Telemetry do
         )
 
       [:ex_llm, :circuit_breaker, :call_rejected] ->
-        Logger.info(
-          "Circuit breaker #{metadata.circuit_name} rejected call: #{metadata.reason}"
-        )
+        Logger.info("Circuit breaker #{metadata.circuit_name} rejected call: #{metadata.reason}")
 
       [:ex_llm, :circuit_breaker, :failure_recorded] ->
         Logger.info(

@@ -6,7 +6,6 @@ defmodule ExLLM.Plugs.Providers.BedrockParseResponse do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{response: nil} = request, _opts) do

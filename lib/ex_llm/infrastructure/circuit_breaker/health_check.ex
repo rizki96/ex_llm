@@ -39,8 +39,6 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.HealthCheck do
       ExLLM.Infrastructure.CircuitBreaker.HealthCheck.health_report()
   """
 
-  alias ExLLM.Infrastructure.Logger
-
   alias ExLLM.Infrastructure.CircuitBreaker
 
   # Health score thresholds

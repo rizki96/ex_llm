@@ -28,8 +28,8 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
   """
   @spec build_chat_response(map(), String.t(), keyword()) :: Types.LLMResponse.t()
   def build_chat_response(data, model, opts \\ []) do
-    provider = Keyword.get(opts, :provider)
-    calculate_cost = Keyword.get(opts, :calculate_cost, true)
+    _provider = Keyword.get(opts, :provider)
+    _calculate_cost = Keyword.get(opts, :calculate_cost, true)
 
     # Extract content based on common patterns
     content = extract_content(data)
@@ -100,8 +100,8 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
   """
   @spec build_tool_call_response(map(), String.t(), keyword()) :: Types.LLMResponse.t()
   def build_tool_call_response(data, model, opts \\ []) do
-    provider = Keyword.get(opts, :provider)
-    calculate_cost = Keyword.get(opts, :calculate_cost, true)
+    _provider = Keyword.get(opts, :provider)
+    _calculate_cost = Keyword.get(opts, :calculate_cost, true)
 
     tool_calls = extract_tool_calls(data)
     usage = extract_usage(data)
@@ -155,8 +155,8 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
   """
   @spec build_completion_response(map(), String.t(), keyword()) :: Types.LLMResponse.t()
   def build_completion_response(data, model, opts \\ []) do
-    provider = Keyword.get(opts, :provider)
-    calculate_cost = Keyword.get(opts, :calculate_cost, true)
+    _provider = Keyword.get(opts, :provider)
+    _calculate_cost = Keyword.get(opts, :calculate_cost, true)
 
     # Extract text from completion format
     content = extract_completion_content(data)

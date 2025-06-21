@@ -382,57 +382,57 @@ defmodule ExLLM.Providers.Bedrock do
     {:error, "AWS SDK not available. Please add aws-elixir dependency to use Bedrock adapter."}
   end
 
-  defp parse_response(model_id, response) do
-    provider = get_provider_from_model_id(model_id)
+  # defp parse_response(model_id, response) do
+  #   provider = get_provider_from_model_id(model_id)
+  #
+  #   # Parse the response body
+  #   case Jason.decode(response["body"]) do
+  #     {:ok, body} ->
+  #       content = extract_content_for_provider(provider, body)
+  #       {:ok, content}
+  #
+  #     {:error, reason} ->
+  #       Logger.error("Failed to parse Bedrock response: #{inspect(reason)}")
+  #       {:error, "Failed to parse response"}
+  #   end
+  # end
+  #
+  # defp extract_content_for_provider("anthropic", body) do
+  #   body["content"] |> List.first() |> Map.get("text", "")
+  # end
+  #
+  # defp extract_content_for_provider("amazon", body) do
+  #   body["results"] |> List.first() |> Map.get("outputText", "")
+  # end
+  #
+  # defp extract_content_for_provider("meta", body) do
+  #   body["generation"]
+  # end
+  #
+  # defp extract_content_for_provider("cohere", body) do
+  #   body["generations"] |> List.first() |> Map.get("text", "")
+  # end
 
-    # Parse the response body
-    case Jason.decode(response["body"]) do
-      {:ok, body} ->
-        content = extract_content_for_provider(provider, body)
-        {:ok, content}
+  # defp extract_content_for_provider("ai21", body) do
+  #   body["completions"] |> List.first() |> Map.get("data", %{}) |> Map.get("text", "")
+  # end
 
-      {:error, reason} ->
-        Logger.error("Failed to parse Bedrock response: #{inspect(reason)}")
-        {:error, "Failed to parse response"}
-    end
-  end
-
-  defp extract_content_for_provider("anthropic", body) do
-    body["content"] |> List.first() |> Map.get("text", "")
-  end
-
-  defp extract_content_for_provider("amazon", body) do
-    body["results"] |> List.first() |> Map.get("outputText", "")
-  end
-
-  defp extract_content_for_provider("meta", body) do
-    body["generation"]
-  end
-
-  defp extract_content_for_provider("cohere", body) do
-    body["generations"] |> List.first() |> Map.get("text", "")
-  end
-
-  defp extract_content_for_provider("ai21", body) do
-    body["completions"] |> List.first() |> Map.get("data", %{}) |> Map.get("text", "")
-  end
-
-  defp extract_content_for_provider("mistral", body) do
-    body["outputs"] |> List.first() |> Map.get("text", "")
-  end
-
-  defp extract_content_for_provider("writer", body) do
-    body["content"] |> List.first() |> Map.get("text", "")
-  end
-
-  defp extract_content_for_provider("deepseek", body) do
-    body["content"] |> List.first() |> Map.get("text", "")
-  end
-
-  defp extract_content_for_provider(_provider, body) do
-    # Try to find common fields
-    body["text"] || body["content"] || body["output"] || ""
-  end
+  # defp extract_content_for_provider("mistral", body) do
+  #   body["outputs"] |> List.first() |> Map.get("text", "")
+  # end
+  #
+  # defp extract_content_for_provider("writer", body) do
+  #   body["content"] |> List.first() |> Map.get("text", "")
+  # end
+  #
+  # defp extract_content_for_provider("deepseek", body) do
+  #   body["content"] |> List.first() |> Map.get("text", "")
+  # end
+  #
+  # defp extract_content_for_provider(_provider, body) do
+  #   # Try to find common fields
+  #   body["text"] || body["content"] || body["output"] || ""
+  # end
 
   # Commented out - unused function
   # defp parse_streaming_chunk(model_id, chunk) do

@@ -21,7 +21,6 @@ defmodule ExLLM.Plugs.ValidateConfiguration do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Infrastructure.Logger
 
   @impl true
   def call(%Request{provider: provider, config: config} = request, _opts) do
