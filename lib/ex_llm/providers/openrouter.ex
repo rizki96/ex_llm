@@ -170,14 +170,15 @@ defmodule ExLLM.Providers.OpenRouter do
       ]
 
       Logger.with_context([provider: :openrouter, model: model], fn ->
-        {:ok, stream_id} = EnhancedStreamingCoordinator.start_stream(
-          url,
-          request_body,
-          headers,
-          callback,
-          stream_options
-        )
-        
+        {:ok, stream_id} =
+          EnhancedStreamingCoordinator.start_stream(
+            url,
+            request_body,
+            headers,
+            callback,
+            stream_options
+          )
+
         # Create Elixir stream that receives chunks
         stream = create_chunk_stream(chunks_ref, stream_id)
 

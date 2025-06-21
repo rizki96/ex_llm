@@ -193,10 +193,11 @@ defmodule ExLLM.Providers.OpenAICompatible do
         provider_name = get_provider_name()
 
         # Use HTTPClient streaming
-        case HTTPClient.post_json(url, request, headers, 
-               provider: provider_name, 
-               timeout: 60_000, 
-               stream: true) do
+        case HTTPClient.post_json(url, request, headers,
+               provider: provider_name,
+               timeout: 60_000,
+               stream: true
+             ) do
           {:ok, stream} -> {:ok, stream}
           error -> error
         end
@@ -372,7 +373,8 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       defp add_cost_tracking(response, options) do
         if Keyword.get(options, :track_cost, true) && response.usage do
-          cost = ExLLM.Core.Cost.calculate(Atom.to_string(@provider), response.model, response.usage)
+          cost =
+            ExLLM.Core.Cost.calculate(Atom.to_string(@provider), response.model, response.usage)
 
           if Map.has_key?(cost, :error) do
             response

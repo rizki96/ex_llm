@@ -241,8 +241,9 @@ defmodule ExLLM.Providers.Ollama do
     ]
 
     Logger.with_context([provider: :ollama, model: model], fn ->
-      {:ok, stream_id} = EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options)
-      
+      {:ok, stream_id} =
+        EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options)
+
       # Create Elixir stream that receives chunks
       stream =
         Stream.resource(
@@ -1749,7 +1750,7 @@ defmodule ExLLM.Providers.Ollama do
   @impl true
   def list_embedding_models(options \\ []) do
     {:ok, models} = list_models(options)
-    
+
     # Filter to only embedding models
     embedding_models =
       models

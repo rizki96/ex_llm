@@ -139,7 +139,9 @@ defmodule ExLLM.PipelineOptimizer do
       # Get detailed optimization report
       result = ExLLM.PipelineOptimizer.optimize_with_report(pipeline, [:all])
   """
-  @spec optimize([ExLLM.Pipeline.plug()], [optimization_strategy()] | nil) :: [ExLLM.Pipeline.plug()]
+  @spec optimize([ExLLM.Pipeline.plug()], [optimization_strategy()] | nil) :: [
+          ExLLM.Pipeline.plug()
+        ]
   def optimize(pipeline, strategies \\ nil) do
     strategies = strategies || get_configured_strategies()
 

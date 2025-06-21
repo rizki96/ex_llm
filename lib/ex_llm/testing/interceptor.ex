@@ -242,15 +242,16 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
     |> Enum.into(%{})
   end
 
-
   defp get_header_value(headers, header_name) when is_list(headers) do
     headers
-    |> Enum.find_value(fn 
+    |> Enum.find_value(fn
       {key, value} ->
         if String.downcase(to_string(key)) == String.downcase(header_name) do
           value
         end
-      _ -> nil
+
+      _ ->
+        nil
     end)
   end
 

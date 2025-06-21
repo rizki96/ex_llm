@@ -167,14 +167,15 @@ defmodule ExLLM.Providers.Mistral do
       ]
 
       Logger.with_context([provider: :mistral, model: model], fn ->
-        {:ok, stream_id} = EnhancedStreamingCoordinator.start_stream(
-          url,
-          body,
-          headers,
-          callback,
-          stream_options
-        )
-        
+        {:ok, stream_id} =
+          EnhancedStreamingCoordinator.start_stream(
+            url,
+            body,
+            headers,
+            callback,
+            stream_options
+          )
+
         # Create Elixir stream that receives chunks
         stream =
           Stream.resource(
@@ -292,10 +293,11 @@ defmodule ExLLM.Providers.Mistral do
         content = delta["content"]
 
         if content || finish_reason do
-          {:ok, %Types.StreamChunk{
-            content: content,
-            finish_reason: finish_reason
-          }}
+          {:ok,
+           %Types.StreamChunk{
+             content: content,
+             finish_reason: finish_reason
+           }}
         else
           {:ok, nil}
         end
@@ -304,10 +306,11 @@ defmodule ExLLM.Providers.Mistral do
         content = delta["content"]
 
         if content do
-          {:ok, %Types.StreamChunk{
-            content: content,
-            finish_reason: nil
-          }}
+          {:ok,
+           %Types.StreamChunk{
+             content: content,
+             finish_reason: nil
+           }}
         else
           {:ok, nil}
         end

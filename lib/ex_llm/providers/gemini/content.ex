@@ -454,7 +454,7 @@ defmodule ExLLM.Providers.Gemini.Content do
         {:ok, response_body} ->
           # Check if the response contains an error
           parsed = parse_response(response_body)
-          
+
           # Check for safety blocking
           if parsed.prompt_feedback && parsed.prompt_feedback["blockReason"] do
             {:ok, parsed}

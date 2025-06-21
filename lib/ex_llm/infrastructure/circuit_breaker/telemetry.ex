@@ -6,7 +6,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Telemetry do
   for monitoring circuit breaker behavior and performance.
   """
 
-  alias ExLLM.Infrastructure.Logger
+  require Logger
 
   @events [
     # Circuit lifecycle events
@@ -147,18 +147,18 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Telemetry do
   defp handle_telemetry_event(event, _measurements, metadata, %{handler_type: :logger}) do
     case event do
       [:ex_llm, :circuit_breaker, :state_change] ->
-        Logger.warning(
+        Logger.info(
           "Circuit breaker #{metadata.circuit_name} state changed: #{metadata.old_state} -> #{metadata.new_state}"
         )
 
       [:ex_llm, :circuit_breaker, :call_rejected] ->
-        Logger.warning(
+        Logger.info(
           "Circuit breaker #{metadata.circuit_name} rejected call: #{metadata.reason}"
         )
 
       [:ex_llm, :circuit_breaker, :failure_recorded] ->
-        Logger.warning(
-          "Circuit breaker #{metadata.circuit_name} recorded failure (#{metadata.failure_count}/#{metadata.threshold}): #{inspect(metadata.reason)}"
+        Logger.info(
+          "Circuit breaker #{metadata.circuit_name} recorded failure (#{metadata.failure_count}/#{metadata.threshold})"
         )
 
       _ ->

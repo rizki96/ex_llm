@@ -2,12 +2,13 @@ defmodule ExLLM.Testing.TestCacheStrategy do
   @moduledoc false
 
   # Functions used in code paths that may be unreachable due to caching issues
-  @compile {:nowarn_unused_function, [
-    record_cache_hit: 2,
-    record_cache_miss: 2,
-    sanitize_response_for_storage: 1,
-    sanitize_metadata_for_storage: 1
-  ]}
+  @compile {:nowarn_unused_function,
+            [
+              record_cache_hit: 2,
+              record_cache_miss: 2,
+              sanitize_response_for_storage: 1,
+              sanitize_metadata_for_storage: 1
+            ]}
 
   alias ExLLM.Infrastructure.Cache.Storage.TestCache
   alias ExLLM.Testing.TestCacheConfig
@@ -414,6 +415,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
 
     case TestCache.store(cache_key, sanitized_response, sanitized_metadata) do
       :ok -> :ok
+      {:ok, _path} -> :ok
       error -> error
     end
   end

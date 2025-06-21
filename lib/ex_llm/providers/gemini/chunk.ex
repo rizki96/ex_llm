@@ -1,6 +1,6 @@
 defmodule ExLLM.Providers.Gemini.Chunk do
   @dialyzer :no_match
-  
+
   @moduledoc """
   Chunk management for Gemini's Semantic Retrieval API.
 
@@ -203,7 +203,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
-
         {:error, error} ->
           {:error, error}
       end
@@ -255,7 +254,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_list_result(response)}
 
-
         {:error, error} ->
           {:error, error}
       end
@@ -291,7 +289,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
       case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
-
 
         {:error, error} ->
           {:error, error}
@@ -351,7 +348,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_chunk(response)}
 
-
         {:error, error} ->
           {:error, error}
       end
@@ -387,7 +383,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
       case Base.request(request_opts) do
         {:ok, _response} ->
           :ok
-
 
         {:error, error} ->
           {:error, error}
@@ -452,7 +447,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
       case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_batch_result(response)}
-
 
         {:error, error} ->
           {:error, error}
@@ -520,7 +514,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
         {:ok, response} ->
           {:ok, parse_batch_result(response)}
 
-
         {:error, error} ->
           {:error, error}
       end
@@ -572,7 +565,6 @@ defmodule ExLLM.Providers.Gemini.Chunk do
       case Base.request(request_opts) do
         {:ok, _response} ->
           :ok
-
 
         {:error, error} ->
           {:error, error}

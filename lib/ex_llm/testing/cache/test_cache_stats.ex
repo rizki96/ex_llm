@@ -8,12 +8,13 @@ defmodule ExLLM.Testing.TestCacheStats do
   """
 
   # Functions used in code paths that may be unreachable due to caching issues
-  @compile {:nowarn_unused_function, [
-    calculate_average_age: 1,
-    count_ttl_refreshes: 1,
-    count_fallback_uses: 1,
-    count_expired_uses: 1
-  ]}
+  @compile {:nowarn_unused_function,
+            [
+              calculate_average_age: 1,
+              count_ttl_refreshes: 1,
+              count_fallback_uses: 1,
+              count_expired_uses: 1
+            ]}
 
   alias ExLLM.Infrastructure.Cache.Storage.TestCache
   alias ExLLM.Testing.TestCacheConfig
@@ -589,7 +590,8 @@ defmodule ExLLM.Testing.TestCacheStats do
     cond do
       is_nil(dt1) -> dt2
       is_nil(dt2) -> dt1
-      true -> dt1  # Default to first when both are non-nil
+      # Default to first when both are non-nil
+      true -> dt1
     end
   end
 
@@ -597,7 +599,8 @@ defmodule ExLLM.Testing.TestCacheStats do
     cond do
       is_nil(dt1) -> dt2
       is_nil(dt2) -> dt1
-      true -> dt1  # Default to first when both are non-nil
+      # Default to first when both are non-nil
+      true -> dt1
     end
   end
 

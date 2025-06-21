@@ -133,11 +133,10 @@ defmodule ExLLM.Plugs.TrackCost do
     end
   end
 
-
   defp get_default_pricing(provider) when is_atom(provider) do
     case provider do
       :openai -> %{input: 3.00, output: 15.00}
-      :anthropic -> %{input: 15.00, output: 75.00} 
+      :anthropic -> %{input: 15.00, output: 75.00}
       :gemini -> %{input: 0.50, output: 1.50}
       :groq -> %{input: 0.10, output: 0.10}
       :mistral -> %{input: 2.00, output: 6.00}

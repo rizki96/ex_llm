@@ -57,7 +57,9 @@ defmodule ExLLM.Providers.Gemini.QA do
     @type t :: %__MODULE__{
             contents: [map()],
             answer_style: :abstractive | :extractive | :verbose,
-            grounding_source: ExLLM.Providers.Gemini.QA.GroundingPassages.t() | ExLLM.Providers.Gemini.QA.SemanticRetrieverConfig.t(),
+            grounding_source:
+              ExLLM.Providers.Gemini.QA.GroundingPassages.t()
+              | ExLLM.Providers.Gemini.QA.SemanticRetrieverConfig.t(),
             safety_settings: [map()] | nil,
             temperature: float() | nil
           }

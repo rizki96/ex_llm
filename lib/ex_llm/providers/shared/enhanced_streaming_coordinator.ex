@@ -731,6 +731,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
     # Add flow controller metrics if available
     if flow_controller do
       flow_metrics = FlowController.get_metrics(flow_controller)
+
       Map.merge(base_metrics, %{
         flow_control: flow_metrics,
         status: FlowController.get_status(flow_controller)

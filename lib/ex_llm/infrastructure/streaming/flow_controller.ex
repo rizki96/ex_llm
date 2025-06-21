@@ -69,7 +69,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
 
   defmodule Metrics do
     @moduledoc false
-    
+
     @type t :: %__MODULE__{
             chunks_received: non_neg_integer(),
             chunks_delivered: non_neg_integer(),
@@ -84,7 +84,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowController do
             start_time: DateTime.t() | nil,
             last_report_time: DateTime.t() | nil
           }
-    
+
     defstruct chunks_received: 0,
               chunks_delivered: 0,
               chunks_dropped: 0,

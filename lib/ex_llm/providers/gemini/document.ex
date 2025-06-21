@@ -222,7 +222,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
-
         {:error, error} ->
           {:error, error}
       end
@@ -276,7 +275,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_list_result(response)}
 
-
         {:error, error} ->
           {:error, error}
       end
@@ -310,7 +308,6 @@ defmodule ExLLM.Providers.Gemini.Document do
       case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_document(response)}
-
 
         {:error, error} ->
           {:error, error}
@@ -374,7 +371,6 @@ defmodule ExLLM.Providers.Gemini.Document do
         {:ok, response} ->
           {:ok, parse_document(response)}
 
-
         {:error, error} ->
           {:error, error}
       end
@@ -424,7 +420,6 @@ defmodule ExLLM.Providers.Gemini.Document do
       case Base.request(request_opts) do
         {:ok, _response} ->
           :ok
-
 
         {:error, error} ->
           {:error, error}
@@ -490,7 +485,6 @@ defmodule ExLLM.Providers.Gemini.Document do
       case Base.request(request_opts) do
         {:ok, response} ->
           {:ok, parse_query_result(response)}
-
 
         {:error, error} ->
           {:error, error}

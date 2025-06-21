@@ -242,7 +242,7 @@ defmodule ExLLM.Infrastructure.Logger do
 
   @doc """
   Log a message at the specified level.
-  
+
   Compatible with Elixir's Logger.log/3 function.
   """
   @spec log(atom(), String.t(), keyword()) :: :ok

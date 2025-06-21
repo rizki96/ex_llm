@@ -116,8 +116,10 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
       attach_telemetry_handlers()
 
       Logger.info("Circuit breaker metrics collection initialized")
+      :ok
     else
       Logger.debug("Circuit breaker metrics collection disabled")
+      :ok
     end
   end
 

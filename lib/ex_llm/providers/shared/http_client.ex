@@ -938,13 +938,14 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   end
 
   # These functions are used in caching paths that may be unreachable in current test environment
-  @compile {:nowarn_unused_function, [
-    simulate_cached_stream: 2,
-    simulate_streaming_with_collector: 2,
-    replay_chunks_through_collector: 2,
-    simulate_sse_from_cache: 3,
-    format_delete_response: 3
-  ]}
+  @compile {:nowarn_unused_function,
+            [
+              simulate_cached_stream: 2,
+              simulate_streaming_with_collector: 2,
+              replay_chunks_through_collector: 2,
+              simulate_sse_from_cache: 3,
+              format_delete_response: 3
+            ]}
 
   defp simulate_cached_stream(cached_response, opts) do
     case Keyword.get(opts, :into) do

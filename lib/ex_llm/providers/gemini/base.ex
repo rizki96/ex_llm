@@ -147,7 +147,6 @@ defmodule ExLLM.Providers.Gemini.Base do
     end
   end
 
-
   # Helper function to route requests through shared HTTPClient for caching
   defp make_http_request(method, url, body, headers, opts) when method in [:post, :patch] do
     # For POST/PATCH with body, use post_json
