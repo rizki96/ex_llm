@@ -800,7 +800,8 @@ defmodule ExLLM.Gemini.ContentTest do
         %{role: "user", content: "Count to 3"}
       ]
 
-      case ExLLM.stream(:gemini, messages, %{}, %{}) do
+      callback = fn chunk -> send(self(), {:chunk, chunk}) end
+      case ExLLM.stream(:gemini, messages, callback, []) do
         {:ok, stream} ->
           chunks = Enum.take(stream, 5)
           assert length(chunks) > 0

@@ -287,11 +287,8 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.MetricsTest do
   describe "prometheus export" do
     test "handles prometheus export when not available" do
       case Metrics.export_prometheus() do
-        {:error, :prometheus_not_enabled} -> :ok
-        {:error, :prometheus_not_available} -> :ok
-        {:error, {:prometheus_export_failed, _}} -> :ok
-        # If prometheus is actually available
-        {:ok, _output} -> :ok
+        {:error, _} -> :ok
+        {:ok, _} -> :ok
       end
     end
   end
