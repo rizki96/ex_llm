@@ -801,6 +801,7 @@ defmodule ExLLM.Gemini.ContentTest do
       ]
 
       callback = fn chunk -> send(self(), {:chunk, chunk}) end
+
       case ExLLM.stream(:gemini, messages, callback, []) do
         {:ok, stream} ->
           chunks = Enum.take(stream, 5)

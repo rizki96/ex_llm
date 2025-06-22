@@ -514,8 +514,8 @@ defmodule ExLLM.Providers.Gemini.Files do
   end
 
   @doc false
-  @spec extract_upload_url(%{binary() => [binary()]}) :: {:ok, String.t()} | {:error, map()}
-  def extract_upload_url(headers) when is_map(headers) do
+  @spec extract_upload_url(list({binary(), binary()}) | %{binary() => [binary()]}) :: {:ok, String.t()} | {:error, map()}
+  def extract_upload_url(headers) when is_list(headers) or is_map(headers) do
     upload_url =
       headers
       |> Enum.find_value(fn {k, v} ->

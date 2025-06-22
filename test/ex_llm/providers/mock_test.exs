@@ -124,9 +124,7 @@ defmodule ExLLM.MockTest do
       messages = [%{role: "user", content: "Stream test"}]
 
       callback = fn chunk -> send(self(), {:chunk, chunk}) end
-      {:ok, stream} = ExLLM.stream(:mock, messages, callback, temperature: 0.5)
-      # Consume stream
-      Enum.to_list(stream)
+      :ok = ExLLM.stream(:mock, messages, callback, temperature: 0.5)
 
       last_request = Mock.get_last_request()
       assert last_request.type == :stream_chat

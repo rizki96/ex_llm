@@ -36,6 +36,9 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.HealthCheckTest do
     # Initialize bulkhead system for health checks
     ExLLM.Infrastructure.CircuitBreaker.Bulkhead.init()
 
+    # Initialize telemetry metrics
+    ExLLM.Infrastructure.CircuitBreaker.Telemetry.init_metrics()
+
     :ok
   end
 
