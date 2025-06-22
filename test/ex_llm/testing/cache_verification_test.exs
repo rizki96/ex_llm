@@ -6,11 +6,20 @@ defmodule CacheVerificationTest do
   @moduletag :cache_test
 
   setup context do
-    # Enable cache for this test
+    # Enable cache for this test AND enable caching for integration tests
+    Application.put_env(:ex_llm, :test_cache, %{
+      enabled: true,
+      cache_integration_tests: true,
+      cache_live_api_tests: true,
+      save_on_miss: true,
+      ttl: :infinity
+    })
+    
     setup_test_cache(context)
 
     on_exit(fn ->
       ExLLM.Testing.TestCacheDetector.clear_test_context()
+      Application.delete_env(:ex_llm, :test_cache)
     end)
   end
 

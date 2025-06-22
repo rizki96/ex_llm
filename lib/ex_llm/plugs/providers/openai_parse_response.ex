@@ -78,11 +78,12 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseResponse do
           model: response["model"] || request.config[:model],
           usage: parse_usage(usage),
           finish_reason: choice["finish_reason"],
-          metadata: %{
-            role: extract_role(choice),
-            provider: :openai,
-            raw_response: response
-          }
+          metadata:
+            Map.merge(response["metadata"] || %{}, %{
+              role: extract_role(choice),
+              provider: :openai,
+              raw_response: response
+            })
         }
 
         # Add optional fields

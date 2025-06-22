@@ -47,7 +47,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
     skip_cache = Keyword.get(options, :skip_cache, false)
 
     if not skip_cache and TestCacheDetector.should_cache_responses?() do
-      cache_key = generate_cache_key(request)
+      cache_key = generate_cache_key(request, options)
       fallback_opts = build_fallback_options(options)
 
       if Application.get_env(:ex_llm, :debug_test_cache, false) do
@@ -341,12 +341,18 @@ defmodule ExLLM.Testing.TestCacheStrategy do
   Generate cache key for a request.
   """
   @spec generate_cache_key(map()) :: String.t()
-  def generate_cache_key(request) do
+  def generate_cache_key(request, opts \\ []) do
     url = Map.get(request, :url, "")
     _body = Map.get(request, :body, %{})
     _headers = Map.get(request, :headers, [])
 
-    provider = extract_provider_from_url(url)
+    # Use provider from opts if available, otherwise extract from URL
+    provider = case Keyword.get(opts, :provider) do
+      nil -> extract_provider_from_url(url)
+      provider_atom when is_atom(provider_atom) -> Atom.to_string(provider_atom)
+      provider_string -> provider_string
+    end
+    
     endpoint = extract_endpoint_from_url(url)
 
     # Generate base cache key using test context

@@ -26,6 +26,28 @@ defmodule ExLLM.Testing.LiveApiCacheStorage do
 
   @type fallback_strategy :: :latest_success | :latest_any | :best_match
 
+  @spec sanitize_response_data(any()) :: any()
+  defp sanitize_response_data(%module{} = _struct) when module in [Req.Response.Async] do
+    # For async responses, we can't cache the actual response
+    # Instead, cache metadata about the response
+    %{
+      type: "async_response",
+      module: to_string(module),
+      timestamp: DateTime.utc_now(),
+      cacheable: false
+    }
+  end
+
+  defp sanitize_response_data(response_data) when is_list(response_data) do
+    Enum.map(response_data, &sanitize_response_data/1)
+  end
+
+  defp sanitize_response_data(response_data) when is_map(response_data) do
+    Map.new(response_data, fn {k, v} -> {k, sanitize_response_data(v)} end)
+  end
+
+  defp sanitize_response_data(response_data), do: response_data
+
   @doc """
   Store a test response with timestamp-based naming.
   """
@@ -41,7 +63,7 @@ defmodule ExLLM.Testing.LiveApiCacheStorage do
       # Prepare cache entry data
       entry_data = %{
         request_metadata: sanitize_metadata(metadata),
-        response_data: response_data,
+        response_data: sanitize_response_data(response_data),
         cached_at: DateTime.utc_now(),
         cache_version: "1.0",
         test_context:
@@ -472,9 +494,6 @@ defmodule ExLLM.Testing.LiveApiCacheStorage do
   end
 
   defp update_cache_index(cache_dir, filename, size, content_hash, metadata) do
-    # Load existing index or create new one
-    index = TestCacheIndex.load_index(cache_dir)
-
     # Extract timestamp from filename
     {:ok, timestamp} = TestCacheTimestamp.parse_timestamp_from_filename(filename)
 
@@ -490,10 +509,8 @@ defmodule ExLLM.Testing.LiveApiCacheStorage do
       cost: Map.get(metadata, :cost)
     }
 
-    # Add entry to index and save
-    updated_index = TestCacheIndex.add_entry(index, new_entry)
-    TestCacheIndex.save_index(cache_dir, updated_index)
-    :ok
+    # Add entry to index and save atomically
+    TestCacheIndex.add_entry_atomic(cache_dir, new_entry)
   end
 
   defp determine_entry_status_from_metadata(metadata) do

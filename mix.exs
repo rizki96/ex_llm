@@ -104,7 +104,7 @@ defmodule ExLLM.MixProject do
       {:instructor, "~> 0.1.0"},
 
       # Dependencies for local model support via Bumblebee
-      {:bumblebee, "~> 0.5"},
+      {:bumblebee, "~> 0.6.2"},
       {:nx, "~> 0.7"},
       # EXLA has compilation issues on newer macOS - uncomment if needed
       # {:exla, "~> 0.7", optional: true},
@@ -114,7 +114,7 @@ defmodule ExLLM.MixProject do
       # {:emlx, github: "elixir-nx/emlx", branch: "main", optional: true},
 
       # Development and documentation
-      {:ex_doc, "~> 0.31", only: :dev, runtime: false},
+      {:ex_doc, "~> 0.38.2", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:git_hooks, "~> 0.7", only: [:dev], runtime: false},

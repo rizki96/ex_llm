@@ -25,6 +25,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Testing.TestResponseInterceptor, as: TestResponseInterceptor
 
   @impl true
   def init(opts) do
@@ -69,33 +70,101 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     # Update state to executing
     request = Request.put_state(request, :executing)
 
-    # Make the request
-    case make_request(request.tesla_client, method, endpoint, request.provider_request) do
-      {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
-        # Success
-        request
-        |> Map.put(:response, env)
-        |> Request.put_state(:completed)
-        |> Request.put_metadata(:http_status, status)
-        |> Request.put_metadata(:response_headers, env.headers)
+    # Intercept request if caching is enabled
+    case maybe_intercept_request(request, endpoint, method) do
+      {:cached, final_request, cached_response} ->
+        # Cache hit, response is already prepared.
+        handle_tesla_response(final_request, cached_response)
 
-      {:ok, %Tesla.Env{status: status, body: body} = env} ->
-        # HTTP error
-        error = build_http_error(status, body, request.provider)
+      {:proceed, request_to_execute} ->
+        # Cache miss or caching disabled, make the real request.
+        case make_request(
+               request_to_execute.tesla_client,
+               method,
+               endpoint,
+               request_to_execute.provider_request
+             ) do
+          {:ok, response} ->
+            maybe_save_response(request_to_execute, response)
+            handle_tesla_response(request_to_execute, response)
 
-        request
-        |> Map.put(:response, env)
-        |> Request.halt_with_error(error)
-        |> Request.put_metadata(:http_status, status)
+          {:error, reason} ->
+            # Network or other error
+            error = build_network_error(reason, request_to_execute.provider)
 
-      {:error, reason} ->
-        # Network or other error
-        error = build_network_error(reason, request.provider)
-
-        request
-        |> Request.halt_with_error(error)
+            request_to_execute
+            |> Request.halt_with_error(error)
+        end
     end
   end
+
+  defp maybe_intercept_request(request, endpoint, method) do
+    if TestResponseInterceptor.should_intercept_request?() do
+      # Extract base URL from Tesla client middleware
+      base_url =
+        request.tesla_client.pre
+        |> Enum.find_value(fn
+          {Tesla.Middleware.BaseUrl, url} -> url
+          _ -> nil
+        end)
+
+      url = if base_url, do: base_url <> endpoint, else: endpoint
+
+      # Debug the URL to see what's being passed
+      if Application.get_env(:ex_llm, :debug_test_cache, false) do
+        IO.puts("DEBUG: URL passed to interceptor: #{url}")
+        IO.puts("DEBUG: Base URL: #{base_url}")
+        IO.puts("DEBUG: Endpoint: #{endpoint}")
+      end
+
+      body = request.provider_request
+
+      headers =
+        request.tesla_client.pre
+        |> Enum.find_value([], fn
+          {Tesla.Middleware.Headers, h} -> h
+          _ -> nil
+        end)
+
+      opts = [
+        method: to_string(method) |> String.upcase(),
+        provider: request.provider
+      ]
+
+      case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
+        {:cached, cached_body} ->
+          # The interceptor returns only the body.
+          # We'll create a fake Tesla.Env with status 200.
+          fake_response = %Tesla.Env{
+            status: 200,
+            body: cached_body,
+            headers: []
+          }
+
+          # The interceptor doesn't return metadata on cache hit, so we can't update it.
+          # We can, however, add a flag to indicate a cache hit.
+          updated_request = Request.put_metadata(request, :from_cache, true)
+          {:cached, updated_request, fake_response}
+
+        {:proceed, request_metadata} ->
+          updated_request = %{request | metadata: Map.merge(request.metadata, request_metadata)}
+          {:proceed, updated_request}
+      end
+    else
+      {:proceed, request}
+    end
+  end
+
+  defp maybe_save_response(
+         request,
+         %Tesla.Env{status: status, body: body, headers: headers}
+       )
+       when status in 200..299 do
+    response_info = %{http_status: status, response_headers: headers}
+    TestResponseInterceptor.save_response(request.metadata, body, response_info)
+  end
+
+  defp maybe_save_response(_request, _response), do: :ok
 
   defp make_request(client, :post, endpoint, body) do
     Tesla.post(client, endpoint, body)
@@ -115,6 +184,59 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
   defp make_request(client, :delete, endpoint, _body) do
     Tesla.delete(client, endpoint)
+  end
+
+  defp handle_tesla_response(%Request{} = request, %Tesla.Env{} = response) do
+    case response do
+      # Handle successful Tesla responses
+      %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
+        request
+        |> Map.put(:response, env)
+        |> Request.put_state(:completed)
+        |> Request.put_metadata(:http_status, status)
+        |> Request.put_metadata(:response_headers, headers)
+
+      # Handle error Tesla responses
+      %Tesla.Env{status: status, body: body} = env ->
+        error = build_http_error(status, body, request.provider)
+
+        request
+        |> Map.put(:response, env)
+        |> Request.halt_with_error(error)
+        |> Request.put_metadata(:http_status, status)
+    end
+  end
+
+  # Handle cached/mock responses that are plain maps (not Tesla.Env structs)
+  # This clause handles responses from the test cache which may be plain maps
+  defp handle_tesla_response(%Request{} = request, response) when is_map(response) and not is_struct(response) do
+    status = get_response_field(response, :status)
+
+    if status && status in 200..299 do
+      # Success
+      headers = get_response_field(response, :headers)
+
+      request
+      |> Map.put(:response, response)
+      |> Request.put_state(:completed)
+      |> Request.put_metadata(:http_status, status)
+      |> Request.put_metadata(:response_headers, headers)
+    else
+      # HTTP error
+      body = get_response_field(response, :body)
+      error = build_http_error(status, body, request.provider)
+
+      request
+      |> Map.put(:response, response)
+      |> Request.halt_with_error(error)
+      |> Request.put_metadata(:http_status, status)
+    end
+  end
+
+  defp get_response_field(%Tesla.Env{} = env, field), do: Map.get(env, field)
+
+  defp get_response_field(response, field) when is_map(response) do
+    Map.get(response, to_string(field)) || Map.get(response, field)
   end
 
   defp get_provider_endpoint(:openai), do: "/chat/completions"

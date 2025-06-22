@@ -96,15 +96,29 @@ defmodule ExLLM.Testing.TestCacheIndex do
   """
   @spec add_entry(cache_index(), cache_entry(), String.t()) :: cache_index()
   def add_entry(_index, entry, cache_dir) do
-    # Always load the latest state from disk first
-    current_index = load_index(cache_dir)
-    updated_index = add_entry(current_index, entry)
+    result =
+      with_index_lock(cache_dir, fn ->
+        current_index = load_index(cache_dir)
+        updated_index = add_entry(current_index, entry)
 
-    # Save the updated index
-    case save_index(cache_dir, updated_index) do
-      :ok -> updated_index
-      # Return updated index even if save fails
-      {:error, _} -> updated_index
+        case save_index(cache_dir, updated_index) do
+          :ok ->
+            {:ok, updated_index}
+
+          {:error, _reason} ->
+            # Per original behavior, return the updated index even on save failure
+            {:ok, updated_index}
+        end
+      end)
+
+    case result do
+      {:ok, index} ->
+        index
+
+      {:error, _reason} ->
+        # On lock failure, we can't load the index.
+        # To satisfy the return spec, create a new index and add the entry.
+        add_entry(create_new_index(cache_dir), entry)
     end
   end
 
@@ -115,24 +129,55 @@ defmodule ExLLM.Testing.TestCacheIndex do
   def add_entry(_index, entry, cache_dir, opts) do
     max_entries = Keyword.get(opts, :max_entries)
 
-    # Always load the latest state from disk first
-    current_index = load_index(cache_dir)
-    updated_index = add_entry(current_index, entry)
+    result =
+      with_index_lock(cache_dir, fn ->
+        current_index = load_index(cache_dir)
+        updated_index = add_entry(current_index, entry)
 
-    # Apply max entries limit if specified
-    final_index =
-      if max_entries do
-        limit_entries(updated_index, max_entries)
-      else
-        updated_index
-      end
+        final_index =
+          if max_entries do
+            limit_entries(updated_index, max_entries)
+          else
+            updated_index
+          end
 
-    # Save the updated index
-    case save_index(cache_dir, final_index) do
-      :ok -> final_index
-      # Return updated index even if save fails
-      {:error, _} -> final_index
+        case save_index(cache_dir, final_index) do
+          :ok ->
+            {:ok, final_index}
+
+          {:error, _reason} ->
+            # Per original behavior, return the updated index even on save failure
+            {:ok, final_index}
+        end
+      end)
+
+    case result do
+      {:ok, index} ->
+        index
+
+      {:error, _reason} ->
+        # On lock failure, create a new index, add entry, and apply limits.
+        index = add_entry(create_new_index(cache_dir), entry)
+
+        if max_entries do
+          limit_entries(index, max_entries)
+        else
+          index
+        end
     end
+  end
+
+  @doc """
+  Adds a new cache entry to the index atomically using a file lock.
+  This function performs a read-modify-write operation safely.
+  """
+  @spec add_entry_atomic(String.t(), cache_entry()) :: :ok | {:error, term()}
+  def add_entry_atomic(cache_dir, new_entry) do
+    with_index_lock(cache_dir, fn ->
+      index = load_index(cache_dir)
+      updated_index = add_entry(index, new_entry)
+      save_index(cache_dir, updated_index)
+    end)
   end
 
   @doc """
@@ -313,19 +358,30 @@ defmodule ExLLM.Testing.TestCacheIndex do
   Remove a specific entry by filename.
   """
   @spec remove_entry(cache_index(), String.t(), String.t()) :: cache_index()
-  def remove_entry(index, filename, cache_dir) do
-    updated_entries = Enum.reject(index.entries, &(&1.filename == filename))
-    updated_index = %{index | entries: updated_entries}
+  def remove_entry(_index, filename, cache_dir) do
+    result =
+      with_index_lock(cache_dir, fn ->
+        index = load_index(cache_dir)
+        updated_entries = Enum.reject(index.entries, &(&1.filename == filename))
+        updated_index = %{index | entries: updated_entries}
 
-    # Also delete the actual file
-    file_path = Path.join(cache_dir, filename)
-    File.rm(file_path)
+        # Also delete the actual file
+        file_path = Path.join(cache_dir, filename)
+        File.rm(file_path)
 
-    # Save the updated index
-    case save_index(cache_dir, updated_index) do
-      :ok -> updated_index
-      # Return updated index even if save fails
-      {:error, _} -> updated_index
+        case save_index(cache_dir, updated_index) do
+          :ok -> {:ok, updated_index}
+          {:error, _} -> {:ok, updated_index}
+        end
+      end)
+
+    case result do
+      {:ok, index} ->
+        index
+
+      {:error, _} ->
+        # On lock failure, return an empty index for the given cache dir.
+        create_new_index(cache_dir)
     end
   end
 
@@ -356,14 +412,26 @@ defmodule ExLLM.Testing.TestCacheIndex do
   Clean up old entries by age.
   """
   @spec cleanup_old_entries(cache_index(), non_neg_integer(), String.t()) :: cache_index()
-  def cleanup_old_entries(index, max_age_ms, cache_dir) do
-    cutoff_time = DateTime.add(DateTime.utc_now(), -max_age_ms, :millisecond)
-    updated_index = remove_old_entries(index, cutoff_time)
+  def cleanup_old_entries(_index, max_age_ms, cache_dir) do
+    result =
+      with_index_lock(cache_dir, fn ->
+        index = load_index(cache_dir)
+        cutoff_time = DateTime.add(DateTime.utc_now(), -max_age_ms, :millisecond)
+        updated_index = remove_old_entries(index, cutoff_time)
 
-    # Save the updated index
-    case save_index(cache_dir, updated_index) do
-      :ok -> updated_index
-      {:error, _} -> updated_index
+        case save_index(cache_dir, updated_index) do
+          :ok -> {:ok, updated_index}
+          {:error, _} -> {:ok, updated_index}
+        end
+      end)
+
+    case result do
+      {:ok, index} ->
+        index
+
+      {:error, _} ->
+        # On lock failure, return an empty index for the given cache dir.
+        create_new_index(cache_dir)
     end
   end
 
@@ -380,33 +448,43 @@ defmodule ExLLM.Testing.TestCacheIndex do
   """
   @spec update_stats(cache_index(), :hit | :miss, String.t()) :: cache_index()
   def update_stats(_index, stat_type, cache_dir) do
-    # Always load the latest state from disk first
-    current_index = load_index(cache_dir)
+    result =
+      with_index_lock(cache_dir, fn ->
+        current_index = load_index(cache_dir)
 
-    updated_index =
-      case stat_type do
-        :hit ->
-          %{
-            current_index
-            | cache_hits: current_index.cache_hits + 1,
-              total_requests: current_index.total_requests + 1,
-              access_count: current_index.access_count + 1,
-              last_accessed: DateTime.utc_now()
-          }
+        updated_index =
+          case stat_type do
+            :hit ->
+              %{
+                current_index
+                | cache_hits: current_index.cache_hits + 1,
+                  total_requests: current_index.total_requests + 1,
+                  access_count: current_index.access_count + 1,
+                  last_accessed: DateTime.utc_now()
+              }
 
-        :miss ->
-          %{
-            current_index
-            | total_requests: current_index.total_requests + 1,
-              access_count: current_index.access_count + 1,
-              last_accessed: DateTime.utc_now()
-          }
-      end
+            :miss ->
+              %{
+                current_index
+                | total_requests: current_index.total_requests + 1,
+                  access_count: current_index.access_count + 1,
+                  last_accessed: DateTime.utc_now()
+              }
+          end
 
-    # Save the updated index
-    case save_index(cache_dir, updated_index) do
-      :ok -> updated_index
-      {:error, _} -> updated_index
+        case save_index(cache_dir, updated_index) do
+          :ok -> {:ok, updated_index}
+          {:error, _} -> {:ok, updated_index}
+        end
+      end)
+
+    case result do
+      {:ok, index} ->
+        index
+
+      {:error, _} ->
+        # On lock failure, return an empty index for the given cache dir.
+        create_new_index(cache_dir)
     end
   end
 
@@ -415,16 +493,18 @@ defmodule ExLLM.Testing.TestCacheIndex do
   """
   @spec cleanup_index(String.t()) :: :ok | {:error, term()}
   def cleanup_index(cache_dir) do
-    config = TestCacheConfig.get_config()
-    index = load_index(cache_dir)
+    with_index_lock(cache_dir, fn ->
+      config = TestCacheConfig.get_config()
+      index = load_index(cache_dir)
 
-    updated_index =
-      index
-      |> apply_age_cleanup(config.cleanup_older_than)
-      |> apply_count_limit(config.max_entries_per_cache)
-      |> maybe_deduplicate(config.deduplicate_content)
+      updated_index =
+        index
+        |> apply_age_cleanup(config.cleanup_older_than)
+        |> apply_count_limit(config.max_entries_per_cache)
+        |> maybe_deduplicate(config.deduplicate_content)
 
-    save_index(cache_dir, updated_index)
+      save_index(cache_dir, updated_index)
+    end)
   end
 
   # Private functions
@@ -717,4 +797,34 @@ defmodule ExLLM.Testing.TestCacheIndex do
   defp parse_status("error"), do: :error
   defp parse_status("timeout"), do: :timeout
   defp parse_status(_), do: :success
+
+  # Acquires an exclusive file lock to perform atomic operations on the index.
+  # It creates a `.lock` file, which prevents other processes from entering
+  # the critical section. It retries a few times with a random backoff if the
+  # lock is already held.
+  defp with_index_lock(cache_dir, fun, retries \\ 10) do
+    lock_file = Path.join(cache_dir, "index.json.lock")
+    # Ensure directory exists
+    :ok = File.mkdir_p(cache_dir)
+
+    case :file.open(lock_file, [:write, :exclusive]) do
+      {:ok, lock_device} ->
+        try do
+          fun.()
+        after
+          :file.close(lock_device)
+          File.rm(lock_file)
+        end
+
+      {:error, :eexist} when retries > 0 ->
+        Process.sleep(Enum.random(50..150))
+        with_index_lock(cache_dir, fun, retries - 1)
+
+      {:error, :eexist} ->
+        {:error, "Failed to acquire index lock for #{cache_dir} after multiple retries."}
+
+      {:error, reason} ->
+        {:error, "Failed to acquire index lock for #{cache_dir}: #{inspect(reason)}"}
+    end
+  end
 end
