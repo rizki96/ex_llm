@@ -293,6 +293,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
 
     # Add provider-specific metadata
     provider = Keyword.get(opts, :provider)
+    metadata = if provider, do: Map.put(metadata, :provider, provider), else: metadata
     add_provider_metadata(metadata, data, provider)
   end
 
@@ -594,6 +595,12 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     |> maybe_add_metadata(:generation_id, data["generation_id"])
     |> maybe_add_metadata(:provider, data["provider"])
     |> maybe_add_metadata(:latency_ms, data["latency_ms"])
+  end
+
+  defp add_provider_metadata(metadata, data, :groq) do
+    metadata
+    |> maybe_add_metadata(:object, data["object"])
+    |> maybe_add_metadata(:system_fingerprint, data["system_fingerprint"])
   end
 
   defp add_provider_metadata(metadata, _data, _provider), do: metadata

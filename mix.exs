@@ -161,6 +161,20 @@ defmodule ExLLM.MixProject do
 
   defp aliases do
     [
+      # === HYBRID TESTING STRATEGY ===
+      # Live API tests (refreshes cache)
+      "test.live": [
+        "cmd MIX_RUN_LIVE=true mix test --include live_api --include external --include integration"
+      ],
+
+      # Cached tests only (fast)
+      "test.cached": ["test --exclude live_api --exclude external --exclude integration"],
+
+      # Cache management
+      "cache.clear": ["cmd rm -rf test/cache/*"],
+      "cache.status": ["run -e ExLLM.Testing.Cache.status()"],
+
+      # === LEGACY ALIASES (for compatibility) ===
       # Fast local development tests (excludes integration, external, slow tests)
       "test.fast": ["test --exclude integration --exclude external --exclude slow"],
 

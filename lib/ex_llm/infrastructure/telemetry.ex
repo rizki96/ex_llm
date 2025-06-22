@@ -85,6 +85,13 @@ defmodule ExLLM.Infrastructure.Telemetry do
     [:ex_llm, :cache, :evicted]
   ]
 
+  @test_cache_events [
+    [:ex_llm, :test_cache, :hit],
+    [:ex_llm, :test_cache, :miss],
+    [:ex_llm, :test_cache, :save],
+    [:ex_llm, :test_cache, :error]
+  ]
+
   @http_events [
     [:ex_llm, :http, :request, :start],
     [:ex_llm, :http, :request, :stop],
@@ -103,6 +110,7 @@ defmodule ExLLM.Infrastructure.Telemetry do
       @context_events ++
       @cost_events ++
       @cache_events ++
+      @test_cache_events ++
       @http_events
   end
 
@@ -274,6 +282,41 @@ defmodule ExLLM.Infrastructure.Telemetry do
 
   def emit_cache_put(key, size_bytes) do
     :telemetry.execute([:ex_llm, :cache, :put], %{size_bytes: size_bytes}, %{key: key})
+  end
+
+  @doc """
+  Helper to emit test cache events.
+  """
+  def emit_test_cache_hit(cache_key, metadata \\ %{}) do
+    :telemetry.execute(
+      [:ex_llm, :test_cache, :hit],
+      %{cache_type: :test},
+      Map.merge(%{cache_key: cache_key}, metadata)
+    )
+  end
+
+  def emit_test_cache_miss(cache_key, metadata \\ %{}) do
+    :telemetry.execute(
+      [:ex_llm, :test_cache, :miss],
+      %{cache_type: :test},
+      Map.merge(%{cache_key: cache_key}, metadata)
+    )
+  end
+
+  def emit_test_cache_save(cache_key, size_bytes, metadata \\ %{}) do
+    :telemetry.execute(
+      [:ex_llm, :test_cache, :save],
+      %{size_bytes: size_bytes, cache_type: :test},
+      Map.merge(%{cache_key: cache_key}, metadata)
+    )
+  end
+
+  def emit_test_cache_error(cache_key, error, metadata \\ %{}) do
+    :telemetry.execute(
+      [:ex_llm, :test_cache, :error],
+      %{cache_type: :test},
+      Map.merge(%{cache_key: cache_key, error: error}, metadata)
+    )
   end
 
   @doc """

@@ -77,7 +77,7 @@ defmodule ExLLM.Providers.XAI do
   def chat(messages, options \\ []) do
     with {:ok, config} <- get_config(options),
          {:ok, _} <- Validation.validate_api_key(config.api_key),
-         model <- Keyword.get(options, :model, config.model) || default_model(),
+         {:ok, model} <- get_model_for_request(options),
          formatted_messages = messages,
          {:ok, request_body} <- build_request_body(formatted_messages, model, options) do
       headers = build_headers(config)
@@ -101,7 +101,7 @@ defmodule ExLLM.Providers.XAI do
   def stream_chat(messages, options \\ []) do
     with {:ok, config} <- get_config(options),
          {:ok, _} <- Validation.validate_api_key(config.api_key),
-         model <- Keyword.get(options, :model, config.model) || default_model(),
+         {:ok, model} <- get_model_for_request(options),
          formatted_messages = messages,
          {:ok, request_body} <- build_request_body(formatted_messages, model, options) do
       headers = build_headers(config)
@@ -250,10 +250,17 @@ defmodule ExLLM.Providers.XAI do
 
   @impl true
   def default_model(_options \\ []) do
-    ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:xai) || "xai/grok-beta"
+    ExLLM.Infrastructure.Config.ModelConfig.get_default_model!(:xai)
   end
 
   # Private functions
+
+  defp get_model_for_request(options) do
+    case Keyword.get(options, :model) do
+      nil -> ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:xai)
+      model -> {:ok, model}
+    end
+  end
 
   defp get_config(options) do
     config_provider = Keyword.get(options, :config_provider, ConfigProvider.Env)

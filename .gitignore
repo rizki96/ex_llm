@@ -91,3 +91,4 @@ EOF < /dev/null
 # Development artifacts and test reports
 *test_results.md
 PROVIDER_TEST_SUMMARY.md
+test/tmp/**

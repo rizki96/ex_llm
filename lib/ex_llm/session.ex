@@ -343,8 +343,8 @@ defmodule ExLLM.Session do
     # Get current messages for the chat
     messages = get_messages(updated_session)
 
-    # Perform the chat with the session's provider
-    case ExLLM.chat(session.provider, messages, opts) do
+    # Perform the chat with the session's provider (stored in llm_backend)
+    case ExLLM.chat(session.llm_backend, messages, opts) do
       {:ok, response} ->
         # Add assistant response to session
         final_session = add_message(updated_session, "assistant", response.content)

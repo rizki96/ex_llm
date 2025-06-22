@@ -5,6 +5,9 @@ defmodule ExLLM.Application do
 
   @impl true
   def start(_type, _args) do
+    # Run startup configuration validation
+    ExLLM.Infrastructure.StartupValidator.run_startup_validation()
+
     # Initialize circuit breaker ETS table
     ExLLM.Infrastructure.CircuitBreaker.init()
 

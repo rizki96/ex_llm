@@ -47,8 +47,13 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
     "formats" => :formats
   }
 
-  # Get the config directory path
-  defp config_dir do
+  @doc """
+  Gets the path to the model configuration directory.
+  
+  This function handles locating the configuration directory in both development
+  and dependency scenarios.
+  """
+  def config_dir do
     # Try to find the config directory relative to the current file
     case File.exists?("config/models") do
       true ->
@@ -143,39 +148,80 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
   @doc """
   Gets the default model for a provider.
 
-  Returns the default model name as a string, or `nil` if not found.
+  Returns `{:ok, model_name}` or `{:error, reason}`.
+
+  Possible error reasons:
+  - `:config_file_not_found`: The configuration file for the provider does not exist.
+  - `:missing_default_model_key`: The configuration file is missing the `default_model` key.
 
   ## Examples
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:openai)
-      "gpt-4.1-mini"
+      {:ok, "gpt-4.1-mini"}
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:anthropic)
-      "claude-sonnet-4-20250514"
+      {:ok, "claude-sonnet-4-20250514"}
+
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:non_existent_provider)
+      {:error, :config_file_not_found}
   """
   def get_default_model(provider) when is_atom(provider) do
     case get_provider_config(provider) do
       nil ->
-        raise "Missing configuration file: config/models/#{provider}.yml. " <>
-                "Please ensure the YAML configuration file exists and is properly formatted."
+        {:error, :config_file_not_found}
 
       config ->
         case Map.get(config, :default_model) do
           nil ->
-            raise "Missing 'default_model' in config/models/#{provider}.yml. " <>
-                    "Please add a default_model field to the configuration."
+            {:error, :missing_default_model_key}
 
           model ->
             # Strip provider prefix if present (e.g., "groq/model" -> "model")
             # This handles models from LiteLLM configs that include provider prefixes
             provider_str = Atom.to_string(provider)
-            case String.split(model, "/", parts: 2) do
-              [^provider_str, actual_model] ->
-                actual_model
-              _ ->
-                model
-            end
+
+            model_name =
+              case String.split(model, "/", parts: 2) do
+                [^provider_str, actual_model] ->
+                  actual_model
+
+                _ ->
+                  model
+              end
+
+            {:ok, model_name}
         end
+    end
+  end
+
+  @doc """
+  Gets the default model for a provider, raising an exception on failure.
+
+  Returns the default model name as a string, or raises an exception if not found.
+
+  ## Examples
+
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model!(:openai)
+      "gpt-4.1-mini"
+
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model!(:anthropic)
+      "claude-sonnet-4-20250514"
+
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model!(:non_existent_provider)
+      ** (RuntimeError) Missing configuration file: config/models/non_existent_provider.yml. ...
+  """
+  def get_default_model!(provider) when is_atom(provider) do
+    case get_default_model(provider) do
+      {:ok, model} ->
+        model
+
+      {:error, :config_file_not_found} ->
+        raise "Missing configuration file: config/models/#{provider}.yml. " <>
+                "Please ensure the YAML configuration file exists and is properly formatted."
+
+      {:error, :missing_default_model_key} ->
+        raise "Missing 'default_model' in config/models/#{provider}.yml. " <>
+                "Please add a default_model field to the configuration."
     end
   end
 

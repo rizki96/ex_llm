@@ -95,6 +95,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
         ErrorHandler,
         HTTPClient,
         MessageFormatter,
+        ResponseBuilder,
         StreamingBehavior,
         Validation
       }
@@ -329,23 +330,19 @@ defmodule ExLLM.Providers.OpenAICompatible do
       defp parse_chat_response(response, model, options) do
         case response do
           %{"choices" => [choice | _], "usage" => usage} ->
-            content = get_in(choice, ["message", "content"]) || ""
-            finish_reason = choice["finish_reason"]
+            # Use shared ResponseBuilder to ensure proper metadata handling
+            response_opts = Keyword.put(options, :provider, @provider)
 
-            # Handle function calls
+            response_struct = ResponseBuilder.build_chat_response(response, model, response_opts)
+
+            # Handle function calls that aren't handled by ResponseBuilder
             function_call = get_in(choice, ["message", "function_call"])
             tool_calls = get_in(choice, ["message", "tool_calls"])
 
-            response_struct = %ExLLM.Types.LLMResponse{
-              content: content,
-              model: model,
-              finish_reason: finish_reason,
-              usage: %{
-                input_tokens: usage["prompt_tokens"] || 0,
-                output_tokens: usage["completion_tokens"] || 0
-              },
-              function_call: function_call,
-              tool_calls: tool_calls
+            response_struct = %{
+              response_struct
+              | function_call: function_call,
+                tool_calls: tool_calls
             }
 
             # Add cost tracking
@@ -427,7 +424,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       defp get_default_model(config) do
         Map.get(config, :model) ||
-          ConfigHelper.ensure_default_model(@provider)
+          ensure_default_model()
       end
 
       defp get_model_context_window(model_id) do
@@ -578,12 +575,16 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       defp ensure_default_model do
         case ModelConfig.get_default_model(@provider) do
-          nil ->
+          {:ok, model} ->
+            model
+
+          {:error, :config_file_not_found} ->
+            raise "Missing configuration file for #{provider_name()}. " <>
+                    "Please ensure config/models/#{@provider}.yml exists."
+
+          {:error, :missing_default_model_key} ->
             raise "Missing configuration: No default model found for #{provider_name()}. " <>
                     "Please ensure config/models/#{@provider}.yml exists and contains a 'default_model' field."
-
-          model ->
-            model
         end
       end
 

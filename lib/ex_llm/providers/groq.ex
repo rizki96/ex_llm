@@ -50,7 +50,7 @@ defmodule ExLLM.Providers.Groq do
 
   @impl ExLLM.Provider
   def default_model do
-    ModelConfig.get_default_model(:groq)
+    ModelConfig.get_default_model!(:groq)
   end
 
   @impl ExLLM.Provider

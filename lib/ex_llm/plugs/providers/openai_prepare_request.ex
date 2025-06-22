@@ -25,16 +25,24 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
 
   @impl true
   def call(%Request{messages: messages, config: config, provider: provider} = request, _opts) do
-    body = build_request_body(messages, config, provider)
+    try do
+      body = build_request_body(messages, config, provider)
 
-    request
-    |> Map.put(:provider_request, body)
-    |> Request.assign(:request_prepared, true)
+      request
+      |> Map.put(:provider_request, body)
+      |> Request.assign(:request_prepared, true)
+    rescue
+      e ->
+        Request.halt_with_error(request, %{
+          type: :configuration,
+          message: Exception.message(e)
+        })
+    end
   end
 
   defp build_request_body(messages, config, provider) do
     # Get the provider's default model from ModelConfig
-    default_model = ModelConfig.get_default_model(provider)
+    default_model = ModelConfig.get_default_model!(provider)
 
     %{
       model: config[:model] || default_model,

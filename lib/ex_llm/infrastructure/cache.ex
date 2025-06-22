@@ -1,15 +1,32 @@
 defmodule ExLLM.Infrastructure.Cache do
   @moduledoc """
-  Unified caching system for ExLLM providing both runtime performance caching
-  and optional disk persistence for development/testing.
+  Production caching implementation for ExLLM using ETS-based storage.
+
+  This module provides the runtime caching infrastructure for LLM responses,
+  operating as part of ExLLM's dual-cache architecture. It focuses exclusively
+  on production performance optimization, while test-specific caching is handled
+  separately through the strategy pattern.
+
+  For a complete understanding of ExLLM's caching architecture, see the
+  [Caching Architecture Guide](docs/caching_architecture.md).
 
   ## Features
 
-  - Fast ETS-based runtime caching with TTL
-  - Optional one-way disk persistence for test scenario collection
-  - Automatic cache expiration and cleanup
-  - Cache statistics and monitoring
-  - Mock adapter integration via persisted responses
+  - Fast ETS-based in-memory caching with sub-millisecond access
+  - Configurable TTL with automatic expiration
+  - Optional disk persistence for cache warming
+  - Cache statistics and monitoring via telemetry
+  - Thread-safe concurrent access
+
+  ## Architecture Role
+
+  This module serves as the production cache implementation within ExLLM's
+  strategy pattern. It no longer directly handles test caching concerns, which
+  are now properly isolated in the test strategy implementation.
+
+  ```
+  User Request → Pipeline → Cache Strategy → Production Cache (this module)
+  ```
 
   ## Usage
 
@@ -25,9 +42,40 @@ defmodule ExLLM.Infrastructure.Cache do
       # Skip cache for this request
       {:ok, response} = ExLLM.chat(:anthropic, messages, cache: false)
 
+  ## Configuration
+
+      config :ex_llm, :cache,
+        enabled: true,
+        storage: {ExLLM.Infrastructure.Cache.Storage.ETS, []},
+        default_ttl: :timer.minutes(15),
+        cleanup_interval: :timer.minutes(5),
+        persist_disk: false,
+        disk_path: "/tmp/ex_llm_cache"
+
+  ## Cache Strategy Configuration
+
+  The caching behavior is controlled by the configured strategy:
+
+      # Production (default)
+      config :ex_llm,
+        cache_strategy: ExLLM.Cache.Strategies.Production
+
+      # Testing
+      config :ex_llm,
+        cache_strategy: ExLLM.Cache.Strategies.Test
+
+  ## Telemetry Events
+
+  This module emits the following telemetry events:
+
+  - `[:ex_llm, :cache, :hit]` - Cache hit with key
+  - `[:ex_llm, :cache, :miss]` - Cache miss with key  
+  - `[:ex_llm, :cache, :put]` - Item stored with size in bytes
+  - `[:ex_llm, :cache, :evict]` - Item evicted from cache
+
   ## Disk Persistence
 
-  Enable disk persistence to automatically save cached responses for testing:
+  Enable disk persistence to automatically save cached responses:
 
       # Environment variable
       export EX_LLM_CACHE_PERSIST=true
@@ -38,18 +86,8 @@ defmodule ExLLM.Infrastructure.Cache do
         cache_persist_disk: true,
         cache_disk_path: "/tmp/ex_llm_cache"
 
-  When enabled, all cached responses are also written to disk and can be used
-  by the Mock adapter for realistic testing without API calls.
-      
-  ## Configuration
-
-      config :ex_llm, :cache,
-        enabled: true,
-        storage: {ExLLM.Infrastructure.Cache.Storage.ETS, []},
-        default_ttl: :timer.minutes(15),
-        cleanup_interval: :timer.minutes(5),
-        persist_disk: false,
-        disk_path: "/tmp/ex_llm_cache"
+  When enabled, cached responses are written to disk for cache warming or
+  mock adapter usage. This is separate from test caching.
   """
 
   use GenServer
@@ -247,34 +285,16 @@ defmodule ExLLM.Infrastructure.Cache do
     end
   end
 
-  # Check if test caching is enabled and should take precedence over regular caching.
-  @spec test_caching_enabled?() :: boolean()
-  defp test_caching_enabled?() do
-    # Check if test cache detector is available and test caching should be used
-    Code.ensure_loaded?(ExLLM.Testing.TestCacheDetector) and
-      ExLLM.Testing.TestCacheDetector.should_cache_responses?()
-  end
-
   @doc """
   Wrap a cache-aware function execution.
 
-  This is the main integration point for ExLLM modules.
+  This is the main integration point for ExLLM modules. It uses a configured
+  strategy to handle caching.
   """
   @spec with_cache(String.t(), keyword(), fun()) :: any()
   def with_cache(cache_key, opts, fun) do
-    # Check if test caching is enabled and should take precedence
-    if test_caching_enabled?() do
-      # Defer to test cache system by just executing the function
-      # The test cache system will handle caching at the HTTP client level
-      fun.()
-    else
-      # Use regular caching system
-      if should_cache?(opts) do
-        handle_cache_lookup(cache_key, fun, opts)
-      else
-        fun.()
-      end
-    end
+    strategy = Application.get_env(:ex_llm, :cache_strategy, ExLLM.Cache.Strategies.Production)
+    strategy.with_cache(cache_key, opts, fun)
   end
 
   ## Server Callbacks
@@ -416,26 +436,6 @@ defmodule ExLLM.Infrastructure.Cache do
   end
 
   ## Private Functions
-
-  # Helper function to handle cache lookup and execution
-  defp handle_cache_lookup(cache_key, fun, opts) do
-    case get(cache_key) do
-      {:ok, cached_response} ->
-        # Return cached response wrapped in ok tuple
-        {:ok, cached_response}
-
-      :miss ->
-        # Execute function and cache result
-        case fun.() do
-          {:ok, response} = result ->
-            put(cache_key, response, opts)
-            result
-
-          error ->
-            error
-        end
-    end
-  end
 
   defp persist_to_disk_async(cache_key, cached_response, opts, state) do
     # Extract metadata for disk storage

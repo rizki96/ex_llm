@@ -8,7 +8,6 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   """
 
   alias ExLLM.Testing.LiveApiCacheStorage
-  alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
   alias ExLLM.Testing.TestCacheStrategy
   alias ExLLM.Testing.TestResponseMetadata
@@ -51,7 +50,26 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
 
       cache_key ->
         metadata = build_response_metadata(request_metadata, response_data, response_info)
-        LiveApiCacheStorage.store(cache_key, response_data, metadata)
+
+        # Calculate response size for telemetry
+        size_bytes = :erlang.external_size(response_data)
+
+        case LiveApiCacheStorage.store(cache_key, response_data, metadata) do
+          :ok ->
+            # Emit telemetry for successful save
+            ExLLM.Infrastructure.Telemetry.emit_test_cache_save(cache_key, size_bytes, metadata)
+            :ok
+
+          {:ok, _} ->
+            # Also handle {:ok, path} return value
+            ExLLM.Infrastructure.Telemetry.emit_test_cache_save(cache_key, size_bytes, metadata)
+            :ok
+
+          {:error, reason} = error ->
+            # Emit telemetry for save error
+            ExLLM.Infrastructure.Telemetry.emit_test_cache_error(cache_key, reason, metadata)
+            error
+        end
     end
   end
 
@@ -140,10 +158,9 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   Record cache hit for statistics.
   """
   @spec record_cache_hit(String.t(), map()) :: :ok
-  def record_cache_hit(cache_key, _metadata) do
-    # This could be enhanced to update cache statistics
-    # For now, we'll just log the hit
-    _config = TestCacheConfig.get_config()
+  def record_cache_hit(cache_key, metadata) do
+    # Emit telemetry for test cache hit
+    ExLLM.Infrastructure.Telemetry.emit_test_cache_hit(cache_key, metadata)
 
     if Application.get_env(:ex_llm, :debug_test_cache, false) do
       IO.puts("Test cache HIT: #{cache_key}")
@@ -156,9 +173,10 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   Record cache miss for statistics.
   """
   @spec record_cache_miss(String.t(), map()) :: :ok
-  def record_cache_miss(cache_key, _metadata) do
-    # This could be enhanced to update cache statistics
-    # For now, we'll just log the miss
+  def record_cache_miss(cache_key, metadata) do
+    # Emit telemetry for test cache miss
+    ExLLM.Infrastructure.Telemetry.emit_test_cache_miss(cache_key, metadata)
+
     if Application.get_env(:ex_llm, :debug_test_cache, false) do
       IO.puts("Test cache MISS: #{cache_key}")
     end

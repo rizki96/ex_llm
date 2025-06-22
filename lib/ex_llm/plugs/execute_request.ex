@@ -88,6 +88,11 @@ defmodule ExLLM.Plugs.ExecuteRequest do
             maybe_save_response(request_to_execute, response)
             handle_tesla_response(request_to_execute, response)
 
+          %Tesla.Env{} = response ->
+            # Handle direct Tesla.Env response (some middleware returns this directly)
+            maybe_save_response(request_to_execute, response)
+            handle_tesla_response(request_to_execute, response)
+
           {:error, reason} ->
             # Network or other error
             error = build_network_error(reason, request_to_execute.provider)
@@ -110,13 +115,6 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
       url = if base_url, do: base_url <> endpoint, else: endpoint
 
-      # Debug the URL to see what's being passed
-      if Application.get_env(:ex_llm, :debug_test_cache, false) do
-        IO.puts("DEBUG: URL passed to interceptor: #{url}")
-        IO.puts("DEBUG: Base URL: #{base_url}")
-        IO.puts("DEBUG: Endpoint: #{endpoint}")
-      end
-
       body = request.provider_request
 
       headers =
@@ -133,16 +131,27 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
       case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
         {:cached, cached_body} ->
-          # The interceptor returns only the body.
-          # We'll create a fake Tesla.Env with status 200.
+          # Add from_cache metadata to the cached response body
+          enhanced_body =
+            case cached_body do
+              body when is_map(body) ->
+                existing_metadata = Map.get(body, "metadata", %{})
+                enhanced_metadata = Map.put(existing_metadata, :from_cache, true)
+                Map.put(body, "metadata", enhanced_metadata)
+
+              body ->
+                # If body is not a map, we can't add metadata to it
+                body
+            end
+
+          # Create a fake Tesla.Env with status 200.
           fake_response = %Tesla.Env{
             status: 200,
-            body: cached_body,
+            body: enhanced_body,
             headers: []
           }
 
-          # The interceptor doesn't return metadata on cache hit, so we can't update it.
-          # We can, however, add a flag to indicate a cache hit.
+          # Also set the metadata on the request for consistency
           updated_request = Request.put_metadata(request, :from_cache, true)
           {:cached, updated_request, fake_response}
 
@@ -209,7 +218,8 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
   # Handle cached/mock responses that are plain maps (not Tesla.Env structs)
   # This clause handles responses from the test cache which may be plain maps
-  defp handle_tesla_response(%Request{} = request, response) when is_map(response) and not is_struct(response) do
+  defp handle_tesla_response(%Request{} = request, response)
+       when is_map(response) and not is_struct(response) do
     status = get_response_field(response, :status)
 
     if status && status in 200..299 do

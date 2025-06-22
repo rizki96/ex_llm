@@ -347,12 +347,13 @@ defmodule ExLLM.Testing.TestCacheStrategy do
     _headers = Map.get(request, :headers, [])
 
     # Use provider from opts if available, otherwise extract from URL
-    provider = case Keyword.get(opts, :provider) do
-      nil -> extract_provider_from_url(url)
-      provider_atom when is_atom(provider_atom) -> Atom.to_string(provider_atom)
-      provider_string -> provider_string
-    end
-    
+    provider =
+      case Keyword.get(opts, :provider) do
+        nil -> extract_provider_from_url(url)
+        provider_atom when is_atom(provider_atom) -> Atom.to_string(provider_atom)
+        provider_string -> provider_string
+      end
+
     endpoint = extract_endpoint_from_url(url)
 
     # Generate base cache key using test context

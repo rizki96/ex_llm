@@ -81,7 +81,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseResponse do
           metadata:
             Map.merge(response["metadata"] || %{}, %{
               role: extract_role(choice),
-              provider: :openai,
+              provider: request.provider,
               raw_response: response
             })
         }

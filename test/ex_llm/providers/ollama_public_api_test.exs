@@ -95,7 +95,7 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
       texts = ["Hello world", "Testing embeddings"]
 
       case ExLLM.embeddings(:ollama, texts, model: "nomic-embed-text") do
-        {:ok, embeddings} ->
+        {:ok, %ExLLM.Types.EmbeddingResponse{embeddings: embeddings}} ->
           assert length(embeddings) == 2
           assert is_list(hd(embeddings))
           assert is_float(hd(hd(embeddings)))

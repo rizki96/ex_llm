@@ -55,14 +55,20 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
   """
   def ensure_default_model(adapter_name) do
     case ModelConfig.get_default_model(adapter_name) do
-      nil ->
+      {:ok, model} ->
+        model
+
+      {:error, :config_file_not_found} ->
+        adapter_str = adapter_name |> to_string() |> String.capitalize()
+
+        raise "Missing configuration file for #{adapter_str}. " <>
+                "Please ensure config/models/#{adapter_name}.yml exists."
+
+      {:error, :missing_default_model_key} ->
         adapter_str = adapter_name |> to_string() |> String.capitalize()
 
         raise "Missing configuration: No default model found for #{adapter_str}. " <>
-                "Please ensure config/models/#{adapter_name}.yml exists and contains a 'default_model' field."
-
-      model ->
-        model
+                "Please ensure config/models/#{adapter_name}.yml contains a 'default_model' field."
     end
   end
 

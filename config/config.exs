@@ -2,6 +2,8 @@ import Config
 
 # ExLLM Configuration
 config :ex_llm,
+  # Caching strategy
+  cache_strategy: ExLLM.Cache.Strategies.Production,
   # Global cache configuration
   cache_enabled: false,
   cache_persist_disk: false,
@@ -84,6 +86,8 @@ if Mix.env() == :test do
   config :ex_llm,
     cache_enabled: false,
     cache_persist_disk: false,
+    # Disable startup validation during tests to reduce noise
+    startup_validation: %{enabled: false},
     # Minimal logging during tests
     log_level: :error,
     log_components: %{

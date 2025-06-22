@@ -21,6 +21,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Logger
   alias ExLLM.Pipeline.Request
+  alias ExLLM.Tesla.MiddlewareFactory
 
   # Default endpoints for each provider
   @default_endpoints %{
@@ -143,15 +144,11 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     headers = extract_headers_from_client(client)
     Logger.debug("Extracted headers: #{inspect(headers)}")
 
-    # Build a new client specifically for streaming
+    # Build a new client specifically for streaming using the factory
     stream_client =
-      Tesla.client(
-        [
-          {Tesla.Middleware.Headers, headers},
-          {Tesla.Middleware.JSON, decode: false}  # Prevent response buffering for streaming
-        ],
-        {Tesla.Adapter.Hackney,
-         [recv_timeout: opts[:receive_timeout] || 60_000, stream_to: self()]}
+      MiddlewareFactory.build_streaming_client(headers,
+        recv_timeout: opts[:receive_timeout] || 60_000,
+        stream_to: self()
       )
 
     # Start the request
@@ -255,15 +252,11 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     # Extract headers from the client's middleware
     headers = extract_headers_from_client(client)
 
-    # Build a new client specifically for streaming
+    # Build a new client specifically for streaming using the factory
     stream_client =
-      Tesla.client(
-        [
-          {Tesla.Middleware.Headers, headers},
-          {Tesla.Middleware.JSON, decode: false}  # Prevent response buffering for streaming
-        ],
-        {Tesla.Adapter.Hackney,
-         [recv_timeout: opts[:receive_timeout] || 60_000, stream_to: self()]}
+      MiddlewareFactory.build_streaming_client(headers,
+        recv_timeout: opts[:receive_timeout] || 60_000,
+        stream_to: self()
       )
 
     # Start the request
@@ -420,41 +413,44 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   defp parse_and_forward_sse_body(body, coordinator, ref) do
     # Initialize SSE parser
     sse_parser = ExLLM.Infrastructure.Streaming.SSEParser.new()
-    
+
     # Parse the complete body as SSE events
-    {events, parser} = ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, body)
-    
+    {events, parser} =
+      ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, body)
+
     # Forward each event as a chunk
-    stream_complete = Enum.any?(events, fn event ->
-      case format_stream_event(event) do
-        {:done, _} -> 
-          true
-          
-        {:ok, _parsed} ->
-          # Send event as JSON-encoded chunk
-          send(coordinator, {:stream_chunk, ref, Jason.encode!(event)})
-          false
-          
-        {:error, _reason} ->
-          # Skip invalid events
-          false
-      end
-    end)
-    
+    stream_complete =
+      Enum.any?(events, fn event ->
+        case format_stream_event(event) do
+          {:done, _} ->
+            true
+
+          {:ok, _parsed} ->
+            # Send event as JSON-encoded chunk
+            send(coordinator, {:stream_chunk, ref, Jason.encode!(event)})
+            false
+
+          {:error, _reason} ->
+            # Skip invalid events
+            false
+        end
+      end)
+
     if not stream_complete do
       # Flush any remaining data in the parser
       {final_events, _} = ExLLM.Infrastructure.Streaming.SSEParser.flush(parser)
-      
+
       Enum.each(final_events, fn event ->
         case format_stream_event(event) do
           {:ok, _parsed} ->
             send(coordinator, {:stream_chunk, ref, Jason.encode!(event)})
-          _ -> 
+
+          _ ->
             :ok
         end
       end)
     end
-    
+
     # Always send completion signal
     send(coordinator, {:stream_complete, ref})
   end

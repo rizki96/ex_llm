@@ -48,8 +48,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     # Check test cache before making request  
     case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
       {:cached, cached_response} ->
-        # Emit cache hit telemetry
-        ExLLM.Infrastructure.Telemetry.emit_cache_hit(cache_key_from_request(url, body))
+        # The interceptor already emits test cache telemetry, so we don't need to here
 
         # Return cached response with metadata
         if Application.get_env(:ex_llm, :debug_test_cache, false) do
@@ -74,8 +73,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         end
 
       {:proceed, request_metadata} ->
-        # Emit cache miss telemetry
-        ExLLM.Infrastructure.Telemetry.emit_cache_miss(cache_key_from_request(url, body))
+        # The interceptor already emits test cache telemetry, so we don't need to here
 
         # Make real request with telemetry
         make_real_request_with_telemetry(

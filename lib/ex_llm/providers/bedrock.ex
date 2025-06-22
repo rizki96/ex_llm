@@ -84,12 +84,16 @@ defmodule ExLLM.Providers.Bedrock do
   @impl true
   def default_model() do
     case ModelConfig.get_default_model(:bedrock) do
-      nil ->
-        raise "Missing configuration: No default model found for Bedrock. " <>
-                "Please ensure config/models/bedrock.yml exists and contains a 'default_model' field."
-
-      model ->
+      {:ok, model} ->
         model
+
+      {:error, :config_file_not_found} ->
+        raise "Missing configuration file for Bedrock. " <>
+                "Please ensure config/models/bedrock.yml exists."
+
+      {:error, :missing_default_model_key} ->
+        raise "Missing configuration: No default model found for Bedrock. " <>
+                "Please ensure config/models/bedrock.yml contains a 'default_model' field."
     end
   end
 

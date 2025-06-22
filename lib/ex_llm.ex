@@ -662,10 +662,12 @@ defmodule ExLLM do
   """
   def context_window_size(provider, model_id) do
     # Ensure provider is an atom - secure conversion
-    provider = case safe_provider_to_atom(provider) do
-      {:ok, atom} -> atom
-      {:error, _} -> provider  # Keep original if conversion fails
-    end
+    provider =
+      case safe_provider_to_atom(provider) do
+        {:ok, atom} -> atom
+        # Keep original if conversion fails
+        {:error, _} -> provider
+      end
 
     result = ExLLM.Infrastructure.Config.ModelConfig.get_model_config(provider, model_id)
 
@@ -961,6 +963,7 @@ defmodule ExLLM do
             {:ok, token_count} -> {:ok, token_count}
             {:error, reason} -> {:error, reason}
           end
+
         {:error, reason} ->
           {:error, reason}
       end
@@ -1506,13 +1509,28 @@ defmodule ExLLM do
 
   # Private helper function to safely convert provider strings to atoms
   # Prevents atom exhaustion attacks by validating against known providers
-  @known_providers [:openai, :anthropic, :gemini, :groq, :mistral, :openrouter, 
-                    :perplexity, :xai, :ollama, :lmstudio, :bedrock, :bumblebee, :mock]
-  
+  @known_providers [
+    :openai,
+    :anthropic,
+    :gemini,
+    :groq,
+    :mistral,
+    :openrouter,
+    :perplexity,
+    :xai,
+    :ollama,
+    :lmstudio,
+    :bedrock,
+    :bumblebee,
+    :mock
+  ]
+
   defp safe_provider_to_atom(provider) when is_atom(provider), do: {:ok, provider}
+
   defp safe_provider_to_atom(provider) when is_binary(provider) do
     try do
       atom = String.to_existing_atom(provider)
+
       if atom in @known_providers do
         {:ok, atom}
       else
@@ -1523,5 +1541,6 @@ defmodule ExLLM do
         {:error, "Unknown provider: #{provider}"}
     end
   end
+
   defp safe_provider_to_atom(_), do: {:error, "Invalid provider type"}
 end

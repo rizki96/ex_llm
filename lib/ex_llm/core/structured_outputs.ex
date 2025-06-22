@@ -360,7 +360,10 @@ defmodule ExLLM.Core.StructuredOutputs do
 
   defp get_model_config(provider, config_provider) do
     config_provider.get(provider, :model) ||
-      ExLLM.Infrastructure.Config.ModelConfig.get_default_model(provider)
+      case ExLLM.Infrastructure.Config.ModelConfig.get_default_model(provider) do
+        {:ok, model} -> model
+        {:error, _} -> nil
+      end
   end
 
   defp strip_ollama_prefix(model) do

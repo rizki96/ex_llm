@@ -5,6 +5,7 @@ Code.require_file("support/test_helpers.ex", __DIR__)
 Code.require_file("support/gemini_oauth2_test_helper.ex", __DIR__)
 Code.require_file("support/config_provider_helper.ex", __DIR__)
 Code.require_file("support/oauth2_test_case.ex", __DIR__)
+Code.require_file("support/capability_helpers.ex", __DIR__)
 Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
 
 # Load environment variables from .env file if available
@@ -32,22 +33,45 @@ case ExLLM.Testing.EnvHelper.load_env(warn_missing: false) do
     IO.puts("\n⚠️  Failed to load .env file: #{inspect(reason)}")
 end
 
-# Configure default exclusions for fast local development
-# These can be overridden with --include flags
-default_exclusions = [
-  # Exclude by default to speed up local development
-  integration: true,
-  external: true,
-  live_api: true,
-  slow: true,
-  very_slow: true,
-  quota_sensitive: true,
-  flaky: true,
-  wip: true,
+# Hybrid Testing Strategy: Balance speed with live API validation
+run_live = System.get_env("MIX_RUN_LIVE") == "true"
+cache_fresh = ExLLM.Testing.Cache.fresh?(max_age: 24 * 60 * 60)
 
-  # OAuth2 tests (legacy tag, will be replaced with :requires_oauth)
-  oauth2: true
-]
+default_exclusions =
+  if run_live or cache_fresh do
+    # Include cached API tests when cache is fresh or explicitly requested
+    IO.puts("\n🚀 Running with API tests enabled")
+    if run_live, do: IO.puts("   Mode: Live API calls")
+    if cache_fresh and not run_live, do: IO.puts("   Mode: Cached responses (fresh)")
+
+    [
+      # Always exclude these for stability
+      slow: true,
+      very_slow: true,
+      quota_sensitive: true,
+      flaky: true,
+      wip: true,
+      oauth2: true
+    ]
+  else
+    # Exclude live tests when cache is stale
+    IO.puts("\n⚠️  Test cache is stale (>24h) - excluding live API tests")
+    IO.puts("   💡 Run `mix test.live` to refresh cache and test against live APIs")
+    IO.puts("   📊 Check cache status: `mix cache.status`")
+
+    [
+      # Exclude API tests when cache is stale
+      integration: true,
+      external: true,
+      live_api: true,
+      slow: true,
+      very_slow: true,
+      quota_sensitive: true,
+      flaky: true,
+      wip: true,
+      oauth2: true
+    ]
+  end
 
 # Check for OAuth2 tokens for backward compatibility
 oauth2_available = File.exists?(".gemini_tokens")

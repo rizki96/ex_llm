@@ -9,10 +9,10 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
   use ExLLM.Plug
 
   @impl true
-  def call(%Request{} = request, _opts) do
+  def call(%Request{provider: provider} = request, _opts) do
     # Set up stream parser configuration
     parser_config = %{
-      parse_chunk: &parse_sse_chunk/1,
+      parse_chunk: fn data -> parse_sse_chunk(data, provider) end,
       accumulator: %{
         content: "",
         role: nil,
@@ -30,7 +30,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
   @doc """
   Parses a Server-Sent Events chunk from OpenAI streaming response.
   """
-  def parse_sse_chunk(data) when is_binary(data) do
+  def parse_sse_chunk(data, provider) when is_binary(data) do
     data
     |> String.split("\n")
     |> Enum.reduce({:continue, []}, fn
@@ -40,7 +40,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
       "data: " <> json, {:continue, chunks} ->
         case Jason.decode(json) do
           {:ok, parsed} ->
-            {:continue, chunks ++ [extract_chunk_data(parsed)]}
+            {:continue, chunks ++ [extract_chunk_data(parsed, provider)]}
 
           {:error, _} ->
             {:continue, chunks}
@@ -51,7 +51,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
     end)
   end
 
-  defp extract_chunk_data(%{"choices" => [%{"delta" => delta} | _]} = chunk) do
+  defp extract_chunk_data(%{"choices" => [%{"delta" => delta} | _]} = chunk, provider) do
     %{
       content: delta["content"] || "",
       role: delta["role"],
@@ -59,11 +59,11 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
       function_call: extract_function_call(delta),
       tool_calls: extract_tool_calls(delta),
       model: chunk["model"],
-      provider: :openai
+      provider: provider
     }
   end
 
-  defp extract_chunk_data(_), do: %{content: ""}
+  defp extract_chunk_data(_, _provider), do: %{content: ""}
 
   defp extract_function_call(%{"function_call" => fc}) when is_map(fc) do
     %{
