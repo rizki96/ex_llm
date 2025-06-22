@@ -313,7 +313,20 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
           Enum.each(documents, fn document ->
             document_name = document["name"]
 
-            # Delete all chunks in this document first (not implemented raw, but documents should cascade)
+            # First delete all chunks in this document (required before document deletion)
+            case list_chunks_raw(document_name, oauth_token) do
+              {:ok, chunks} ->
+                Enum.each(chunks, fn chunk ->
+                  chunk_name = chunk["name"]
+                  delete_chunk_raw(chunk_name, oauth_token)
+                end)
+
+              {:error, _} ->
+                # Document might have no chunks or be inaccessible
+                :ok
+            end
+
+            # Now delete the document
             delete_document_raw(document_name, oauth_token)
           end)
 
@@ -593,6 +606,55 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
   @spec delete_document_raw(String.t(), String.t()) :: :ok | {:error, integer() | String.t()}
   defp delete_document_raw(document_name, oauth_token) do
     url = "https://generativelanguage.googleapis.com/v1beta/#{document_name}"
+
+    headers = [
+      authorization: "Bearer #{oauth_token}",
+      content_type: "application/json"
+    ]
+
+    case Req.delete(url, headers: headers) do
+      {:ok, %{status: status}} when status in [200, 204, 404] ->
+        :ok
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "Delete failed #{status}: #{inspect(body)}"}
+
+      {:error, reason} ->
+        {:error, "HTTP error: #{inspect(reason)}"}
+    end
+  end
+
+  @spec list_chunks_raw(String.t(), String.t()) :: {:ok, [map()]} | {:error, String.t()}
+  defp list_chunks_raw(document_name, oauth_token) do
+    url = "https://generativelanguage.googleapis.com/v1beta/#{document_name}/chunks"
+
+    headers = [
+      authorization: "Bearer #{oauth_token}",
+      content_type: "application/json"
+    ]
+
+    case Req.get(url, headers: headers) do
+      {:ok, %{status: 200, body: body}} ->
+        case body do
+          %{"chunks" => chunks} when is_list(chunks) ->
+            {:ok, chunks}
+
+          _response ->
+            # No chunks field means empty list
+            {:ok, []}
+        end
+
+      {:ok, %{status: status, body: body}} ->
+        {:error, "API error #{status}: #{inspect(body)}"}
+
+      {:error, reason} ->
+        {:error, "HTTP error: #{inspect(reason)}"}
+    end
+  end
+
+  @spec delete_chunk_raw(String.t(), String.t()) :: :ok | {:error, integer() | String.t()}
+  defp delete_chunk_raw(chunk_name, oauth_token) do
+    url = "https://generativelanguage.googleapis.com/v1beta/#{chunk_name}"
 
     headers = [
       authorization: "Bearer #{oauth_token}",

@@ -232,9 +232,12 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
     true
   end
 
-  defp should_retry?({:ok, %{status: 401}}) do
-    # Don't retry auth errors
-    false
+  defp should_retry?({:ok, %{status: 401, body: body}}) do
+    # Check if this is a rate-limited 401 rather than a genuine auth error
+    case check_rate_limit_401(body) do
+      true -> true
+      false -> false
+    end
   end
 
   defp should_retry?({:error, :timeout}) do
@@ -257,6 +260,37 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
   defp should_retry?(_) do
     false
   end
+
+  # Check if a 401 response is actually due to rate limiting
+  defp check_rate_limit_401(body) when is_binary(body) do
+    lower_body = String.downcase(body)
+
+    Enum.any?(
+      [
+        "rate limit",
+        "too many requests",
+        "quota exceeded",
+        "retry after",
+        "throttle"
+      ],
+      &String.contains?(lower_body, &1)
+    )
+  end
+
+  defp check_rate_limit_401(%{"error" => error}) when is_map(error) do
+    message = error["message"] || error["error"] || ""
+    check_rate_limit_401(message)
+  end
+
+  defp check_rate_limit_401(%{"error" => message}) when is_binary(message) do
+    check_rate_limit_401(message)
+  end
+
+  defp check_rate_limit_401(%{"message" => message}) when is_binary(message) do
+    check_rate_limit_401(message)
+  end
+
+  defp check_rate_limit_401(_), do: false
 
   defp maybe_add_logger(config) do
     if config[:debug] || Mix.env() in [:dev, :test] do
