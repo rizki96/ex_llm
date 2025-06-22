@@ -1,5 +1,5 @@
 provider: anthropic
-default_model: claude-instant-1
+default_model: claude-3-5-sonnet-20241022
 models:
   claude-opus-4-20250514:
     context_window: 200000

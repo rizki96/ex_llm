@@ -166,7 +166,15 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
                     "Please add a default_model field to the configuration."
 
           model ->
-            model
+            # Strip provider prefix if present (e.g., "groq/model" -> "model")
+            # This handles models from LiteLLM configs that include provider prefixes
+            provider_str = Atom.to_string(provider)
+            case String.split(model, "/", parts: 2) do
+              [^provider_str, actual_model] ->
+                actual_model
+              _ ->
+                model
+            end
         end
     end
   end

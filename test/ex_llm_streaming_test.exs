@@ -50,7 +50,7 @@ defmodule ExLLM.StreamingTest do
 
     @tag :streaming
     test "streaming with OpenAI-style SSE parsing" do
-      parser = &ExLLM.Plugs.Providers.OpenAIParseStreamResponse.parse_sse_chunk/1
+      parser = &ExLLM.Plugs.Providers.OpenAIParseStreamResponse.parse_sse_chunk(&1, :openai)
 
       # Test single chunk
       sse_data = """

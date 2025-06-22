@@ -21,6 +21,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
   """
 
   use ExLLM.Plug
+  alias ExLLM.Infrastructure.Config.ModelConfig
 
   @impl true
   def call(%Request{messages: messages, config: config, provider: provider} = request, _opts) do
@@ -32,13 +33,8 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
   end
 
   defp build_request_body(messages, config, provider) do
-    # Get the provider's default model instead of hardcoding
-    default_model =
-      case provider do
-        :openai -> "gpt-4"
-        :groq -> "llama-3.1-8b-instant"
-        _ -> "gpt-4"
-      end
+    # Get the provider's default model from ModelConfig
+    default_model = ModelConfig.get_default_model(provider)
 
     %{
       model: config[:model] || default_model,

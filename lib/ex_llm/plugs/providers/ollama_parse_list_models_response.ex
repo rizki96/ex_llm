@@ -85,24 +85,15 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
     model_name = model["name"]
     base_name = extract_base_model_name(model_name)
 
-    %{
+    %ExLLM.Types.Model{
       id: model_name,
       name: model_name,
-      base_model: base_name,
-      size: format_size(model["size"]),
-      digest: model["digest"],
-      modified_at: model["modified_at"],
+      description: "Local Ollama model",
       context_window: get_context_window(base_name),
       max_output_tokens: get_max_output_tokens(base_name),
       capabilities: get_capabilities(base_name),
       # Local models are free
-      pricing: %{input: 0.0, output: 0.0},
-      metadata: %{
-        family: model["details"]["family"],
-        parameter_size: model["details"]["parameter_size"],
-        quantization_level: model["details"]["quantization_level"],
-        format: model["details"]["format"]
-      }
+      pricing: %{input: 0.0, output: 0.0}
     }
   end
 
@@ -114,23 +105,24 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
     end
   end
 
-  defp format_size(size_bytes) when is_integer(size_bytes) do
-    cond do
-      size_bytes >= 1_073_741_824 ->
-        "#{Float.round(size_bytes / 1_073_741_824, 1)} GB"
-
-      size_bytes >= 1_048_576 ->
-        "#{Float.round(size_bytes / 1_048_576, 1)} MB"
-
-      size_bytes >= 1024 ->
-        "#{Float.round(size_bytes / 1024, 1)} KB"
-
-      true ->
-        "#{size_bytes} B"
-    end
-  end
-
-  defp format_size(_), do: "Unknown"
+  # TODO: This function is currently unused but may be useful for displaying model sizes
+  # defp format_size(size_bytes) when is_integer(size_bytes) do
+  #   cond do
+  #     size_bytes >= 1_073_741_824 ->
+  #       "#{Float.round(size_bytes / 1_073_741_824, 1)} GB"
+  #
+  #     size_bytes >= 1_048_576 ->
+  #       "#{Float.round(size_bytes / 1_048_576, 1)} MB"
+  #
+  #     size_bytes >= 1024 ->
+  #       "#{Float.round(size_bytes / 1024, 1)} KB"
+  #
+  #     true ->
+  #       "#{size_bytes} B"
+  #   end
+  # end
+  #
+  # defp format_size(_), do: "Unknown"
 
   defp get_context_window(base_name) do
     # Known context windows for common Ollama models

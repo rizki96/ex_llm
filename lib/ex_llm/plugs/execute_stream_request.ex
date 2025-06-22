@@ -20,6 +20,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Pipeline.Request
 
   # Default endpoints for each provider
   @default_endpoints %{
@@ -147,7 +148,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       Tesla.client(
         [
           {Tesla.Middleware.Headers, headers},
-          Tesla.Middleware.JSON
+          {Tesla.Middleware.JSON, decode: false}  # Prevent response buffering for streaming
         ],
         {Tesla.Adapter.Hackney,
          [recv_timeout: opts[:receive_timeout] || 60_000, stream_to: self()]}
@@ -157,7 +158,8 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     Logger.debug("Starting stream request to #{endpoint}")
 
     result = Tesla.post(stream_client, endpoint, body)
-    Logger.debug("Tesla.post result: #{inspect(result)}")
+
+    Logger.debug("Tesla.request result: #{inspect(result)}")
 
     case result do
       {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
@@ -174,14 +176,6 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
           Logger.debug("Empty body, waiting for streaming chunks")
           forward_chunks_to_coordinator(coordinator, ref)
         end
-
-      {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
-        # Success response - forward chunks to coordinator
-        Logger.debug("Stream request successful, status: #{status}")
-        Logger.debug("Response headers: #{inspect(env.headers)}")
-        Logger.debug("Response body: #{inspect(env.body)}")
-        # The body has already been consumed by streaming, so we receive chunks via messages
-        forward_chunks_to_coordinator(coordinator, ref)
 
       {:ok, %Tesla.Env{} = env} ->
         # Error response
@@ -266,7 +260,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       Tesla.client(
         [
           {Tesla.Middleware.Headers, headers},
-          Tesla.Middleware.JSON
+          {Tesla.Middleware.JSON, decode: false}  # Prevent response buffering for streaming
         ],
         {Tesla.Adapter.Hackney,
          [recv_timeout: opts[:receive_timeout] || 60_000, stream_to: self()]}
@@ -424,9 +418,44 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   end
 
   defp parse_and_forward_sse_body(body, coordinator, ref) do
-    # Send the entire body as one chunk - the coordinator's parser will handle it
-    send(coordinator, {:stream_chunk, ref, body})
-
-    # Don't send completion here - let the parser detect the end
+    # Initialize SSE parser
+    sse_parser = ExLLM.Infrastructure.Streaming.SSEParser.new()
+    
+    # Parse the complete body as SSE events
+    {events, parser} = ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, body)
+    
+    # Forward each event as a chunk
+    stream_complete = Enum.any?(events, fn event ->
+      case format_stream_event(event) do
+        {:done, _} -> 
+          true
+          
+        {:ok, _parsed} ->
+          # Send event as JSON-encoded chunk
+          send(coordinator, {:stream_chunk, ref, Jason.encode!(event)})
+          false
+          
+        {:error, _reason} ->
+          # Skip invalid events
+          false
+      end
+    end)
+    
+    if not stream_complete do
+      # Flush any remaining data in the parser
+      {final_events, _} = ExLLM.Infrastructure.Streaming.SSEParser.flush(parser)
+      
+      Enum.each(final_events, fn event ->
+        case format_stream_event(event) do
+          {:ok, _parsed} ->
+            send(coordinator, {:stream_chunk, ref, Jason.encode!(event)})
+          _ -> 
+            :ok
+        end
+      end)
+    end
+    
+    # Always send completion signal
+    send(coordinator, {:stream_complete, ref})
   end
 end

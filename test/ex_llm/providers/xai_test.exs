@@ -16,7 +16,7 @@ defmodule ExLLM.Providers.XAITest do
     end
 
     test "default_model/1 returns the default model" do
-      assert XAI.default_model([]) == "xai/grok-beta"
+      assert XAI.default_model([]) == "grok-beta"
     end
 
     test "list_models/1 returns available models" do
