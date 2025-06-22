@@ -51,10 +51,10 @@ defmodule ExLLM.API.TokenCountingTest do
     end
 
     test "returns error for unsupported provider" do
-      assert {:error, "Token counting not supported for provider: openai"} =
+      assert {:error, "count_tokens not supported for provider: openai"} =
                ExLLM.count_tokens(:openai, "gpt-4", @test_content)
 
-      assert {:error, "Token counting not supported for provider: anthropic"} =
+      assert {:error, "count_tokens not supported for provider: anthropic"} =
                ExLLM.count_tokens(:anthropic, "claude-3", @test_content)
     end
 
