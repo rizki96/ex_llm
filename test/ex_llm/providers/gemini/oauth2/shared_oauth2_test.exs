@@ -9,11 +9,9 @@ defmodule ExLLM.Providers.Gemini.OAuth2.SharedOAuth2Test do
   use ExLLM.Testing.OAuth2TestCase, timeout: 300_000
 
   alias ExLLM.Providers.Gemini.{
-    Chunk,
     Corpus,
     Document,
-    Permissions,
-    QA
+    Permissions
   }
 
   alias ExLLM.Testing.GeminiOAuth2Helper
@@ -62,13 +60,6 @@ defmodule ExLLM.Providers.Gemini.OAuth2.SharedOAuth2Test do
       assert {:error, error} = result
       assert error =~ "404" or error =~ "Not Found" or error =~ "not found"
     end
-  end
-
-  @doc """
-  Helper function to generate unique resource names for testing.
-  """
-  def unique_name(prefix) do
-    "#{prefix}-#{System.unique_integer([:positive]) |> Integer.to_string() |> String.downcase()}"
   end
 
   @doc """

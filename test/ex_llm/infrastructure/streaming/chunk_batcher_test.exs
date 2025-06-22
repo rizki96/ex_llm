@@ -155,7 +155,7 @@ defmodule ExLLM.Infrastructure.Streaming.ChunkBatcherTest do
 
       # Send large chunks
       large_chunks =
-        for i <- 1..10 do
+        for _i <- 1..10 do
           %StreamChunk{content: String.duplicate("x", 2000)}
         end
 
@@ -226,7 +226,7 @@ defmodule ExLLM.Infrastructure.Streaming.ChunkBatcherTest do
       {:ok, batcher} = ChunkBatcher.start_link(batch_size: 3)
 
       # Add chunks to create batches
-      chunks = for i <- 1..7, do: %StreamChunk{content: String.duplicate("x", 100)}
+      chunks = for _i <- 1..7, do: %StreamChunk{content: String.duplicate("x", 100)}
 
       for chunk <- chunks do
         ChunkBatcher.add_chunk(batcher, chunk)
@@ -308,7 +308,7 @@ defmodule ExLLM.Infrastructure.Streaming.ChunkBatcherTest do
         )
 
       chunk1 = %StreamChunk{content: "One"}
-      chunk2 = %StreamChunk{content: "Two"}
+      _chunk2 = %StreamChunk{content: "Two"}
 
       ChunkBatcher.add_chunk(batcher, chunk1)
 

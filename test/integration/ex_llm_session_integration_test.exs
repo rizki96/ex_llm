@@ -5,7 +5,7 @@ defmodule ExLLM.SessionIntegrationTest do
     test "creates session through ExLLM interface" do
       session = ExLLM.new_session(:anthropic, name: "Test Session")
 
-      assert session.llm_backend == "anthropic"
+      assert session.llm_backend == :anthropic
       assert session.name == "Test Session"
       assert session.messages == []
     end
@@ -39,7 +39,7 @@ defmodule ExLLM.SessionIntegrationTest do
       session = ExLLM.clear_session(session)
       assert ExLLM.get_session_messages(session) == []
       # Metadata preserved
-      assert session.llm_backend == "anthropic"
+      assert session.llm_backend == :anthropic
     end
 
     test "saves and loads session through ExLLM interface" do

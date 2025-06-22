@@ -29,7 +29,7 @@ defmodule ExLLM.Testing.LiveApiCacheStorage do
   @doc """
   Store a test response with timestamp-based naming.
   """
-  @spec store(cache_key(), any(), map()) :: :ok | {:error, term()}
+  @spec store(cache_key(), any(), map()) :: :ok | {:ok, String.t()} | {:error, term()}
   def store(cache_key, response_data, metadata \\ %{}) do
     config = TestCacheConfig.get_config()
 

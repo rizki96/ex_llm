@@ -362,7 +362,7 @@ defmodule ExLLM.API.BatchProcessingTest do
         case ExLLM.create_batch(:anthropic, @test_batch_messages, model: "claude-3-haiku") do
           {:ok, batch} ->
             batch_id = batch.id
-            initial_status = batch.status
+            _initial_status = batch.status
 
             # Check status multiple times to see progression
             statuses =

@@ -94,7 +94,7 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
     test "local embedding generation" do
       texts = ["Hello world", "Testing embeddings"]
 
-      case ExLLM.create_embeddings(:ollama, texts, model: "nomic-embed-text") do
+      case ExLLM.embeddings(:ollama, texts, model: "nomic-embed-text") do
         {:ok, embeddings} ->
           assert length(embeddings) == 2
           assert is_list(hd(embeddings))

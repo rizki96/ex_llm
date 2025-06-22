@@ -171,7 +171,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinatorTest do
         metrics_interval_ms: 100
       ]
 
-      assert {:ok, stream_id} = EnhancedStreamingCoordinator.simple_stream(params)
+      assert {:ok, _stream_id} = EnhancedStreamingCoordinator.simple_stream(params)
 
       # Verify metrics structure
       # Allow metrics to be collected
@@ -322,7 +322,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinatorTest do
         metrics_interval_ms: 50
       ]
 
-      assert {:ok, stream_id} = EnhancedStreamingCoordinator.simple_stream(params)
+      assert {:ok, _stream_id} = EnhancedStreamingCoordinator.simple_stream(params)
 
       # Wait for at least one metrics report
       Process.sleep(100)

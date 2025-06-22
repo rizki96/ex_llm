@@ -1,0 +1,86 @@
+name: Provider Support Request
+description: Request support for a new LLM provider
+labels: ["provider", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for requesting support for a new provider! This helps us prioritize new integrations.
+
+  - type: input
+    id: provider_name
+    attributes:
+      label: Provider Name
+      description: Name of the LLM provider
+      placeholder: e.g., Cohere, Replicate, Hugging Face, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: provider_details
+    attributes:
+      label: Provider Details
+      description: Information about the provider's API and capabilities
+      placeholder: |
+        - API Documentation: https://...
+        - Available models: GPT-4, Claude, etc.
+        - Supported features: chat, streaming, function calling, etc.
+        - Authentication method: API key, OAuth, etc.
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Why do you need this provider? What makes it unique?
+      placeholder: Describe your specific use case and why this provider is important...
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: capabilities
+    attributes:
+      label: Required Capabilities
+      description: Which capabilities does this provider need to support?
+      options:
+        - label: Basic chat completion
+        - label: Streaming responses
+        - label: Function/tool calling
+        - label: Vision/image analysis
+        - label: File uploads
+        - label: Embeddings
+        - label: Fine-tuning
+        - label: Assistants API
+        - label: Context caching
+
+  - type: textarea
+    id: api_examples
+    attributes:
+      label: API Examples (Optional)
+      description: If you have examples of the provider's API usage
+      render: code
+      placeholder: |
+        # Example API calls or code snippets
+        curl -X POST "https://api.provider.com/v1/chat" \
+          -H "Authorization: Bearer $API_KEY" \
+          -d '{"model": "provider-model", "messages": [...]}'
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      description: How urgent is this request for your use case?
+      options:
+        - Low - Nice to have
+        - Medium - Would be helpful
+        - High - Important for my project
+        - Critical - Blocking my use case
+    default: 1
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other relevant information
+      placeholder: Links to documentation, similar integrations, community interest, etc.

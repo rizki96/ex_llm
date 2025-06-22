@@ -147,7 +147,7 @@ defmodule ExLLM.TestCacheTimestampTest do
 
     test "removes entries exceeding max count", %{test_dir: test_dir} do
       # Create 5 files
-      files =
+      _files =
         for i <- 1..5 do
           filename = "2024-01-#{String.pad_leading(to_string(i), 2, "0")}T10-00-00Z.json"
           path = Path.join(test_dir, filename)

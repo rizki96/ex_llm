@@ -297,7 +297,7 @@ defmodule ExLLM.Infrastructure.Streaming.StreamBufferTest do
     end
 
     test "handles rapid push/pop cycles" do
-      buffer = StreamBuffer.new(5)
+      _buffer = StreamBuffer.new(5)
 
       # Simulate streaming with push/pop cycles  
       # We'll use overwrite strategy to ensure all pushes succeed

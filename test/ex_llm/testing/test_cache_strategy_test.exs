@@ -1,7 +1,6 @@
 defmodule ExLLM.TestCacheStrategyTest do
   use ExUnit.Case, async: false
   alias ExLLM.Testing.LiveApiCacheStorage
-  alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
   alias ExLLM.Testing.TestCacheIndex
   alias ExLLM.Testing.TestCacheStrategy
@@ -9,7 +8,7 @@ defmodule ExLLM.TestCacheStrategyTest do
   setup do
     # Store original configs
     original_cache_config = Application.get_env(:ex_llm, :test_cache, %{})
-    original_test_context = TestCacheDetector.get_current_test_context()
+    _original_test_context = TestCacheDetector.get_current_test_context()
 
     # Create test directory
     test_dir = "test/tmp/strategy_test_#{:rand.uniform(10000)}"
@@ -81,7 +80,7 @@ defmodule ExLLM.TestCacheStrategyTest do
 
       # Store a cached response
       cache_key = TestCacheStrategy.generate_cache_key(request)
-      cache_dir = Path.join(test_dir, cache_key)
+      _cache_dir = Path.join(test_dir, cache_key)
 
       cached_response = %{
         status: 200,
@@ -118,7 +117,7 @@ defmodule ExLLM.TestCacheStrategyTest do
       assert cache_metadata.from_cache == true
     end
 
-    test "returns proceed when cache miss", %{test_dir: test_dir} do
+    test "returns proceed when cache miss", %{test_dir: _test_dir} do
       # Set up test context
       TestCacheDetector.set_test_context(%{
         module: ExLLM.IntegrationTest,
@@ -323,7 +322,7 @@ defmodule ExLLM.TestCacheStrategyTest do
   describe "get_cached_response/3" do
     test "retrieves cached response within TTL", %{test_dir: test_dir} do
       cache_key = "test/cache_retrieval"
-      cache_dir = Path.join(test_dir, cache_key)
+      _cache_dir = Path.join(test_dir, cache_key)
 
       cached_response = %{
         status: 200,
@@ -347,14 +346,14 @@ defmodule ExLLM.TestCacheStrategyTest do
       assert Map.has_key?(metadata, :from_cache)
     end
 
-    test "returns miss for non-existent cache", %{test_dir: test_dir} do
+    test "returns miss for non-existent cache", %{test_dir: _test_dir} do
       cache_key = "test/nonexistent"
       request = %{url: "test", body: %{}, headers: []}
 
       assert :miss = TestCacheStrategy.get_cached_response(cache_key, request, [])
     end
 
-    test "uses fallback strategy when primary fails", %{test_dir: test_dir} do
+    test "uses fallback strategy when primary fails", %{test_dir: _test_dir} do
       cache_key = "test/fallback_test"
       request = %{url: "test", body: %{}, headers: []}
 

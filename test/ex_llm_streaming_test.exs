@@ -105,7 +105,7 @@ defmodule ExLLM.StreamingTest do
     end
   end
 
-  defp collect_chunks(timeout \\ 1000) do
+  defp collect_chunks(timeout) do
     collect_chunks([], timeout)
   end
 

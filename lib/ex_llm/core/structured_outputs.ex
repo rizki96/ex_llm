@@ -397,28 +397,40 @@ defmodule ExLLM.Core.StructuredOutputs do
   end
 
   defp validate_with_instructor_validator(response_model, data) do
-    base_struct = struct(response_model)
-    fields = Map.keys(base_struct) -- [:__struct__, :__meta__]
+    if Code.ensure_loaded?(Ecto.Changeset) do
+      base_struct = struct(response_model)
+      fields = Map.keys(base_struct) -- [:__struct__, :__meta__]
 
-    changeset = Ecto.Changeset.cast(base_struct, data, fields)
-    validated_changeset = apply(response_model, :validate_changeset, [changeset])
+      changeset = Ecto.Changeset.cast(base_struct, data, fields)
+      validated_changeset = apply(response_model, :validate_changeset, [changeset])
 
-    apply_changeset_result(validated_changeset)
+      apply_changeset_result(validated_changeset)
+    else
+      {:error, "Ecto not available for validation"}
+    end
   end
 
   defp validate_with_schema(response_model, data) do
-    base_struct = struct(response_model)
-    fields = response_model.__schema__(:fields)
-    changeset = Ecto.Changeset.cast(base_struct, data, fields)
+    if Code.ensure_loaded?(Ecto.Changeset) do
+      base_struct = struct(response_model)
+      fields = response_model.__schema__(:fields)
+      changeset = Ecto.Changeset.cast(base_struct, data, fields)
 
-    apply_changeset_result(changeset)
+      apply_changeset_result(changeset)
+    else
+      {:error, "Ecto not available for validation"}
+    end
   end
 
   defp apply_changeset_result(changeset) do
-    if changeset.valid? do
-      {:ok, Ecto.Changeset.apply_changes(changeset)}
+    if Code.ensure_loaded?(Ecto.Changeset) do
+      if changeset.valid? do
+        {:ok, Ecto.Changeset.apply_changes(changeset)}
+      else
+        {:error, format_changeset_errors(changeset)}
+      end
     else
-      {:error, format_changeset_errors(changeset)}
+      {:error, "Ecto not available for changeset processing"}
     end
   end
 
@@ -471,14 +483,18 @@ defmodule ExLLM.Core.StructuredOutputs do
   end
 
   defp format_changeset_errors(changeset) do
-    errors =
-      Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
-        Enum.reduce(opts, msg, fn {key, value}, acc ->
-          String.replace(acc, "%{#{key}}", to_string(value))
+    if Code.ensure_loaded?(Ecto.Changeset) do
+      errors =
+        Ecto.Changeset.traverse_errors(changeset, fn {msg, opts} ->
+          Enum.reduce(opts, msg, fn {key, value}, acc ->
+            String.replace(acc, "%{#{key}}", to_string(value))
+          end)
         end)
-      end)
 
-    {:validation_failed, errors}
+      {:validation_failed, errors}
+    else
+      {:validation_failed, %{}}
+    end
   end
 
   @doc """

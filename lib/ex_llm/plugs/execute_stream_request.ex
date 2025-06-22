@@ -175,9 +175,9 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
           forward_chunks_to_coordinator(coordinator, ref)
         end
 
-      %Tesla.Env{status: status} = env when status in 200..299 ->
-        # Success (unwrapped response from streaming) - forward chunks to coordinator
-        Logger.debug("Stream request successful (unwrapped), status: #{status}")
+      {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
+        # Success response - forward chunks to coordinator
+        Logger.debug("Stream request successful, status: #{status}")
         Logger.debug("Response headers: #{inspect(env.headers)}")
         Logger.debug("Response body: #{inspect(env.body)}")
         # The body has already been consumed by streaming, so we receive chunks via messages
@@ -185,10 +185,6 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
       {:ok, %Tesla.Env{} = env} ->
         # Error response
-        send(coordinator, {:stream_error, ref, env})
-
-      %Tesla.Env{} = env ->
-        # Error response (unwrapped from streaming)
         send(coordinator, {:stream_error, ref, env})
 
       {:error, reason} ->
@@ -282,16 +278,8 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
         # Success - stream will arrive as messages
         handle_stream_messages(callback, parent, ref)
 
-      %Tesla.Env{status: status} when status in 200..299 ->
-        # Success (unwrapped response from streaming) - stream will arrive as messages
-        handle_stream_messages(callback, parent, ref)
-
       {:ok, %Tesla.Env{} = env} ->
         # Error response
-        send(parent, {:stream_error, ref, env})
-
-      %Tesla.Env{} = env ->
-        # Error response (unwrapped from streaming)
         send(parent, {:stream_error, ref, env})
 
       {:error, reason} ->

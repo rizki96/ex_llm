@@ -312,3 +312,10 @@ end
 - Confirm automatic cleanup is not manually overridden
 
 See [OAuth2 Testing Guide](test/OAUTH2_TESTING.md) for complete documentation.
+
+## Memory and Development Tips
+
+### Development Workflow
+- Whenever you need to write or edit code, prefer to use aider.
+- After new code is written, use zen to review the code.
+- **IMPORTANT WORKFLOW TIP**: Before writing or editing code, use zen to analyze it, get consensus on it, and plan it.

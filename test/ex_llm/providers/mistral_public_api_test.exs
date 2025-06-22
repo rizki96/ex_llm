@@ -140,7 +140,7 @@ defmodule ExLLM.Providers.MistralPublicAPITest do
     test "Mistral embeddings" do
       texts = ["Bonjour le monde", "Comment allez-vous?"]
 
-      case ExLLM.create_embeddings(:mistral, texts, model: "mistral-embed") do
+      case ExLLM.embeddings(:mistral, texts, model: "mistral-embed") do
         {:ok, embeddings} ->
           assert length(embeddings) == 2
           assert is_list(hd(embeddings))

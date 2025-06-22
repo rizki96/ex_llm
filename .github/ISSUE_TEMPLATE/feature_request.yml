@@ -1,0 +1,60 @@
+name: Feature Request
+description: Suggest a new feature or enhancement
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for suggesting a new feature! Please describe your idea below.
+
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Feature Description
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: Describe the feature and how it would work...
+    validations:
+      required: true
+
+  - type: textarea
+    id: use_case
+    attributes:
+      label: Use Case
+      description: Describe the problem this feature would solve or the use case it enables
+      placeholder: I want to be able to... because...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_api
+    attributes:
+      label: Proposed API (Optional)
+      description: If you have ideas about how the API should look
+      placeholder: |
+        ExLLM.new_feature(:provider, options)
+        # => {:ok, result}
+
+  - type: dropdown
+    id: provider_scope
+    attributes:
+      label: Provider Scope
+      description: Which providers should support this feature?
+      options:
+        - All providers
+        - Specific provider (please specify in description)
+        - Provider-agnostic (not tied to any provider)
+        - New provider integration
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Have you considered any alternative solutions or workarounds?
+      placeholder: Describe alternative approaches you've considered...
+
+  - type: textarea
+    id: additional_context
+    attributes:
+      label: Additional Context
+      description: Any other context, links, or examples that would help
+      placeholder: Add any other context, links to documentation, similar features in other libraries, etc.

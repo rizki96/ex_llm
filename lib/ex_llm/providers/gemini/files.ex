@@ -514,19 +514,19 @@ defmodule ExLLM.Providers.Gemini.Files do
   end
 
   @doc false
-  @spec extract_upload_url(list()) :: {:ok, String.t()} | {:error, map()}
-  def extract_upload_url(headers) do
-    header =
-      Enum.find(headers, fn
-        {k, _v} when is_binary(k) -> String.downcase(k) == "x-goog-upload-url"
-        _ -> false
+  @spec extract_upload_url(%{binary() => [binary()]}) :: {:ok, String.t()} | {:error, map()}
+  def extract_upload_url(headers) when is_map(headers) do
+    upload_url =
+      headers
+      |> Enum.find_value(fn {k, v} ->
+        if String.downcase(k) == "x-goog-upload-url", do: v, else: nil
       end)
 
-    case header do
-      {_, url} when is_binary(url) ->
+    case upload_url do
+      [url | _] when is_binary(url) ->
         {:ok, url}
 
-      {_, [url | _]} when is_binary(url) ->
+      url when is_binary(url) ->
         {:ok, url}
 
       nil ->

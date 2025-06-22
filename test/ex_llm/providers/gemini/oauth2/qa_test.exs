@@ -10,7 +10,6 @@ defmodule ExLLM.Providers.Gemini.OAuth2.QATest do
 
   alias ExLLM.Providers.Gemini.{Chunk, Corpus, Document, QA}
   alias ExLLM.Providers.Gemini.OAuth2.SharedOAuth2Test
-  alias ExLLM.Testing.GeminiOAuth2Helper
 
   @moduletag :gemini_oauth2_apis
   @moduletag :question_answering

@@ -94,7 +94,7 @@ defmodule ExLLM.MockTest do
       })
 
       messages = [%{role: "user", content: "Hi"}]
-      collected = []
+      _collected = []
 
       # Use the new streaming API
       result =
@@ -123,7 +123,7 @@ defmodule ExLLM.MockTest do
     test "captures streaming requests" do
       messages = [%{role: "user", content: "Stream test"}]
 
-      {:ok, stream} = ExLLM.stream_chat(:mock, messages, temperature: 0.5)
+      {:ok, stream} = ExLLM.stream(:mock, messages, %{temperature: 0.5}, %{})
       # Consume stream
       Enum.to_list(stream)
 

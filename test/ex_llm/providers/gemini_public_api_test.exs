@@ -125,14 +125,4 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
       end
     end
   end
-
-  # Helper function to collect stream chunks
-  defp collect_stream_chunks(chunks, timeout) do
-    receive do
-      {:chunk, chunk} ->
-        collect_stream_chunks([chunk | chunks], timeout)
-    after
-      timeout -> Enum.reverse(chunks)
-    end
-  end
 end

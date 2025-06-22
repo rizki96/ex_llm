@@ -384,7 +384,7 @@ defmodule ExLLM.API.KnowledgeBasesTest do
 
         # Create knowledge base
         case ExLLM.create_knowledge_base(:gemini, kb_name, display_name: "Test KB") do
-          {:ok, kb} ->
+          {:ok, _kb} ->
             # List knowledge bases and verify ours is there
             case ExLLM.list_knowledge_bases(:gemini) do
               {:ok, list_response} ->

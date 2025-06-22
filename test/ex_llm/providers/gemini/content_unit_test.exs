@@ -800,7 +800,7 @@ defmodule ExLLM.Gemini.ContentTest do
         %{role: "user", content: "Count to 3"}
       ]
 
-      case ExLLM.stream_chat(:gemini, messages) do
+      case ExLLM.stream(:gemini, messages, %{}, %{}) do
         {:ok, stream} ->
           chunks = Enum.take(stream, 5)
           assert length(chunks) > 0

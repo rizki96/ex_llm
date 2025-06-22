@@ -95,7 +95,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowControllerTest do
   end
 
   describe "backpressure" do
-    test "applies backpressure when buffer is near capacity", %{test_pid: test_pid} do
+    test "applies backpressure when buffer is near capacity", %{test_pid: _test_pid} do
       # Create a consumer that blocks forever to prevent buffer draining
       blocking_consumer = fn _chunk ->
         # Block forever by waiting for a message that will never come
@@ -201,7 +201,7 @@ defmodule ExLLM.Infrastructure.Streaming.FlowControllerTest do
       {:ok, controller} = FlowController.start_link(consumer: consumer)
 
       # Push some chunks
-      for i <- 1..5 do
+      for _i <- 1..5 do
         chunk = %StreamChunk{content: String.duplicate("x", 100)}
         FlowController.push_chunk(controller, chunk)
       end

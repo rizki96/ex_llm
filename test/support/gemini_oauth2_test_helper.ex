@@ -14,7 +14,6 @@ defmodule ExLLM.Testing.GeminiOAuth2Helper do
   alias ExLLM.Testing.OAuth2.Helper
 
   @token_file ".gemini_tokens"
-  @token_refresh_script "scripts/refresh_oauth2_token.exs"
 
   @doc """
   Gets a valid OAuth2 token for testing.

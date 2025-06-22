@@ -239,7 +239,7 @@ defmodule ExLLM.TestCacheIndexTest do
 
       assert updated.total_requests == 1
       assert updated.cache_hits == 1
-      assert updated.last_accessed != nil
+      assert not is_nil(updated.last_accessed)
       assert updated.access_count == 1
 
       # Another hit
@@ -258,7 +258,7 @@ defmodule ExLLM.TestCacheIndexTest do
       assert updated.total_requests == 1
       # Misses don't increment hits
       assert updated.cache_hits == 0
-      assert updated.last_accessed != nil
+      assert not is_nil(updated.last_accessed)
     end
 
     test "persists stats updates", %{test_dir: test_dir} do
@@ -395,7 +395,7 @@ defmodule ExLLM.TestCacheIndexTest do
 
       assert length(updated.entries) == 1
       assert hd(updated.entries).filename == "new.json"
-      assert updated.cleanup_before != nil
+      assert not is_nil(updated.cleanup_before)
     end
 
     test "updates cleanup tracking fields", %{test_dir: test_dir} do
@@ -406,8 +406,8 @@ defmodule ExLLM.TestCacheIndexTest do
 
       updated = TestCacheIndex.cleanup_old_entries(index, 30 * 24 * 60 * 60 * 1000, test_dir)
 
-      assert updated.last_cleanup != nil
-      assert updated.cleanup_before != nil
+      assert not is_nil(updated.last_cleanup)
+      assert not is_nil(updated.cleanup_before)
 
       # cleanup_before should be approximately 30 days ago
       age = DateTime.diff(DateTime.utc_now(), updated.cleanup_before, :day)
@@ -564,7 +564,7 @@ defmodule ExLLM.TestCacheIndexTest do
   end
 
   describe "calculate_hit_rate/1" do
-    test "calculates correct hit rate", %{test_dir: test_dir} do
+    test "calculates correct hit rate", %{test_dir: _test_dir} do
       index = %{
         cache_key: "test",
         entries: [],
@@ -585,7 +585,7 @@ defmodule ExLLM.TestCacheIndexTest do
       assert TestCacheIndex.calculate_hit_rate(index) == 0.0
     end
 
-    test "handles all hits correctly", %{test_dir: test_dir} do
+    test "handles all hits correctly", %{test_dir: _test_dir} do
       index = %{
         cache_key: "test",
         entries: [],

@@ -10,7 +10,6 @@ defmodule ExLLM.Providers.Gemini.OAuth2.DocumentManagementTest do
 
   alias ExLLM.Providers.Gemini.{Corpus, Document}
   alias ExLLM.Providers.Gemini.OAuth2.SharedOAuth2Test
-  alias ExLLM.Testing.GeminiOAuth2Helper
 
   @moduletag :gemini_oauth2_apis
   @moduletag :document_management

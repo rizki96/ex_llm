@@ -131,9 +131,13 @@ defmodule ExLLM.Plugs.TrackCost do
         _ ->
           # Fallback pricing
           Logger.warning("No pricing found for #{provider}/#{model}, using defaults")
-          get_default_pricing(ensure_atom_provider(provider))
+          get_default_pricing(provider)
       end
     end
+  end
+
+  defp get_default_pricing(provider) when is_binary(provider) do
+    get_default_pricing(String.to_atom(provider))
   end
 
   defp get_default_pricing(provider) when is_atom(provider) do
@@ -146,9 +150,6 @@ defmodule ExLLM.Plugs.TrackCost do
       _ -> %{input: 1.00, output: 3.00}
     end
   end
-
-  defp ensure_atom_provider(provider) when is_binary(provider), do: String.to_atom(provider)
-  defp ensure_atom_provider(provider), do: provider
 
   # Helper functions for struct/map compatibility
   defp get_usage(%{usage: usage}), do: usage || %{}

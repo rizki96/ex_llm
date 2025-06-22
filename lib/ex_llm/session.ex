@@ -32,8 +32,8 @@ defmodule ExLLM.Session do
       loaded_session = ExLLM.Session.load_session("conversation.json")
   """
 
-  alias ExLLM.Types.Session
   alias ExLLM.Core.Session, as: CoreSession
+  alias ExLLM.Types.Session
 
   @doc """
   Create a new session for conversation management.

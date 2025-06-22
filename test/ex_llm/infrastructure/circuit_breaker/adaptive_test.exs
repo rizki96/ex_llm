@@ -198,7 +198,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.AdaptiveTest do
       end
 
       # Need to manually store metrics since adaptive isn't automatically triggered
-      telemetry_metrics = ExLLM.Infrastructure.CircuitBreaker.Telemetry.get_metrics("calc_test")
+      _telemetry_metrics = ExLLM.Infrastructure.CircuitBreaker.Telemetry.get_metrics("calc_test")
 
       metrics = ExLLM.Infrastructure.CircuitBreaker.Adaptive.get_circuit_metrics("calc_test")
 

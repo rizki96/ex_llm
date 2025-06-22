@@ -1,6 +1,5 @@
 defmodule ExLLM.Testing.TestCacheDetectorTest do
   use ExUnit.Case, async: true
-  alias ExLLM.Testing.TestCacheConfig
   alias ExLLM.Testing.TestCacheDetector
 
   describe "integration_test_running?/0" do
