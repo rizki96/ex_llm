@@ -88,19 +88,28 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   end
 
   defp get_stream_response(messages, config, opts) do
-    case get_mock_agent_stream(messages, config) do
-      {:ok, stream} ->
-        stream
+    # Check explicit options first (highest priority)
+    case opts[:stream] do
+      nil ->
+        # Then check Mock agent
+        case get_mock_agent_stream(messages, config) do
+          {:ok, stream} ->
+            stream
 
-      _ ->
-        get_stream_from_env_or_opts(messages, config, opts)
+          _ ->
+            # Finally check environment or generate default
+            get_stream_from_env_or_opts(messages, config, opts)
+        end
+
+      explicit_stream ->
+        convert_chunks_to_stream(explicit_stream)
     end
   end
 
-  defp get_stream_from_env_or_opts(messages, config, opts) do
+  defp get_stream_from_env_or_opts(messages, config, _opts) do
     case Application.get_env(:ex_llm, :mock_responses, %{})[:stream] do
       nil ->
-        opts[:stream] || generate_mock_stream(messages, config)
+        generate_mock_stream(messages, config)
 
       chunks when is_list(chunks) ->
         convert_chunks_to_stream(chunks)
