@@ -27,21 +27,33 @@ defmodule ExLLM.Testing.CapabilityHelpers do
   @doc """
   Skip test if provider doesn't support the required capability.
 
-  For now, this is a no-op to allow tests to run while we validate the core fixes.
+  Returns `{:skip, reason}` if the provider lacks the capability, otherwise `:ok`.
   """
-  def skip_unless_supports(_provider, _capability) do
-    # TODO: Implement proper test skipping
-    :ok
+  def skip_unless_supports(provider, capability) do
+    if ExLLM.Capabilities.supports?(provider, capability) do
+      :ok
+    else
+      {:skip, "Provider #{provider} does not support #{capability}"}
+    end
   end
 
   @doc """
   Skip test if provider is not configured or doesn't support capability.
 
-  For now, this is a no-op to allow tests to run while we validate the core fixes.
+  Returns `{:skip, reason}` if the provider is not configured or lacks the
+  capability, otherwise `:ok`.
   """
-  def skip_unless_configured_and_supports(_provider, _capability) do
-    # TODO: Implement proper test skipping
-    :ok
+  def skip_unless_configured_and_supports(provider, capability) do
+    cond do
+      !ExLLM.Capabilities.supports?(provider, capability) ->
+        {:skip, "Provider #{provider} does not support #{capability}"}
+
+      !ExLLM.configured?(provider) ->
+        {:skip, "Provider #{provider} is not configured"}
+
+      true ->
+        :ok
+    end
   end
 
   @doc """

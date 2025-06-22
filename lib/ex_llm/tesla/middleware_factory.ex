@@ -39,91 +39,23 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   """
   @spec build_middleware(atom(), map(), keyword()) :: [Tesla.Client.middleware()]
   def build_middleware(provider, config, opts \\ []) do
-    is_streaming = Keyword.get(opts, :is_streaming, false)
+    middleware_builders = [
+      &add_base_url/4,
+      &add_headers/4,
+      &add_circuit_breaker/4,
+      &add_retry/4,
+      &add_timeout/4,
+      &add_telemetry/4,
+      &add_logger/4,
+      &add_json/4,
+      &add_compression/4,
+      &add_extra_middleware/4
+    ]
 
-    middleware = []
-
-    # Base URL - always first
     middleware =
-      if base_url = get_base_url(provider, config) do
-        [{Tesla.Middleware.BaseUrl, base_url} | middleware]
-      else
-        middleware
-      end
-
-    # Headers including authentication
-    middleware = [{Tesla.Middleware.Headers, build_headers(provider, config)} | middleware]
-
-    # Circuit breaker integration (unless disabled)
-    middleware =
-      if Keyword.get(opts, :include_circuit_breaker, true) do
-        [
-          {ExLLM.Tesla.Middleware.CircuitBreaker, name: "#{provider}_circuit", provider: provider}
-          | middleware
-        ]
-      else
-        middleware
-      end
-
-    # Retry with exponential backoff (unless disabled or streaming)
-    middleware =
-      if Keyword.get(opts, :include_retry, true) && !is_streaming do
-        [
-          {Tesla.Middleware.Retry,
-           delay: config[:retry_delay] || 1_000,
-           max_retries: config[:retry_attempts] || 3,
-           max_delay: config[:max_retry_delay] || 30_000,
-           should_retry: &should_retry?/1,
-           jitter_factor: 0.2}
-          | middleware
-        ]
-      else
-        middleware
-      end
-
-    # Timeout
-    middleware = [{Tesla.Middleware.Timeout, timeout: config[:timeout] || 60_000} | middleware]
-
-    # Telemetry (unless disabled)
-    middleware =
-      if Keyword.get(opts, :include_telemetry, true) do
-        [{ExLLM.Tesla.Middleware.Telemetry, metadata: %{provider: provider}} | middleware]
-      else
-        middleware
-      end
-
-    # Logging (only in dev/test unless explicitly enabled)
-    middleware =
-      if Keyword.get(opts, :include_logger, should_include_logger?(config)) do
-        [Tesla.Middleware.Logger | middleware]
-      else
-        middleware
-      end
-
-    # JSON encoding/decoding (with special handling for streaming)
-    middleware =
-      if is_streaming do
-        # For streaming, disable response decoding to prevent buffering
-        [{Tesla.Middleware.JSON, decode: false} | middleware]
-      else
-        [Tesla.Middleware.JSON | middleware]
-      end
-
-    # Optional compression
-    middleware =
-      if Keyword.get(opts, :include_compression, should_include_compression?(provider, config)) do
-        [{Tesla.Middleware.CompressRequest, format: :gzip} | middleware]
-      else
-        middleware
-      end
-
-    # Add any extra middleware provided by caller
-    middleware =
-      case Keyword.get(opts, :extra_middleware) do
-        nil -> middleware
-        extra when is_list(extra) -> extra ++ middleware
-        extra -> [extra | middleware]
-      end
+      Enum.reduce(middleware_builders, [], fn builder, acc ->
+        builder.(acc, provider, config, opts)
+      end)
 
     # Reverse to get correct order (first middleware should be last in list)
     Enum.reverse(middleware)
@@ -157,6 +89,105 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
     adapter_opts = [recv_timeout: recv_timeout, stream_to: stream_to]
 
     Tesla.client(middleware, {Tesla.Adapter.Hackney, adapter_opts})
+  end
+
+  # Private middleware builders
+
+  # Adds BaseUrl middleware if a base URL is configured.
+  defp add_base_url(middleware, provider, config, _opts) do
+    if base_url = get_base_url(provider, config) do
+      [{Tesla.Middleware.BaseUrl, base_url} | middleware]
+    else
+      middleware
+    end
+  end
+
+  # Adds Headers middleware with provider-specific headers.
+  defp add_headers(middleware, provider, config, _opts) do
+    [{Tesla.Middleware.Headers, build_headers(provider, config)} | middleware]
+  end
+
+  # Adds CircuitBreaker middleware unless disabled.
+  defp add_circuit_breaker(middleware, provider, _config, opts) do
+    if Keyword.get(opts, :include_circuit_breaker, true) do
+      [
+        {ExLLM.Tesla.Middleware.CircuitBreaker, name: "#{provider}_circuit", provider: provider}
+        | middleware
+      ]
+    else
+      middleware
+    end
+  end
+
+  # Adds Retry middleware unless disabled or for streaming.
+  defp add_retry(middleware, _provider, config, opts) do
+    is_streaming = Keyword.get(opts, :is_streaming, false)
+
+    if Keyword.get(opts, :include_retry, true) && !is_streaming do
+      [
+        {Tesla.Middleware.Retry,
+         delay: config[:retry_delay] || 1_000,
+         max_retries: config[:retry_attempts] || 3,
+         max_delay: config[:max_retry_delay] || 30_000,
+         should_retry: &should_retry?/1,
+         jitter_factor: 0.2}
+        | middleware
+      ]
+    else
+      middleware
+    end
+  end
+
+  # Adds Timeout middleware.
+  defp add_timeout(middleware, _provider, config, _opts) do
+    [{Tesla.Middleware.Timeout, timeout: config[:timeout] || 60_000} | middleware]
+  end
+
+  # Adds Telemetry middleware unless disabled.
+  defp add_telemetry(middleware, provider, _config, opts) do
+    if Keyword.get(opts, :include_telemetry, true) do
+      [{ExLLM.Tesla.Middleware.Telemetry, metadata: %{provider: provider}} | middleware]
+    else
+      middleware
+    end
+  end
+
+  # Adds Logger middleware based on environment or config.
+  defp add_logger(middleware, _provider, config, opts) do
+    if Keyword.get(opts, :include_logger, should_include_logger?(config)) do
+      [Tesla.Middleware.Logger | middleware]
+    else
+      middleware
+    end
+  end
+
+  # Adds JSON middleware with special handling for streaming.
+  defp add_json(middleware, _provider, _config, opts) do
+    is_streaming = Keyword.get(opts, :is_streaming, false)
+
+    if is_streaming do
+      [{Tesla.Middleware.JSON, decode: false} | middleware]
+    else
+      [Tesla.Middleware.JSON | middleware]
+    end
+  end
+
+  # Adds compression middleware if enabled.
+  defp add_compression(middleware, provider, config, opts) do
+    if Keyword.get(opts, :include_compression, should_include_compression?(provider, config)) do
+      [{Tesla.Middleware.CompressRequest, format: :gzip} | middleware]
+    else
+      middleware
+    end
+  end
+
+  # Adds any extra middleware from options.
+  defp add_extra_middleware(middleware, _provider, _config, opts) do
+    case Keyword.get(opts, :extra_middleware) do
+      nil -> middleware
+      extra when is_list(extra) -> extra ++ middleware
+      extra -> [extra | middleware]
+    end
   end
 
   # Private helper functions

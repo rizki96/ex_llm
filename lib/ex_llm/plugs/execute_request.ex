@@ -25,6 +25,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Logger
+  alias ExLLM.Pipeline.Request
   alias ExLLM.Testing.TestResponseInterceptor, as: TestResponseInterceptor
 
   @impl true
@@ -85,11 +86,6 @@ defmodule ExLLM.Plugs.ExecuteRequest do
                request_to_execute.provider_request
              ) do
           {:ok, response} ->
-            maybe_save_response(request_to_execute, response)
-            handle_tesla_response(request_to_execute, response)
-
-          %Tesla.Env{} = response ->
-            # Handle direct Tesla.Env response (some middleware returns this directly)
             maybe_save_response(request_to_execute, response)
             handle_tesla_response(request_to_execute, response)
 
@@ -214,39 +210,6 @@ defmodule ExLLM.Plugs.ExecuteRequest do
         |> Request.halt_with_error(error)
         |> Request.put_metadata(:http_status, status)
     end
-  end
-
-  # Handle cached/mock responses that are plain maps (not Tesla.Env structs)
-  # This clause handles responses from the test cache which may be plain maps
-  defp handle_tesla_response(%Request{} = request, response)
-       when is_map(response) and not is_struct(response) do
-    status = get_response_field(response, :status)
-
-    if status && status in 200..299 do
-      # Success
-      headers = get_response_field(response, :headers)
-
-      request
-      |> Map.put(:response, response)
-      |> Request.put_state(:completed)
-      |> Request.put_metadata(:http_status, status)
-      |> Request.put_metadata(:response_headers, headers)
-    else
-      # HTTP error
-      body = get_response_field(response, :body)
-      error = build_http_error(status, body, request.provider)
-
-      request
-      |> Map.put(:response, response)
-      |> Request.halt_with_error(error)
-      |> Request.put_metadata(:http_status, status)
-    end
-  end
-
-  defp get_response_field(%Tesla.Env{} = env, field), do: Map.get(env, field)
-
-  defp get_response_field(response, field) when is_map(response) do
-    Map.get(response, to_string(field)) || Map.get(response, field)
   end
 
   defp get_provider_endpoint(:openai), do: "/chat/completions"

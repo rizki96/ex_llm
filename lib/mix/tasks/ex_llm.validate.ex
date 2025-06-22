@@ -97,41 +97,55 @@ defmodule Mix.Tasks.ExLlm.Validate do
   defp run_category_validation(category_name, opts) do
     ensure_app_started()
 
-    category = String.to_atom(category_name)
-
-    result =
-      case category do
-        :application_config -> StartupValidator.validate_application_config()
-        :providers -> StartupValidator.validate_providers()
-        :models -> StartupValidator.validate_models()
-        :cache -> StartupValidator.validate_cache()
-        :dependencies -> StartupValidator.validate_dependencies()
-        _ -> {:error, "Unknown category: #{category_name}"}
-      end
-
-    case result do
+    case validate_category(category_name) do
       {:ok, results} ->
-        unless Keyword.get(opts, :quiet, false) do
-          Mix.shell().info("✓ #{category_name} validation passed")
-
-          if Keyword.get(opts, :summary, false) do
-            show_summary(%{category => results}, [])
-          end
-        end
+        handle_category_success(results, category_name, opts)
 
       {:error, issues} when is_list(issues) ->
-        unless Keyword.get(opts, :quiet, false) do
-          Mix.shell().error("✗ #{category_name} validation failed")
-          show_issues(issues, opts)
-        end
-
-        exit({:shutdown, 1})
+        handle_validation_failure(issues, category_name, opts)
 
       {:error, message} when is_binary(message) ->
-        Mix.shell().error("Error: #{message}")
-        show_available_categories()
-        exit({:shutdown, 2})
+        handle_unknown_category(message)
     end
+  end
+
+  defp validate_category(category_name) do
+    category = String.to_atom(category_name)
+
+    case category do
+      :application_config -> StartupValidator.validate_application_config()
+      :providers -> StartupValidator.validate_providers()
+      :models -> StartupValidator.validate_models()
+      :cache -> StartupValidator.validate_cache()
+      :dependencies -> StartupValidator.validate_dependencies()
+      _ -> {:error, "Unknown category: #{category_name}"}
+    end
+  end
+
+  defp handle_category_success(results, category_name, opts) do
+    unless Keyword.get(opts, :quiet, false) do
+      Mix.shell().info("✓ #{category_name} validation passed")
+
+      if Keyword.get(opts, :summary, false) do
+        category = String.to_atom(category_name)
+        show_summary(%{category => results}, [])
+      end
+    end
+  end
+
+  defp handle_validation_failure(issues, category_name, opts) do
+    unless Keyword.get(opts, :quiet, false) do
+      Mix.shell().error("✗ #{category_name} validation failed")
+      show_issues(issues, opts)
+    end
+
+    exit({:shutdown, 1})
+  end
+
+  defp handle_unknown_category(message) do
+    Mix.shell().error("Error: #{message}")
+    show_available_categories()
+    exit({:shutdown, 2})
   end
 
   defp show_help do

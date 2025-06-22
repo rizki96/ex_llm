@@ -4,8 +4,8 @@ defmodule ExLLM.Cache.MetadataPreservationTest do
   """
   use ExUnit.Case, async: false
 
-  alias ExLLM.Testing.LiveApiCacheStorage
   alias ExLLM.Infrastructure.Cache
+  alias ExLLM.Testing.LiveApiCacheStorage
 
   setup do
     # Ensure production cache is started

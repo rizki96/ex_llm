@@ -84,11 +84,18 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
   defp transform_model(model) do
     model_name = model["name"]
     base_name = extract_base_model_name(model_name)
+    size_str = format_size(model["size"])
+
+    description =
+      case size_str do
+        "Unknown" -> "Local Ollama model"
+        size -> "Local Ollama model - #{size}"
+      end
 
     %ExLLM.Types.Model{
       id: model_name,
       name: model_name,
-      description: "Local Ollama model",
+      description: description,
       context_window: get_context_window(base_name),
       max_output_tokens: get_max_output_tokens(base_name),
       capabilities: get_capabilities(base_name),
@@ -105,24 +112,23 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
     end
   end
 
-  # TODO: This function is currently unused but may be useful for displaying model sizes
-  # defp format_size(size_bytes) when is_integer(size_bytes) do
-  #   cond do
-  #     size_bytes >= 1_073_741_824 ->
-  #       "#{Float.round(size_bytes / 1_073_741_824, 1)} GB"
-  #
-  #     size_bytes >= 1_048_576 ->
-  #       "#{Float.round(size_bytes / 1_048_576, 1)} MB"
-  #
-  #     size_bytes >= 1024 ->
-  #       "#{Float.round(size_bytes / 1024, 1)} KB"
-  #
-  #     true ->
-  #       "#{size_bytes} B"
-  #   end
-  # end
-  #
-  # defp format_size(_), do: "Unknown"
+  defp format_size(size_bytes) when is_integer(size_bytes) do
+    cond do
+      size_bytes >= 1_073_741_824 ->
+        "#{Float.round(size_bytes / 1_073_741_824, 1)} GB"
+
+      size_bytes >= 1_048_576 ->
+        "#{Float.round(size_bytes / 1_048_576, 1)} MB"
+
+      size_bytes >= 1024 ->
+        "#{Float.round(size_bytes / 1024, 1)} KB"
+
+      true ->
+        "#{size_bytes} B"
+    end
+  end
+
+  defp format_size(_), do: "Unknown"
 
   defp get_context_window(base_name) do
     # Known context windows for common Ollama models

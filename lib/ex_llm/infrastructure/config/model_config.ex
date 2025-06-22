@@ -49,7 +49,7 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
 
   @doc """
   Gets the path to the model configuration directory.
-  
+
   This function handles locating the configuration directory in both development
   and dependency scenarios.
   """

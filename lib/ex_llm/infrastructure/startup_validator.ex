@@ -601,49 +601,54 @@ defmodule ExLLM.Infrastructure.StartupValidator do
 
   defp log_validation_results(issues, log_level) do
     if Enum.empty?(issues) do
-      case log_level do
-        level when level in [:debug, :info] ->
-          Logger.info("ExLLM configuration validation: ✓ All checks passed")
-
-        _ ->
-          :ok
-      end
+      log_success_message(log_level)
     else
       grouped_issues = Enum.group_by(issues, & &1.severity)
-
       error_count = length(Map.get(grouped_issues, :error, []))
       warning_count = length(Map.get(grouped_issues, :warning, []))
       info_count = length(Map.get(grouped_issues, :info, []))
 
-      summary =
-        "ExLLM validation: #{error_count} errors, #{warning_count} warnings, #{info_count} info"
+      summary = format_validation_summary(error_count, warning_count, info_count)
+      log_summary_by_level(summary, log_level, error_count, warning_count, info_count)
 
-      case log_level do
-        :error ->
-          if error_count > 0, do: Logger.error(summary)
-
-        :warn ->
-          if error_count > 0, do: Logger.error(summary)
-          if warning_count > 0 and error_count == 0, do: Logger.warning(summary)
-
-        _ ->
-          if error_count > 0, do: Logger.error(summary)
-          if warning_count > 0 and error_count == 0, do: Logger.warning(summary)
-          if info_count > 0 and error_count == 0 and warning_count == 0, do: Logger.info(summary)
-      end
-
-      # Log individual issues at debug level
-      Enum.each(issues, fn issue ->
-        level =
-          case issue.severity do
-            :error -> :error
-            :warning -> :warning
-            :info -> :info
-          end
-
-        Logger.log(level, "[#{issue.category}] #{issue.message}")
-      end)
+      Enum.each(issues, &log_individual_issue/1)
     end
+  end
+
+  defp log_success_message(log_level) do
+    if log_level in [:debug, :info] do
+      Logger.info("ExLLM configuration validation: ✓ All checks passed")
+    end
+  end
+
+  defp format_validation_summary(error_count, warning_count, info_count) do
+    "ExLLM validation: #{error_count} errors, #{warning_count} warnings, #{info_count} info"
+  end
+
+  defp log_summary_by_level(summary, log_level, error_count, warning_count, info_count) do
+    case log_level do
+      :error ->
+        if error_count > 0, do: Logger.error(summary)
+
+      :warn ->
+        cond do
+          error_count > 0 -> Logger.error(summary)
+          warning_count > 0 -> Logger.warning(summary)
+          true -> :ok
+        end
+
+      _ ->
+        cond do
+          error_count > 0 -> Logger.error(summary)
+          warning_count > 0 -> Logger.warning(summary)
+          info_count > 0 -> Logger.info(summary)
+          true -> :ok
+        end
+    end
+  end
+
+  defp log_individual_issue(issue) do
+    Logger.log(issue.severity, "[#{issue.category}] #{issue.message}")
   end
 
   defp get_env_var_name(:openai), do: "OPENAI_API_KEY"
