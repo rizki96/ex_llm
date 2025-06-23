@@ -177,7 +177,7 @@ defmodule ExLLM.Embeddings do
       )
   """
   @spec batch_generate(atom(), [String.t()], keyword()) ::
-          {:ok, ExLLM.Types.EmbeddingResponse.t()} | {:error, term()}
+          {:ok, [map()]} | {:error, term()}
   def batch_generate(provider, requests, opts \\ []) do
     # Core module expects list of {input, options} tuples
     formatted_requests = Enum.map(requests, fn request -> {request, opts} end)
@@ -268,12 +268,15 @@ defmodule ExLLM.Embeddings do
     # Generate embeddings for all texts
     case batch_generate(provider, texts, opts) do
       {:ok, results} ->
+        # Extract embeddings from batch results
+        embeddings = Enum.map(results, fn result -> result.embeddings end) |> List.flatten()
+        
         # Create index structure
         index = %{
           provider: provider,
           model: Keyword.get(opts, :model),
           documents: documents,
-          embeddings: results.embeddings,
+          embeddings: embeddings,
           created_at: DateTime.utc_now()
         }
 
