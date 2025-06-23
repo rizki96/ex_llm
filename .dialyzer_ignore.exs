@@ -28,6 +28,7 @@
   # Mix.Task behavior callbacks not found in PLT
   {"lib/mix/tasks/ex_llm.cache.ex", :callback_info_missing},
   {"lib/mix/tasks/ex_llm.config.ex", :callback_info_missing},
+  {"lib/mix/tasks/ex_llm.validate.ex", :callback_info_missing},
   
   # === OPTIONAL DEPENDENCIES (Legitimate) ===
   # Ecto is an optional dependency properly handled with Code.ensure_loaded?
