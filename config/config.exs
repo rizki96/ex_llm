@@ -80,7 +80,7 @@ end
 
 if Mix.env() == :test do
   # Minimal logging during tests - reduces noise significantly
-  config :logger, 
+  config :logger,
     level: :error,
     console: [metadata: []]
 

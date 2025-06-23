@@ -21,7 +21,6 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   use ExLLM.Plug
   alias ExLLM.Infrastructure.Logger
   alias ExLLM.Pipeline.Request
-  alias ExLLM.Tesla.MiddlewareFactory
 
   # Default endpoints for each provider
   @default_endpoints %{
@@ -114,7 +113,14 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       # Start streaming task that sends to coordinator
       {:ok, stream_pid} =
         Task.start(fn ->
-          stream_to_coordinator(client, endpoint, body, coordinator, stream_ref, opts)
+          stream_to_coordinator(
+            client,
+            endpoint,
+            body,
+            coordinator,
+            stream_ref,
+            opts ++ [provider: request.provider]
+          )
         end)
 
       %{request | stream_pid: stream_pid}
@@ -130,7 +136,15 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
     {:ok, stream_pid} =
       Task.start(fn ->
-        stream_response(client, endpoint, body, callback, parent, stream_ref, opts)
+        stream_response(
+          client,
+          endpoint,
+          body,
+          callback,
+          parent,
+          stream_ref,
+          opts ++ [provider: request.provider]
+        )
       end)
 
     %{request | stream_pid: stream_pid, stream_ref: stream_ref}
@@ -144,106 +158,33 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     headers = extract_headers_from_client(client)
     Logger.debug("Extracted headers: #{inspect(headers)}")
 
-    # Build a new client specifically for streaming using the factory
-    stream_client =
-      MiddlewareFactory.build_streaming_client(headers,
-        recv_timeout: opts[:receive_timeout] || 60_000,
-        stream_to: self()
-      )
+    # Use HTTPClient for streaming to ensure test cache interceptor is used
+    full_url = build_full_url(client, endpoint)
 
-    # Start the request
-    Logger.debug("Starting stream request to #{endpoint}")
-
-    result = Tesla.post(stream_client, endpoint, body)
-
-    Logger.debug("Tesla.request result: #{inspect(result)}")
-
-    case result do
-      {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
-        # Success - check if we got the full body or if it's streaming
-        Logger.debug("Stream request successful, status: #{status}")
-        Logger.debug("Response headers: #{inspect(env.headers)}")
-
-        if env.body && env.body != "" do
-          # We got the full body, parse it as SSE events
-          Logger.debug("Got full SSE body, parsing events")
-          parse_and_forward_sse_body(env.body, coordinator, ref)
-        else
-          # Body is empty, expect streaming chunks
-          Logger.debug("Empty body, waiting for streaming chunks")
-          forward_chunks_to_coordinator(coordinator, ref)
-        end
-
-      {:ok, %Tesla.Env{} = env} ->
-        # Error response
-        send(coordinator, {:stream_error, ref, env})
-
-      {:error, reason} ->
-        # Connection error
-        send(coordinator, {:stream_error, ref, reason})
+    # Create a callback that forwards chunks to coordinator
+    callback = fn chunk ->
+      send(coordinator, {:stream_chunk, ref, chunk})
     end
-  end
 
-  defp forward_chunks_to_coordinator(coordinator, ref) do
-    Logger.debug("Waiting for chunks to forward to coordinator #{inspect(coordinator)}")
+    Logger.debug("Starting stream request to #{full_url}")
 
+    ExLLM.Providers.Shared.HTTPClient.stream_request(
+      full_url,
+      body,
+      headers,
+      callback,
+      opts
+    )
+
+    # HTTPClient handles streaming in another process - wait for completion messages
     receive do
-      # Hackney's actual message format for streaming
-      {:hackney_response, _ref, :more, chunk} ->
-        Logger.debug("Hackney data chunk received (4-tuple): #{inspect(chunk)}")
-        send(coordinator, {:stream_chunk, ref, chunk})
-        forward_chunks_to_coordinator(coordinator, ref)
-
-      {:hackney_response, :more, chunk} ->
-        Logger.debug("Hackney data chunk received (3-tuple): #{inspect(chunk)}")
-        send(coordinator, {:stream_chunk, ref, chunk})
-        forward_chunks_to_coordinator(coordinator, ref)
-
-      {:hackney_response, _ref, :done, _} ->
-        Logger.debug("Hackney stream ended (4-tuple)")
+      :stream_done ->
         send(coordinator, {:stream_complete, ref})
 
-      {:hackney_response, :done, _} ->
-        Logger.debug("Hackney stream ended (3-tuple)")
-        send(coordinator, {:stream_complete, ref})
-
-      {:hackney_response, _ref, :error, reason} ->
-        Logger.debug("Hackney stream error (4-tuple): #{inspect(reason)}")
+      {:stream_error, reason} ->
         send(coordinator, {:stream_error, ref, reason})
-
-      {:hackney_response, :error, reason} ->
-        Logger.debug("Hackney stream error (3-tuple): #{inspect(reason)}")
-        send(coordinator, {:stream_error, ref, reason})
-
-      # Legacy patterns for backward compatibility
-      {:data, chunk} ->
-        send(coordinator, {:stream_chunk, ref, chunk})
-        forward_chunks_to_coordinator(coordinator, ref)
-
-      {:done, _} ->
-        send(coordinator, {:stream_complete, ref})
-
-      {:error, reason} ->
-        send(coordinator, {:stream_error, ref, reason})
-
-      other ->
-        Logger.warning("Unexpected streaming message in forward_chunks: #{inspect(other)}")
-        # Check if it's some other message we should handle
-        case other do
-          {:tcp, _, _} ->
-            Logger.debug("Received raw TCP data, continuing...")
-            forward_chunks_to_coordinator(coordinator, ref)
-
-          {:ssl, _, _} ->
-            Logger.debug("Received raw SSL data, continuing...")
-            forward_chunks_to_coordinator(coordinator, ref)
-
-          _ ->
-            forward_chunks_to_coordinator(coordinator, ref)
-        end
     after
-      5_000 ->
-        Logger.error("Timeout waiting for stream chunks after 5 seconds")
+      opts[:receive_timeout] || 60_000 ->
         send(coordinator, {:stream_error, ref, :timeout})
     end
   end
@@ -252,141 +193,28 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     # Extract headers from the client's middleware
     headers = extract_headers_from_client(client)
 
-    # Build a new client specifically for streaming using the factory
-    stream_client =
-      MiddlewareFactory.build_streaming_client(headers,
-        recv_timeout: opts[:receive_timeout] || 60_000,
-        stream_to: self()
-      )
+    # Use HTTPClient for streaming to ensure test cache interceptor is used
+    full_url = build_full_url(client, endpoint)
 
-    # Start the request
-    case Tesla.post(stream_client, endpoint, body) do
-      {:ok, %Tesla.Env{status: status}} when status in 200..299 ->
-        # Success - stream will arrive as messages
-        handle_stream_messages(callback, parent, ref)
+    ExLLM.Providers.Shared.HTTPClient.stream_request(
+      full_url,
+      body,
+      headers,
+      callback,
+      opts
+    )
 
-      {:ok, %Tesla.Env{} = env} ->
-        # Error response
-        send(parent, {:stream_error, ref, env})
-
-      {:error, reason} ->
-        # Connection error
-        send(parent, {:stream_error, ref, reason})
-    end
-  end
-
-  defp handle_stream_messages(callback, parent, ref) do
-    # Initialize SSE parser for the stream
-    sse_parser = ExLLM.Infrastructure.Streaming.SSEParser.new()
-    handle_stream_messages(callback, parent, ref, sse_parser)
-  end
-
-  defp handle_stream_messages(callback, parent, ref, sse_parser) do
+    # HTTPClient handles streaming in another process - wait for completion messages
     receive do
-      # Hackney's actual message format for streaming
-      {:hackney_response, :more, chunk} ->
-        Logger.debug("Hackney data chunk received in handle_stream_messages: #{inspect(chunk)}")
-
-        # Parse SSE events from chunk
-        {events, updated_parser} =
-          ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
-
-        # Process each event
-        stream_complete =
-          Enum.any?(events, fn event ->
-            case format_stream_event(event) do
-              {:ok, parsed} ->
-                callback.(parsed)
-                false
-
-              {:done, _} ->
-                # Stream complete
-                true
-
-              {:error, reason} ->
-                Logger.warning("Failed to parse stream event: #{inspect(reason)}")
-                false
-            end
-          end)
-
-        if stream_complete do
-          send(parent, {:stream_complete, ref})
-        else
-          # Continue processing
-          handle_stream_messages(callback, parent, ref, updated_parser)
-        end
-
-      {:hackney_response, :done, _} ->
-        Logger.debug("Hackney stream ended in handle_stream_messages")
-        # Flush any remaining data in the parser
-        {final_events, _} = ExLLM.Infrastructure.Streaming.SSEParser.flush(sse_parser)
-
-        Enum.each(final_events, fn event ->
-          case format_stream_event(event) do
-            {:ok, parsed} -> callback.(parsed)
-            _ -> :ok
-          end
-        end)
-
+      :stream_done ->
         send(parent, {:stream_complete, ref})
 
-      {:hackney_response, :error, reason} ->
-        Logger.debug("Hackney stream error in handle_stream_messages: #{inspect(reason)}")
+      {:stream_error, reason} ->
         send(parent, {:stream_error, ref, reason})
-
-      # Legacy patterns for backward compatibility
-      {:data, chunk} ->
-        # Use SSE parser for legacy format too
-        {events, updated_parser} =
-          ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, chunk)
-
-        stream_complete =
-          Enum.any?(events, fn event ->
-            case format_stream_event(event) do
-              {:ok, parsed} ->
-                callback.(parsed)
-                false
-
-              {:done, _} ->
-                true
-
-              _ ->
-                false
-            end
-          end)
-
-        if stream_complete do
-          send(parent, {:stream_complete, ref})
-        else
-          handle_stream_messages(callback, parent, ref, updated_parser)
-        end
-
-      {:done, _} ->
-        # Stream complete
-        send(parent, {:stream_complete, ref})
-
-      {:error, reason} ->
-        send(parent, {:stream_error, ref, reason})
-
-      other ->
-        Logger.debug("Unexpected streaming message in handle_stream_messages: #{inspect(other)}")
-        handle_stream_messages(callback, parent, ref, sse_parser)
     after
-      60_000 ->
+      opts[:receive_timeout] || 60_000 ->
         send(parent, {:stream_error, ref, :timeout})
     end
-  end
-
-  # Format parsed SSE event into expected format
-  defp format_stream_event(%{"done" => true}), do: {:done, %{}}
-  defp format_stream_event(%{done: true}), do: {:done, %{}}
-
-  defp format_stream_event(event) when is_map(event) do
-    {:ok, event}
-  end
-
-  defp format_stream_event(other) do
-    {:error, {:unexpected_format, other}}
   end
 
   defp get_endpoint(%Request{provider: provider, config: config}) do
@@ -402,56 +230,37 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     "#{base}/models/#{model}:streamGenerateContent"
   end
 
+  defp build_full_url(%Tesla.Client{pre: middleware}, endpoint) do
+    # If endpoint is already a full URL, use it directly
+    if String.starts_with?(endpoint, "http") do
+      Logger.debug("Using full URL directly: #{endpoint}")
+      endpoint
+    else
+      # Extract base URL from middleware
+      base_url =
+        middleware
+        |> Enum.find_value(fn
+          {Tesla.Middleware.BaseUrl, :call, [url]} -> url
+          {Tesla.Middleware.BaseUrl, url} -> url
+          _ -> nil
+        end)
+
+      if base_url do
+        full_url = Path.join(base_url, endpoint)
+        Logger.debug("Built full URL: #{full_url} from base: #{base_url}, endpoint: #{endpoint}")
+        full_url
+      else
+        Logger.error("No base URL found in middleware: #{inspect(middleware)}")
+        endpoint
+      end
+    end
+  end
+
   defp extract_headers_from_client(%Tesla.Client{pre: middleware}) do
     # Find the Headers middleware and extract its headers
     Enum.find_value(middleware, [], fn
-      {Tesla.Middleware.Headers, headers} -> headers
+      {Tesla.Middleware.Headers, :call, [headers]} -> headers
       _ -> nil
     end)
-  end
-
-  defp parse_and_forward_sse_body(body, coordinator, ref) do
-    # Initialize SSE parser
-    sse_parser = ExLLM.Infrastructure.Streaming.SSEParser.new()
-
-    # Parse the complete body as SSE events
-    {events, parser} =
-      ExLLM.Infrastructure.Streaming.SSEParser.parse_json_events(sse_parser, body)
-
-    # Forward each event as a chunk
-    stream_complete =
-      Enum.any?(events, fn event ->
-        case format_stream_event(event) do
-          {:done, _} ->
-            true
-
-          {:ok, _parsed} ->
-            # Send event as JSON-encoded chunk
-            send(coordinator, {:stream_chunk, ref, Jason.encode!(event)})
-            false
-
-          {:error, _reason} ->
-            # Skip invalid events
-            false
-        end
-      end)
-
-    if not stream_complete do
-      # Flush any remaining data in the parser
-      {final_events, _} = ExLLM.Infrastructure.Streaming.SSEParser.flush(parser)
-
-      Enum.each(final_events, fn event ->
-        case format_stream_event(event) do
-          {:ok, _parsed} ->
-            send(coordinator, {:stream_chunk, ref, Jason.encode!(event)})
-
-          _ ->
-            :ok
-        end
-      end)
-    end
-
-    # Always send completion signal
-    send(coordinator, {:stream_complete, ref})
   end
 end

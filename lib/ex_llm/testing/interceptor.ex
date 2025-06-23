@@ -26,8 +26,15 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
       url: url,
       body: body,
       headers: normalize_headers(headers),
-      method: Keyword.get(opts, :method, "POST")
+      method: Keyword.get(opts, :method, "POST"),
+      config: %{stream_callback: Keyword.get(opts, :stream_callback)}
     }
+
+    if Application.get_env(:ex_llm, :debug_test_cache, false) do
+      IO.puts("TestResponseInterceptor.intercept_request called")
+      IO.puts("  URL: #{url}")
+      IO.puts("  opts: #{inspect(opts)}")
+    end
 
     case TestCacheStrategy.execute(request, opts) do
       {:cached, response, _metadata} ->
@@ -204,6 +211,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
       String.contains?(url, "generativelanguage.googleapis.com") -> :gemini
       String.contains?(url, "api.groq.com") -> :groq
       String.contains?(url, "openrouter.ai") -> :openrouter
+      String.contains?(url, "api.mistral.ai") -> :mistral
       String.contains?(url, "localhost") or String.contains?(url, "127.0.0.1") -> :local
       true -> :unknown
     end
@@ -343,10 +351,14 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
       |> Enum.join()
 
     %{
-      content: complete_content,
-      chunks: chunks,
-      final_response: final_response,
-      reassembled_at: DateTime.utc_now()
+      "content" => complete_content,
+      # Use string key for HTTPClient replay compatibility
+      "chunks" => chunks,
+      # Store chunks for easy cache replay
+      "streaming_chunks" => chunks,
+      "final_response" => final_response,
+      "reassembled_at" => DateTime.utc_now(),
+      "is_streaming" => true
     }
   end
 

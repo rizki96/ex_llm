@@ -270,7 +270,7 @@ defmodule ExLLM.Embeddings do
       {:ok, results} ->
         # Extract embeddings from batch results
         embeddings = Enum.map(results, fn result -> result.embeddings end) |> List.flatten()
-        
+
         # Create index structure
         index = %{
           provider: provider,

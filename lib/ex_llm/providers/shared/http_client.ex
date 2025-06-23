@@ -185,7 +185,9 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     headers = prepare_headers(headers) ++ [{"Accept", "text/event-stream"}]
 
     # Check test cache for SSE streaming requests
-    case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
+    opts_with_callback = Keyword.put(opts, :stream_callback, callback)
+
+    case TestResponseInterceptor.intercept_request(url, body, headers, opts_with_callback) do
       {:cached, cached_response} ->
         # Simulate SSE streaming from cached response
         Task.start(fn ->
@@ -248,7 +250,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
       {events, new_buffer} = HTTPClient.parse_sse_chunks("data: {\"text\":\"Hi\"}\\n\\n", "")
   """
-  @spec parse_sse_chunks(binary(), binary()) :: {list(map()), binary()}
+  @spec parse_sse_chunks(binary(), binary()) :: {list(String.t()), binary()}
   def parse_sse_chunks(data, buffer) do
     lines = String.split(buffer <> data, "\n")
     {complete_lines, [last_line]} = Enum.split(lines, -1)
@@ -257,8 +259,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
       complete_lines
       |> Enum.chunk_by(&(&1 == ""))
       |> Enum.reject(&(&1 == [""]))
-      |> Enum.map(&parse_sse_event/1)
-      |> Enum.reject(&is_nil/1)
+      |> Enum.map(&Enum.join(&1, "\n"))
 
     {events, last_line}
   end
@@ -361,30 +362,6 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
   defp handle_error_response(status, body) do
     handle_api_error(status, body)
-  end
-
-  defp parse_sse_event(lines) do
-    Enum.reduce(lines, %{}, fn line, acc ->
-      case String.split(line, ":", parts: 2) do
-        [key, value] ->
-          # SSE event keys are limited to: event, data, id, retry
-          case key do
-            "event" -> Map.put(acc, :event, String.trim_leading(value))
-            "data" -> Map.put(acc, :data, String.trim_leading(value))
-            "id" -> Map.put(acc, :id, String.trim_leading(value))
-            "retry" -> Map.put(acc, :retry, String.trim_leading(value))
-            # Ignore unknown keys for safety
-            _ -> acc
-          end
-
-        _ ->
-          acc
-      end
-    end)
-    |> case do
-      %{data: _} = event -> event
-      _ -> nil
-    end
   end
 
   defp handle_structured_error(status, %{"type" => type} = error) do
@@ -892,7 +869,8 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           streaming: true
         }
 
-        TestResponseInterceptor.save_response(request_metadata, response, response_info)
+        # Only save the body, not the full response object which contains Req.Response.Async
+        TestResponseInterceptor.save_response(request_metadata, body, response_info)
 
         {:ok, response}
 
@@ -1020,8 +998,15 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         opts
       )
     else
+      # Extract error body from async response if needed
+      error_body =
+        case response.body do
+          %Req.Response.Async{} -> "Streaming error - status #{response.status}"
+          body -> body
+        end
+
       # Save streaming error to cache
-      error_response = %{error: response.body, status: response.status, type: "streaming_error"}
+      error_response = %{error: error_body, status: response.status, type: "streaming_error"}
 
       response_info = %{
         status_code: response.status,
@@ -1087,10 +1072,10 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         # Accumulate chunks for caching
         new_accumulated = accumulated_chunks ++ events
 
-        Enum.each(events, fn event ->
-          if event.data != "[DONE]" do
-            callback.(event.data)
-          end
+        Enum.each(events, fn event_string ->
+          # Pass the full event string to the callback.
+          # Parsers expect a full event, which is terminated by a blank line.
+          callback.(event_string <> "\n\n")
         end)
 
         stream_loop(
@@ -1175,10 +1160,9 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     case Map.get(cached_response, "chunks") do
       chunks when is_list(chunks) ->
         # Replay chunks with small delays to simulate streaming
-        Enum.each(chunks, fn chunk ->
-          if Map.get(chunk, "data") != "[DONE]" do
-            callback.(Map.get(chunk, "data", chunk))
-          end
+        Enum.each(chunks, fn chunk_string ->
+          # chunk_string is a full SSE event block from the cache
+          callback.(chunk_string <> "\n\n")
 
           # Small delay to simulate streaming
           Process.sleep(10)

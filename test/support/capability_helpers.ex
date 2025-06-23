@@ -46,7 +46,7 @@ defmodule ExLLM.Testing.CapabilityHelpers do
   def skip_unless_configured_and_supports(provider, capability) do
     cond do
       !supports_capability?(provider, capability) ->
-        {:skip, "Provider #{provider} does not support #{capability}"}
+        {:skip, "Provider #{provider} does not support #{inspect(capability)}"}
 
       !ExLLM.configured?(provider) ->
         {:skip, "Provider #{provider} is not configured"}

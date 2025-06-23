@@ -135,9 +135,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest
     ]
   end
@@ -256,9 +256,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest
     ]
   end
@@ -298,9 +298,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest,
       Plugs.TrackCost
     ]
@@ -328,9 +328,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest,
       Plugs.TrackCost
     ]
@@ -343,9 +343,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest,
       Plugs.TrackCost
     ]
@@ -372,9 +372,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest
       # No cost tracking for local models
     ]
@@ -424,9 +424,9 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfig,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.StreamCoordinator,
       Plugs.Providers.OpenAIPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest,
       Plugs.TrackCost
     ]

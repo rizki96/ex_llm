@@ -57,12 +57,12 @@ defmodule ExLLM.Testing.TestCacheStrategy do
       case get_cached_response_internal(cache_key, request, fallback_opts) do
         {:ok, response, metadata} ->
           record_cache_hit(cache_key, metadata)
-          {:cached, response, metadata}
+          handle_cached_response(request, response, metadata)
 
         {:expired, response, metadata} ->
           if fallback_opts.allow_expired do
             record_cache_hit(cache_key, Map.put(metadata, :expired, true))
-            {:cached, response, metadata}
+            handle_cached_response(request, response, metadata)
           else
             record_cache_miss(cache_key, :expired)
             metadata = build_request_metadata(cache_key, request)
@@ -71,7 +71,7 @@ defmodule ExLLM.Testing.TestCacheStrategy do
 
         {:fallback, response, metadata} ->
           record_cache_hit(cache_key, Map.put(metadata, :fallback, true))
-          {:cached, response, metadata}
+          handle_cached_response(request, response, metadata)
 
         :miss ->
           record_cache_miss(cache_key, :miss)
@@ -682,4 +682,91 @@ defmodule ExLLM.Testing.TestCacheStrategy do
   end
 
   defp normalize_headers_for_hash(headers), do: headers
+
+  # Handle cached response with special processing for streaming requests.
+  @spec handle_cached_response(map(), any(), map()) :: {:cached, any(), map()}
+  defp handle_cached_response(request, response, metadata) do
+    # Check if this is a streaming request
+    stream_callback =
+      get_in(request, [:config, :stream_callback]) || Map.get(request, :stream_callback)
+
+    if Application.get_env(:ex_llm, :debug_test_cache, false) do
+      IO.puts("DEBUG: handle_cached_response called")
+      IO.puts("  stream_callback: #{inspect(stream_callback)}")
+
+      IO.puts(
+        "  response has streaming_chunks: #{inspect(Map.has_key?(response || %{}, :streaming_chunks))}"
+      )
+    end
+
+    case stream_callback do
+      nil ->
+        # Not a streaming request, return normally
+        {:cached, response, metadata}
+
+      callback_fun when is_function(callback_fun) ->
+        # This is a streaming request - replay chunks through callback
+        replay_streaming_chunks(response, callback_fun, metadata)
+
+      _ ->
+        # Invalid callback, return normally
+        {:cached, response, metadata}
+    end
+  end
+
+  @spec replay_streaming_chunks(any(), function(), map()) :: {:cached, any(), map()}
+  defp replay_streaming_chunks(response, callback_fun, metadata) do
+    # Extract chunks from cached response
+    chunks = extract_streaming_chunks(response)
+
+    if Application.get_env(:ex_llm, :debug_test_cache, false) do
+      IO.puts("DEBUG: Replaying #{length(chunks)} streaming chunks")
+    end
+
+    # Replay each chunk through the callback
+    Enum.each(chunks, fn chunk ->
+      if Application.get_env(:ex_llm, :debug_test_cache, false) do
+        IO.puts("  Calling callback with chunk: #{inspect(chunk)}")
+      end
+
+      callback_fun.(chunk)
+    end)
+
+    # Return the final response
+    {:cached, response, metadata}
+  end
+
+  @spec extract_streaming_chunks(any()) :: [map()]
+  defp extract_streaming_chunks(response) when is_map(response) do
+    # Try different keys where chunks might be stored
+    cond do
+      chunks = Map.get(response, "streaming_chunks") ->
+        if is_list(chunks), do: chunks, else: []
+
+      chunks = Map.get(response, :streaming_chunks) ->
+        if is_list(chunks), do: chunks, else: []
+
+      chunks = Map.get(response, "chunks") ->
+        if is_list(chunks), do: chunks, else: []
+
+      chunks = Map.get(response, :chunks) ->
+        if is_list(chunks), do: chunks, else: []
+
+      true ->
+        # No chunks found, create a single chunk from response content
+        [%{content: extract_response_content(response)}]
+    end
+  end
+
+  defp extract_streaming_chunks(_response), do: []
+
+  @spec extract_response_content(any()) :: String.t()
+  defp extract_response_content(response) when is_map(response) do
+    response
+    |> Map.get("content", Map.get(response, :content, ""))
+    |> to_string()
+  end
+
+  defp extract_response_content(response) when is_binary(response), do: response
+  defp extract_response_content(_response), do: ""
 end
