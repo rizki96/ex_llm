@@ -29,7 +29,7 @@ defmodule ExLLM.CacheTest do
       # 1. First call: cache miss
       # The function should be executed, and the result should be cached by the production strategy.
       assert Cache.with_cache(cache_key, [cache: true], fun) == {:ok, "llm_response"}
-      assert_receive fun_was_called_flag
+      assert_receive ^fun_was_called_flag
 
       # Verify the item is in the production cache, proving the fallback worked.
       assert ProdCache.get(cache_key) == {:ok, "llm_response"}
@@ -37,7 +37,7 @@ defmodule ExLLM.CacheTest do
       # 2. Second call: cache hit
       # The function should NOT be executed, and the result should come from the production cache.
       assert Cache.with_cache(cache_key, [cache: true], fun) == {:ok, "llm_response"}
-      refute_receive fun_was_called_flag
+      refute_receive ^fun_was_called_flag
     end
   end
 end

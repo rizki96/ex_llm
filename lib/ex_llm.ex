@@ -627,23 +627,17 @@ defmodule ExLLM do
     result = ExLLM.Infrastructure.Config.ModelConfig.get_model_config(provider, model_id)
 
     case result do
-      {:ok, model} ->
-        cond do
-          is_struct(model) ->
-            model.context_window
-
-          is_map(model) ->
-            # Try atom key first, then string key
-            Map.get(model, :context_window) || Map.get(model, "context_window")
-
-          true ->
-            nil
-        end
-
-      {:error, _} ->
+      nil ->
         nil
 
-      _other ->
+      model when is_map(model) ->
+        # Try atom key first, then string key
+        Map.get(model, :context_window) || Map.get(model, "context_window")
+
+      model when is_struct(model) ->
+        model.context_window
+
+      _ ->
         nil
     end
   end
