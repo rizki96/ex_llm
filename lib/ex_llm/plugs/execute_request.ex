@@ -89,6 +89,11 @@ defmodule ExLLM.Plugs.ExecuteRequest do
             maybe_save_response(request_to_execute, response)
             handle_tesla_response(request_to_execute, response)
 
+          # Tesla can sometimes return bare Tesla.Env instead of {:ok, Tesla.Env}
+          %Tesla.Env{} = response ->
+            maybe_save_response(request_to_execute, response)
+            handle_tesla_response(request_to_execute, response)
+
           {:error, reason} ->
             # Network or other error
             error = build_network_error(reason, request_to_execute.provider)
@@ -194,21 +199,31 @@ defmodule ExLLM.Plugs.ExecuteRequest do
   defp handle_tesla_response(%Request{} = request, %Tesla.Env{} = response) do
     case response do
       # Handle successful Tesla responses
-      %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
+      %Tesla.Env{status: status} = env when status in 200..299 ->
+        headers = env.headers || []
         request
         |> Map.put(:response, env)
         |> Request.put_state(:completed)
         |> Request.put_metadata(:http_status, status)
         |> Request.put_metadata(:response_headers, headers)
 
-      # Handle error Tesla responses
-      %Tesla.Env{status: status, body: body} = env ->
+      # Handle error Tesla responses with status
+      %Tesla.Env{status: status} = env when is_integer(status) ->
+        body = env.body
         error = build_http_error(status, body, request.provider)
 
         request
         |> Map.put(:response, env)
         |> Request.halt_with_error(error)
         |> Request.put_metadata(:http_status, status)
+
+      # Handle responses without status (connection errors, etc.)
+      %Tesla.Env{} = env ->
+        error = build_http_error(nil, env.body, request.provider)
+
+        request
+        |> Map.put(:response, env)
+        |> Request.halt_with_error(error)
     end
   end
 
@@ -277,6 +292,17 @@ defmodule ExLLM.Plugs.ExecuteRequest do
       error: :server_error,
       message: "Internal server error from #{provider}.",
       status: 500,
+      body: body,
+      provider: provider
+    }
+  end
+
+  defp build_http_error(nil, body, provider) do
+    %{
+      plug: __MODULE__,
+      error: :connection_error,
+      message: "Connection error to #{provider}. No HTTP status received.",
+      status: nil,
       body: body,
       provider: provider
     }

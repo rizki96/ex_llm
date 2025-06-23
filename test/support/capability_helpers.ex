@@ -30,7 +30,7 @@ defmodule ExLLM.Testing.CapabilityHelpers do
   Returns `{:skip, reason}` if the provider lacks the capability, otherwise `:ok`.
   """
   def skip_unless_supports(provider, capability) do
-    if ExLLM.Capabilities.supports?(provider, capability) do
+    if supports_capability?(provider, capability) do
       :ok
     else
       {:skip, "Provider #{provider} does not support #{capability}"}
@@ -45,7 +45,7 @@ defmodule ExLLM.Testing.CapabilityHelpers do
   """
   def skip_unless_configured_and_supports(provider, capability) do
     cond do
-      !ExLLM.Capabilities.supports?(provider, capability) ->
+      !supports_capability?(provider, capability) ->
         {:skip, "Provider #{provider} does not support #{capability}"}
 
       !ExLLM.configured?(provider) ->
@@ -54,6 +54,15 @@ defmodule ExLLM.Testing.CapabilityHelpers do
       true ->
         :ok
     end
+  end
+
+  # Helper to handle both single capabilities and lists
+  defp supports_capability?(provider, capability) when is_atom(capability) do
+    ExLLM.Capabilities.supports?(provider, capability)
+  end
+
+  defp supports_capability?(provider, capabilities) when is_list(capabilities) do
+    Enum.all?(capabilities, &ExLLM.Capabilities.supports?(provider, &1))
   end
 
   @doc """
