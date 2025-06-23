@@ -41,6 +41,11 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
         :ok
       end
 
+      # Helper function to avoid compile-time provider comparisons
+      defp is_local_provider?(provider) do
+        provider in [:lmstudio, :ollama, :bumblebee]
+      end
+
       describe "chat/3 via public API" do
         test "sends chat completion request" do
           skip_unless_configured_and_supports(@provider, :chat)
@@ -59,7 +64,7 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
           assert response.usage.completion_tokens > 0
 
           # Local providers (like LMStudio) have zero cost
-          if @provider in [:lmstudio, :ollama, :bumblebee] do
+          if is_local_provider?(@provider) do
             assert response.cost == 0.0
           else
             assert response.cost > 0
@@ -251,7 +256,7 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
           assert {:ok, response} = ExLLM.chat(@provider, messages, max_tokens: 10)
 
           # Local providers (like LMStudio) have zero cost
-          if @provider in [:lmstudio, :ollama, :bumblebee] do
+          if is_local_provider?(@provider) do
             assert response.cost == 0.0
           else
             assert response.cost > 0
