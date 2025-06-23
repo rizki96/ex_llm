@@ -23,7 +23,9 @@ defmodule ExLLM.Application do
         # Start Circuit Breaker Configuration Manager
         ExLLM.Infrastructure.CircuitBreaker.ConfigManager,
         # Start Circuit Breaker Metrics system if enabled
-        metrics_child_spec()
+        metrics_child_spec(),
+        # Start Ollama Model Registry
+        ExLLM.Infrastructure.OllamaModelRegistry
       ]
       |> Enum.filter(& &1)
 

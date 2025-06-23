@@ -353,6 +353,8 @@ defmodule ExLLM do
     end
   end
 
+  ## Embedding Functions
+
   @doc """
   Generate embeddings for text input(s) using the pipeline architecture.
 
@@ -573,61 +575,14 @@ defmodule ExLLM do
 
   ## Vision Functions
 
-  @doc """
-  Check if a provider/model combination supports vision.
+  @doc "Check if a provider/model combination supports vision. See ExLLM.Vision.supports_vision?/2 for details."
+  defdelegate supports_vision?(provider, model), to: ExLLM.Vision
 
-  ## Examples
+  @doc "Load an image from a file path or URL. See ExLLM.Vision.load_image/2 for details."
+  defdelegate load_image(path, opts \\ []), to: ExLLM.Vision
 
-      ExLLM.supports_vision?(:openai, "gpt-4-vision-preview")
-      # => true
-  """
-  def supports_vision?(provider, model) do
-    model_supports?(provider, model, :vision)
-  end
-
-  @doc """
-  Load an image from a file path or URL.
-
-  ## Examples
-
-      {:ok, image_data} = ExLLM.load_image("/path/to/image.jpg")
-  """
-  def load_image(path, opts \\ []) do
-    ExLLM.Core.Vision.load_image(path, opts)
-  end
-
-  @doc """
-  Create a vision message with text and images.
-
-  ## Examples
-
-      {:ok, message} = ExLLM.vision_message("What's in this image?", ["https://example.com/img.jpg"])
-  """
-  def vision_message(text, images, opts \\ []) do
-    ExLLM.Core.Vision.create_message(text, images, opts)
-  end
-
-  ## Embeddings Functions
-
-  @doc "Find similar items based on embeddings. See ExLLM.Embeddings.find_similar/3 for details."
-  defdelegate find_similar(query_embedding, items, opts \\ []), to: ExLLM.Embeddings
-
-  @doc "Calculate cosine similarity between two vectors. See ExLLM.Embeddings.cosine_similarity/2 for details."
-  defdelegate cosine_similarity(vector1, vector2), to: ExLLM.Embeddings
-
-  @doc "List models that support embeddings for a provider. See ExLLM.Embeddings.list_models/1 for details."
-  defdelegate list_embedding_models(provider), to: ExLLM.Embeddings, as: :list_models
-
-  @doc "Calculate similarity between embeddings using different metrics. See ExLLM.Embeddings.similarity/3 for details."
-  defdelegate embedding_similarity(vector1, vector2, metric \\ :cosine),
-    to: ExLLM.Embeddings,
-    as: :similarity
-
-  @doc "Batch generate embeddings for multiple texts. See ExLLM.Embeddings.batch_generate/3 for details."
-  defdelegate batch_embeddings(provider, requests), to: ExLLM.Embeddings, as: :batch_generate
-
-  @doc "Get detailed information about an embedding model. See ExLLM.Embeddings.model_info/2 for details."
-  defdelegate get_embedding_model_info(provider, model_id), to: ExLLM.Embeddings, as: :model_info
+  @doc "Create a vision message with text and images. See ExLLM.Vision.vision_message/3 for details."
+  defdelegate vision_message(text, images, opts \\ []), to: ExLLM.Vision
 
   @doc "Compare models across providers."
   def compare_models(model_list) do
@@ -687,10 +642,6 @@ defmodule ExLLM do
 
       {:error, _} ->
         nil
-
-      # Handle case where get_model_config returns the model directly (not wrapped in {:ok, model})
-      model when is_map(model) ->
-        Map.get(model, :context_window) || Map.get(model, "context_window")
 
       _other ->
         nil
@@ -762,141 +713,19 @@ defmodule ExLLM do
     end
   end
 
-  @doc """
-  Upload a file to the provider for use in multimodal models or fine-tuning.
+  ## File Management Functions
 
-  ## Parameters
+  @doc "Upload a file to the provider. See ExLLM.FileManager.upload_file/3 for details."
+  defdelegate upload_file(provider, file_path, opts \\ []), to: ExLLM.FileManager
 
-    * `provider` - The provider atom (`:gemini` or `:openai`)
-    * `file_path` - Path to the file to upload
-    * `opts` - Upload options
+  @doc "List files uploaded to the provider. See ExLLM.FileManager.list_files/2 for details."
+  defdelegate list_files(provider, opts \\ []), to: ExLLM.FileManager
 
-  ## Options
+  @doc "Get metadata for a specific file. See ExLLM.FileManager.get_file/3 for details."
+  defdelegate get_file(provider, file_id, opts \\ []), to: ExLLM.FileManager
 
-  For Gemini:
-    * `:display_name` - Human-readable name for the file
-    * `:mime_type` - Override automatic MIME type detection
-    * `:config_provider` - Configuration provider
-
-  For OpenAI:
-    * `:purpose` - Purpose of the file ("fine-tune", "assistants", "vision", "user_data", etc.)
-    * `:config_provider` - Configuration provider
-
-  ## Examples
-
-      # Upload to Gemini
-      {:ok, file} = ExLLM.upload_file(:gemini, "/path/to/image.png", 
-        display_name: "My Image")
-      
-      # Upload to OpenAI for fine-tuning
-      {:ok, file} = ExLLM.upload_file(:openai, "/path/to/training.jsonl",
-        purpose: "fine-tune")
-
-  ## Return Value
-
-  Returns `{:ok, file_info}` with file metadata, or `{:error, reason}`.
-  """
-  @spec upload_file(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
-  def upload_file(provider, file_path, opts \\ []) do
-    case Delegator.delegate(:upload_file, provider, [file_path, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  List files uploaded to the provider.
-
-  ## Parameters
-
-    * `provider` - The provider atom (`:gemini` or `:openai`)
-    * `opts` - Listing options
-
-  ## Options
-
-  For Gemini:
-    * `:page_size` - Number of files per page (default: 10)
-    * `:page_token` - Token for pagination
-    * `:config_provider` - Configuration provider
-
-  For OpenAI:
-    * `:purpose` - Filter by file purpose ("fine-tune", "assistants", etc.)
-    * `:limit` - Number of files to return (max 100)
-    * `:config_provider` - Configuration provider
-
-  ## Examples
-
-      # List Gemini files
-      {:ok, response} = ExLLM.list_files(:gemini)
-      Enum.each(response.files, fn file ->
-        IO.puts("File: \#{file.display_name} (\#{file.name})")
-      end)
-      
-      # List OpenAI fine-tuning files
-      {:ok, response} = ExLLM.list_files(:openai, purpose: "fine-tune")
-
-  ## Return Value
-
-  Returns `{:ok, list_response}` with files and pagination info, or `{:error, reason}`.
-  """
-  @spec list_files(atom(), keyword()) :: {:ok, term()} | {:error, term()}
-  def list_files(provider, opts \\ []) do
-    case Delegator.delegate(:list_files, provider, [opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Get metadata for a specific file.
-
-  ## Parameters
-
-    * `provider` - The provider atom (currently only `:gemini`)
-    * `file_id` - The file identifier
-    * `opts` - Request options
-
-  ## Examples
-
-      {:ok, file} = ExLLM.get_file(:gemini, "files/abc-123")
-      IO.puts("File size: \#{file.size_bytes} bytes")
-
-  ## Return Value
-
-  Returns `{:ok, file_info}` with file metadata, or `{:error, reason}`.
-  """
-  @spec get_file(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
-  def get_file(provider, file_id, opts \\ []) do
-    case Delegator.delegate(:get_file, provider, [file_id, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Delete a file from the provider.
-
-  ## Parameters
-
-    * `provider` - The provider atom (currently only `:gemini`)
-    * `file_id` - The file identifier
-    * `opts` - Request options
-
-  ## Examples
-
-      :ok = ExLLM.delete_file(:gemini, "files/abc-123")
-
-  ## Return Value
-
-  Returns `:ok` on success, or `{:error, reason}` on failure.
-  """
-  @spec delete_file(atom(), String.t(), keyword()) :: :ok | {:error, term()}
-  def delete_file(provider, file_id, opts \\ []) do
-    case Delegator.delegate(:delete_file, provider, [file_id, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  @doc "Delete a file from the provider. See ExLLM.FileManager.delete_file/3 for details."
+  defdelegate delete_file(provider, file_id, opts \\ []), to: ExLLM.FileManager
 
   @doc "Create a knowledge base (corpus) for semantic retrieval. See ExLLM.KnowledgeBase.create_knowledge_base/3 for details."
   defdelegate create_knowledge_base(provider, name, opts \\ []), to: ExLLM.KnowledgeBase
@@ -1035,325 +864,34 @@ defmodule ExLLM do
 
   ## Context Caching Functions
 
-  @doc """
-  Creates cached content for efficient reuse across multiple requests.
+  @doc "Creates cached content for efficient reuse across multiple requests. See ExLLM.ContextCache.create_cached_context/3 for details."
+  defdelegate create_cached_context(provider, content, opts \\ []), to: ExLLM.ContextCache
 
-  Context caching allows you to cache large amounts of input content and reuse
-  it across multiple requests, reducing costs and improving performance.
+  @doc "Retrieves cached content by name. See ExLLM.ContextCache.get_cached_context/3 for details."
+  defdelegate get_cached_context(provider, name, opts \\ []), to: ExLLM.ContextCache
 
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:gemini` supported)
-    * `content` - The content to cache (can be messages, system instructions, etc.)
-    * `opts` - Options for caching
+  @doc "Updates cached content with new information. See ExLLM.ContextCache.update_cached_context/4 for details."
+  defdelegate update_cached_context(provider, name, updates, opts \\ []), to: ExLLM.ContextCache
 
-  ## Options for Gemini
-    * `:model` - Model to use for caching (required)
-    * `:display_name` - Human-readable name for the cached content
-    * `:ttl` - Time-to-live in seconds (e.g., 3600 for 1 hour)
-    * `:system_instruction` - System instruction content
-    * `:tools` - Tools available to the model
-    * `:config_provider` - Configuration provider
+  @doc "Deletes cached content. See ExLLM.ContextCache.delete_cached_context/3 for details."
+  defdelegate delete_cached_context(provider, name, opts \\ []), to: ExLLM.ContextCache
 
-  ## Examples
-
-      # Cache conversation context
-      request = %{
-        model: "models/gemini-1.5-pro",
-        contents: [
-          %{role: "user", parts: [%{text: "Long document content..."}]}
-        ],
-        ttl: "3600s"
-      }
-      {:ok, cached} = ExLLM.create_cached_context(:gemini, request)
-
-  ## Return Value
-
-  Returns `{:ok, cached_content}` with the cached content details, or `{:error, reason}`.
-  """
-  @spec create_cached_context(atom(), map(), keyword()) :: {:ok, term()} | {:error, term()}
-  def create_cached_context(provider, content, opts \\ []) do
-    case Delegator.delegate(:create_cached_context, provider, [content, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Retrieves cached content by name.
-
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:gemini` supported)
-    * `name` - The cached content name (e.g., "cachedContents/abc-123")
-    * `opts` - Options for retrieval
-
-  ## Examples
-
-      {:ok, cached} = ExLLM.get_cached_context(:gemini, "cachedContents/abc-123")
-
-  ## Return Value
-
-  Returns `{:ok, cached_content}` with the cached content details, or `{:error, reason}`.
-  """
-  @spec get_cached_context(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
-  def get_cached_context(provider, name, opts \\ []) do
-    case Delegator.delegate(:get_cached_context, provider, [name, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Updates cached content with new information.
-
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:gemini` supported)
-    * `name` - The cached content name to update
-    * `updates` - Map of updates to apply
-    * `opts` - Options for the update
-
-  ## Options
-    * `:config_provider` - Configuration provider
-
-  ## Examples
-
-      updates = %{
-        display_name: "Updated name",
-        ttl: "7200s"
-      }
-      {:ok, updated} = ExLLM.update_cached_context(:gemini, "cachedContents/abc-123", updates)
-
-  ## Return Value
-
-  Returns `{:ok, updated_content}` with the updated cached content, or `{:error, reason}`.
-  """
-  @spec update_cached_context(atom(), String.t(), map(), keyword()) ::
-          {:ok, term()} | {:error, term()}
-  def update_cached_context(provider, name, updates, opts \\ []) do
-    case Delegator.delegate(:update_cached_context, provider, [name, updates, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Deletes cached content.
-
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:gemini` supported)
-    * `name` - The cached content name to delete
-    * `opts` - Options for deletion
-
-  ## Examples
-
-      :ok = ExLLM.delete_cached_context(:gemini, "cachedContents/abc-123")
-
-  ## Return Value
-
-  Returns `:ok` if successful, or `{:error, reason}` if failed.
-  """
-  @spec delete_cached_context(atom(), String.t(), keyword()) :: :ok | {:error, term()}
-  def delete_cached_context(provider, name, opts \\ []) do
-    case Delegator.delegate(:delete_cached_context, provider, [name, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Lists all cached content.
-
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:gemini` supported)
-    * `opts` - Options for listing
-
-  ## Options for Gemini
-    * `:page_size` - Number of results per page (max 100)
-    * `:page_token` - Token for pagination
-    * `:config_provider` - Configuration provider
-
-  ## Examples
-
-      {:ok, %{cached_contents: contents, next_page_token: token}} = ExLLM.list_cached_contexts(:gemini)
-      
-      # With pagination
-      {:ok, %{cached_contents: more_contents}} = ExLLM.list_cached_contexts(:gemini, 
-        page_token: token, page_size: 50)
-
-  ## Return Value
-
-  Returns `{:ok, %{cached_contents: list, next_page_token: token}}` or `{:error, reason}`.
-  """
-  @spec list_cached_contexts(atom(), keyword()) :: {:ok, map()} | {:error, term()}
-  def list_cached_contexts(provider, opts \\ []) do
-    case Delegator.delegate(:list_cached_contexts, provider, [opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  @doc "Lists all cached content. See ExLLM.ContextCache.list_cached_contexts/2 for details."
+  defdelegate list_cached_contexts(provider, opts \\ []), to: ExLLM.ContextCache
 
   ## Fine-tuning Functions
 
-  @doc """
-  Creates a fine-tuning job.
+  @doc "Create a fine-tuning job. See ExLLM.FineTuning.create_fine_tune/3 for details."
+  defdelegate create_fine_tune(provider, data, opts \\ []), to: ExLLM.FineTuning
 
-  Fine-tuning allows you to customize a model for your specific use case
-  by training it on your own data.
+  @doc "List fine-tuning jobs or tuned models. See ExLLM.FineTuning.list_fine_tunes/2 for details."
+  defdelegate list_fine_tunes(provider, opts \\ []), to: ExLLM.FineTuning
 
-  ## Parameters
-    * `provider` - The LLM provider (`:gemini` or `:openai`)
-    * `data` - Training data or file identifier (format varies by provider)
-    * `opts` - Options for fine-tuning
+  @doc "Get details of a fine-tuning job or tuned model. See ExLLM.FineTuning.get_fine_tune/3 for details."
+  defdelegate get_fine_tune(provider, id, opts \\ []), to: ExLLM.FineTuning
 
-  ## Options for Gemini
-    * `:base_model` - Base model to tune (required)
-    * `:display_name` - Human-readable name for the tuned model
-    * `:description` - Description of the tuned model
-    * `:temperature` - Temperature for tuning
-    * `:top_p` - Top-p value for tuning
-    * `:top_k` - Top-k value for tuning
-    * `:candidate_count` - Number of candidates
-    * `:max_output_tokens` - Maximum output tokens
-    * `:stop_sequences` - Stop sequences
-    * `:hyperparameters` - Training hyperparameters map
-    * `:config_provider` - Configuration provider
-
-  ## Options for OpenAI
-    * `:model` - Base model to fine-tune (default: "gpt-3.5-turbo")
-    * `:validation_file` - Validation file ID
-    * `:hyperparameters` - Training hyperparameters
-    * `:suffix` - Suffix for the fine-tuned model name
-    * `:integrations` - Third-party integration settings
-    * `:seed` - Random seed for training
-    * `:config_provider` - Configuration provider
-
-  ## Examples
-
-      # Gemini fine-tuning
-      dataset = %{
-        examples: %{
-          examples: [
-            %{text_input: "What is AI?", output: "AI is artificial intelligence..."}
-          ]
-        }
-      }
-      {:ok, tuned_model} = ExLLM.create_fine_tune(:gemini, dataset, 
-        base_model: "models/gemini-1.5-flash-001",
-        display_name: "My Custom Model"
-      )
-
-      # OpenAI fine-tuning
-      {:ok, job} = ExLLM.create_fine_tune(:openai, "file-abc123",
-        model: "gpt-3.5-turbo",
-        suffix: "my-model"
-      )
-
-  ## Return Value
-
-  Returns `{:ok, result}` with the fine-tuning job or model details, or `{:error, reason}`.
-  """
-  @spec create_fine_tune(atom(), term(), keyword()) :: {:ok, term()} | {:error, term()}
-  def create_fine_tune(provider, data, opts \\ []) do
-    case Delegator.delegate(:create_fine_tune, provider, [data, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Lists fine-tuning jobs or tuned models.
-
-  ## Parameters
-    * `provider` - The LLM provider (`:gemini` or `:openai`)
-    * `opts` - Options for listing
-
-  ## Options for Gemini
-    * `:page_size` - Number of results per page
-    * `:page_token` - Token for pagination
-    * `:config_provider` - Configuration provider
-
-  ## Options for OpenAI
-    * `:after` - Identifier for pagination
-    * `:limit` - Number of results to return (max 100)
-    * `:config_provider` - Configuration provider
-
-  ## Examples
-
-      # List Gemini tuned models
-      {:ok, %{tuned_models: models}} = ExLLM.list_fine_tunes(:gemini)
-
-      # List OpenAI fine-tuning jobs
-      {:ok, %{data: jobs}} = ExLLM.list_fine_tunes(:openai, limit: 20)
-
-  ## Return Value
-
-  Returns `{:ok, response}` with the list of fine-tuning jobs or models, or `{:error, reason}`.
-  """
-  @spec list_fine_tunes(atom(), keyword()) :: {:ok, term()} | {:error, term()}
-  def list_fine_tunes(provider, opts \\ []) do
-    case Delegator.delegate(:list_fine_tunes, provider, [opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Gets details of a specific fine-tuning job or tuned model.
-
-  ## Parameters
-    * `provider` - The LLM provider (`:gemini` or `:openai`)
-    * `id` - The fine-tuning job ID or tuned model name
-    * `opts` - Options for retrieval
-
-  ## Examples
-
-      # Get Gemini tuned model
-      {:ok, model} = ExLLM.get_fine_tune(:gemini, "tunedModels/my-model-abc123")
-
-      # Get OpenAI fine-tuning job
-      {:ok, job} = ExLLM.get_fine_tune(:openai, "ftjob-abc123")
-
-  ## Return Value
-
-  Returns `{:ok, details}` with the fine-tuning job or model details, or `{:error, reason}`.
-  """
-  @spec get_fine_tune(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
-  def get_fine_tune(provider, id, opts \\ []) do
-    case Delegator.delegate(:get_fine_tune, provider, [id, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Cancels or deletes a fine-tuning job or tuned model.
-
-  For OpenAI, this cancels a running fine-tuning job.
-  For Gemini, this deletes a tuned model.
-
-  ## Parameters
-    * `provider` - The LLM provider (`:gemini` or `:openai`)
-    * `id` - The fine-tuning job ID or tuned model name
-    * `opts` - Options for cancellation/deletion
-
-  ## Examples
-
-      # Delete Gemini tuned model
-      :ok = ExLLM.cancel_fine_tune(:gemini, "tunedModels/my-model-abc123")
-
-      # Cancel OpenAI fine-tuning job
-      {:ok, job} = ExLLM.cancel_fine_tune(:openai, "ftjob-abc123")
-
-  ## Return Value
-
-  Returns `:ok` or `{:ok, details}` if successful, or `{:error, reason}` if failed.
-  """
-  @spec cancel_fine_tune(atom(), String.t(), keyword()) :: :ok | {:ok, term()} | {:error, term()}
-  def cancel_fine_tune(provider, id, opts \\ []) do
-    case Delegator.delegate(:cancel_fine_tune, provider, [id, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  @doc "Cancel or delete a fine-tuning job or tuned model. See ExLLM.FineTuning.cancel_fine_tune/3 for details."
+  defdelegate cancel_fine_tune(provider, id, opts \\ []), to: ExLLM.FineTuning
 
   ## OpenAI Assistants API Functions
 
@@ -1381,131 +919,16 @@ defmodule ExLLM do
   @doc "Run an assistant on a thread. See ExLLM.Assistants.run_assistant/4 for details."
   defdelegate run_assistant(provider, thread_id, assistant_id, opts \\ []), to: ExLLM.Assistants
 
-  ## Anthropic Message Batches API Functions
+  ## Batch Processing Functions
 
-  @doc """
-  Creates a message batch for processing multiple requests.
+  @doc "Create a message batch for processing multiple requests. See ExLLM.BatchProcessing.create_batch/3 for details."
+  defdelegate create_batch(provider, messages_list, opts \\ []), to: ExLLM.BatchProcessing
 
-  Message batches allow you to process multiple chat requests asynchronously
-  at a 50% discount. Batches are processed within 24 hours.
+  @doc "Get the status and details of a message batch. See ExLLM.BatchProcessing.get_batch/3 for details."
+  defdelegate get_batch(provider, batch_id, opts \\ []), to: ExLLM.BatchProcessing
 
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:anthropic` supported)
-    * `messages_list` - List of message request objects
-    * `opts` - Batch options
-
-  ## Request Format
-
-  Each request in `messages_list` should be a map with:
-    * `:custom_id` - Unique identifier for tracking (required)
-    * `:params` - The message parameters:
-      * `:model` - Model to use (e.g., "claude-3-opus-20240229")
-      * `:messages` - List of message objects
-      * `:max_tokens` - Maximum tokens in response
-      * Other standard chat parameters
-
-  ## Options
-    * `:config_provider` - Configuration provider
-
-  ## Examples
-
-      requests = [
-        %{
-          custom_id: "req-1",
-          params: %{
-            model: "claude-3-opus-20240229",
-            messages: [%{role: "user", content: "Hello"}],
-            max_tokens: 1000
-          }
-        },
-        %{
-          custom_id: "req-2",
-          params: %{
-            model: "claude-3-opus-20240229",
-            messages: [%{role: "user", content: "How are you?"}],
-            max_tokens: 1000
-          }
-        }
-      ]
-      
-      {:ok, batch} = ExLLM.create_batch(:anthropic, requests)
-      IO.puts("Batch ID: \#{batch.id}")
-
-  ## Return Value
-
-  Returns `{:ok, batch}` with batch details including ID and status, or `{:error, reason}`.
-  """
-  @spec create_batch(atom(), list(map()), keyword()) :: {:ok, term()} | {:error, term()}
-  def create_batch(provider, messages_list, opts \\ []) do
-    case Delegator.delegate(:create_batch, provider, [messages_list, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Retrieves the status and details of a message batch.
-
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:anthropic` supported)
-    * `batch_id` - The batch identifier
-    * `opts` - Request options
-
-  ## Examples
-
-      {:ok, batch} = ExLLM.get_batch(:anthropic, "batch_abc123")
-      
-      case batch.processing_status do
-        "in_progress" -> IO.puts("Still processing...")
-        "ended" -> IO.puts("Batch complete!")
-      end
-
-  ## Return Value
-
-  Returns `{:ok, batch}` with current batch status and metadata, or `{:error, reason}`.
-
-  The batch object includes:
-    * `:id` - Batch identifier
-    * `:processing_status` - "in_progress" or "ended"
-    * `:request_counts` - Map with succeeded/errored/processing/canceled counts
-    * `:ended_at` - Completion timestamp (if ended)
-    * `:expires_at` - Expiration timestamp
-  """
-  @spec get_batch(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
-  def get_batch(provider, batch_id, opts \\ []) do
-    case Delegator.delegate(:get_batch, provider, [batch_id, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  @doc """
-  Cancels a message batch that is still processing.
-
-  Canceling a batch will stop processing of any requests that haven't started yet.
-  Requests that are already being processed will complete.
-
-  ## Parameters
-    * `provider` - The LLM provider (currently only `:anthropic` supported)
-    * `batch_id` - The batch identifier to cancel
-    * `opts` - Request options
-
-  ## Examples
-
-      {:ok, batch} = ExLLM.cancel_batch(:anthropic, "batch_abc123")
-      IO.puts("Batch canceled. Status: \#{batch.processing_status}")
-
-  ## Return Value
-
-  Returns `{:ok, batch}` with updated batch details, or `{:error, reason}`.
-  """
-  @spec cancel_batch(atom(), String.t(), keyword()) :: {:ok, term()} | {:error, term()}
-  def cancel_batch(provider, batch_id, opts \\ []) do
-    case Delegator.delegate(:cancel_batch, provider, [batch_id, opts]) do
-      {:ok, result} -> result
-      {:error, reason} -> {:error, reason}
-    end
-  end
+  @doc "Cancel a message batch that is still processing. See ExLLM.BatchProcessing.cancel_batch/3 for details."
+  defdelegate cancel_batch(provider, batch_id, opts \\ []), to: ExLLM.BatchProcessing
 
   # Private helper function to safely convert provider strings to atoms
   # Prevents atom exhaustion attacks by validating against known providers

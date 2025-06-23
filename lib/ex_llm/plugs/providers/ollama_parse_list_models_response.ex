@@ -7,6 +7,9 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
 
   use ExLLM.Plug
 
+  alias ExLLM.Infrastructure.Config.ModelConfig
+  alias ExLLM.Infrastructure.Logger
+
   @impl true
   def call(%ExLLM.Pipeline.Request{response: %Tesla.Env{} = response} = request, _opts) do
     case response.status do
@@ -96,9 +99,9 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
       id: model_name,
       name: model_name,
       description: description,
-      context_window: get_context_window(base_name),
-      max_output_tokens: get_max_output_tokens(base_name),
-      capabilities: get_capabilities(base_name),
+      context_window: get_context_window(model_name, base_name),
+      max_output_tokens: get_max_output_tokens(model_name, base_name),
+      capabilities: get_capabilities(model_name, base_name),
       # Local models are free
       pricing: %{input: 0.0, output: 0.0}
     }
@@ -130,98 +133,79 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
 
   defp format_size(_), do: "Unknown"
 
-  defp get_context_window(base_name) do
-    # Known context windows for common Ollama models
-    # Order matters - more specific patterns first
-    context_patterns = [
-      {~r/llama3\.2/, 128_000},
-      {~r/llama3\.1/, 128_000},
-      {~r/llama3/, 8_192},
-      {~r/llama2/, 4_096},
-      {~r/mistral/, 32_768},
-      {~r/mixtral/, 32_768},
-      {~r/qwen2\.5/, 128_000},
-      {~r/qwen2/, 32_768},
-      {~r/qwen/, 8_192},
-      {~r/deepseek-r1/, 64_000},
-      {~r/deepseek-coder-v2/, 128_000},
-      {~r/deepseek-v2/, 128_000},
-      {~r/phi3/, 128_000},
-      {~r/phi/, 2_048},
-      {~r/gemma2/, 8_192},
-      {~r/gemma/, 8_192},
-      {~r/command-r/, 128_000},
-      {~r/yi/, 200_000},
-      {~r/solar/, 4_096},
-      {~r/codellama/, 16_384},
-      {~r/starcoder2/, 16_384},
-      {~r/wizardlm2/, 65_536}
-    ]
+  # Helper to find model configuration by trying various name formats.
+  defp get_model_config(model_name, base_name) do
+    # First try the registry which will check cache, config, and API
+    case ExLLM.Infrastructure.OllamaModelRegistry.get_model_details(model_name) do
+      {:ok, details} ->
+        details
 
-    find_matching_value(base_name, context_patterns, 4_096)
-  end
-
-  defp get_max_output_tokens(base_name) do
-    # Maximum output tokens for common models
-    cond do
-      base_name =~ ~r/llama3\.[12]/ -> 16_384
-      base_name =~ ~r/llama3/ -> 8_192
-      base_name =~ ~r/llama2/ -> 4_096
-      base_name =~ ~r/mistral/ -> 8_192
-      base_name =~ ~r/mixtral/ -> 32_768
-      base_name =~ ~r/qwen2\.5/ -> 32_768
-      base_name =~ ~r/qwen/ -> 8_192
-      base_name =~ ~r/deepseek/ -> 16_384
-      base_name =~ ~r/command-r/ -> 4_096
-      base_name =~ ~r/yi/ -> 4_096
-      true -> 2_048
+      {:error, _} ->
+        # Fallback to trying different name formats in ModelConfig
+        ModelConfig.get_model_config(:ollama, model_name) ||
+          ModelConfig.get_model_config(:ollama, "ollama/#{model_name}") ||
+          ModelConfig.get_model_config(:ollama, base_name) ||
+          ModelConfig.get_model_config(:ollama, "ollama/#{base_name}")
     end
   end
 
-  defp get_capabilities(base_name) do
-    # Base capability for all models
-    capabilities = ["chat"]
+  defp get_context_window(model_name, base_name) do
+    case get_model_config(model_name, base_name) do
+      %{context_window: cw} when is_integer(cw) ->
+        cw
 
-    # Check for code capabilities
-    capabilities =
-      if base_name =~ ~r/code|starcoder|deepseek-coder|codellama/ do
-        ["code" | capabilities]
-      else
-        capabilities
-      end
+      _ ->
+        default = 4_096
 
-    # Check for vision capabilities
-    capabilities =
-      if base_name =~ ~r/llava|bakllava|vision/ do
-        ["vision" | capabilities]
-      else
-        capabilities
-      end
+        Logger.warning(
+          "Could not find context_window for Ollama model '#{model_name}'. Falling back to default of #{default}."
+        )
 
-    # Check for embedding capabilities
-    capabilities =
-      if base_name =~ ~r/embed|bge|e5|nomic-embed/ do
-        ["embeddings" | capabilities]
-      else
-        capabilities
-      end
-
-    # Check for function calling (most modern models support it)
-    capabilities =
-      if base_name =~ ~r/llama3|mistral|mixtral|qwen2|deepseek|phi3|gemma2|command-r/ do
-        ["function_calling" | capabilities]
-      else
-        capabilities
-      end
-
-    Enum.uniq(capabilities)
+        default
+    end
   end
 
-  # Helper function to find first matching pattern value
-  defp find_matching_value(string, patterns, default) do
-    case Enum.find(patterns, fn {pattern, _value} -> string =~ pattern end) do
-      {_pattern, value} -> value
-      nil -> default
+  defp get_max_output_tokens(model_name, base_name) do
+    case get_model_config(model_name, base_name) do
+      %{max_output_tokens: mot} when is_integer(mot) ->
+        mot
+
+      _ ->
+        default = 2_048
+
+        Logger.warning(
+          "Could not find max_output_tokens for Ollama model '#{model_name}'. Falling back to default of #{default}."
+        )
+
+        default
+    end
+  end
+
+  defp get_capabilities(model_name, base_name) do
+    case get_model_config(model_name, base_name) do
+      %{capabilities: caps} when is_list(caps) ->
+        string_caps =
+          Enum.map(caps, fn
+            cap when is_atom(cap) -> Atom.to_string(cap)
+            cap when is_binary(cap) -> cap
+          end)
+
+        # Add "chat" capability by default for non-embedding models
+        if "embeddings" in string_caps do
+          string_caps
+        else
+          ["chat" | string_caps]
+        end
+        |> Enum.uniq()
+
+      _ ->
+        default = ["chat"]
+
+        Logger.warning(
+          "Could not find capabilities for Ollama model '#{model_name}'. Falling back to default of #{inspect(default)}."
+        )
+
+        default
     end
   end
 end

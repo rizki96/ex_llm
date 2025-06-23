@@ -16,7 +16,7 @@ defmodule ExLLM.Embeddings do
   ## Examples
 
       # Generate embeddings
-      {:ok, response} = ExLLM.Embeddings.generate(:openai, "Hello world")
+      {:ok, response} = ExLLM.embeddings(:openai, "Hello world")
       
       # Find similar items
       results = ExLLM.Embeddings.find_similar(query_embedding, items, top_k: 5)
@@ -128,24 +128,16 @@ defmodule ExLLM.Embeddings do
   end
 
   @doc """
-  Calculate similarity between an embedding and a list of other embeddings.
-
-  This is a convenience function for comparing one embedding against many others,
-  returning the similarities in order.
+  Calculate similarity between two embeddings using a specified metric.
 
   ## Examples
-
-      similarities = ExLLM.Embeddings.similarity(query_embedding, [emb1, emb2, emb3])
-      # => [0.95, 0.82, 0.67]
       
       # With custom metric
-      similarities = ExLLM.Embeddings.similarity(query_embedding, embeddings, :dot_product)
+      similarity = ExLLM.Embeddings.similarity([0.1, 0.2], [0.3, 0.4], :dot_product)
   """
-  @spec similarity([float()], [[float()]], atom()) :: [float()]
-  def similarity(query_embedding, embeddings, metric \\ :cosine) do
-    Enum.map(embeddings, fn embedding ->
-      ExLLM.Core.Embeddings.similarity(query_embedding, embedding, metric)
-    end)
+  @spec similarity([float()], [float()], atom()) :: float()
+  def similarity(vector1, vector2, metric \\ :cosine) do
+    ExLLM.Core.Embeddings.similarity(vector1, vector2, metric)
   end
 
   @doc """
@@ -157,7 +149,7 @@ defmodule ExLLM.Embeddings do
   ## Parameters
 
     * `provider` - The provider to use (e.g., `:openai`, `:gemini`)
-    * `inputs` - List of strings to embed
+    * `requests` - List of strings to embed
     * `opts` - Options (same as embeddings/3)
 
   ## Options
@@ -186,33 +178,10 @@ defmodule ExLLM.Embeddings do
   """
   @spec batch_generate(atom(), [String.t()], keyword()) ::
           {:ok, ExLLM.Types.EmbeddingResponse.t()} | {:error, term()}
-  def batch_generate(provider, inputs, opts \\ []) when is_list(inputs) do
-    # Process each input through the main embeddings API
-    results =
-      Enum.map(inputs, fn input ->
-        ExLLM.embeddings(provider, input, opts)
-      end)
-
-    # Check for errors
-    case Enum.find(results, &match?({:error, _}, &1)) do
-      nil ->
-        # All succeeded, combine results
-        embeddings =
-          Enum.map(results, fn {:ok, response} ->
-            hd(response.embeddings)
-          end)
-
-        {:ok,
-         %{
-           embeddings: embeddings,
-           model: hd(results) |> elem(1) |> Map.get(:model),
-           # Simplified for now
-           usage: %{total_tokens: 0}
-         }}
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+  def batch_generate(provider, requests, opts \\ []) do
+    # Core module expects list of {input, options} tuples
+    formatted_requests = Enum.map(requests, fn request -> {request, opts} end)
+    ExLLM.Core.Embeddings.batch_generate(provider, formatted_requests)
   end
 
   @doc """
@@ -233,31 +202,7 @@ defmodule ExLLM.Embeddings do
   """
   @spec model_info(atom(), String.t()) :: {:ok, map()} | {:error, term()}
   def model_info(provider, model_id) do
-    # Delegate to the main ExLLM API for model information
-    case ExLLM.list_models(provider) do
-      {:ok, models} ->
-        case Enum.find(models, fn model ->
-               is_map(model) and Map.get(model, :id) == model_id
-             end) do
-          nil ->
-            {:error, "Model #{model_id} not found for provider #{provider}"}
-
-          model ->
-            info = %{
-              id: model_id,
-              provider: provider,
-              dimensions: Map.get(model, :embedding_dimensions),
-              max_input: Map.get(model, :max_input),
-              supports_embeddings: Map.get(model, :supports_embeddings, false),
-              pricing: Map.get(model, :pricing, %{})
-            }
-
-            {:ok, info}
-        end
-
-      {:error, reason} ->
-        {:error, reason}
-    end
+    ExLLM.get_model_info(provider, model_id)
   end
 
   @doc """
@@ -298,94 +243,44 @@ defmodule ExLLM.Embeddings do
       ]
       
       {:ok, index} = ExLLM.Embeddings.create_index(:openai, documents, key: :text)
-      
-      # Search the index
-      results = ExLLM.Embeddings.search_index(index, "machine learning query", top_k: 3)
   """
   @spec create_index(atom(), [String.t() | map()], keyword()) ::
           {:ok, map()} | {:error, term()}
   def create_index(provider, documents, opts \\ []) do
-    # This is a high-level utility function that orchestrates the embedding process
+    # Core module doesn't have create_index, so we'll implement it here
     key = Keyword.get(opts, :key, :text)
-    model = Keyword.get(opts, :model)
-    batch_size = Keyword.get(opts, :batch_size, 100)
 
-    # Extract text content from documents
+    # Extract text from documents
     texts =
-      Enum.map(documents, fn
-        doc when is_binary(doc) -> doc
-        doc when is_map(doc) -> Map.get(doc, key, "")
-        doc -> to_string(doc)
-      end)
+      case documents do
+        [text | _] when is_binary(text) ->
+          # Simple list of strings
+          documents
 
-    # Generate embeddings for all documents
-    embedding_opts = [batch_size: batch_size]
+        [%{} | _] ->
+          # List of maps - extract text using key
+          Enum.map(documents, fn doc -> Map.get(doc, key) end)
 
-    embedding_opts =
-      if model, do: Keyword.put(embedding_opts, :model, model), else: embedding_opts
+        _ ->
+          raise ArgumentError, "Documents must be a list of strings or maps with #{key} key"
+      end
 
-    case ExLLM.embeddings(provider, texts, embedding_opts) do
-      {:ok, response} ->
-        # Create searchable index structure
+    # Generate embeddings for all texts
+    case batch_generate(provider, texts, opts) do
+      {:ok, results} ->
+        # Create index structure
         index = %{
           provider: provider,
-          model: response.model,
+          model: Keyword.get(opts, :model),
           documents: documents,
-          embeddings: response.embeddings,
-          created_at: DateTime.utc_now(),
-          size: length(documents)
+          embeddings: results.embeddings,
+          created_at: DateTime.utc_now()
         }
 
         {:ok, index}
 
-      {:error, reason} ->
-        {:error, reason}
-    end
-  end
-
-  @doc """
-  Search an embedding index for similar documents.
-
-  ## Examples
-
-      results = ExLLM.Embeddings.search_index(index, "machine learning", top_k: 5)
-      # => [
-      #   %{document: "ML document text", similarity: 0.95, index: 0},
-      #   %{document: "AI document text", similarity: 0.87, index: 2}
-      # ]
-  """
-  @spec search_index(map(), String.t(), keyword()) ::
-          {:ok, [map()]} | {:error, term()}
-  def search_index(index, query, opts \\ []) do
-    top_k = Keyword.get(opts, :top_k, 10)
-    threshold = Keyword.get(opts, :threshold, 0.0)
-
-    # Generate embedding for query
-    case ExLLM.embeddings(index.provider, query, model: index.model) do
-      {:ok, response} ->
-        query_embedding = hd(response.embeddings)
-
-        # Calculate similarities with all documents
-        similarities =
-          index.embeddings
-          |> Enum.with_index()
-          |> Enum.map(fn {doc_embedding, idx} ->
-            similarity = ExLLM.Core.Embeddings.similarity(query_embedding, doc_embedding, :cosine)
-
-            %{
-              document: Enum.at(index.documents, idx),
-              similarity: similarity,
-              index: idx
-            }
-          end)
-          |> Enum.filter(fn %{similarity: sim} -> sim >= threshold end)
-          |> Enum.sort_by(fn %{similarity: sim} -> sim end, :desc)
-          |> Enum.take(top_k)
-
-        {:ok, similarities}
-
-      {:error, reason} ->
-        {:error, reason}
+      {:error, _} = error ->
+        error
     end
   end
 end
