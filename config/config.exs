@@ -79,8 +79,10 @@ if Mix.env() == :dev do
 end
 
 if Mix.env() == :test do
-  # Reduce log noise during tests
-  config :logger, level: :warning
+  # Minimal logging during tests - reduces noise significantly
+  config :logger, 
+    level: :error,
+    console: [metadata: []]
 
   # Test-specific configuration
   config :ex_llm,
@@ -88,8 +90,9 @@ if Mix.env() == :test do
     cache_persist_disk: false,
     # Disable startup validation during tests to reduce noise
     startup_validation: %{enabled: false},
-    # Minimal logging during tests
-    log_level: :error,
+    # Silent logging during tests
+    # To troubleshoot tests, temporarily change to log_level: :debug
+    log_level: :none,
     log_components: %{
       requests: false,
       responses: false,
