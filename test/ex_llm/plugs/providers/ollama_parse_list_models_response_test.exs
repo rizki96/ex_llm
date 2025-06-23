@@ -1,8 +1,8 @@
 defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponseTest do
   use ExUnit.Case, async: true
 
-  alias ExLLM.Plugs.Providers.OllamaParseListModelsResponse
   alias ExLLM.Pipeline.Request
+  alias ExLLM.Plugs.Providers.OllamaParseListModelsResponse
   alias ExLLM.Types.Model
 
   describe "parse list models response" do
