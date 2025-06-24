@@ -138,15 +138,13 @@ defmodule ExLLM.Plugs.ExecuteLocal do
       fn
         {pid, count, max} when count < max ->
           # Get next token from generation process
+          # NOTE: Defensive error handling - get_next_token currently only returns {:ok, token} or :done
+          # If error handling is needed in future, add appropriate clause here
           case get_next_token(pid) do
             {:ok, token} ->
               {[token], {pid, count + 1, max}}
 
             :done ->
-              {:halt, {pid, count, max}}
-
-            {:error, reason} ->
-              Logger.error("Token generation error: #{inspect(reason)}")
               {:halt, {pid, count, max}}
           end
 

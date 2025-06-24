@@ -93,15 +93,12 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
     path = extract_path_from_url(url)
 
     # Start streaming using new engine
-    case Engine.stream(client, path, request, stream_opts) do
-      {:ok, stream_id} ->
-        Logger.debug("Compatibility stream #{stream_id} started successfully")
-        {:ok, stream_id}
+    # NOTE: Defensive error handling - Engine.stream currently only returns {:ok, id}
+    # If error handling is needed in future, add appropriate clause here
+    {:ok, stream_id} = Engine.stream(client, path, request, stream_opts)
 
-      {:error, reason} ->
-        Logger.error("Compatibility stream failed: #{inspect(reason)}")
-        {:error, reason}
-    end
+    Logger.debug("Compatibility stream #{stream_id} started successfully")
+    {:ok, stream_id}
   end
 
   @doc """
@@ -120,14 +117,12 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
         recovery_id: Map.get(stream_context, :recovery_id)
       )
 
-    case start_stream(url, request, headers, callback, enhanced_options) do
-      {:ok, _stream_id} ->
-        # Wait for completion (synchronous behavior for compatibility)
-        wait_for_stream_completion()
+    # NOTE: Defensive error handling - start_stream currently only returns {:ok, id}
+    # If error handling is needed in future, add appropriate clause here
+    {:ok, _stream_id} = start_stream(url, request, headers, callback, enhanced_options)
 
-      {:error, reason} ->
-        {:error, reason}
-    end
+    # Wait for completion (synchronous behavior for compatibility)
+    wait_for_stream_completion()
   end
 
   @doc """

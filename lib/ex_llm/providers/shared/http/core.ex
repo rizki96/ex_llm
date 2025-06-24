@@ -162,7 +162,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
 
   defp build_middleware_stack(provider, opts) do
     base_middleware = [
-      {Tesla.Middleware.BaseURL, get_base_url(provider, opts)},
+      {Tesla.Middleware.BaseUrl, get_base_url(provider, opts)},
       {Tesla.Middleware.JSON, engine_opts: [keys: :strings]}
     ]
 

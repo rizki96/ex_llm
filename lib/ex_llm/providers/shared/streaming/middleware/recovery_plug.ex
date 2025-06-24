@@ -109,29 +109,25 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.RecoveryPlug do
     messages = extract_messages_from_context(stream_context)
     recovery_opts = build_recovery_options(stream_context, middleware_opts)
 
-    case Recovery.init_recovery(provider, messages, recovery_opts) do
-      {:ok, recovery_id} ->
-        Logger.debug("Stream recovery initialized: #{recovery_id}")
+    # NOTE: Defensive error handling - init_recovery currently only returns {:ok, id}
+    # If error handling is needed in future, add appropriate clause here
+    {:ok, recovery_id} = Recovery.init_recovery(provider, messages, recovery_opts)
 
-        # Wrap the stream context with recovery capabilities
-        enhanced_context = enhance_stream_context(stream_context, recovery_id, strategy)
+    Logger.debug("Stream recovery initialized: #{recovery_id}")
 
-        # Execute the request with recovery monitoring
-        execute_with_recovery_monitoring(
-          env,
-          next,
-          enhanced_context,
-          recovery_id,
-          auto_resume,
-          max_attempts,
-          0
-        )
+    # Wrap the stream context with recovery capabilities
+    enhanced_context = enhance_stream_context(stream_context, recovery_id, strategy)
 
-      {:error, reason} ->
-        Logger.warning("Failed to initialize stream recovery: #{inspect(reason)}")
-        # Continue without recovery
-        Tesla.run(env, next)
-    end
+    # Execute the request with recovery monitoring
+    execute_with_recovery_monitoring(
+      env,
+      next,
+      enhanced_context,
+      recovery_id,
+      auto_resume,
+      max_attempts,
+      0
+    )
   end
 
   defp execute_with_recovery_monitoring(
@@ -267,27 +263,25 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.RecoveryPlug do
           modify_request_for_continuation(original_env, content_so_far, stream_context)
 
         # Create new recovery ID for the resumed stream
-        case Recovery.init_recovery(
-               stream_context[:provider] || :unknown,
-               extract_messages_from_context(stream_context),
-               model: stream_context[:model]
-             ) do
-          {:ok, new_recovery_id} ->
-            # Update stream context with new recovery ID
-            new_context = Map.put(stream_context, :recovery_id, new_recovery_id)
+        # NOTE: Defensive error handling - init_recovery currently only returns {:ok, id}
+        # If error handling is needed in future, add appropriate clause here
+        {:ok, new_recovery_id} =
+          Recovery.init_recovery(
+            stream_context[:provider] || :unknown,
+            extract_messages_from_context(stream_context),
+            model: stream_context[:model]
+          )
 
-            new_env = %{
-              modified_env
-              | opts: Keyword.put(modified_env.opts, :stream_context, new_context)
-            }
+        # Update stream context with new recovery ID
+        new_context = Map.put(stream_context, :recovery_id, new_recovery_id)
 
-            # Execute the resumed request
-            Tesla.run(new_env, next)
+        new_env = %{
+          modified_env
+          | opts: Keyword.put(modified_env.opts, :stream_context, new_context)
+        }
 
-          {:error, _} ->
-            # Continue without recovery tracking
-            Tesla.run(modified_env, next)
-        end
+        # Execute the resumed request
+        Tesla.run(new_env, next)
 
       _ ->
         # No chunks to resume from

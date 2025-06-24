@@ -85,7 +85,6 @@ defmodule ExLLM.Providers.Perplexity do
     provider: :perplexity,
     base_url: "https://api.perplexity.ai"
 
-  alias ExLLM.Infrastructure.Config.ModelConfig
   alias ExLLM.Types
 
   @max_filter_items 10
@@ -107,21 +106,6 @@ defmodule ExLLM.Providers.Perplexity do
   def stream_chat(messages, options) do
     with :ok <- validate_perplexity_parameters(options) do
       super(messages, options)
-    end
-  end
-
-  # Override list_models to provide fallback to config
-  @impl ExLLM.Provider
-  # NOTE: Defensive error handling - super() currently only returns {:ok, models}
-  # but this error clause provides safety if parent implementations change
-  def list_models(options \\ []) do
-    case super(options) do
-      {:ok, models} ->
-        {:ok, models}
-
-      {:error, _reason} ->
-        # Fallback to configuration-based models if API fails
-        load_models_from_config()
     end
   end
 
@@ -255,55 +239,6 @@ defmodule ExLLM.Providers.Perplexity do
     case Keyword.get(options, param_key) do
       nil -> :ok
       filters -> validate_image_filters(filters)
-    end
-  end
-
-  defp load_models_from_config do
-    models_map = ModelConfig.get_all_models(:perplexity)
-
-    if map_size(models_map) > 0 do
-      # Convert the map of model configs to Model structs
-      models =
-        models_map
-        |> Enum.map(fn {model_id, config} ->
-          model_id_str = to_string(model_id)
-
-          %Types.Model{
-            id: model_id_str,
-            name: format_model_name(model_id_str),
-            description: generate_description(model_id_str, :perplexity),
-            context_window: Map.get(config, :context_window) || 128_000,
-            max_output_tokens: Map.get(config, :max_output_tokens) || 8000,
-            pricing: Map.get(config, :pricing),
-            capabilities: %{
-              features: Map.get(config, :capabilities) || ["streaming"]
-            }
-          }
-        end)
-        |> Enum.sort_by(& &1.id)
-
-      {:ok, models}
-    else
-      # Return some default models if config loading fails
-      {:ok,
-       [
-         %Types.Model{
-           id: "perplexity/sonar",
-           name: "Sonar",
-           description: "Lightweight search model with grounding",
-           context_window: 128_000,
-           max_output_tokens: 8000,
-           capabilities: %{features: ["streaming", "web_search"]}
-         },
-         %Types.Model{
-           id: "perplexity/sonar-pro",
-           name: "Sonar Pro",
-           description: "Advanced search with grounding for complex queries",
-           context_window: 200_000,
-           max_output_tokens: 8000,
-           capabilities: %{features: ["streaming", "web_search"]}
-         }
-       ]}
     end
   end
 end
