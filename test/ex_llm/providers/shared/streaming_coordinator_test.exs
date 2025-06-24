@@ -68,7 +68,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorTest do
       data = "data: {\"content\": \"Hello\"}\n\n"
 
       {new_buffer, new_chunks, new_stats} =
-        StreamingCoordinator.process_stream_data(
+        StreamingCoordinator.process_stream_data_sync(
           data,
           "",
           chunks,
@@ -100,7 +100,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorTest do
 
       # First part
       {buffer1, chunks1, stats1} =
-        StreamingCoordinator.process_stream_data(
+        StreamingCoordinator.process_stream_data_sync(
           data1,
           "",
           chunks,
@@ -116,7 +116,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorTest do
 
       # Second part
       {buffer2, chunks2, _stats2} =
-        StreamingCoordinator.process_stream_data(
+        StreamingCoordinator.process_stream_data_sync(
           data2,
           buffer1,
           chunks1,
@@ -143,7 +143,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorTest do
       data = "data: [DONE]\n\n"
 
       {_buffer, new_chunks, _stats} =
-        StreamingCoordinator.process_stream_data(
+        StreamingCoordinator.process_stream_data_sync(
           data,
           "",
           chunks,
@@ -169,7 +169,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorTest do
 
       # Buffer size of 2
       {_buffer, chunks, _stats} =
-        StreamingCoordinator.process_stream_data(
+        StreamingCoordinator.process_stream_data_sync(
           data,
           "",
           [],

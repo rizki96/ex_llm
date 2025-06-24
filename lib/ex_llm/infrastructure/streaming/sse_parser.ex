@@ -33,10 +33,18 @@ defmodule ExLLM.Infrastructure.Streaming.SSEParser do
       parser = SSEParser.new()
       
       # Process chunks as they arrive
-      {events, parser} = SSEParser.parse_chunk(parser, "data: {\"content\": \"Hello\"}\n\n")
+      {events, parser} = SSEParser.parse_chunk(parser, "data: {\\"content\\": \\"Hello\\"}\\n\\n")
       
       # Get any remaining buffered data
       {final_events, _parser} = SSEParser.flush(parser)
+
+  ## Provider-specific Parsing
+
+  The parser can be initialized with a `:provider` atom. This allows for
+  provider-specific logic in parsing event data, especially for handling
+  non-standard stream termination markers or data formats. The convenience
+  functions like `parse_json_events/2` and `parse_data_events/2` use the
+  provider to apply specific parsing rules.
   """
 
   alias ExLLM.Infrastructure.Logger
@@ -115,17 +123,49 @@ defmodule ExLLM.Infrastructure.Streaming.SSEParser do
 
   This is a convenience function that parses SSE events and decodes
   the JSON data field for providers that send JSON in SSE format.
+  It handles the `[DONE]` marker by returning the atom `:done`.
   """
-  @spec parse_json_events(t(), binary()) :: {[map()], t()}
+  @spec parse_json_events(t(), binary()) :: {[map() | :done], t()}
   def parse_json_events(%__MODULE__{} = parser, chunk) do
     {events, updated_parser} = parse_chunk(parser, chunk)
 
     json_events =
       events
-      |> Enum.map(&extract_json_data/1)
+      |> Enum.map(&extract_json_data(&1, updated_parser.provider))
       |> Enum.reject(&is_nil/1)
 
     {json_events, updated_parser}
+  end
+
+  @doc """
+  Parses a chunk of SSE data and extracts only the data payloads.
+
+  This is a high-level convenience function that simplifies processing of
+  common SSE streams where only the `data` field is relevant. It handles
+  the `[DONE]` marker used by many providers to signal the end of a stream.
+
+  Returns a tuple containing a list of data payloads and the updated parser state.
+  Data payloads are returned as strings. The `[DONE]` marker is returned as
+  the atom `:done`.
+
+  ## Example
+
+      iex> {events, parser} = SSEParser.new() |> SSEParser.parse_data_events("data: hello\\n\\n")
+      ...> {["hello"], %SSEParser{...}}
+      iex> {events, _parser} = SSEParser.parse_data_events(parser, "data: [DONE]\\n\\n")
+      ...> {[:done], %SSEParser{...}}
+
+  """
+  @spec parse_data_events(t(), binary()) :: {[String.t() | :done], t()}
+  def parse_data_events(%__MODULE__{} = parser, chunk) do
+    {events, updated_parser} = parse_chunk(parser, chunk)
+
+    data_events =
+      events
+      |> Enum.map(&extract_data_from_event(&1, updated_parser.provider))
+      |> Enum.reject(&is_nil/1)
+
+    {data_events, updated_parser}
   end
 
   # Private functions
@@ -218,13 +258,26 @@ defmodule ExLLM.Infrastructure.Streaming.SSEParser do
     end
   end
 
-  defp extract_json_data(event) do
+  defp extract_data_from_event(event, _provider) do
     case Map.get(event, :data) do
       nil ->
         nil
 
       "[DONE]" ->
-        %{done: true}
+        :done
+
+      data ->
+        data
+    end
+  end
+
+  defp extract_json_data(event, _provider) do
+    case Map.get(event, :data) do
+      nil ->
+        nil
+
+      "[DONE]" ->
+        :done
 
       data ->
         case Jason.decode(data) do
@@ -267,13 +320,27 @@ defmodule ExLLM.Infrastructure.Streaming.SSEParser do
   Creates a streaming transformer that parses SSE chunks and extracts JSON data.
 
   This combines SSE parsing with JSON decoding for providers that send
-  JSON data in SSE format.
+  JSON data in SSE format. The `[DONE]` marker is emitted as the atom `:done`.
   """
-  @spec json_stream_transformer() :: (binary(), t() -> {[map()], t()})
+  @spec json_stream_transformer() :: (binary(), t() -> {[map() | :done], t()})
   def json_stream_transformer() do
     fn
       chunk, parser ->
         parse_json_events(parser, chunk)
+    end
+  end
+
+  @doc """
+  Creates a streaming transformer that parses SSE chunks and extracts data payloads.
+
+  This is a convenience for streams where only the `data` field is needed.
+  The `[DONE]` marker is emitted as the atom `:done`.
+  """
+  @spec data_stream_transformer() :: (binary(), t() -> {[String.t() | :done], t()})
+  def data_stream_transformer() do
+    fn
+      chunk, parser ->
+        parse_data_events(parser, chunk)
     end
   end
 end

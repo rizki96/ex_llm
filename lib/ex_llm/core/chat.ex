@@ -36,6 +36,9 @@ defmodule ExLLM.Core.Chat do
     Core.Vision,
     Infrastructure.Cache,
     Infrastructure.Logger,
+    Pipeline,
+    Pipeline.Request,
+    Pipelines.StandardProvider,
     Types
   }
 
@@ -130,8 +133,9 @@ defmodule ExLLM.Core.Chat do
     ExLLM.Infrastructure.Telemetry.emit_stream_start(provider, metadata.model)
     start_time = System.monotonic_time()
 
-    case get_adapter(provider) do
-      {:ok, adapter} ->
+    # Use pipeline system for all providers
+    case build_pipeline_for_provider(provider) do
+      {:ok, pipeline} ->
         # Apply context management if enabled
         prepared_messages = prepare_messages_for_provider(provider, messages, options)
 
@@ -140,9 +144,9 @@ defmodule ExLLM.Core.Chat do
 
         result =
           if recovery_opts[:enabled] do
-            execute_stream_with_recovery(adapter, provider, prepared_messages, options)
+            execute_stream_with_pipeline_recovery(pipeline, provider, prepared_messages, options)
           else
-            adapter.stream_chat(prepared_messages, options)
+            execute_stream_with_pipeline(pipeline, provider, prepared_messages, options)
           end
 
         # Wrap stream to track chunks
@@ -174,34 +178,35 @@ defmodule ExLLM.Core.Chat do
   end
 
   defp handle_regular_chat(provider, messages, options) do
-    case get_adapter(provider) do
-      {:ok, adapter} ->
+    # Use pipeline system for all providers
+    case build_pipeline_for_provider(provider) do
+      {:ok, pipeline} ->
         # Apply context management if enabled
         prepared_messages = prepare_messages_for_provider(provider, messages, options)
 
-        execute_with_retry(adapter, provider, prepared_messages, options)
+        execute_with_pipeline_retry(pipeline, provider, prepared_messages, options)
 
       {:error, reason} ->
         {:error, reason}
     end
   end
 
-  defp execute_with_retry(adapter, provider, prepared_messages, options) do
+  defp execute_with_pipeline_retry(pipeline, provider, prepared_messages, options) do
     # Check if retry is enabled
     if Keyword.get(options, :retry, true) do
       ExLLM.Infrastructure.Retry.with_provider_retry(
         provider,
         fn ->
-          execute_chat(adapter, provider, prepared_messages, options)
+          execute_pipeline_chat(pipeline, provider, prepared_messages, options)
         end,
         Keyword.get(options, :retry_options, [])
       )
     else
-      execute_chat(adapter, provider, prepared_messages, options)
+      execute_pipeline_chat(pipeline, provider, prepared_messages, options)
     end
   end
 
-  defp execute_chat(adapter, provider, messages, options) do
+  defp execute_pipeline_chat(pipeline, provider, messages, options) do
     # Generate cache key if caching might be used
     cache_key = Cache.generate_cache_key(provider, messages, options)
 
@@ -213,21 +218,32 @@ defmodule ExLLM.Core.Chat do
       # Check if function calling is requested
       options = prepare_function_calling(provider, options)
 
-      result = adapter.chat(messages, options)
+      # Create pipeline request and execute
+      request = Request.new(provider, messages, options)
+      result = Pipeline.run(request, pipeline)
 
-      # Track costs if enabled
-      case result do
-        {:ok, response} when is_map(response) ->
+      # Extract response from pipeline result
+      case result.state do
+        :completed ->
+          response = result.assigns.llm_response
+
+          # Track costs if enabled
           if Keyword.get(options, :track_cost, true) do
             cost_info = track_response_cost(provider, response, options)
             response_with_cost = Map.put(response, :cost, cost_info)
             {:ok, response_with_cost}
           else
-            result
+            {:ok, response}
           end
 
-        _ ->
-          result
+        :error ->
+          case result.errors do
+            [%{error: error} | _] -> {:error, error}
+            [] -> {:error, :pipeline_failed}
+          end
+
+        _other ->
+          {:error, :unexpected_pipeline_state}
       end
     end)
   end
@@ -264,29 +280,86 @@ defmodule ExLLM.Core.Chat do
     end
   end
 
-  defp get_adapter(provider) do
-    providers = %{
-      anthropic: ExLLM.Providers.Anthropic,
-      bumblebee: ExLLM.Providers.Bumblebee,
-      groq: ExLLM.Providers.Groq,
-      lmstudio: ExLLM.Providers.LMStudio,
-      mistral: ExLLM.Providers.Mistral,
-      openai: ExLLM.Providers.OpenAI,
-      openrouter: ExLLM.Providers.OpenRouter,
-      ollama: ExLLM.Providers.Ollama,
-      perplexity: ExLLM.Providers.Perplexity,
-      bedrock: ExLLM.Providers.Bedrock,
-      gemini: ExLLM.Providers.Gemini,
-      xai: ExLLM.Providers.XAI,
-      mock: ExLLM.Providers.Mock
+  defp build_pipeline_for_provider(provider) do
+    # Define provider plugs for providers that have been migrated to pipeline system
+    provider_plugs = %{
+      openai: [
+        build_request: {ExLLM.Providers.OpenAI.BuildRequest, []},
+        parse_response: {ExLLM.Providers.OpenAI.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.OpenAI.StreamParseResponse, []}
+      ],
+      anthropic: [
+        build_request: {ExLLM.Providers.Anthropic.BuildRequest, []},
+        parse_response: {ExLLM.Providers.Anthropic.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Anthropic.StreamParseResponse, []}
+      ],
+      groq: [
+        build_request: {ExLLM.Providers.Groq.BuildRequest, []},
+        parse_response: {ExLLM.Providers.Groq.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Groq.StreamParseResponse, []}
+      ],
+      lmstudio: [
+        build_request: {ExLLM.Providers.LMStudio.BuildRequest, []},
+        parse_response: {ExLLM.Providers.LMStudio.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.LMStudio.StreamParseResponse, []}
+      ],
+      xai: [
+        build_request: {ExLLM.Providers.XAI.BuildRequest, []},
+        parse_response: {ExLLM.Providers.XAI.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.XAI.StreamParseResponse, []}
+      ],
+      mistral: [
+        build_request: {ExLLM.Providers.Mistral.BuildRequest, []},
+        parse_response: {ExLLM.Providers.Mistral.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Mistral.StreamParseResponse, []}
+      ],
+      ollama: [
+        build_request: {ExLLM.Providers.Ollama.BuildRequest, []},
+        parse_response: {ExLLM.Providers.Ollama.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Ollama.StreamParseResponse, []}
+      ],
+      openrouter: [
+        build_request: {ExLLM.Providers.OpenRouter.BuildRequest, []},
+        parse_response: {ExLLM.Providers.OpenRouter.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.OpenRouter.StreamParseResponse, []}
+      ],
+      perplexity: [
+        build_request: {ExLLM.Providers.Perplexity.BuildRequest, []},
+        parse_response: {ExLLM.Providers.Perplexity.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Perplexity.StreamParseResponse, []}
+      ],
+      gemini: [
+        build_request: {ExLLM.Providers.Gemini.BuildRequest, []},
+        parse_response: {ExLLM.Providers.Gemini.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Gemini.StreamParseResponse, []}
+      ],
+      bumblebee: [
+        build_request: {ExLLM.Providers.Bumblebee.BuildRequest, []},
+        execute_request: {ExLLM.Plugs.ExecuteLocal, []},
+        parse_response: {ExLLM.Providers.Bumblebee.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Bumblebee.StreamParseResponse, []}
+      ],
+      bedrock: [
+        build_request: {ExLLM.Providers.Bedrock.BuildRequest, []},
+        auth_request: {ExLLM.Plugs.AWSAuth, []},
+        parse_response: {ExLLM.Providers.Bedrock.ParseResponse, []},
+        stream_parse_response: {ExLLM.Providers.Bedrock.StreamParseResponse, []}
+      ],
+      mock: [
+        build_request: {ExLLM.Plugs.Providers.MockHandler, []},
+        execute_request: {ExLLM.Plugs.Providers.MockHandler, []},
+        parse_response: {ExLLM.Plugs.Providers.MockHandler, []},
+        stream_parse_response: {ExLLM.Plugs.Providers.MockHandler, []}
+      ]
     }
 
-    case Map.get(providers, provider) do
+    case Map.get(provider_plugs, provider) do
       nil ->
         {:error, {:unsupported_provider, provider}}
 
-      adapter ->
-        {:ok, adapter}
+      plugs ->
+        pipeline = StandardProvider.build(plugs)
+        {:ok, pipeline}
     end
   end
 
@@ -352,7 +425,16 @@ defmodule ExLLM.Core.Chat do
     end
   end
 
-  defp execute_stream_with_recovery(adapter, _provider, messages, options) do
+  defp execute_stream_with_pipeline(pipeline, provider, messages, options) do
+    # Create pipeline request with streaming enabled
+    options = Keyword.put(options, :stream, true)
+    request = Request.new(provider, messages, options)
+
+    # Execute pipeline in streaming mode
+    Pipeline.stream(request, pipeline)
+  end
+
+  defp execute_stream_with_pipeline_recovery(pipeline, provider, messages, options) do
     recovery_opts = Keyword.get(options, :recovery, [])
 
     # Create a function that starts the stream
@@ -362,8 +444,12 @@ defmodule ExLLM.Core.Chat do
         options
         |> Keyword.delete(:recovery)
         |> Keyword.merge(resume_opts)
+        |> Keyword.put(:stream, true)
 
-      case adapter.stream_chat(messages, stream_options) do
+      # Create request and execute pipeline
+      request = Request.new(provider, messages, stream_options)
+
+      case Pipeline.stream(request, pipeline) do
         {:ok, stream} ->
           # Convert stream to a process that sends chunks
           pid =

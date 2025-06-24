@@ -128,6 +128,119 @@ defmodule ExLLM.Pipeline do
     result
   end
 
+  @doc """
+  Runs a pipeline on a request and returns a stream.
+
+  This is used for providers that support streaming responses. The pipeline
+  executes plugs sequentially until one of them initiates a stream by
+  updating the request state to `:streaming` and adding a `:response_stream`
+  to the `assigns` map.
+
+  If the pipeline completes without starting a stream, or if an error occurs
+  before streaming begins, it returns an error tuple.
+
+  ## Returns
+
+    * `{:ok, stream}` - On success, where `stream` is a stream of response chunks.
+    * `{:error, request}` - If an error occurs or no stream is started.
+
+  ## Examples
+
+      pipeline = [
+        ExLLM.Plugs.ValidateProvider,
+        ExLLM.Plugs.FetchConfig,
+        ExLLM.Plugs.ExecuteRequest # This plug must support streaming
+      ]
+      
+      request = ExLLM.Pipeline.Request.new(:openai, messages, stream: true)
+      
+      case ExLLM.Pipeline.stream(request, pipeline) do
+        {:ok, stream} ->
+          Enum.each(stream, fn chunk -> IO.inspect(chunk) end)
+          
+        {:error, request} ->
+          IO.inspect(request.errors)
+      end
+  """
+  @spec stream(Request.t(), pipeline(), keyword()) :: {:ok, Stream.t()} | {:error, Request.t()}
+  def stream(%Request{} = request, pipeline, opts \\ []) when is_list(pipeline) do
+    start_time = System.monotonic_time()
+    telemetry_metadata = opts[:telemetry_metadata] || %{}
+
+    request = Request.put_metadata(request, :start_time, start_time)
+
+    :telemetry.execute(
+      [:ex_llm, :pipeline, :start],
+      %{time: start_time},
+      Map.merge(telemetry_metadata, %{
+        request_id: request.id,
+        provider: request.provider,
+        pipeline_length: length(pipeline),
+        stream: true
+      })
+    )
+
+    final_request = do_stream_run(request, pipeline, telemetry_metadata)
+
+    case final_request do
+      %{state: :streaming, assigns: %{response_stream: response_stream}} = req ->
+        duration_ms =
+          System.convert_time_unit(System.monotonic_time() - start_time, :native, :millisecond)
+
+        :telemetry.execute(
+          [:ex_llm, :pipeline, :stop],
+          %{duration: duration_ms},
+          Map.merge(telemetry_metadata, %{
+            request_id: req.id,
+            provider: req.provider,
+            state: req.state,
+            halted: req.halted,
+            error_count: length(req.errors)
+          })
+        )
+
+        wrapped_stream = wrap_stream_for_telemetry(response_stream, req, telemetry_metadata)
+        {:ok, wrapped_stream}
+
+      error_request ->
+        error_request =
+          if error_request.state != :error do
+            error_request
+            |> Request.add_error(%{
+              plug: __MODULE__,
+              reason: :no_stream_started,
+              message: "The pipeline completed without initiating a stream."
+            })
+            |> Request.put_state(:error)
+            |> Request.halt()
+          else
+            error_request
+          end
+
+        duration_ms =
+          System.convert_time_unit(System.monotonic_time() - start_time, :native, :millisecond)
+
+        final_error_request =
+          error_request
+          |> Request.put_metadata(:end_time, System.monotonic_time())
+          |> Request.put_metadata(:duration_ms, duration_ms)
+
+        :telemetry.execute(
+          [:ex_llm, :pipeline, :stop],
+          %{duration: duration_ms},
+          Map.merge(telemetry_metadata, %{
+            request_id: final_error_request.id,
+            provider: final_error_request.provider,
+            state: final_error_request.state,
+            halted: final_error_request.halted,
+            error_count: length(final_error_request.errors)
+          })
+        )
+
+        {:error, final_error_request}
+    end
+  end
+
   defp do_run(request, pipeline, telemetry_metadata) do
     Enum.reduce_while(pipeline, request, fn plug, acc ->
       if acc.halted do
@@ -135,6 +248,59 @@ defmodule ExLLM.Pipeline do
       else
         {:cont, execute_plug(acc, plug, telemetry_metadata)}
       end
+    end)
+  end
+
+  defp do_stream_run(request, pipeline, telemetry_metadata) do
+    Enum.reduce_while(pipeline, request, fn plug, acc ->
+      if acc.halted do
+        {:halt, acc}
+      else
+        result = execute_plug(acc, plug, telemetry_metadata)
+
+        if result.state == :streaming or result.halted do
+          {:halt, result}
+        else
+          {:cont, result}
+        end
+      end
+    end)
+  end
+
+  defp wrap_stream_for_telemetry(stream, request, telemetry_metadata) do
+    stream_start_time = System.monotonic_time()
+    chunk_counter = :counters.new(1, [])
+
+    Stream.transform(stream, nil, fn chunk, _acc ->
+      :counters.add(chunk_counter, 1, 1)
+
+      :telemetry.execute(
+        [:ex_llm, :pipeline, :stream, :chunk],
+        %{time: System.monotonic_time()},
+        Map.merge(telemetry_metadata, %{
+          request_id: request.id,
+          provider: request.provider
+        })
+      )
+
+      # Assumes chunk is a struct with a :finish_reason field
+      if Map.get(chunk, :finish_reason) != nil do
+        duration = System.monotonic_time() - stream_start_time
+        total_chunks = :counters.get(chunk_counter, 1)
+
+        :telemetry.execute(
+          [:ex_llm, :pipeline, :stream, :complete],
+          %{duration: duration},
+          Map.merge(telemetry_metadata, %{
+            request_id: request.id,
+            provider: request.provider,
+            chunk_count: total_chunks,
+            finish_reason: Map.get(chunk, :finish_reason)
+          })
+        )
+      end
+
+      {[chunk], nil}
     end)
   end
 

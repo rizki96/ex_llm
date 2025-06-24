@@ -99,23 +99,31 @@ defmodule ExLLM.Core.Models do
   @spec get_info(atom(), String.t()) :: {:ok, map()} | {:error, term()}
   def get_info(provider, model_id) do
     case ModelConfig.get_model_config(provider, model_id) do
-      {:ok, model} ->
+      nil ->
+        {:error, :model_not_found}
+
+      model_map ->
+        # Handle both atom and string keys in model configuration
         {:ok,
          %{
-           id: model.id,
+           id: get_field(model_map, [:id, "id"]) || model_id,
            provider: provider,
-           name: model.name || model.id,
-           description: model.description,
-           context_window: model.context_window,
-           max_output_tokens: model.max_output_tokens,
-           pricing: model.pricing,
-           capabilities: model.capabilities || [],
-           metadata: model.metadata || %{}
+           name:
+             get_field(model_map, [:name, "name"]) || get_field(model_map, [:id, "id"]) ||
+               model_id,
+           description: get_field(model_map, [:description, "description"]),
+           context_window: get_field(model_map, [:context_window, "context_window"]),
+           max_output_tokens: get_field(model_map, [:max_output_tokens, "max_output_tokens"]),
+           pricing: get_field(model_map, [:pricing, "pricing"]),
+           capabilities: get_field(model_map, [:capabilities, "capabilities"]) || [],
+           metadata: get_field(model_map, [:metadata, "metadata"]) || %{}
          }}
-
-      {:error, _} = error ->
-        error
     end
+  end
+
+  # Helper function to get field from map with multiple possible keys
+  defp get_field(map, keys) when is_list(keys) do
+    Enum.find_value(keys, fn key -> Map.get(map, key) end)
   end
 
   @doc """

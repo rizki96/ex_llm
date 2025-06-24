@@ -1,0 +1,84 @@
+defmodule ExLLM.Providers.OpenAI.ParseResponse do
+  @moduledoc """
+  Pipeline plug for parsing OpenAI API responses.
+
+  This plug transforms raw HTTP responses from the OpenAI API into
+  standardized ExLLM.Types.LLMResponse structs, including cost calculation,
+  usage tracking, and metadata extraction.
+  """
+
+  use ExLLM.Plug
+
+  alias ExLLM.Types
+
+  @impl true
+  def call(request, _opts) do
+    response = request.assigns.http_response
+    model = request.assigns.model
+
+    parsed_response = parse_response(response, model)
+
+    request
+    |> Request.assign(:llm_response, parsed_response)
+    |> Request.put_state(:completed)
+  end
+
+  defp parse_response(response, model) do
+    choice = get_in(response, ["choices", Access.at(0)]) || %{}
+    message = choice["message"] || %{}
+    usage = response["usage"] || %{}
+
+    # Enhanced usage tracking
+    enhanced_usage = parse_enhanced_usage(usage)
+
+    # Calculate cost info
+    cost_info =
+      ExLLM.Core.Cost.calculate("openai", model, %{
+        input_tokens: enhanced_usage.input_tokens,
+        output_tokens: enhanced_usage.output_tokens
+      })
+
+    # Extract just the total cost float for backward compatibility
+    cost_value = Map.get(cost_info, :total_cost)
+
+    %Types.LLMResponse{
+      content: message["content"] || "",
+      function_call: message["function_call"],
+      tool_calls: message["tool_calls"],
+      refusal: message["refusal"],
+      logprobs: choice["logprobs"],
+      usage: enhanced_usage,
+      model: model,
+      finish_reason: choice["finish_reason"],
+      cost: cost_value,
+      metadata:
+        Map.merge(response["metadata"] || %{}, %{
+          cost_details: cost_info,
+          role: "assistant",
+          provider: :openai,
+          raw_response: response
+        })
+    }
+  end
+
+  defp parse_enhanced_usage(usage) do
+    base_usage = %{
+      input_tokens: usage["prompt_tokens"] || 0,
+      output_tokens: usage["completion_tokens"] || 0,
+      total_tokens: usage["total_tokens"] || 0
+    }
+
+    # Add enhanced details if available
+    prompt_details = usage["prompt_tokens_details"] || %{}
+    completion_details = usage["completion_tokens_details"] || %{}
+
+    enhanced_details = %{
+      cached_tokens: prompt_details["cached_tokens"],
+      audio_tokens:
+        (prompt_details["audio_tokens"] || 0) + (completion_details["audio_tokens"] || 0),
+      reasoning_tokens: completion_details["reasoning_tokens"]
+    }
+
+    Map.merge(base_usage, enhanced_details)
+  end
+end

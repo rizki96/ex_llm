@@ -8,10 +8,25 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
 
   use ExLLM.Plug
 
+  alias ExLLM.Pipeline.Request
+  alias ExLLM.Types
+
   @impl true
-  def call(%Request{messages: messages, config: config} = request, opts) do
+  def call(%Request{state: :pending} = request, _opts) do
+    # Build request phase - just pass through to executing
+    request
+    |> Request.assign(:url, "http://mock/api")
+    |> Request.assign(:headers, %{"content-type" => "application/json"})
+    |> Request.assign(:body, Jason.encode!(%{messages: request.messages}))
+    |> Request.put_state(:executing)
+  end
+
+  def call(%Request{state: :executing} = request, opts) do
+    messages = request.messages
+    config = request.assigns[:config] || request.options || %{}
+
     # Check if this is a streaming request
-    is_streaming = config[:stream] || Map.get(request, :stream, false)
+    is_streaming = Keyword.get(request.options, :stream, false)
 
     if is_streaming do
       handle_streaming_request(request, messages, config, opts)
@@ -19,6 +34,8 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
       handle_chat_request(request, messages, config, opts)
     end
   end
+
+  def call(request, _opts), do: request
 
   defp handle_chat_request(request, messages, config, opts) do
     # Check multiple sources for mock response in priority order:
@@ -54,14 +71,26 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
 
     if error_to_simulate do
       # Use the Request error handling system properly
-      Request.halt_with_error(request, %{
+      request
+      |> Request.add_error(%{
         error: error_to_simulate,
         plug: __MODULE__,
         mock_handler_called: true
       })
+      |> Request.put_state(:error)
+      |> Request.halt()
     else
+      # Convert response to LLMResponse
+      llm_response = %Types.LLMResponse{
+        content: response.content,
+        model: response.model,
+        usage: response.usage,
+        finish_reason: "stop",
+        metadata: %{provider: response.provider, mock_config: response.mock_config}
+      }
+
       request
-      |> Map.put(:result, response)
+      |> Request.assign(:llm_response, llm_response)
       |> Request.put_state(:completed)
       |> Request.assign(:mock_handler_called, true)
     end
@@ -72,17 +101,20 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
     error_to_simulate = get_mock_agent_error() || config[:mock_error] || opts[:error]
 
     if error_to_simulate do
-      Request.halt_with_error(request, %{
+      request
+      |> Request.add_error(%{
         error: error_to_simulate,
         plug: __MODULE__,
         mock_handler_called: true
       })
+      |> Request.put_state(:error)
+      |> Request.halt()
     else
       process_stream_callback(stream_response, config)
 
       request
-      |> Map.put(:result, stream_response)
-      |> Request.put_state(:completed)
+      |> Request.assign(:stream, stream_response)
+      |> Request.put_state(:streaming)
       |> Request.assign(:mock_handler_called, true)
     end
   end

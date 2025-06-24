@@ -30,6 +30,32 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
   """
   @callback get_all(provider :: atom()) :: map()
 
+  @doc """
+  Gets configuration from a config provider instance.
+  """
+  @spec get_config(module() | pid(), atom()) :: {:ok, map()} | {:error, term()}
+  def get_config(provider_module, provider_name) when is_atom(provider_module) do
+    try do
+      config = provider_module.get_all(provider_name)
+      {:ok, config}
+    rescue
+      _ -> {:error, :provider_error}
+    end
+  end
+
+  def get_config(provider_pid, provider_name) when is_pid(provider_pid) do
+    try do
+      config = ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider_pid)
+
+      case Map.get(config, provider_name) do
+        nil -> {:error, :not_found}
+        provider_config -> {:ok, provider_config}
+      end
+    rescue
+      _ -> {:error, :provider_error}
+    end
+  end
+
   defmodule Static do
     @moduledoc """
     Static configuration provider for testing and library usage.

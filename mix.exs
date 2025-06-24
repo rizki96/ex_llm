@@ -121,6 +121,9 @@ defmodule ExLLM.MixProject do
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
 
+      # HTTP testing mock server
+      {:bypass, "~> 2.1", only: :test},
+
       # Environment variable loading
       {:dotenv, "~> 3.1", only: [:dev, :test]}
     ]

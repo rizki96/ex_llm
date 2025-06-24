@@ -1,0 +1,326 @@
+defmodule ExLLM.Providers.Shared.HTTP.Core do
+  @moduledoc """
+  Core HTTP client module using Tesla middleware architecture.
+
+  This module provides the foundation for HTTP operations across all providers,
+  implementing a declarative middleware stack for cross-cutting concerns like
+  authentication, caching, error handling, and request/response processing.
+
+  ## Tesla Middleware Stack
+
+  The middleware stack is assembled in order of execution:
+  1. BaseURL - Sets the base URL for requests
+  2. JSON - Handles JSON encoding/decoding  
+  3. Authentication - Adds provider-specific auth headers
+  4. Cache - Implements response caching
+  5. ErrorHandling - Handles retries and error mapping
+  6. Logger - Request/response logging
+  7. Adapter - HTTP adapter (Hackney/Mint)
+
+  ## Usage
+
+      client = HTTP.Core.client(provider: :openai, api_key: "sk-...")
+      {:ok, response} = Tesla.get(client, "/models")
+      
+      # Streaming
+      {:ok, response} = HTTP.Core.stream(client, "/chat/completions", body, callback)
+  """
+
+  alias ExLLM.Infrastructure.Streaming.SSEParser
+  alias ExLLM.Providers.Shared.HTTP
+
+  @doc """
+  Create a Tesla client with the appropriate middleware stack for a provider.
+
+  ## Options
+  - `:provider` - Provider atom (`:openai`, `:anthropic`, etc.)
+  - `:api_key` - API key for authentication
+  - `:base_url` - Base URL for the provider
+  - `:cache_enabled` - Enable response caching (default: false)
+  - `:retry_enabled` - Enable retry logic (default: true)
+  - `:timeout` - Request timeout in milliseconds (default: 60_000)
+  - `:adapter_opts` - Options for the HTTP adapter
+  """
+  @spec client(keyword()) :: Tesla.Client.t()
+  def client(opts \\ []) do
+    provider = Keyword.get(opts, :provider, :openai)
+
+    middleware = build_middleware_stack(provider, opts)
+    adapter = build_adapter(opts)
+
+    Tesla.client(middleware, adapter)
+  end
+
+  @doc """
+  Send a streaming POST request with Server-Sent Events handling.
+
+  ## Parameters
+  - `client` - Tesla client instance
+  - `path` - Request path (e.g., "/chat/completions") 
+  - `body` - Request body (will be JSON encoded)
+  - `callback` - Function to call for each streaming chunk
+  - `opts` - Additional options
+
+  ## Options
+  - `:headers` - Additional headers
+  - `:timeout` - Streaming timeout (default: 300_000ms)
+  - `:parse_chunk` - Function to parse SSE chunks
+
+  ## Returns
+  `{:ok, final_response}` on success, `{:error, reason}` on failure.
+  """
+  @spec stream(Tesla.Client.t(), String.t(), term(), function(), keyword()) ::
+          {:ok, Tesla.Env.t()} | {:error, term()}
+  def stream(client, path, body, callback, opts \\ []) do
+    headers =
+      [
+        {"accept", "text/event-stream"},
+        {"cache-control", "no-cache"}
+      ] ++ Keyword.get(opts, :headers, [])
+
+    timeout = Keyword.get(opts, :timeout, 300_000)
+    parse_chunk_fn = Keyword.get(opts, :parse_chunk, &default_parse_chunk/1)
+
+    # Prepare streaming body (ensure stream: true is set)
+    streaming_body =
+      body
+      |> ensure_map()
+      |> Map.put("stream", true)
+
+    # Create streaming collector
+    collector = create_stream_collector(callback, parse_chunk_fn)
+
+    # Execute streaming request
+    case Tesla.post(
+           client,
+           path,
+           streaming_body,
+           headers: headers,
+           opts: [
+             adapter: [
+               recv_timeout: timeout,
+               stream_to: collector
+             ]
+           ]
+         ) do
+      {:ok, env} ->
+        final_body =
+          case env.body do
+            {_parser, body_content} ->
+              body_content
+
+            # If stream is empty, body is nil. The original implementation also resulted in a nil body.
+            # Let's keep it that way for consistency.
+            nil ->
+              nil
+          end
+
+        {:ok, %{env | body: final_body}}
+
+      {:error, _} = error ->
+        error
+    end
+  end
+
+  @doc """
+  Upload a file using multipart/form-data.
+
+  ## Parameters
+  - `client` - Tesla client instance
+  - `path` - Upload endpoint path
+  - `multipart_data` - List of form parts
+  - `opts` - Additional options
+
+  ## Multipart Data Format
+  Each part is a tuple: `{name, content}` or `{name, content, headers}`
+
+  ## Example
+      multipart = [
+        {"purpose", "fine-tune"},
+        {"file", file_content, [{"filename", "data.txt"}]}
+      ]
+      
+      {:ok, response} = HTTP.Core.upload(client, "/files", multipart)
+  """
+  @spec upload(Tesla.Client.t(), String.t(), list(), keyword()) ::
+          {:ok, Tesla.Env.t()} | {:error, term()}
+  def upload(client, path, multipart_data, opts \\ []) do
+    headers =
+      [
+        {"content-type", "multipart/form-data"}
+      ] ++ Keyword.get(opts, :headers, [])
+
+    Tesla.post(
+      client,
+      path,
+      {:multipart, format_multipart_data(multipart_data)},
+      headers: headers
+    )
+  end
+
+  # Private functions
+
+  defp build_middleware_stack(provider, opts) do
+    base_middleware = [
+      {Tesla.Middleware.BaseURL, get_base_url(provider, opts)},
+      {Tesla.Middleware.JSON, engine_opts: [keys: :strings]}
+    ]
+
+    auth_middleware =
+      if Keyword.get(opts, :auth_enabled, true) do
+        [{HTTP.Authentication, provider: provider, api_key: Keyword.get(opts, :api_key)}]
+      else
+        []
+      end
+
+    cache_middleware =
+      if Keyword.get(opts, :cache_enabled, false) do
+        [{HTTP.Cache, cache_opts(opts)}]
+      else
+        []
+      end
+
+    error_middleware =
+      if Keyword.get(opts, :retry_enabled, true) do
+        [{HTTP.ErrorHandling, error_opts(opts)}]
+      else
+        []
+      end
+
+    logging_middleware =
+      if Keyword.get(opts, :logging_enabled, true) do
+        debug_level =
+          Keyword.get(opts, :debug, Application.get_env(:ex_llm, :log_level, :info) == :debug)
+
+        [{Tesla.Middleware.Logger, debug: debug_level}]
+      else
+        []
+      end
+
+    # Assemble middleware stack in execution order
+    base_middleware ++
+      auth_middleware ++
+      cache_middleware ++
+      error_middleware ++
+      logging_middleware
+  end
+
+  defp build_adapter(opts) do
+    adapter_name = Keyword.get(opts, :adapter, :hackney)
+    adapter_opts = Keyword.get(opts, :adapter_opts, [])
+
+    default_opts = [
+      recv_timeout: Keyword.get(opts, :timeout, 60_000),
+      follow_redirect: true,
+      max_redirect: 3
+    ]
+
+    {adapter_name, Keyword.merge(default_opts, adapter_opts)}
+  end
+
+  defp get_base_url(provider, opts) do
+    Keyword.get(opts, :base_url) || get_default_base_url(provider)
+  end
+
+  defp get_default_base_url(provider) do
+    case provider do
+      :openai -> "https://api.openai.com/v1"
+      :anthropic -> "https://api.anthropic.com"
+      :groq -> "https://api.groq.com/openai/v1"
+      :gemini -> "https://generativelanguage.googleapis.com/v1beta"
+      :ollama -> "http://localhost:11434/api"
+      :lmstudio -> "http://localhost:1234/v1"
+      :mistral -> "https://api.mistral.ai/v1"
+      :openrouter -> "https://openrouter.ai/api/v1"
+      :perplexity -> "https://api.perplexity.ai"
+      :xai -> "https://api.x.ai/v1"
+      _ -> raise ArgumentError, "Unknown provider: #{provider}"
+    end
+  end
+
+  defp cache_opts(opts) do
+    [
+      ttl: Keyword.get(opts, :cache_ttl, 300_000),
+      key_prefix: Keyword.get(opts, :cache_key_prefix, "http_cache"),
+      enabled: true
+    ]
+  end
+
+  defp error_opts(opts) do
+    [
+      max_retries: Keyword.get(opts, :max_retries, 3),
+      retry_delay: Keyword.get(opts, :retry_delay, 1000),
+      backoff_factor: Keyword.get(opts, :backoff_factor, 2.0),
+      retry_codes: Keyword.get(opts, :retry_codes, [500, 502, 503, 504])
+    ]
+  end
+
+  defp create_stream_collector(callback, parse_chunk_fn) do
+    fn
+      {:data, data}, acc ->
+        # Initialize parser and body accumulator on first chunk
+        {parser, body_acc} =
+          case acc do
+            nil -> {SSEParser.new(), ""}
+            _ -> acc
+          end
+
+        # Use SSEParser to parse the chunk.
+        {events, updated_parser} = SSEParser.parse_data_events(parser, data)
+
+        Enum.each(events, fn
+          :done ->
+            # The old code ignored [DONE], so we do the same.
+            :ok
+
+          event_data ->
+            # event_data is the string content of the "data:" field
+            case parse_chunk_fn.(event_data) do
+              {:ok, chunk} when not is_nil(chunk) ->
+                callback.(chunk)
+
+              _ ->
+                :skip
+            end
+        end)
+
+        # Continue accumulating parser state and response body
+        {:cont, {updated_parser, body_acc <> data}}
+
+      {:error, reason}, _acc ->
+        {:halt, {:error, reason}}
+    end
+  end
+
+  defp default_parse_chunk(data) do
+    case Jason.decode(data) do
+      {:ok, parsed} ->
+        content = get_in(parsed, ["choices", Access.at(0), "delta", "content"]) || ""
+        finish_reason = get_in(parsed, ["choices", Access.at(0), "finish_reason"])
+
+        chunk = %ExLLM.Types.StreamChunk{
+          content: content,
+          finish_reason: finish_reason
+        }
+
+        {:ok, chunk}
+
+      {:error, _} ->
+        {:error, :invalid_json}
+    end
+  end
+
+  defp format_multipart_data(data) do
+    # Build a single multipart form directly
+    Enum.reduce(data, Tesla.Multipart.new(), fn
+      {name, content}, acc ->
+        Tesla.Multipart.add_field(acc, name, content)
+
+      {name, content, headers}, acc ->
+        Tesla.Multipart.add_field(acc, name, content, headers)
+    end)
+  end
+
+  defp ensure_map(data) when is_map(data), do: data
+  defp ensure_map(data), do: %{"data" => data}
+end

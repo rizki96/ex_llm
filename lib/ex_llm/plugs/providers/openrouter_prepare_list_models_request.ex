@@ -1,19 +1,16 @@
 defmodule ExLLM.Plugs.Providers.OpenRouterPrepareListModelsRequest do
   @moduledoc """
-  Prepares the list models request for OpenRouter.
+  **DEPRECATED** - Use `ExLLM.Plugs.Providers.OpenAICompatiblePrepareListModelsRequest` instead.
 
-  OpenRouter uses a similar endpoint to OpenAI but provides additional 
-  metadata and supports models from multiple providers.
+  This module will be removed in v1.1.0. Please use the shared OpenAI-compatible
+  implementation which provides the same functionality.
   """
 
+  @deprecated "Use ExLLM.Plugs.Providers.OpenAICompatiblePrepareListModelsRequest instead"
+
   use ExLLM.Plug
+  alias ExLLM.Plugs.Providers.OpenAICompatiblePrepareListModelsRequest
 
   @impl true
-  def call(%ExLLM.Pipeline.Request{} = request, _opts) do
-    # OpenRouter's models endpoint doesn't require a body (similar to OpenAI)
-    request
-    |> Map.put(:provider_request, %{})
-    |> ExLLM.Pipeline.Request.assign(:http_method, :get)
-    |> ExLLM.Pipeline.Request.assign(:http_path, "/models")
-  end
+  defdelegate call(request, opts), to: OpenAICompatiblePrepareListModelsRequest
 end

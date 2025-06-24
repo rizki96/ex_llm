@@ -1,6 +1,6 @@
 defmodule ExLLM.Providers.XAI do
   @moduledoc """
-  Adapter for X.AI's Grok models.
+  Adapter for X.AI's Grok models using OpenAI-compatible base.
 
   X.AI provides access to the Grok family of models including Grok-3, Grok-2,
   and their variants with different capabilities (vision, reasoning, etc.).
@@ -50,122 +50,115 @@ defmodule ExLLM.Providers.XAI do
             %{type: "image_url", image_url: %{url: "data:image/jpeg;base64,..."}}
           ]
         }
-      ], model: "grok-2-vision-1212")
-
-      # Function calling
-      {:ok, response} = ExLLM.chat(:xai, messages,
-        model: "grok-beta",
-        tools: [weather_tool],
-        tool_choice: "auto"
-      )
+      ])
   """
 
-  @behaviour ExLLM.Provider
+  alias ExLLM.Infrastructure.Config.ModelConfig
+  alias ExLLM.Types
+  import ExLLM.Providers.Shared.ModelUtils, only: [format_model_name: 1]
 
-  alias ExLLM.{Infrastructure.ConfigProvider, Types}
+  use ExLLM.Providers.OpenAICompatible,
+    provider: :xai,
+    base_url: "https://api.x.ai/v1"
 
-  alias ExLLM.Providers.Shared.{
-    ErrorHandler,
-    HTTPClient,
-    Validation
-  }
+  # Allow overriding list_models from the base implementation
+  defoverridable list_models: 0
 
-  @base_url "https://api.x.ai/v1"
-  @timeout 300_000
+  # Override base implementation for XAI-specific features
 
-  @impl true
-  def chat(messages, options \\ []) do
-    with {:ok, config} <- get_config(options),
-         {:ok, _} <- Validation.validate_api_key(config.api_key),
-         {:ok, model} <- get_model_for_request(options),
-         formatted_messages = messages,
-         {:ok, request_body} <- build_request_body(formatted_messages, model, options) do
-      headers = build_headers(config)
+  @impl ExLLM.Providers.OpenAICompatible
+  def get_base_url(_config) do
+    "https://api.x.ai/v1"
+  end
 
-      case HTTPClient.post_json("#{@base_url}/chat/completions", request_body, headers,
-             timeout: @timeout
-           ) do
-        {:ok, response} ->
-          parse_response(response, model)
+  @impl ExLLM.Providers.OpenAICompatible
+  def get_api_key(config) do
+    Map.get(config, :api_key)
+  end
 
-        {:error, {:api_error, %{status: status, body: body}}} ->
-          ErrorHandler.handle_provider_error(:xai, status, body)
+  @impl ExLLM.Providers.OpenAICompatible
+  def transform_request(request, _options) do
+    # XAI uses standard OpenAI format, no transformation needed
+    request
+  end
 
-        {:error, reason} ->
-          {:error, reason}
+  @impl ExLLM.Providers.OpenAICompatible
+  def transform_response(response, _options) do
+    # XAI uses standard OpenAI format, no transformation needed
+    response
+  end
+
+  @impl ExLLM.Providers.OpenAICompatible
+  def get_headers(api_key, _options) do
+    [
+      {"Authorization", "Bearer #{api_key}"},
+      {"Content-Type", "application/json"}
+    ]
+  end
+
+  @impl ExLLM.Providers.OpenAICompatible
+  def parse_error(%{"error" => error}) do
+    message =
+      case error do
+        %{"message" => msg} -> msg
+        msg when is_binary(msg) -> msg
+        _ -> "Unknown XAI API error"
       end
+
+    {:error, message}
+  end
+
+  def parse_error(_), do: {:error, "Unknown XAI API error"}
+
+  @impl ExLLM.Providers.OpenAICompatible
+  def filter_model(_model) do
+    # Accept all models from XAI
+    true
+  end
+
+  @impl ExLLM.Providers.OpenAICompatible
+  def parse_model(model) do
+    model_id = model["id"]
+
+    # Load model config from YAML
+    case ModelConfig.get_model_config(:xai, model_id) do
+      {:ok, config} ->
+        %Types.Model{
+          id: model_id,
+          name: "X.AI " <> format_model_name(model_id),
+          description: config.description || "X.AI model: #{model_id}",
+          context_window: config.context_window || 131_072,
+          max_output_tokens: config.max_output_tokens,
+          capabilities: %{
+            supports_streaming: :streaming in (config.capabilities || []),
+            supports_functions: :function_calling in (config.capabilities || []),
+            supports_vision: :vision in (config.capabilities || []),
+            features: config.capabilities || []
+          }
+        }
+
+      {:error, _} ->
+        # Fallback for models not in config
+        %Types.Model{
+          id: model_id,
+          name: "X.AI " <> format_model_name(model_id),
+          description: "X.AI model: #{model_id}",
+          # Default for Grok models
+          context_window: 131_072,
+          capabilities: %{
+            supports_streaming: true,
+            supports_functions: true,
+            supports_vision: String.contains?(model_id, "vision"),
+            features: [:chat, :streaming, :function_calling]
+          }
+        }
     end
   end
 
-  @impl true
-  def stream_chat(messages, options \\ []) do
-    with {:ok, config} <- get_config(options),
-         {:ok, _} <- Validation.validate_api_key(config.api_key),
-         {:ok, model} <- get_model_for_request(options),
-         formatted_messages = messages,
-         {:ok, request_body} <- build_request_body(formatted_messages, model, options) do
-      headers = build_headers(config)
-      url = "#{@base_url}/chat/completions"
-      parent = self()
-      ref = make_ref()
-
-      # Start streaming task
-      Task.start(fn ->
-        HTTPClient.stream_request(
-          url,
-          request_body,
-          headers,
-          fn chunk -> send(parent, {ref, {:chunk, chunk}}) end,
-          on_error: fn status, body ->
-            send(parent, {ref, {:error, ErrorHandler.handle_provider_error(:xai, status, body)}})
-          end
-        )
-
-        # Signal stream completion
-        send(parent, {ref, :done})
-      end)
-
-      # Create stream that processes chunks
-      stream =
-        Stream.resource(
-          fn -> {ref, model, ""} end,
-          fn {ref, model, buffer} = state ->
-            receive do
-              {^ref, {:chunk, data}} ->
-                # Accumulate data and parse SSE events
-                new_buffer = buffer <> data
-                {events, remaining} = extract_sse_events(new_buffer)
-
-                chunks =
-                  Enum.flat_map(events, fn event ->
-                    case parse_sse_event(event, model) do
-                      {:ok, chunk} -> [chunk]
-                      _ -> []
-                    end
-                  end)
-
-                {chunks, {ref, model, remaining}}
-
-              {^ref, :done} ->
-                {:halt, state}
-
-              {^ref, {:error, error}} ->
-                throw(error)
-            after
-              100 -> {[], state}
-            end
-          end,
-          fn _ -> :ok end
-        )
-
-      {:ok, stream}
-    end
-  end
-
-  @impl true
+  # Override list_models to use local config since XAI doesn't have a models endpoint
+  @impl ExLLM.Provider
   def list_models(_options \\ []) do
-    # X.AI doesn't provide a models endpoint, so we return our configured models
-    models = ExLLM.Infrastructure.Config.ModelConfig.get_all_models(:xai)
+    models = ModelConfig.get_all_models(:xai)
 
     formatted_models =
       Enum.map(models, fn {id, model_data} ->
@@ -197,6 +190,7 @@ defmodule ExLLM.Providers.XAI do
           name: "X.AI " <> format_model_name(to_string(id)),
           context_window: Map.get(model_data, :context_window, 131_072),
           max_output_tokens: Map.get(model_data, :max_output_tokens),
+          # Match old format for backward compatibility
           capabilities: capabilities
         }
       end)
@@ -204,285 +198,19 @@ defmodule ExLLM.Providers.XAI do
     {:ok, formatted_models}
   end
 
-  @impl true
-  def embeddings(_input, _options \\ []) do
-    {:error, {:not_supported, "X.AI does not currently support embeddings"}}
-  end
-
-  @impl true
-  def list_embedding_models(_options \\ []) do
-    # X.AI doesn't support embeddings yet
-    {:ok, []}
-  end
-
-  def function_call(messages, functions, options \\ []) do
-    # X.AI supports function calling through the tools parameter
-    tools =
-      Enum.map(functions, fn function ->
-        %{
-          type: "function",
-          function: function
-        }
-      end)
-
-    options =
-      options
-      |> Keyword.put(:tools, tools)
-      |> Keyword.put_new(:tool_choice, "auto")
-
-    chat(messages, options)
-  end
-
-  @impl true
-  def configured?(options \\ []) do
-    config_provider = Keyword.get(options, :config_provider, ConfigProvider.Env)
-
-    api_key =
-      if is_atom(config_provider) do
-        config_provider.get(:xai, :api_key)
-      else
-        # It's a pid (Static provider)
-        ExLLM.Infrastructure.ConfigProvider.Static.get(config_provider, [:xai, :api_key])
-      end
-
-    not is_nil(api_key) and api_key != ""
-  end
-
-  @impl true
+  # Add default_model/0 for backward compatibility
+  @impl ExLLM.Provider
   def default_model(_options \\ []) do
-    ExLLM.Infrastructure.Config.ModelConfig.get_default_model!(:xai)
-  end
-
-  # Private functions
-
-  defp get_model_for_request(options) do
-    case Keyword.get(options, :model) do
-      nil -> ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:xai)
-      model -> {:ok, model}
+    case ModelConfig.get_default_model(:xai) do
+      {:ok, model} -> model
+      # Fallback default
+      _ -> "grok-beta"
     end
   end
 
-  defp get_config(options) do
-    config_provider = Keyword.get(options, :config_provider, ConfigProvider.Env)
-
-    config = %{
-      api_key: config_provider.get(:xai, :api_key),
-      model: Keyword.get(options, :model)
-    }
-
-    {:ok, config}
-  end
-
-  defp build_headers(config) do
-    [
-      {"Authorization", "Bearer #{config.api_key}"},
-      {"Content-Type", "application/json"}
-    ]
-  end
-
-  defp build_request_body(messages, model, options) do
-    body = %{
-      model: model,
-      messages: messages,
-      stream: Keyword.get(options, :stream, false),
-      temperature: Keyword.get(options, :temperature, 0.7),
-      max_tokens: Keyword.get(options, :max_tokens),
-      top_p: Keyword.get(options, :top_p),
-      frequency_penalty: Keyword.get(options, :frequency_penalty),
-      presence_penalty: Keyword.get(options, :presence_penalty),
-      n: Keyword.get(options, :n, 1)
-    }
-
-    # Add optional parameters
-    body =
-      if tools = Keyword.get(options, :tools) do
-        body
-        |> Map.put(:tools, tools)
-        |> Map.put(:tool_choice, Keyword.get(options, :tool_choice, "auto"))
-      else
-        body
-      end
-
-    body =
-      if response_format = Keyword.get(options, :response_format) do
-        Map.put(body, :response_format, response_format)
-      else
-        body
-      end
-
-    # Remove nil values
-    body =
-      body
-      |> Enum.reject(fn {_, v} -> is_nil(v) end)
-      |> Enum.into(%{})
-
-    {:ok, body}
-  end
-
-  defp parse_response(response, model) do
-    case response do
-      %{"choices" => [%{"message" => message} | _]} = response ->
-        usage = Map.get(response, "usage", %{})
-
-        # Handle function calls
-        content =
-          if function_call = Map.get(message, "tool_calls") do
-            # Format tool calls for compatibility
-            tool_calls =
-              Enum.map(function_call, fn call ->
-                %{
-                  id: Map.get(call, "id"),
-                  type: Map.get(call, "type", "function"),
-                  function: %{
-                    name: get_in(call, ["function", "name"]),
-                    arguments: get_in(call, ["function", "arguments"])
-                  }
-                }
-              end)
-
-            %{
-              tool_calls: tool_calls,
-              content: Map.get(message, "content")
-            }
-          else
-            Map.get(message, "content", "")
-          end
-
-        llm_response = %Types.LLMResponse{
-          content: content,
-          model: model,
-          usage: %{
-            input_tokens: Map.get(usage, "prompt_tokens", 0),
-            output_tokens: Map.get(usage, "completion_tokens", 0)
-          },
-          cost: calculate_cost(usage, model)
-        }
-
-        {:ok, llm_response}
-
-      error ->
-        {:error, {:invalid_response, error}}
-    end
-  end
-
-  defp extract_sse_events(buffer) do
-    # Split buffer into events based on double newlines
-    parts = String.split(buffer, "\n\n", trim: true)
-
-    # Check if the last part is complete (ends with newline)
-    case List.last(parts) do
-      nil ->
-        {[], buffer}
-
-      last_part ->
-        if String.ends_with?(buffer, "\n\n") do
-          # All parts are complete events
-          {parts, ""}
-        else
-          # Last part is incomplete
-          {Enum.slice(parts, 0..-2//1), last_part}
-        end
-    end
-  end
-
-  defp parse_sse_event(event, model) do
-    # Extract data from SSE event
-    case Regex.run(~r/^data: (.+)$/m, event) do
-      [_, "[DONE]"] ->
-        {:ok, :done}
-
-      [_, json_data] ->
-        parse_json_event(json_data, model)
-
-      _ ->
-        {:error, :invalid_event}
-    end
-  end
-
-  defp parse_json_event(json_data, model) do
-    case Jason.decode(json_data) do
-      {:ok, decoded} ->
-        parse_decoded_event(decoded, model)
-
-      {:error, _} ->
-        {:error, :invalid_json}
-    end
-  end
-
-  defp parse_decoded_event(%{"choices" => [%{"delta" => delta} | _]}, model) do
-    chunk_data = build_chunk_data(delta)
-
-    {:ok,
-     %Types.StreamChunk{
-       content: chunk_data,
-       model: model,
-       finish_reason: nil
-     }}
-  end
-
-  defp parse_decoded_event(%{"choices" => [%{"finish_reason" => reason} | _]}, model)
-       when not is_nil(reason) do
-    # Final chunk with finish reason
-    {:ok,
-     %Types.StreamChunk{
-       content: "",
-       model: model,
-       finish_reason: reason
-     }}
-  end
-
-  defp parse_decoded_event(_, _model) do
-    {:error, :invalid_chunk}
-  end
-
-  defp build_chunk_data(delta) do
-    content = Map.get(delta, "content", "")
-
-    case Map.get(delta, "tool_calls") do
-      nil ->
-        content
-
-      tool_calls ->
-        function_calls = Enum.map(tool_calls, &format_tool_call/1)
-        %{content: content, tool_calls: function_calls}
-    end
-  end
-
-  defp format_tool_call(call) do
-    %{
-      index: Map.get(call, "index"),
-      id: Map.get(call, "id"),
-      type: Map.get(call, "type"),
-      function: Map.get(call, "function")
-    }
-  end
-
-  defp calculate_cost(usage, model) do
-    model_config = ExLLM.Infrastructure.Config.ModelConfig.get_model_config(:xai, model)
-
-    if model_config && model_config.pricing do
-      input_tokens = Map.get(usage, "prompt_tokens", 0)
-      output_tokens = Map.get(usage, "completion_tokens", 0)
-
-      input_cost = input_tokens * model_config.pricing.input / 1_000_000
-      output_cost = output_tokens * model_config.pricing.output / 1_000_000
-
-      %{
-        input: input_cost,
-        output: output_cost,
-        total: input_cost + output_cost
-      }
-    else
-      %{input: 0.0, output: 0.0, total: 0.0}
-    end
-  end
-
-  defp format_model_name(model_id) do
-    model_id
-    |> String.replace("xai/", "")
-    |> String.replace("-", " ")
-    |> String.split(" ")
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
+  # XAI doesn't support embeddings
+  @impl ExLLM.Provider
+  def embeddings(_input, _options \\ []) do
+    {:error, {:not_supported, "XAI does not support embeddings API"}}
   end
 end

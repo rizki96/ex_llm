@@ -68,140 +68,40 @@ defmodule ExLLM.Providers.Mistral do
       {:ok, response} = ExLLM.Providers.Mistral.chat(messages, tools: functions)
   """
 
-  @behaviour ExLLM.Provider
-  @behaviour ExLLM.Providers.Shared.StreamingBehavior
+  import ExLLM.Providers.Shared.ModelUtils, only: [format_model_name: 1]
 
-  alias ExLLM.{Infrastructure.Config.ModelConfig, Infrastructure.Logger, Types}
+  use ExLLM.Providers.OpenAICompatible,
+    provider: :mistral,
+    base_url: "https://api.mistral.ai/v1"
 
-  alias ExLLM.Providers.Shared.{
-    ConfigHelper,
-    EnhancedStreamingCoordinator,
-    ErrorHandler,
-    HTTPClient,
-    MessageFormatter,
-    ModelUtils,
-    ResponseBuilder,
-    Validation
-  }
+  alias ExLLM.Infrastructure.Config.ModelConfig
+  alias ExLLM.Types
+  alias ExLLM.Providers.Shared.{ConfigHelper, ResponseBuilder, Validation}
+  import ExLLM.Providers.Shared.ModelUtils, only: [generate_description: 2]
+  alias ExLLM.Infrastructure.Error, as: Error
 
-  @default_base_url "https://api.mistral.ai/v1"
-  @default_temperature 0.7
-
-  @impl true
-  def chat(messages, options \\ []) do
-    with :ok <- MessageFormatter.validate_messages(messages),
-         :ok <- validate_unsupported_parameters(options),
-         config_provider <- ConfigHelper.get_config_provider(options),
-         config <- ConfigHelper.get_config(:mistral, config_provider),
-         api_key <- ConfigHelper.get_api_key(config, "MISTRAL_API_KEY"),
-         {:ok, _} <- Validation.validate_api_key(api_key) do
-      model =
-        Keyword.get(
-          options,
-          :model,
-          Map.get(config, :model) || ConfigHelper.ensure_default_model(:mistral)
-        )
-
-      body = build_request_body(messages, model, config, options)
-      headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/chat/completions"
-
-      Logger.with_context([provider: :mistral, model: model], fn ->
-        case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :mistral) do
-          {:ok, response} ->
-            {:ok, parse_response(response, model)}
-
-          {:error, {:api_error, %{status: status, body: body}}} ->
-            ErrorHandler.handle_provider_error(:mistral, status, body)
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end)
+  # Override chat and stream_chat to add Mistral-specific validation
+  @impl ExLLM.Provider
+  def chat(messages, options) do
+    with :ok <- validate_options(options) do
+      super(messages, options)
     end
   end
 
-  @impl true
-  def stream_chat(messages, options \\ []) do
-    with :ok <- MessageFormatter.validate_messages(messages),
-         config_provider <- ConfigHelper.get_config_provider(options),
-         config <- ConfigHelper.get_config(:mistral, config_provider),
-         api_key <- ConfigHelper.get_api_key(config, "MISTRAL_API_KEY"),
-         {:ok, _} <- Validation.validate_api_key(api_key) do
-      model =
-        Keyword.get(
-          options,
-          :model,
-          Map.get(config, :model) || ConfigHelper.ensure_default_model(:mistral)
-        )
-
-      body = build_request_body(messages, model, config, options ++ [stream: true])
-      headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/chat/completions"
-
-      # Create stream with enhanced features
-      chunks_ref = make_ref()
-      parent = self()
-
-      # Setup callback that sends chunks to parent
-      callback = fn chunk ->
-        send(parent, {chunks_ref, {:chunk, chunk}})
-      end
-
-      # Enhanced streaming options with Mistral-specific features
-      stream_options = [
-        parse_chunk_fn: &parse_stream_chunk/1,
-        provider: :mistral,
-        model: model,
-        stream_recovery: Keyword.get(options, :stream_recovery, false),
-        track_metrics: Keyword.get(options, :track_metrics, false),
-        on_metrics: Keyword.get(options, :on_metrics),
-        transform_chunk: create_mistral_transformer(options),
-        validate_chunk: create_mistral_validator(options),
-        buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
-        timeout: Keyword.get(options, :timeout, 300_000),
-        # Enable enhanced features if requested
-        enable_flow_control: Keyword.get(options, :enable_flow_control, false),
-        enable_batching: Keyword.get(options, :enable_batching, false),
-        track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
-      ]
-
-      Logger.with_context([provider: :mistral, model: model], fn ->
-        {:ok, stream_id} =
-          EnhancedStreamingCoordinator.start_stream(
-            url,
-            body,
-            headers,
-            callback,
-            stream_options
-          )
-
-        # Create Elixir stream that receives chunks
-        stream =
-          Stream.resource(
-            fn -> {chunks_ref, stream_id} end,
-            fn {ref, _id} = state ->
-              receive do
-                {^ref, {:chunk, chunk}} -> {[chunk], state}
-              after
-                100 -> {[], state}
-              end
-            end,
-            fn _ -> :ok end
-          )
-
-        {:ok, stream}
-      end)
+  @impl ExLLM.Provider
+  def stream_chat(messages, options) do
+    with :ok <- validate_options(options) do
+      super(messages, options)
     end
   end
 
-  @impl true
-  def embeddings(inputs, options \\ []) do
+  @impl ExLLM.Provider
+  def embeddings(inputs, options) do
     with config_provider <- ConfigHelper.get_config_provider(options),
-         config <- ConfigHelper.get_config(:mistral, config_provider),
-         api_key <- ConfigHelper.get_api_key(config, "MISTRAL_API_KEY"),
+         config <- get_config(config_provider),
+         api_key <- get_api_key(config),
          {:ok, _} <- Validation.validate_api_key(api_key) do
-      model = Keyword.get(options, :model, "mistral/mistral-embed")
+      model = Keyword.get(options, :model, "mistral-embed")
 
       inputs_list =
         case inputs do
@@ -210,227 +110,165 @@ defmodule ExLLM.Providers.Mistral do
         end
 
       body = %{
-        model: model,
-        input: inputs_list,
-        encoding_format: Keyword.get(options, :encoding_format, "float")
+        "model" => model,
+        "input" => inputs_list,
+        "encoding_format" => Keyword.get(options, :encoding_format, "float")
       }
 
-      headers = build_headers(api_key, config)
+      headers = get_headers(api_key, options)
       url = "#{get_base_url(config)}/embeddings"
 
-      Logger.with_context([provider: :mistral, model: model], fn ->
-        case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :mistral) do
-          {:ok, response} ->
-            {:ok, parse_embeddings_response(response, model)}
+      case send_request(url, body, headers) do
+        {:ok, response} ->
+          {:ok, ResponseBuilder.build_embedding_response(response, model, provider: :mistral)}
 
-          {:error, {:api_error, %{status: status, body: body}}} ->
-            ErrorHandler.handle_provider_error(:mistral, status, body)
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end)
+        {:error, error} ->
+          handle_error(error)
+      end
+    else
+      {:error, _reason} = error -> error
     end
   end
 
-  @impl true
-  def list_models(options \\ []) do
+  @impl ExLLM.Provider
+  def list_models(options) do
     with config_provider <- ConfigHelper.get_config_provider(options),
-         config <- ConfigHelper.get_config(:mistral, config_provider),
-         api_key <- ConfigHelper.get_api_key(config, "MISTRAL_API_KEY"),
+         config <- get_config(config_provider),
+         api_key <- get_api_key(config),
          {:ok, _} <- Validation.validate_api_key(api_key) do
-      headers = build_headers(api_key, config)
+      headers = get_headers(api_key, options)
       url = "#{get_base_url(config)}/models"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :mistral
-           ) do
-        {:ok, %{body: %{"data" => models}}} ->
+      case send_request(url, %{}, headers, :get) do
+        {:ok, %{"data" => models}} when is_list(models) ->
           parsed_models =
             models
-            |> Enum.map(&parse_model_info/1)
+            |> Enum.map(&parse_model/1)
             |> Enum.sort_by(& &1.id)
 
           {:ok, parsed_models}
 
-        {:ok, %{"data" => models}} ->
-          parsed_models =
-            models
-            |> Enum.map(&parse_model_info/1)
-            |> Enum.sort_by(& &1.id)
-
-          {:ok, parsed_models}
-
-        {:error, {:api_error, %{status: status, body: body}}} ->
-          Logger.debug("Failed to fetch Mistral models: #{status} - #{inspect(body)}")
-          ErrorHandler.handle_provider_error(:mistral, status, body)
-
-        {:error, reason} ->
-          Logger.debug("Failed to fetch Mistral models: #{inspect(reason)}")
-          {:error, reason}
+        _ ->
+          load_models_from_config()
       end
     else
-      # Fallback to configuration-based models if API fails
       _ ->
         load_models_from_config()
     end
   end
 
-  @impl true
-  def configured?(options \\ []) do
-    config_provider = ConfigHelper.get_config_provider(options)
-    config = ConfigHelper.get_config(:mistral, config_provider)
-    api_key = ConfigHelper.get_api_key(config, "MISTRAL_API_KEY")
+  @impl ExLLM.Provider
+  def default_model, do: "mistral-tiny"
 
-    case Validation.validate_api_key(api_key) do
-      {:ok, _} -> true
-      _ -> false
+  # Override OpenAICompatible behavior to add Mistral-specific parameters
+  @impl ExLLM.Providers.OpenAICompatible
+  def transform_request(request, options) do
+    request
+    |> add_optional_param(options, :safe_prompt, "safe_prompt")
+    |> add_optional_param(options, :random_seed, "random_seed")
+  end
+
+  # Override to handle Mistral-specific error format
+  @impl ExLLM.Providers.OpenAICompatible
+  def parse_error(%{status: 401, body: body}) do
+    message = Map.get(body, "message", "Invalid API key")
+    {:error, Error.authentication_error(message)}
+  end
+
+  def parse_error(%{status: 429, body: body}) do
+    message = Map.get(body, "message", inspect(body))
+    {:error, Error.rate_limit_error(message)}
+  end
+
+  def parse_error(%{status: status, body: body}) when status >= 500 do
+    message = Map.get(body, "message", inspect(body))
+    {:error, Error.api_error(status, message)}
+  end
+
+  def parse_error(%{status: status, body: body}) do
+    message = Map.get(body, "message", inspect(body))
+    {:error, Error.api_error(status, message)}
+  end
+
+  # Override to parse models from Mistral's API response
+  @impl ExLLM.Providers.OpenAICompatible
+  def parse_model(model) do
+    model_id = model["id"]
+    has_vision = String.contains?(model_id, "pixtral")
+    features = ["streaming", "function_calling"] ++ if has_vision, do: ["vision"], else: []
+
+    %Types.Model{
+      id: model_id,
+      name: ExLLM.Providers.Shared.ModelUtils.format_model_name(model_id),
+      description: "Mistral model: #{model_id}",
+      context_window: 32_000,
+      max_output_tokens: nil,
+      capabilities: %{
+        supports_streaming: true,
+        supports_functions: true,
+        supports_vision: has_vision,
+        features: features
+      }
+    }
+  end
+
+  # Private helpers
+
+  defp validate_options(options) do
+    with :ok <- validate_unsupported_parameters(options) do
+      validate_temperature(options)
     end
   end
 
-  @impl true
-  def default_model, do: "mistral/mistral-tiny"
+  defp validate_unsupported_parameters(options) do
+    unsupported = [:frequency_penalty, :presence_penalty, :logprobs, :n]
 
-  # StreamingBehavior implementation
-  @impl ExLLM.Providers.Shared.StreamingBehavior
-  def parse_stream_chunk(chunk) do
-    case Jason.decode(chunk) do
-      {:ok, %{"choices" => [%{"delta" => delta, "finish_reason" => finish_reason} | _]}} ->
-        content = delta["content"]
+    case Enum.find(unsupported, &Keyword.has_key?(options, &1)) do
+      nil ->
+        :ok
 
-        if content || finish_reason do
-          {:ok,
-           %Types.StreamChunk{
-             content: content,
-             finish_reason: finish_reason
-           }}
-        else
-          {:ok, nil}
-        end
+      param ->
+        {:error, "Parameter #{param} is not supported by Mistral API"}
+    end
+  end
 
-      {:ok, %{"choices" => [%{"delta" => delta} | _]}} ->
-        content = delta["content"]
+  defp validate_temperature(options) do
+    case Keyword.get(options, :temperature) do
+      temp when is_number(temp) and temp >= 0 and temp <= 1.0 ->
+        :ok
 
-        if content do
-          {:ok,
-           %Types.StreamChunk{
-             content: content,
-             finish_reason: nil
-           }}
-        else
-          {:ok, nil}
-        end
-
-      {:error, _} = error ->
-        error
+      nil ->
+        :ok
 
       _ ->
-        {:ok, nil}
+        {:error, "Temperature must be between 0.0 and 1.0"}
     end
-  end
-
-  # Private helper functions
-
-  defp build_request_body(messages, model, _config, options) do
-    # Handle function calling via tools parameter
-    tools = build_tools_from_functions(Keyword.get(options, :functions, []))
-    tools = tools ++ Keyword.get(options, :tools, [])
-
-    body = %{
-      model: model,
-      messages: messages,
-      temperature: Keyword.get(options, :temperature, @default_temperature),
-      max_tokens: Keyword.get(options, :max_tokens),
-      stream: Keyword.get(options, :stream, false)
-    }
-
-    # Add tools if present
-    body =
-      if tools != [] do
-        Map.put(body, :tools, tools)
-      else
-        body
-      end
-
-    # Add tool_choice if specified
-    body =
-      case Keyword.get(options, :tool_choice) do
-        nil -> body
-        choice -> Map.put(body, :tool_choice, choice)
-      end
-
-    # Add other optional parameters
-    body
-    |> maybe_add_param(:top_p, Keyword.get(options, :top_p))
-    |> maybe_add_param(:random_seed, Keyword.get(options, :seed))
-    |> maybe_add_param(:safe_prompt, Keyword.get(options, :safe_prompt, false))
-    |> Map.reject(fn {_, v} -> is_nil(v) end)
-  end
-
-  defp build_tools_from_functions(functions) when is_list(functions) do
-    Enum.map(functions, fn function ->
-      %{
-        type: "function",
-        function: function
-      }
-    end)
-  end
-
-  defp build_tools_from_functions(_), do: []
-
-  defp maybe_add_param(body, _key, nil), do: body
-  defp maybe_add_param(body, key, value), do: Map.put(body, key, value)
-
-  defp build_headers(api_key, _config) do
-    HTTPClient.build_provider_headers(:mistral, api_key: api_key)
-  end
-
-  defp get_base_url(config) do
-    Map.get(config, :base_url) || @default_base_url
-  end
-
-  defp parse_response(response, model) do
-    ResponseBuilder.build_chat_response(response, model, provider: :mistral)
-  end
-
-  defp parse_embeddings_response(response, model) do
-    ResponseBuilder.build_embedding_response(response, model, provider: :mistral)
-  end
-
-  defp parse_model_info(model_data) do
-    %Types.Model{
-      id: model_data["id"],
-      name: ModelUtils.format_model_name(model_data["id"]),
-      description: ModelUtils.generate_description(model_data["id"], :mistral),
-      context_window: 32_000,
-      max_output_tokens: 8191,
-      capabilities: %{
-        features: ["streaming", "function_calling"]
-      }
-    }
   end
 
   defp load_models_from_config do
     models_map = ModelConfig.get_all_models(:mistral)
 
     if map_size(models_map) > 0 do
-      # Convert the map of model configs to Model structs
       models =
         models_map
         |> Enum.map(fn {model_id, config} ->
           model_id_str = to_string(model_id)
+          features = Map.get(config, :capabilities, ["streaming"])
 
           %Types.Model{
             id: model_id_str,
-            name: ModelUtils.format_model_name(model_id_str),
-            description: ModelUtils.generate_description(model_id_str, :mistral),
-            context_window: Map.get(config, :context_window) || 32_000,
-            max_output_tokens: Map.get(config, :max_output_tokens) || 8191,
+            name: ExLLM.Providers.Shared.ModelUtils.format_model_name(model_id_str),
+            description:
+              Map.get(config, :description) ||
+                generate_description(model_id_str, :mistral),
+            context_window: Map.get(config, :context_window, 32_000),
+            max_output_tokens: Map.get(config, :max_output_tokens),
             pricing: Map.get(config, :pricing),
             capabilities: %{
-              features: Map.get(config, :capabilities) || ["streaming"]
+              supports_streaming: :streaming in features,
+              supports_functions: :function_calling in features,
+              supports_vision: :vision in features,
+              features: features
             }
           }
         end)
@@ -438,93 +276,38 @@ defmodule ExLLM.Providers.Mistral do
 
       {:ok, models}
     else
-      # Return some default models if config loading fails
-      {:ok,
-       [
-         %Types.Model{
-           id: "mistral/mistral-tiny",
-           name: "Mistral Tiny",
-           description: "Small and fast model for simple tasks",
-           context_window: 32_000,
-           max_output_tokens: 8191,
-           capabilities: %{features: ["streaming"]}
-         },
-         %Types.Model{
-           id: "mistral/mistral-small-latest",
-           name: "Mistral Small",
-           description: "Balanced model for most use cases",
-           context_window: 32_000,
-           max_output_tokens: 8191,
-           capabilities: %{features: ["streaming", "function_calling"]}
-         }
-       ]}
+      {:ok, default_config_models()}
     end
   end
 
-  defp validate_unsupported_parameters(options) do
-    # Mistral doesn't support some OpenAI parameters
-    unsupported = [:frequency_penalty, :presence_penalty, :logprobs, :n]
-
-    case Enum.find(unsupported, &Keyword.has_key?(options, &1)) do
-      nil -> :ok
-      param -> {:error, "Parameter #{param} is not supported by Mistral API"}
-    end
-  end
-
-  # StreamingCoordinator enhancement functions
-
-  defp create_mistral_transformer(options) do
-    # Example: Format code blocks if code generation is detected
-    if Keyword.get(options, :format_code_blocks, false) do
-      fn chunk ->
-        if chunk.content && String.contains?(chunk.content, "```") do
-          # Add syntax highlighting hints
-          formatted_content = format_code_blocks(chunk.content)
-          {:ok, %{chunk | content: formatted_content}}
-        else
-          {:ok, chunk}
-        end
-      end
-    end
-  end
-
-  defp create_mistral_validator(options) do
-    if Keyword.get(options, :safe_prompt, false) do
-      &validate_mistral_chunk/1
-    end
-  end
-
-  defp validate_mistral_chunk(chunk) do
-    if chunk.content do
-      validate_content_safety(chunk.content)
-    else
-      :ok
-    end
-  end
-
-  defp validate_content_safety(content) do
-    if contains_unsafe_content?(content) do
-      {:error, "Content violates safety guidelines"}
-    else
-      :ok
-    end
-  end
-
-  defp format_code_blocks(content) do
-    # Simple formatter that adds language hints
-    content
-    |> String.replace(~r/```python/, "```python\n# Python code")
-    |> String.replace(~r/```javascript/, "```javascript\n// JavaScript code")
-    |> String.replace(~r/```elixir/, "```elixir\n# Elixir code")
-  end
-
-  defp contains_unsafe_content?(content) do
-    # Placeholder for content safety check
-    # In production, this would use a proper content filter
-    unsafe_patterns = ["harmful", "dangerous", "malicious"]
-
-    Enum.any?(unsafe_patterns, fn pattern ->
-      String.contains?(String.downcase(content), pattern)
-    end)
+  defp default_config_models do
+    [
+      %Types.Model{
+        id: "mistral/mistral-tiny",
+        name: "Mistral Tiny",
+        description: "Small and fast model for simple tasks",
+        context_window: 32_000,
+        max_output_tokens: 8191,
+        capabilities: %{
+          supports_streaming: true,
+          supports_functions: false,
+          supports_vision: false,
+          features: ["streaming"]
+        }
+      },
+      %Types.Model{
+        id: "mistral/mistral-small-latest",
+        name: "Mistral Small",
+        description: "Balanced model for most use cases",
+        context_window: 32_000,
+        max_output_tokens: 8191,
+        capabilities: %{
+          supports_streaming: true,
+          supports_functions: true,
+          supports_vision: false,
+          features: ["streaming", "function_calling"]
+        }
+      }
+    ]
   end
 end

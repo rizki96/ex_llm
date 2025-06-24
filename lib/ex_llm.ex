@@ -110,32 +110,19 @@ defmodule ExLLM do
   """
   @spec chat(atom(), list(map()), keyword()) :: {:ok, map()} | {:error, term()}
   def chat(provider, messages, opts \\ []) do
-    # Build request
-    request = Request.new(provider, messages, Enum.into(opts, %{}))
+    case ExLLM.Core.Chat.chat(provider, messages, opts) do
+      {:ok, response} when is_struct(response) ->
+        # Convert struct to map and add missing fields for backward compatibility
+        response_map =
+          response
+          |> Map.from_struct()
+          |> Map.put(:provider, provider)
+          |> Map.put(:role, "assistant")
 
-    # Get default pipeline for provider
-    pipeline = Providers.get_pipeline(provider, :chat)
+        {:ok, response_map}
 
-    # Run pipeline
-    case Pipeline.run(request, pipeline) do
-      %Request{state: :completed, result: result, assigns: assigns} ->
-        # Check if we should cache the successful result
-        if Map.get(assigns, :should_cache, false) do
-          cache_key = Map.get(assigns, :cache_key)
-          cache_ttl = Map.get(assigns, :cache_ttl, 300)
-
-          if cache_key do
-            ExLLM.Infrastructure.Cache.put(cache_key, result, ttl: cache_ttl)
-          end
-        end
-
-        {:ok, result}
-
-      %Request{state: :error, errors: errors} ->
-        {:error, format_errors(errors)}
-
-      %Request{} = failed ->
-        {:error, {:pipeline_failed, failed}}
+      result ->
+        result
     end
   end
 
@@ -170,30 +157,21 @@ defmodule ExLLM do
   """
   @spec stream(atom(), list(map()), function(), keyword()) :: :ok | {:error, term()}
   def stream(provider, messages, callback, opts \\ []) when is_function(callback, 1) do
-    # Add streaming options
-    opts = Keyword.merge(opts, stream: true, stream_callback: callback)
+    # Add callback to options and delegate to Core.Chat.stream_chat
+    opts_with_callback = Keyword.put(opts, :on_chunk, callback)
 
-    # Build request
-    request = Request.new(provider, messages, Enum.into(opts, %{}))
+    case ExLLM.Core.Chat.stream_chat(provider, messages, opts_with_callback) do
+      {:ok, stream} ->
+        # Consume the stream to trigger callbacks
+        try do
+          Enum.each(stream, fn _chunk -> :ok end)
+          :ok
+        catch
+          kind, reason -> {:error, {kind, reason}}
+        end
 
-    # Get streaming pipeline for provider
-    pipeline = Providers.get_pipeline(provider, :stream)
-
-    # Run pipeline
-    case Pipeline.run(request, pipeline) do
-      %Request{state: :completed} ->
-        :ok
-
-      %Request{state: :streaming} ->
-        # For streaming, the pipeline starts the stream and returns immediately
-        # The actual streaming happens asynchronously via callbacks
-        :ok
-
-      %Request{state: :error, errors: errors} ->
-        {:error, format_errors(errors)}
-
-      %Request{} = failed ->
-        {:error, {:pipeline_failed, failed}}
+      error ->
+        error
     end
   end
 
@@ -233,65 +211,51 @@ defmodule ExLLM do
 
   ## Chat Builder API Functions
 
-  @doc "Create a new chat builder for enhanced fluent API. See ExLLM.Builder.build/2 for details."
-  defdelegate build(provider, messages), to: ExLLM.Builder
+  @doc "Create a new chat builder for enhanced fluent API. See ExLLM.ChatBuilder.new/2 for details."
+  defdelegate build(provider, messages), to: ExLLM.ChatBuilder, as: :new
 
-  @doc "Set the model for a chat builder. See ExLLM.Builder.with_model/2 for details."
-  defdelegate with_model(builder, model), to: ExLLM.Builder
+  @doc "Set the model for a chat builder. See ExLLM.ChatBuilder.with_model/2 for details."
+  defdelegate with_model(builder, model), to: ExLLM.ChatBuilder
 
-  @doc "Sets the temperature for a chat builder. See ExLLM.Builder.with_temperature/2 for details."
-  defdelegate with_temperature(builder, temperature), to: ExLLM.Builder
+  @doc "Sets the temperature for a chat builder. See ExLLM.ChatBuilder.with_temperature/2 for details."
+  defdelegate with_temperature(builder, temperature), to: ExLLM.ChatBuilder
 
-  @doc "Sets the maximum tokens for a chat builder. See ExLLM.Builder.with_max_tokens/2 for details."
-  defdelegate with_max_tokens(builder, max_tokens), to: ExLLM.Builder
+  @doc "Sets the maximum tokens for a chat builder. See ExLLM.ChatBuilder.with_max_tokens/2 for details."
+  defdelegate with_max_tokens(builder, max_tokens), to: ExLLM.ChatBuilder
 
-  @doc "Adds a custom plug to the pipeline. See ExLLM.Builder.with_plug/3 for details."
-  defdelegate with_plug(builder, plug, opts \\ []), to: ExLLM.Builder
+  @doc "Adds a custom plug to the pipeline. See ExLLM.ChatBuilder.with_custom_plug/3 for details."
+  defdelegate with_plug(builder, plug, opts \\ []), to: ExLLM.ChatBuilder, as: :with_custom_plug
 
-  @doc "Executes a chat builder request. See ExLLM.Builder.execute/1 for details."
-  defdelegate execute(builder), to: ExLLM.Builder
+  @doc "Executes a chat builder request. See ExLLM.ChatBuilder.execute/1 for details."
+  defdelegate execute(builder), to: ExLLM.ChatBuilder
 
-  @doc "Streams a chat builder request. See ExLLM.Builder.stream/2 for details."
-  defdelegate stream(builder, callback), to: ExLLM.Builder
+  @doc "Streams a chat builder request. See ExLLM.ChatBuilder.stream/2 for details."
+  defdelegate stream(builder, callback), to: ExLLM.ChatBuilder
 
   ## Enhanced Builder API Methods
 
-  @doc "Enables caching with configurable options on a chat builder. See ExLLM.Builder.with_cache/2 for details."
-  defdelegate with_cache(builder, opts \\ []), to: ExLLM.Builder
+  @doc "Enables caching with configurable options on a chat builder. See ExLLM.ChatBuilder.with_cache/2 for details."
+  defdelegate with_cache(builder, opts \\ []), to: ExLLM.ChatBuilder
 
-  @doc "Disables caching for a chat builder request. See ExLLM.Builder.without_cache/1 for details."
-  defdelegate without_cache(builder), to: ExLLM.Builder
+  @doc "Disables caching for a chat builder request. See ExLLM.ChatBuilder.without_cache/1 for details."
+  defdelegate without_cache(builder), to: ExLLM.ChatBuilder
 
-  @doc "Disables cost tracking for a chat builder request. See ExLLM.Builder.without_cost_tracking/1 for details."
-  defdelegate without_cost_tracking(builder), to: ExLLM.Builder
+  @doc "Disables cost tracking for a chat builder request. See ExLLM.ChatBuilder.without_cost_tracking/1 for details."
+  defdelegate without_cost_tracking(builder), to: ExLLM.ChatBuilder
 
-  @doc "Adds a custom plug to the chat builder pipeline. See ExLLM.Builder.with_custom_plug/3 for details."
-  defdelegate with_custom_plug(builder, plug, opts \\ []), to: ExLLM.Builder
+  @doc "Adds a custom plug to the chat builder pipeline. See ExLLM.ChatBuilder.with_custom_plug/3 for details."
+  defdelegate with_custom_plug(builder, plug, opts \\ []), to: ExLLM.ChatBuilder
 
-  @doc "Sets a custom context management strategy for a chat builder. See ExLLM.Builder.with_context_strategy/3 for details."
-  defdelegate with_context_strategy(builder, strategy, opts \\ []), to: ExLLM.Builder
+  @doc "Sets a custom context management strategy for a chat builder. See ExLLM.ChatBuilder.with_context_strategy/3 for details."
+  defdelegate with_context_strategy(builder, strategy, opts \\ []), to: ExLLM.ChatBuilder
 
-  @doc "Returns the pipeline that would be executed without running it. See ExLLM.Builder.inspect_pipeline/1 for details."
-  defdelegate inspect_pipeline(builder), to: ExLLM.Builder
+  @doc "Returns the pipeline that would be executed without running it. See ExLLM.ChatBuilder.inspect_pipeline/1 for details."
+  defdelegate inspect_pipeline(builder), to: ExLLM.ChatBuilder
 
-  @doc "Returns detailed debugging information about the chat builder state. See ExLLM.Builder.debug_info/1 for details."
-  defdelegate debug_info(builder), to: ExLLM.Builder
+  @doc "Returns detailed debugging information about the chat builder state. See ExLLM.ChatBuilder.debug_info/1 for details."
+  defdelegate debug_info(builder), to: ExLLM.ChatBuilder
 
   # Private helpers
-
-  defp format_errors([]), do: :unknown_error
-  defp format_errors([error]), do: format_error(error)
-
-  defp format_errors(errors) do
-    %{
-      errors: Enum.map(errors, &format_error/1),
-      count: length(errors)
-    }
-  end
-
-  defp format_error(%{message: message}), do: message
-  defp format_error(%{error: error}), do: error
-  defp format_error(error), do: error
 
   ## Legacy API Support
 
@@ -341,15 +305,9 @@ defmodule ExLLM do
   Users should prefer specifying models explicitly.
   """
   def default_model(provider) do
-    case provider do
-      :openai -> "gpt-4"
-      :anthropic -> "claude-3-5-sonnet-20241022"
-      :gemini -> "gemini-2.0-flash-exp"
-      :groq -> "llama-3.3-70b-instruct"
-      :mistral -> "mistral-large-latest"
-      :ollama -> "llama3.2"
-      :bumblebee -> "HuggingFaceTB/SmolLM2-1.7B-Instruct"
-      _ -> "unknown"
+    case ExLLM.Core.Models.get_default(provider) do
+      {:ok, model_id} -> model_id
+      {:error, _} -> "unknown"
     end
   end
 
@@ -403,31 +361,7 @@ defmodule ExLLM do
   """
   @spec embeddings(atom(), String.t() | [String.t()], keyword()) ::
           {:ok, ExLLM.Types.EmbeddingResponse.t()} | {:error, term()}
-  def embeddings(provider, input, opts \\ []) do
-    # Convert options to map for internal use
-    options = Enum.into(opts, %{})
-
-    # Build request - use empty messages since embeddings don't use conversation format
-    request = ExLLM.Pipeline.Request.new(provider, [], options)
-
-    # Store embedding input in assigns for pipeline plugs to access
-    request = ExLLM.Pipeline.Request.assign(request, :embedding_input, input)
-
-    # Get embeddings pipeline for provider
-    pipeline = ExLLM.Providers.get_pipeline(provider, :embeddings)
-
-    # Run pipeline
-    case ExLLM.Pipeline.run(request, pipeline) do
-      %ExLLM.Pipeline.Request{state: :completed, result: result} ->
-        {:ok, result}
-
-      %ExLLM.Pipeline.Request{state: :error, errors: errors} ->
-        {:error, format_errors(errors)}
-
-      %ExLLM.Pipeline.Request{} = failed ->
-        {:error, {:pipeline_failed, failed}}
-    end
-  end
+  defdelegate embeddings(provider, input, opts \\ []), to: ExLLM.Core.Embeddings, as: :generate
 
   @doc """
   Lists available models for a provider using the pipeline architecture.
@@ -456,25 +390,7 @@ defmodule ExLLM do
   Returns `{:error, error}` on failure.
   """
   @spec list_models(atom()) :: {:ok, list(map())} | {:error, term()}
-  def list_models(provider) do
-    # Build request - use empty messages for list_models
-    request = ExLLM.Pipeline.Request.new(provider, [], %{})
-
-    # Get list_models pipeline for provider
-    pipeline = ExLLM.Providers.get_pipeline(provider, :list_models)
-
-    # Run pipeline
-    case ExLLM.Pipeline.run(request, pipeline) do
-      %ExLLM.Pipeline.Request{state: :completed, result: result} ->
-        {:ok, result}
-
-      %ExLLM.Pipeline.Request{state: :error, errors: errors} ->
-        {:error, format_errors(errors)}
-
-      %ExLLM.Pipeline.Request{} = failed ->
-        {:error, {:pipeline_failed, failed}}
-    end
-  end
+  defdelegate list_models(provider), to: ExLLM.Core.Models, as: :list_for_provider
 
   ## Session Management Functions
 
@@ -535,9 +451,7 @@ defmodule ExLLM do
 
       {:ok, info} = ExLLM.get_model_info(:openai, "gpt-4")
   """
-  def get_model_info(provider, model_id) do
-    ExLLM.Infrastructure.Config.ModelCapabilities.get_capabilities(provider, model_id)
-  end
+  defdelegate get_model_info(provider, model_id), to: ExLLM.Core.Models, as: :get_info
 
   @doc """
   Get model recommendations based on required features.
@@ -548,7 +462,7 @@ defmodule ExLLM do
   """
   def recommend_models(opts \\ []) do
     features = Keyword.get(opts, :features, [])
-    ExLLM.Infrastructure.Config.ModelCapabilities.find_models_with_features(features)
+    ExLLM.Core.Models.find_by_capabilities(features)
   end
 
   @doc """
@@ -559,7 +473,8 @@ defmodule ExLLM do
       groups = ExLLM.models_by_capability(:function_calling)
   """
   def models_by_capability(capability) do
-    ExLLM.Infrastructure.Config.ModelCapabilities.models_by_capability(capability)
+    {:ok, models} = ExLLM.Core.Models.find_by_capabilities([capability])
+    models
   end
 
   @doc """
@@ -569,9 +484,9 @@ defmodule ExLLM do
 
       models = ExLLM.find_models_with_features([:vision, :streaming])
   """
-  def find_models_with_features(features) do
-    ExLLM.Infrastructure.Config.ModelCapabilities.find_models_with_features(features)
-  end
+  defdelegate find_models_with_features(features),
+    to: ExLLM.Core.Models,
+    as: :find_by_capabilities
 
   ## Vision Functions
 
@@ -585,9 +500,7 @@ defmodule ExLLM do
   defdelegate vision_message(text, images, opts \\ []), to: ExLLM.Vision
 
   @doc "Compare models across providers."
-  def compare_models(model_list) do
-    ExLLM.Infrastructure.Config.ModelCapabilities.compare_models(model_list)
-  end
+  defdelegate compare_models(model_list), to: ExLLM.Core.Models, as: :compare
 
   @doc "Create an embedding search index from texts. See ExLLM.Embeddings.create_index/3 for details."
   defdelegate create_embedding_index(provider, texts, opts \\ []),
@@ -616,29 +529,9 @@ defmodule ExLLM do
       # => 8192
   """
   def context_window_size(provider, model_id) do
-    # Ensure provider is an atom - secure conversion
-    provider =
-      case safe_provider_to_atom(provider) do
-        {:ok, atom} -> atom
-        # Keep original if conversion fails
-        {:error, _} -> provider
-      end
-
-    result = ExLLM.Infrastructure.Config.ModelConfig.get_model_config(provider, model_id)
-
-    case result do
-      nil ->
-        nil
-
-      model when is_map(model) ->
-        # Try atom key first, then string key
-        Map.get(model, :context_window) || Map.get(model, "context_window")
-
-      model when is_struct(model) ->
-        model.context_window
-
-      _ ->
-        nil
+    case ExLLM.Core.Models.get_info(provider, model_id) do
+      {:ok, info} -> info.context_window
+      {:error, _} -> nil
     end
   end
 

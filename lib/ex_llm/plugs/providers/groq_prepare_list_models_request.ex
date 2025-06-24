@@ -1,18 +1,16 @@
 defmodule ExLLM.Plugs.Providers.GroqPrepareListModelsRequest do
   @moduledoc """
-  Prepares list models request for the Groq API.
+  **DEPRECATED** - Use `ExLLM.Plugs.Providers.OpenAICompatiblePrepareListModelsRequest` instead.
 
-  Sets up the request path for retrieving available models.
+  This module will be removed in v1.1.0. Please use the shared OpenAI-compatible
+  implementation which provides the same functionality.
   """
 
+  @deprecated "Use ExLLM.Plugs.Providers.OpenAICompatiblePrepareListModelsRequest instead"
+
   use ExLLM.Plug
+  alias ExLLM.Plugs.Providers.OpenAICompatiblePrepareListModelsRequest
 
   @impl true
-  def call(%ExLLM.Pipeline.Request{} = request, _opts) do
-    # Groq's models endpoint follows OpenAI's format
-    request
-    |> Map.put(:provider_request, %{})
-    |> ExLLM.Pipeline.Request.assign(:http_method, :get)
-    |> ExLLM.Pipeline.Request.assign(:http_path, "/models")
-  end
+  defdelegate call(request, opts), to: OpenAICompatiblePrepareListModelsRequest
 end

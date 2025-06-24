@@ -16,6 +16,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
   alias ExLLM.Types
 
   alias ExLLM.Infrastructure.Logger
+  require Logger
 
   @default_timeout :timer.minutes(5)
   # Log metrics every 1 second during streaming
@@ -119,46 +120,52 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Initialize chunk buffer for batching
     buffer_size = Keyword.get(options, :buffer_chunks, 1)
 
-    # Simple collector that accumulates data for Req and processes callbacks
+    # Enhanced collector that maintains stream state and processes synchronously
     fn
       {:data, data}, acc ->
-        # Initialize accumulator if needed - binary for response body
-        body =
+        # Initialize or extract state tuple: {text_buffer, chunk_buffer, stats, response_body}
+        {text_buffer, chunk_buffer, stats, response_body} =
           case acc do
-            binary when is_binary(binary) -> binary
-            _ -> ""
+            {_, _, _, _} = state -> state
+            binary when is_binary(binary) -> {"", [], stream_context, binary}
+            _ -> {"", [], stream_context, ""}
           end
 
-        # Process stream data for callbacks (side effects)
-        # We'll handle this in a separate process to avoid affecting the accumulator
-        Task.start(fn ->
-          process_stream_data(
+        # Process stream data synchronously (NO TASK SPAWNING!)
+        {new_text_buffer, new_chunk_buffer, new_stats} =
+          process_stream_data_sync(
             data,
-            # text_buffer
-            "",
-            # chunk_buffer  
-            [],
+            text_buffer,
+            chunk_buffer,
             callback,
             parse_chunk_fn,
-            stream_context,
+            stats,
             buffer_size,
             options
           )
-        end)
 
-        # Accumulate the raw data as binary for Req
-        {:cont, body <> data}
+        # Accumulate the raw data as binary for Req while maintaining state
+        {:cont, {new_text_buffer, new_chunk_buffer, new_stats, response_body <> data}}
 
-      {:error, reason}, _acc ->
+      {:error, reason}, acc ->
+        # Extract stats for error counting if available
+        stats =
+          case acc do
+            {_, _, s, _} -> s
+            _ -> stream_context
+          end
+
+        _new_stats = update_stream_stats(stats, :error_count, 1)
         Logger.error("Stream collector error: #{inspect(reason)}")
         {:halt, {:error, reason}}
     end
   end
 
   @doc """
-  Process streaming data with unified SSE parsing and buffering.
+  Process streaming data synchronously with unified SSE parsing and buffering.
+  Returns updated state tuple instead of side effects.
   """
-  def process_stream_data(
+  def process_stream_data_sync(
         data,
         text_buffer,
         chunk_buffer,
@@ -181,7 +188,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Process lines and accumulate chunks
     {new_chunk_buffer, new_stats} =
       Enum.reduce(complete_lines, {chunk_buffer, stats}, fn line, acc ->
-        process_stream_line(
+        process_stream_line_sync(
           line,
           acc,
           parse_chunk_fn,
@@ -195,18 +202,22 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     {last_line, new_chunk_buffer, new_stats}
   end
 
-  defp process_stream_line(
-         line,
-         {chunks, st},
-         parse_chunk_fn,
-         recovery_id,
-         options,
-         callback,
-         buffer_size
-       ) do
+  @doc """
+  Process a single SSE line synchronously with unified parsing.
+  Returns updated state tuple instead of side effects.
+  """
+  def process_stream_line_sync(
+        line,
+        {chunks, st},
+        parse_chunk_fn,
+        recovery_id,
+        options,
+        callback,
+        buffer_size
+      ) do
     case parse_sse_line(line) do
       {:data, event_data} ->
-        process_event_data(
+        process_event_data_sync(
           event_data,
           chunks,
           st,
@@ -218,14 +229,14 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
         )
 
       :done ->
-        handle_stream_done(chunks, st, callback, recovery_id)
+        handle_stream_done_sync(chunks, st, callback, recovery_id)
 
       :skip ->
         {chunks, st}
     end
   end
 
-  defp process_event_data(
+  defp process_event_data_sync(
          event_data,
          chunks,
          st,
@@ -237,27 +248,30 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
        ) do
     case handle_event_data(event_data, parse_chunk_fn, recovery_id, st, options) do
       {:ok, chunk} ->
-        handle_new_chunk(chunk, chunks, st, callback, buffer_size)
+        handle_new_chunk_sync(chunk, chunks, st, callback, buffer_size)
 
       :skip ->
         {chunks, st}
     end
   end
 
-  defp handle_new_chunk(chunk, chunks, st, callback, buffer_size) do
-    new_chunks = chunks ++ [chunk]
+  defp handle_new_chunk_sync(chunk, chunks, st, callback, buffer_size) do
+    # Prepend for O(1) performance instead of O(n) append
+    new_chunks = [chunk | chunks]
 
     if length(new_chunks) >= buffer_size do
-      flush_chunk_buffer(new_chunks, callback, st)
+      # Reverse to maintain original order when flushing
+      flush_chunk_buffer(Enum.reverse(new_chunks), callback, st)
       {[], update_stream_stats(st, :chunk_count, length(new_chunks))}
     else
       {new_chunks, st}
     end
   end
 
-  defp handle_stream_done(chunks, st, callback, recovery_id) do
+  defp handle_stream_done_sync(chunks, st, callback, recovery_id) do
     if chunks != [] do
-      flush_chunk_buffer(chunks, callback, st)
+      # Reverse chunks since we've been prepending
+      flush_chunk_buffer(Enum.reverse(chunks), callback, st)
     end
 
     Logger.debug("Stream #{recovery_id} completed after #{st.chunk_count} chunks")
@@ -379,12 +393,14 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
       {:rate_limit_error, _} -> false
       {:service_unavailable, _} -> false
       {:validation, _, _} -> false
+      # Catch-all clause to prevent crashes
+      _ -> false
     end
   end
 
   # Stream recovery state management
 
-  defp save_stream_state(recovery_id, url, request, headers, options) do
+  defp save_stream_state(recovery_id, _url, request, _headers, options) do
     if stream_recovery_enabled?() do
       provider = Keyword.get(options, :provider, :unknown)
       messages = extract_messages_from_request(request, provider)
@@ -393,16 +409,8 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
       {:ok, _} = ExLLM.Core.Streaming.Recovery.init_recovery(provider, messages, options)
       Logger.debug("Stream recovery initialized for #{recovery_id}")
 
-      # Store additional context for recovery (currently not used)
-      _recovery_context = %{
-        url: url,
-        headers: sanitize_headers(headers),
-        request_template: sanitize_request(request),
-        original_options: options
-      }
-
-      # ExLLM.Core.Streaming.Recovery.update_context(recovery_id, recovery_context)
-      # Note: update_context function doesn't exist in StreamRecovery module
+      # Recovery context is handled by the StreamRecovery module's init_recovery/3 function
+      # which stores the provider, messages, and options needed for recovery
     end
   end
 
@@ -483,35 +491,6 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
 
   defp extract_gemini_content(_), do: ""
 
-  defp sanitize_headers(headers) do
-    # Remove sensitive headers like API keys
-    headers
-    |> Enum.reject(fn {key, _value} ->
-      key_lower = String.downcase(key)
-      String.contains?(key_lower, ["authorization", "api-key", "x-api-key"])
-    end)
-    |> Enum.into(%{})
-  end
-
-  defp sanitize_request(request) when is_map(request) do
-    # Remove actual message content but keep structure
-    request
-    |> Map.delete("messages")
-    |> Map.delete("contents")
-    |> Map.put("_structure", %{
-      messages_count: length(Map.get(request, "messages", [])),
-      has_system: has_system_message?(request)
-    })
-  end
-
-  defp sanitize_request(request), do: request
-
-  defp has_system_message?(%{"messages" => messages}) when is_list(messages) do
-    Enum.any?(messages, fn msg -> Map.get(msg, "role") == "system" end)
-  end
-
-  defp has_system_message?(_), do: false
-
   defp generate_stream_id do
     "stream_#{:erlang.unique_integer([:positive])}_#{System.system_time(:millisecond)}"
   end
@@ -556,7 +535,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     parent = self()
     on_metrics = Keyword.get(options, :on_metrics)
 
-    spawn(fn ->
+    spawn_link(fn ->
       track_metrics_loop(parent, stream_context, on_metrics)
     end)
   end

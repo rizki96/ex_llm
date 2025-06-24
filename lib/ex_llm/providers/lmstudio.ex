@@ -63,102 +63,47 @@ defmodule ExLLM.Providers.LMStudio do
   Regular non-streaming chat works perfectly with both the high-level and low-level APIs.
   """
 
-  @behaviour ExLLM.Provider
+  alias ExLLM.Providers.Shared.ModelUtils
+  import ModelUtils, only: [format_model_name: 1]
 
-  alias ExLLM.Providers.Shared.{EnhancedStreamingCoordinator, MessageFormatter, ResponseBuilder}
+  use ExLLM.Providers.OpenAICompatible,
+    provider: :lmstudio,
+    base_url: "http://localhost:1234"
+
+  alias ExLLM.Providers.Shared.EnhancedStreamingCoordinator
+  alias ExLLM.Providers.Shared.{HTTPClient, MessageFormatter, Validation}
   alias ExLLM.Types
+
+  import ExLLM.Providers.OpenAICompatible, only: [default_model_transformer: 2]
+
+  @timeout 30_000
 
   @default_host "localhost"
   @default_port 1234
-  @default_api_key "lm-studio"
-  @default_model "llama-3.2-3b-instruct"
-  @timeout 30_000
 
-  @impl true
-  def chat(messages, opts \\ []) do
-    with :ok <- validate_messages(messages),
-         {:ok, validated_opts} <- validate_options(opts) do
-      do_chat(messages, validated_opts)
+  # Override chat to inject dynamic options into config
+  @impl ExLLM.Provider
+  def chat(messages, options) do
+    with :ok <- MessageFormatter.validate_messages(messages) do
+      config = prepare_config(options)
+      api_key = get_api_key(config)
+
+      with {:ok, _} <- Validation.validate_api_key(api_key) do
+        # do_chat is private in the context of this module, so it can be called.
+        do_chat(messages, options, config, api_key)
+      end
     end
   end
 
-  @impl true
-  def stream_chat(messages, opts \\ []) do
-    with :ok <- validate_messages(messages),
-         {:ok, validated_opts} <- validate_options(opts) do
-      do_stream_chat(messages, validated_opts)
-    end
-  end
+  @impl ExLLM.Provider
+  def stream_chat(messages, opts) do
+    config = prepare_config(opts)
+    api_key = get_api_key(config)
+    model = Keyword.get(opts, :model) || get_default_model(config)
 
-  @impl true
-  def configured?(opts \\ []) do
-    host = Keyword.get(opts, :host, @default_host)
-    port = Keyword.get(opts, :port, @default_port)
-
-    case test_connection(host, port) do
-      :ok -> true
-      {:error, _} -> false
-    end
-  end
-
-  @impl true
-  def default_model do
-    @default_model
-  end
-
-  @impl true
-  def list_models(opts \\ []) do
-    if Keyword.get(opts, :enhanced, false) do
-      list_models_enhanced(opts)
-    else
-      list_models_openai(opts)
-    end
-  end
-
-  # Private functions
-
-  defp http_client do
-    Application.get_env(:ex_llm, :http_client, ExLLM.Providers.Shared.HTTPClient)
-  end
-
-  defp do_chat(messages, opts) do
-    do_sync_chat(messages, opts)
-  end
-
-  defp do_sync_chat(messages, opts) do
-    host = Keyword.get(opts, :host, @default_host)
-    port = Keyword.get(opts, :port, @default_port)
-    api_key = Keyword.get(opts, :api_key, @default_api_key)
-    model = Keyword.get(opts, :model, @default_model)
-    timeout = Keyword.get(opts, :timeout, @timeout)
-
-    url = build_url(host, port, "/v1/chat/completions")
-    headers = build_headers(api_key)
-    body = build_chat_request(messages, opts, model)
-
-    case http_client().post_json(url, body, headers, timeout: timeout, provider: :lmstudio) do
-      {:ok, response_data} ->
-        response = ResponseBuilder.build_chat_response(response_data, model, provider: :lmstudio)
-        {:ok, response}
-
-      {:error, {:api_error, %{status: status, body: error_body}}} ->
-        handle_error_response(status, error_body)
-
-      {:error, reason} ->
-        {:error, "LM Studio not accessible: #{inspect(reason)}"}
-    end
-  end
-
-  defp do_stream_chat(messages, opts) do
-    host = Keyword.get(opts, :host, @default_host)
-    port = Keyword.get(opts, :port, @default_port)
-    api_key = Keyword.get(opts, :api_key, @default_api_key)
-    model = Keyword.get(opts, :model, @default_model)
-    _timeout = Keyword.get(opts, :timeout, @timeout)
-
-    url = build_url(host, port, "/v1/chat/completions")
-    headers = build_headers(api_key)
-    body = build_chat_request(messages, opts, model, stream: true)
+    url = "#{get_base_url(config)}/v1/chat/completions"
+    headers = get_headers(api_key, opts)
+    body = build_chat_request(messages, model, opts) |> Map.put("stream", true)
 
     # Create stream with enhanced features
     chunks_ref = make_ref()
@@ -207,34 +152,82 @@ defmodule ExLLM.Providers.LMStudio do
     {:ok, stream}
   end
 
-  # Parse streaming chunk - LM Studio uses OpenAI-compatible format
-  # Currently unused as we use the shared streaming coordinator
-  # defp parse_stream_chunk(data) do
-  #   case data do
-  #     "[DONE]" ->
-  #       {:ok, :done}
+  @impl ExLLM.Providers.OpenAICompatible
+  def get_base_url(config) do
+    case Map.get(config, :base_url) do
+      nil ->
+        host = Map.get(config, :host, @default_host)
+        port = Map.get(config, :port, @default_port)
+        "http://#{host}:#{port}"
 
-  #     _ ->
-  #       case Jason.decode(data) do
-  #         {:ok, parsed} ->
-  #           choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
-  #           delta = choice["delta"] || %{}
+      base_url ->
+        base_url
+    end
+  end
 
-  #           # Handle both regular content and reasoning_content
-  #           content = delta["content"] || delta["reasoning_content"] || ""
+  @impl ExLLM.Providers.OpenAICompatible
+  def get_api_key(config) do
+    Map.get(config, :api_key, "lm-studio")
+  end
 
-  #           chunk = %Types.StreamChunk{
-  #             content: content,
-  #             finish_reason: choice["finish_reason"]
-  #           }
+  @impl ExLLM.Provider
+  def default_model, do: nil
 
-  #           {:ok, chunk}
+  @impl true
+  def configured?(opts) do
+    config = prepare_config(opts)
+    host = Map.get(config, :host, @default_host)
+    port = Map.get(config, :port, @default_port)
 
-  #         {:error, _} ->
-  #           {:error, :invalid_json}
-  #       end
-  #   end
-  # end
+    with :ok <- validate_host(host),
+         :ok <- validate_port(port),
+         :ok <- test_connection(config) do
+      true
+    else
+      {:error, _} -> false
+    end
+  end
+
+  @impl true
+  def list_models(opts) do
+    if Keyword.get(opts, :enhanced, false) do
+      list_models_enhanced(opts)
+    else
+      config = prepare_config(opts)
+
+      # Replicates logic from OpenAICompatible.list_models to pass a custom config
+      ExLLM.Infrastructure.Config.ModelLoader.load_models(
+        provider_atom(),
+        Keyword.merge(opts,
+          api_fetcher: fn _opts -> fetch_models_from_api(config) end,
+          config_transformer: &default_model_transformer/2
+        )
+      )
+    end
+  end
+
+  @impl ExLLM.Providers.OpenAICompatible
+  def transform_request(request, opts) do
+    # Add LMStudio specific parameters
+    request
+    |> maybe_add_param("ttl", Keyword.get(opts, :ttl))
+  end
+
+  defp prepare_config(options) do
+    config_provider = get_config_provider(options)
+    base_config = get_config(config_provider)
+
+    runtime_config =
+      %{
+        host: Keyword.get(options, :host),
+        port: Keyword.get(options, :port),
+        api_key: Keyword.get(options, :api_key)
+      }
+      |> Enum.reject(fn {_, v} -> is_nil(v) end)
+      |> Map.new()
+
+    Map.merge(base_config, runtime_config)
+  end
 
   # Parse function for StreamingCoordinator (returns Types.StreamChunk directly)
   defp parse_lmstudio_chunk(data) do
@@ -300,43 +293,16 @@ defmodule ExLLM.Providers.LMStudio do
     end
   end
 
-  defp list_models_openai(opts) do
-    host = Keyword.get(opts, :host, @default_host)
-    port = Keyword.get(opts, :port, @default_port)
-    api_key = Keyword.get(opts, :api_key, @default_api_key)
-    timeout = Keyword.get(opts, :timeout, @timeout)
-
-    url = build_url(host, port, "/v1/models")
-    headers = build_headers(api_key)
-
-    case http_client().post_json(url, %{}, headers,
-           method: :get,
-           timeout: timeout,
-           provider: :lmstudio
-         ) do
-      {:ok, %{"data" => models}} ->
-        formatted_models = Enum.map(models, &format_openai_model/1)
-        {:ok, formatted_models}
-
-      {:error, {:api_error, %{status: status, body: error_body}}} ->
-        handle_error_response(status, error_body)
-
-      {:error, reason} ->
-        {:error, "LM Studio not accessible: #{inspect(reason)}"}
-    end
-  end
-
   defp list_models_enhanced(opts) do
-    host = Keyword.get(opts, :host, @default_host)
-    port = Keyword.get(opts, :port, @default_port)
+    config = prepare_config(opts)
     timeout = Keyword.get(opts, :timeout, @timeout)
     loaded_only = Keyword.get(opts, :loaded_only, false)
+    api_key = get_api_key(config)
 
-    url = build_url(host, port, "/api/v0/models")
-    headers = [{"Content-Type", "application/json"}]
+    url = "#{get_base_url(config)}/api/v0/models"
+    headers = get_headers(api_key, opts)
 
-    case http_client().post_json(url, %{}, headers,
-           method: :get,
+    case HTTPClient.get_json(url, headers,
            timeout: timeout,
            provider: :lmstudio
          ) do
@@ -372,12 +338,12 @@ defmodule ExLLM.Providers.LMStudio do
     end
   end
 
-  defp test_connection(host, port) do
-    url = build_url(host, port, "/v1/models")
-    headers = build_headers(@default_api_key)
+  defp test_connection(config) do
+    url = "#{get_base_url(config)}/v1/models"
+    api_key = get_api_key(config)
+    headers = get_headers(api_key, [])
 
-    case http_client().post_json(url, %{}, headers,
-           method: :get,
+    case HTTPClient.get_json(url, headers,
            timeout: 5_000,
            provider: :lmstudio
          ) do
@@ -393,36 +359,6 @@ defmodule ExLLM.Providers.LMStudio do
     end
   end
 
-  defp validate_messages(messages) do
-    case MessageFormatter.validate_messages(messages) do
-      :ok -> :ok
-      {:error, {:validation, :messages, reason}} -> {:error, "Messages #{reason}"}
-      {:error, {:validation, :message, reason}} -> {:error, "Invalid message format: #{reason}"}
-      {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp validate_options(opts) do
-    with :ok <- validate_temperature(Keyword.get(opts, :temperature)),
-         :ok <- validate_max_tokens(Keyword.get(opts, :max_tokens)),
-         :ok <- validate_host(Keyword.get(opts, :host)),
-         :ok <- validate_port(Keyword.get(opts, :port)) do
-      {:ok, opts}
-    end
-  end
-
-  defp validate_temperature(nil), do: :ok
-  defp validate_temperature(temp) when is_number(temp) and temp >= 0 and temp <= 2, do: :ok
-  defp validate_temperature(_), do: {:error, "Temperature must be between 0 and 2"}
-
-  defp validate_max_tokens(nil), do: :ok
-  # LM Studio uses -1 for unlimited tokens
-  defp validate_max_tokens(-1), do: :ok
-  defp validate_max_tokens(tokens) when is_integer(tokens) and tokens > 0, do: :ok
-
-  defp validate_max_tokens(_),
-    do: {:error, "Max tokens must be a positive integer or -1 for unlimited"}
-
   defp validate_host(nil), do: :ok
   defp validate_host(host) when is_binary(host) and byte_size(host) > 0, do: :ok
   defp validate_host(_), do: {:error, "Host must be a non-empty string"}
@@ -431,60 +367,8 @@ defmodule ExLLM.Providers.LMStudio do
   defp validate_port(port) when is_integer(port) and port > 0 and port <= 65_535, do: :ok
   defp validate_port(_), do: {:error, "Port must be an integer between 1 and 65_535"}
 
-  defp build_url(host, port, path) do
-    "http://#{host}:#{port}#{path}"
-  end
-
-  defp build_headers(api_key) do
-    [
-      {"Content-Type", "application/json"},
-      {"Authorization", "Bearer #{api_key}"}
-    ]
-  end
-
-  defp build_chat_request(messages, opts, model, extra_opts \\ []) do
-    base_request = %{
-      "model" => model,
-      "messages" => MessageFormatter.stringify_message_keys(messages),
-      "stream" => Keyword.get(extra_opts, :stream, false)
-    }
-
-    # Add optional parameters
-    request =
-      base_request
-      |> maybe_add_param("temperature", Keyword.get(opts, :temperature))
-      # LM Studio default
-      |> maybe_add_param("max_tokens", Keyword.get(opts, :max_tokens, -1))
-      |> maybe_add_param("top_p", Keyword.get(opts, :top_p))
-      |> maybe_add_param("frequency_penalty", Keyword.get(opts, :frequency_penalty))
-      |> maybe_add_param("presence_penalty", Keyword.get(opts, :presence_penalty))
-      |> maybe_add_param("stop", Keyword.get(opts, :stop))
-      |> maybe_add_param("seed", Keyword.get(opts, :seed))
-      |> maybe_add_param("ttl", Keyword.get(opts, :ttl))
-
-    request
-  end
-
   defp maybe_add_param(request, _key, nil), do: request
   defp maybe_add_param(request, key, value), do: Map.put(request, key, value)
-
-  defp format_openai_model(model_data) do
-    %Types.Model{
-      id: model_data["id"],
-      name: format_model_name(model_data["id"]),
-      description: "LM Studio model - OpenAI compatible endpoint",
-      # Default, actual value may vary
-      context_window: 4_096,
-      max_output_tokens: 4_096,
-      # Local models are free
-      pricing: %{input: 0.0, output: 0.0},
-      capabilities: %{
-        features: ["chat", "completions"],
-        supports_streaming: true,
-        supports_tools: false
-      }
-    }
-  end
 
   defp format_enhanced_model(model_data) do
     # Handle both old and new LM Studio API formats
@@ -523,13 +407,6 @@ defmodule ExLLM.Providers.LMStudio do
         supports_tools: engine in ["llama.cpp", "gguf"]
       }
     }
-  end
-
-  defp format_model_name(model_id) do
-    model_id
-    |> String.split(["/", "-", "_"])
-    |> Enum.map(&String.capitalize/1)
-    |> Enum.join(" ")
   end
 
   defp determine_model_features(model_data) do
