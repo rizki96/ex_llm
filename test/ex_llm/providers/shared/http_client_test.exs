@@ -36,7 +36,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
       bypass: bypass,
       config_provider: config_provider
     } do
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         # Verify headers
         assert {"authorization", "Bearer test-api-key"} in conn.req_headers
         assert {"content-type", "application/json"} in conn.req_headers
@@ -69,7 +69,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
     end
 
     test "get/2 sends GET request with headers", %{bypass: bypass} do
-      Bypass.expect(bypass, "GET", "/models", fn conn ->
+      Bypass.expect(bypass, "GET", "/v1/models", fn conn ->
         assert {"authorization", "Bearer test-api-key"} in conn.req_headers
 
         Plug.Conn.resp(
@@ -100,7 +100,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
         "data: [DONE]\n\n"
       ]
 
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         # Verify streaming request
         {:ok, body, conn} = Plug.Conn.read_body(conn)
         decoded_body = Jason.decode!(body)
@@ -138,7 +138,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
     end
 
     test "handles streaming errors gracefully", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         Plug.Conn.resp(conn, 500, "Internal Server Error")
       end)
 
@@ -156,7 +156,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
 
   describe "error handling" do
     test "handles 401 authentication errors", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         Plug.Conn.resp(conn, 401, Jason.encode!(%{error: "Invalid API key"}))
       end)
 
@@ -171,7 +171,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
     end
 
     test "handles 429 rate limit errors", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         conn
         |> Plug.Conn.put_resp_header("retry-after", "60")
         |> Plug.Conn.resp(429, Jason.encode!(%{error: "Rate limit exceeded"}))
@@ -189,7 +189,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
     end
 
     test "handles 500 server errors", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         Plug.Conn.resp(conn, 500, "Internal Server Error")
       end)
 
@@ -219,7 +219,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
       call_count = Agent.start_link(fn -> 0 end)
       {:ok, counter} = call_count
 
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         Agent.update(counter, &(&1 + 1))
 
         Plug.Conn.resp(
@@ -259,7 +259,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
       call_count = Agent.start_link(fn -> 0 end)
       {:ok, counter} = call_count
 
-      Bypass.expect(bypass, "POST", "/chat/completions", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         count = Agent.get_and_update(counter, fn c -> {c + 1, c + 1} end)
 
         case count do
@@ -290,7 +290,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
 
   describe "multipart uploads" do
     test "handles file uploads with multipart/form-data", %{bypass: bypass} do
-      Bypass.expect(bypass, "POST", "/files", fn conn ->
+      Bypass.expect(bypass, "POST", "/v1/files", fn conn ->
         # Verify content-type is multipart
         content_type = conn |> Plug.Conn.get_req_header("content-type") |> hd()
         assert String.starts_with?(content_type, "multipart/form-data")

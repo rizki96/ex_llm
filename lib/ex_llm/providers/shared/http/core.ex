@@ -72,11 +72,14 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   @spec stream(Tesla.Client.t(), String.t(), term(), function(), keyword()) ::
           {:ok, Tesla.Env.t()} | {:error, term()}
   def stream(client, path, body, callback, opts \\ []) do
+    user_headers = Keyword.get(opts, :headers, [])
+    normalized_headers = normalize_headers(user_headers)
+
     headers =
       [
         {"accept", "text/event-stream"},
         {"cache-control", "no-cache"}
-      ] ++ Keyword.get(opts, :headers, [])
+      ] ++ normalized_headers
 
     timeout = Keyword.get(opts, :timeout, 300_000)
     parse_chunk_fn = Keyword.get(opts, :parse_chunk, &default_parse_chunk/1)
@@ -113,6 +116,10 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
             # Let's keep it that way for consistency.
             nil ->
               nil
+
+            # Handle string body (from Bypass mock responses)
+            body when is_binary(body) ->
+              body
           end
 
         {:ok, %{env | body: final_body}}
@@ -161,10 +168,17 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   # Private functions
 
   defp build_middleware_stack(provider, opts) do
-    base_middleware = [
-      {Tesla.Middleware.BaseUrl, get_base_url(provider, opts)},
-      {Tesla.Middleware.JSON, engine_opts: [keys: :strings]}
-    ]
+    json_middleware =
+      if Keyword.get(opts, :json_enabled, true) do
+        [{Tesla.Middleware.JSON, engine_opts: [keys: :strings]}]
+      else
+        []
+      end
+
+    base_middleware =
+      [
+        {Tesla.Middleware.BaseUrl, get_base_url(provider, opts)}
+      ] ++ json_middleware
 
     auth_middleware =
       if Keyword.get(opts, :auth_enabled, true) do
@@ -334,4 +348,17 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
 
   defp ensure_map(data) when is_map(data), do: data
   defp ensure_map(data), do: %{"data" => data}
+
+  defp normalize_headers(headers) when is_list(headers) do
+    Enum.map(headers, fn
+      {key, value} -> {to_string(key), to_string(value)}
+      header -> header
+    end)
+  end
+
+  defp normalize_headers(headers) when is_map(headers) do
+    Enum.map(headers, fn {key, value} ->
+      {to_string(key), to_string(value)}
+    end)
+  end
 end

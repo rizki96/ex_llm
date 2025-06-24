@@ -53,14 +53,36 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   Make a GET request to an API endpoint.
   """
   @spec get(String.t(), list({String.t(), String.t()}), keyword()) ::
-          {:ok, map()} | {:error, term()}
+          {:ok, Tesla.Env.t()} | {:error, term()}
   def get(url, headers, opts \\ []) do
     case TestResponseInterceptor.intercept_request(url, nil, headers, opts) do
       {:cached, cached_response} ->
         cached_response
 
       {:proceed, _request_metadata} ->
-        execute_get_request(url, headers, opts)
+        case execute_get_request(url, headers, opts) do
+          {:ok, response_map} ->
+            # Convert back to Tesla.Env format for compatibility
+            body_content =
+              case response_map[:body] do
+                body when is_binary(body) -> body
+                body when is_map(body) -> Jason.encode!(body)
+                _ -> ""
+              end
+
+            tesla_env = %Tesla.Env{
+              status: response_map[:status] || 200,
+              headers: response_map[:headers] || [],
+              body: body_content,
+              method: :get,
+              url: url
+            }
+
+            {:ok, tesla_env}
+
+          error ->
+            error
+        end
     end
   end
 
@@ -73,11 +95,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     callback = Keyword.get(opts, :into)
     parse_chunk = Keyword.get(opts, :parse_chunk, &default_parse_chunk/1)
 
-    client_opts = build_client_opts(opts)
-    client = HTTP.Core.client(client_opts)
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
 
-    # Extract path from full URL for Tesla
-    path = extract_path_from_url(url)
+    # Build client options with the extracted or provided base URL
+    client_opts = build_client_opts(opts, base_url)
+    client = HTTP.Core.client(client_opts)
 
     HTTP.Core.stream(client, path, body, callback,
       headers: headers,
@@ -91,13 +114,28 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   """
   @spec post_multipart(String.t(), list(), keyword()) :: {:ok, any()} | {:error, term()}
   def post_multipart(url, multipart_data, opts \\ []) do
-    client_opts = build_client_opts(opts)
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
+
+    # Build client options with the extracted or provided base URL
+    # Disable JSON middleware for multipart uploads
+    client_opts = build_client_opts(opts, base_url) ++ [json_enabled: false]
     client = HTTP.Core.client(client_opts)
+    headers = normalize_headers(Keyword.get(opts, :headers, []))
 
-    path = extract_path_from_url(url)
-    headers = Keyword.get(opts, :headers, [])
+    case HTTP.Core.upload(client, path, multipart_data, headers: headers) do
+      {:ok, %Tesla.Env{status: status, headers: resp_headers, body: resp_body}} ->
+        response = %{
+          status: status,
+          headers: resp_headers,
+          body: parse_response_body(resp_body)
+        }
 
-    HTTP.Core.upload(client, path, multipart_data, headers: headers)
+        {:ok, response}
+
+      {:error, _} = error ->
+        error
+    end
   end
 
   @doc """
@@ -110,10 +148,17 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     case post_json(url, body, headers, opts) do
       {:ok, response_map} ->
         # Convert back to Tesla.Env format for compatibility
+        body_content =
+          case response_map[:body] do
+            body when is_binary(body) -> body
+            body when is_map(body) -> Jason.encode!(body)
+            _ -> ""
+          end
+
         tesla_env = %Tesla.Env{
           status: response_map[:status] || 200,
           headers: response_map[:headers] || [],
-          body: response_map[:body] || Jason.encode!(response_map),
+          body: body_content,
           method: :post,
           url: url
         }
@@ -128,11 +173,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   # Private helper functions
 
   defp execute_post_request(url, body, headers, opts) do
-    client_opts = build_client_opts(opts)
-    client = HTTP.Core.client(client_opts)
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
 
-    # Extract path from full URL for Tesla
-    path = extract_path_from_url(url)
+    # Build client options with the extracted or provided base URL
+    client_opts = build_client_opts(opts, base_url)
+    client = HTTP.Core.client(client_opts)
 
     # Merge additional headers
     additional_headers = normalize_headers(headers)
@@ -153,10 +199,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   end
 
   defp execute_get_request(url, headers, opts) do
-    client_opts = build_client_opts(opts)
-    client = HTTP.Core.client(client_opts)
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
 
-    path = extract_path_from_url(url)
+    # Build client options with the extracted or provided base URL
+    client_opts = build_client_opts(opts, base_url)
+    client = HTTP.Core.client(client_opts)
     additional_headers = normalize_headers(headers)
 
     case Tesla.get(client, path, headers: additional_headers) do
@@ -174,11 +222,11 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     end
   end
 
-  defp build_client_opts(opts) do
+  defp build_client_opts(opts, base_url) do
     [
       provider: Keyword.get(opts, :provider, :openai),
       api_key: Keyword.get(opts, :api_key),
-      base_url: extract_base_url_from_opts(opts),
+      base_url: base_url || extract_base_url_from_opts(opts),
       timeout: Keyword.get(opts, :timeout, @default_timeout),
       cache_enabled: Keyword.get(opts, :cache_enabled, false),
       retry_enabled: Keyword.get(opts, :retry_enabled, true),
@@ -215,14 +263,35 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     end
   end
 
-  defp extract_path_from_url(url) do
-    uri = URI.parse(url)
-    path = uri.path || "/"
 
-    if uri.query do
-      "#{path}?#{uri.query}"
+  defp extract_base_url_and_path(url) do
+    uri = URI.parse(url)
+
+    # Check if this is an absolute URL (has scheme and host)
+    if uri.scheme && uri.host do
+      # Extract base URL (scheme + host + port)
+      port_part =
+        if uri.port && uri.port != URI.default_port(uri.scheme) do
+          ":#{uri.port}"
+        else
+          ""
+        end
+
+      base_url = "#{uri.scheme}://#{uri.host}#{port_part}"
+      path = uri.path || "/"
+
+      # Include query if present
+      path_with_query =
+        if uri.query do
+          "#{path}?#{uri.query}"
+        else
+          path
+        end
+
+      {base_url, path_with_query}
     else
-      path
+      # Relative URL - return nil for base_url and the original URL as path
+      {nil, url}
     end
   end
 
@@ -295,10 +364,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   @spec delete_json(String.t(), list({String.t(), String.t()}), keyword()) ::
           {:ok, map()} | {:error, term()}
   def delete_json(url, headers, opts \\ []) do
-    client_opts = build_client_opts(opts)
-    client = HTTP.Core.client(client_opts)
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
 
-    path = extract_path_from_url(url)
+    # Build client options with the extracted or provided base URL
+    client_opts = build_client_opts(opts, base_url)
+    client = HTTP.Core.client(client_opts)
     additional_headers = normalize_headers(headers)
 
     case Tesla.delete(client, path, headers: additional_headers) do
@@ -322,10 +393,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   @spec get_binary(String.t(), list({String.t(), String.t()}), keyword()) ::
           {:ok, binary()} | {:error, term()}
   def get_binary(url, headers, opts \\ []) do
-    client_opts = build_client_opts(opts)
-    client = HTTP.Core.client(client_opts)
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
 
-    path = extract_path_from_url(url)
+    # Build client options with the extracted or provided base URL
+    client_opts = build_client_opts(opts, base_url)
+    client = HTTP.Core.client(client_opts)
     additional_headers = normalize_headers(headers)
 
     case Tesla.get(client, path, headers: additional_headers) do
