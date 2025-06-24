@@ -33,6 +33,8 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.PrometheusEndpoint do
       {:ok, metrics_text} = ExLLM.CircuitBreaker.Metrics.PrometheusEndpoint.export()
   """
 
+  require Logger
+
   # Check if optional dependencies are available
   @plug_available Code.ensure_loaded?(Plug.Conn)
   @cowboy_available Code.ensure_loaded?(:cowboy)
@@ -50,6 +52,8 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.PrometheusEndpoint do
   def init(opts), do: opts
 
   if @plug_available do
+    # NOTE: Defensive error handling - export() might return additional error types
+    # based on compile-time configuration or future library changes
     def call(conn, _opts) do
       case export() do
         {:ok, metrics_text} ->

@@ -12,8 +12,7 @@
   # === ELIXIR/OTP MACRO EXPANSIONS (Legitimate) ===
   # Logger macros generate these functions at compile time
   # These functions exist but are not visible to static analysis
-  ~r/Function Logger\.__do_log__\/4 does not exist/,
-  ~r/Function Logger\.__should_log__\/2 does not exist/,
+  # Note: Logger macro warnings resolved in current Elixir version
   
   # === MIX COMPILE-TIME FUNCTIONS (Legitimate) ===
   # Mix functions are available at compile time but not in runtime PLT
@@ -32,5 +31,6 @@
   
   # === OPTIONAL DEPENDENCIES (Legitimate) ===
   # Ecto is an optional dependency properly handled with Code.ensure_loaded?
-  ~r/Function Ecto\.Changeset\./
+  ~r/Function Ecto\.Changeset\./,
+  
 ]

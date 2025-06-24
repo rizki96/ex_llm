@@ -18,6 +18,8 @@ defmodule ExLLM.Application do
       [
         # Start StreamRecovery for all adapters
         ExLLM.Core.Streaming.Recovery,
+        # Start StreamingEngine with stream tracking
+        ExLLM.Providers.Shared.StreamingEngine,
         # Start Cache if enabled
         cache_child_spec(),
         # Start Circuit Breaker Configuration Manager

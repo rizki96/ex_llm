@@ -9,7 +9,7 @@ defmodule ExLLM.Providers.Perplexity do
   - Sonar: Lightweight, cost-effective search model
   - Sonar Pro: Advanced search with grounding for complex queries
 
-  ## Research Models  
+  ## Research Models
   - Sonar Deep Research: Expert-level research conducting exhaustive searches
 
   ## Reasoning Models
@@ -56,7 +56,7 @@ defmodule ExLLM.Providers.Perplexity do
       IO.puts(response.content)
 
       # Academic search mode
-      {:ok, response} = ExLLM.Providers.Perplexity.chat(messages, 
+      {:ok, response} = ExLLM.Providers.Perplexity.chat(messages,
         model: "perplexity/sonar-pro",
         search_mode: "academic",
         web_search_options: %{search_context_size: "medium"}
@@ -64,7 +64,7 @@ defmodule ExLLM.Providers.Perplexity do
 
       # Deep research with high reasoning effort
       {:ok, response} = ExLLM.Providers.Perplexity.chat(messages,
-        model: "perplexity/sonar-deep-research", 
+        model: "perplexity/sonar-deep-research",
         reasoning_effort: "high"
       )
 
@@ -78,229 +78,99 @@ defmodule ExLLM.Providers.Perplexity do
       end
   """
 
-  @behaviour ExLLM.Provider
-  @behaviour ExLLM.Providers.Shared.StreamingBehavior
+  import ExLLM.Providers.Shared.ModelUtils, only: [format_model_name: 1, generate_description: 2]
+  import ExLLM.Providers.OpenAICompatible, only: [default_model_transformer: 2]
 
-  alias ExLLM.{Infrastructure.Config.ModelConfig, Infrastructure.Logger, Types}
+  use ExLLM.Providers.OpenAICompatible,
+    provider: :perplexity,
+    base_url: "https://api.perplexity.ai"
 
-  alias ExLLM.Providers.Shared.{
-    ConfigHelper,
-    EnhancedStreamingCoordinator,
-    ErrorHandler,
-    HTTPClient,
-    MessageFormatter,
-    ModelUtils,
-    ResponseBuilder,
-    Validation
-  }
+  alias ExLLM.Infrastructure.Config.ModelConfig
+  alias ExLLM.Types
 
-  @default_base_url "https://api.perplexity.ai"
-  @default_temperature 0.2
   @max_filter_items 10
-
-  # Search modes supported by Perplexity
   @valid_search_modes ["news", "academic", "general"]
-
-  # Reasoning effort levels for deep research models
   @valid_reasoning_efforts ["low", "medium", "high"]
 
-  @impl true
-  def chat(messages, options \\ []) do
-    with :ok <- MessageFormatter.validate_messages(messages),
-         :ok <- validate_perplexity_parameters(options),
-         config_provider <- ConfigHelper.get_config_provider(options),
-         config <- ConfigHelper.get_config(:perplexity, config_provider),
-         api_key <- ConfigHelper.get_api_key(config, "PERPLEXITY_API_KEY"),
-         {:ok, _} <- Validation.validate_api_key(api_key) do
-      model =
-        Keyword.get(
-          options,
-          :model,
-          Map.get(config, :model) || ConfigHelper.ensure_default_model(:perplexity)
-        )
+  @impl ExLLM.Provider
+  def default_model, do: "perplexity/sonar"
 
-      body = build_request_body(messages, model, config, options)
-      headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/chat/completions"
-
-      Logger.with_context([provider: :perplexity, model: model], fn ->
-        case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :perplexity) do
-          {:ok, response} ->
-            {:ok, parse_response(response, model)}
-
-          {:error, {:api_error, %{status: status, body: body}}} ->
-            ErrorHandler.handle_provider_error(:perplexity, status, body)
-
-          {:error, reason} ->
-            {:error, reason}
-        end
-      end)
+  # Override chat and stream_chat to add Perplexity-specific validation
+  @impl ExLLM.Provider
+  def chat(messages, options) do
+    with :ok <- validate_perplexity_parameters(options) do
+      super(messages, options)
     end
   end
 
-  @impl true
-  def stream_chat(messages, options \\ []) do
-    with :ok <- MessageFormatter.validate_messages(messages),
-         :ok <- validate_perplexity_parameters(options),
-         config_provider <- ConfigHelper.get_config_provider(options),
-         config <- ConfigHelper.get_config(:perplexity, config_provider),
-         api_key <- ConfigHelper.get_api_key(config, "PERPLEXITY_API_KEY"),
-         {:ok, _} <- Validation.validate_api_key(api_key) do
-      model =
-        Keyword.get(
-          options,
-          :model,
-          Map.get(config, :model) || ConfigHelper.ensure_default_model(:perplexity)
-        )
-
-      body = build_request_body(messages, model, config, options ++ [stream: true])
-      headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/chat/completions"
-
-      # Create stream with enhanced features
-      chunks_ref = make_ref()
-      parent = self()
-
-      # Setup callback that sends chunks to parent
-      callback = fn chunk ->
-        send(parent, {chunks_ref, {:chunk, chunk}})
-      end
-
-      # Enhanced streaming options with Perplexity-specific features
-      stream_options = [
-        parse_chunk_fn: &parse_stream_chunk/1,
-        provider: :perplexity,
-        model: model,
-        stream_recovery: Keyword.get(options, :stream_recovery, false),
-        track_metrics: Keyword.get(options, :track_metrics, false),
-        on_metrics: Keyword.get(options, :on_metrics),
-        transform_chunk: create_perplexity_transformer(options),
-        validate_chunk: create_perplexity_validator(options),
-        buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
-        timeout: Keyword.get(options, :timeout, 300_000),
-        # Enable enhanced features if requested
-        enable_flow_control: Keyword.get(options, :enable_flow_control, false),
-        enable_batching: Keyword.get(options, :enable_batching, false),
-        track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
-      ]
-
-      Logger.with_context([provider: :perplexity, model: model], fn ->
-        {:ok, stream_id} =
-          EnhancedStreamingCoordinator.start_stream(
-            url,
-            body,
-            headers,
-            callback,
-            stream_options
-          )
-
-        # Create Elixir stream that receives chunks
-        stream =
-          Stream.resource(
-            fn -> {chunks_ref, stream_id} end,
-            fn {ref, _id} = state ->
-              receive do
-                {^ref, {:chunk, chunk}} -> {[chunk], state}
-              after
-                100 -> {[], state}
-              end
-            end,
-            fn _ -> :ok end
-          )
-
-        {:ok, stream}
-      end)
+  @impl ExLLM.Provider
+  def stream_chat(messages, options) do
+    with :ok <- validate_perplexity_parameters(options) do
+      super(messages, options)
     end
   end
 
-  @impl true
+  # Override list_models to provide fallback to config
+  @impl ExLLM.Provider
+  # NOTE: Defensive error handling - super() currently only returns {:ok, models}
+  # but this error clause provides safety if parent implementations change
   def list_models(options \\ []) do
-    with config_provider <- ConfigHelper.get_config_provider(options),
-         config <- ConfigHelper.get_config(:perplexity, config_provider),
-         api_key <- ConfigHelper.get_api_key(config, "PERPLEXITY_API_KEY"),
-         {:ok, _} <- Validation.validate_api_key(api_key) do
-      headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/models"
+    case super(options) do
+      {:ok, models} ->
+        {:ok, models}
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :perplexity
-           ) do
-        {:ok, %{"data" => models}} ->
-          parsed_models =
-            models
-            |> Enum.map(&parse_model_info/1)
-            |> Enum.sort_by(& &1.id)
-
-          {:ok, parsed_models}
-
-        {:error, {:api_error, %{status: status, body: body}}} ->
-          Logger.debug("Failed to fetch Perplexity models: #{status} - #{inspect(body)}")
-          ErrorHandler.handle_provider_error(:perplexity, status, body)
-
-        {:error, reason} ->
-          Logger.debug("Failed to fetch Perplexity models: #{inspect(reason)}")
-          {:error, reason}
-      end
-    else
-      # Fallback to configuration-based models if API fails
-      _ ->
+      {:error, _reason} ->
+        # Fallback to configuration-based models if API fails
         load_models_from_config()
     end
   end
 
-  @impl true
-  def configured?(options \\ []) do
-    config_provider = ConfigHelper.get_config_provider(options)
-    config = ConfigHelper.get_config(:perplexity, config_provider)
-    api_key = ConfigHelper.get_api_key(config, "PERPLEXITY_API_KEY")
-
-    case Validation.validate_api_key(api_key) do
-      {:ok, _} -> true
-      _ -> false
-    end
+  # Override OpenAICompatible behavior to add Perplexity-specific parameters
+  @impl ExLLM.Providers.OpenAICompatible
+  def transform_request(request, options) do
+    request
+    |> add_optional_param(options, :search_mode, "search_mode")
+    |> add_optional_param(options, :web_search_options, "web_search_options")
+    |> add_optional_param(options, :reasoning_effort, "reasoning_effort")
+    |> add_optional_param(options, :return_images, "return_images")
+    |> add_optional_param(options, :image_domain_filter, "image_domain_filter")
+    |> add_optional_param(options, :image_format_filter, "image_format_filter")
+    |> add_optional_param(options, :recency_filter, "recency_filter")
+    # Perplexity uses a different default temperature
+    |> Map.put_new("temperature", 0.2)
   end
 
-  @impl true
-  def default_model, do: "perplexity/sonar"
+  # Override to parse models from Perplexity's API response
+  @impl ExLLM.Providers.OpenAICompatible
+  def parse_model(model) do
+    model_id = model["id"]
+    web_search = supports_web_search?(model_id)
+    reasoning = supports_reasoning?(model_id)
 
-  # StreamingBehavior implementation
-  @impl ExLLM.Providers.Shared.StreamingBehavior
-  def parse_stream_chunk(chunk) do
-    case Jason.decode(chunk) do
-      {:ok, %{"choices" => [%{"delta" => delta, "finish_reason" => finish_reason} | _]}} ->
-        content = delta["content"]
+    features = ["streaming"]
+    features = if web_search, do: ["web_search" | features], else: features
+    features = if reasoning, do: ["reasoning" | features], else: features
 
-        if content || finish_reason do
-          {:ok,
-           %Types.StreamChunk{
-             content: content,
-             finish_reason: finish_reason
-           }}
-        else
-          {:ok, nil}
-        end
+    %Types.Model{
+      id: model_id,
+      name: format_model_name(model_id),
+      description: generate_description(model_id, :perplexity),
+      # Default for most Perplexity models
+      context_window: 128_000,
+      # Default max output
+      max_output_tokens: 8000,
+      capabilities: %{
+        supports_streaming: true,
+        supports_functions: false,
+        supports_vision: false,
+        features: features
+      }
+    }
+  end
 
-      {:ok, %{"choices" => [%{"delta" => delta} | _]}} ->
-        content = delta["content"]
-
-        if content do
-          {:ok,
-           %Types.StreamChunk{
-             content: content,
-             finish_reason: nil
-           }}
-        else
-          {:ok, nil}
-        end
-
-      {:error, _} = error ->
-        error
-
-      _ ->
-        {:ok, nil}
-    end
+  @impl ExLLM.Provider
+  def embeddings(_inputs, _options) do
+    {:error, {:not_implemented, :perplexity_embeddings}}
   end
 
   # Public helper functions for model classification
@@ -365,128 +235,27 @@ defmodule ExLLM.Providers.Perplexity do
 
   # Private helper functions
 
-  defp create_perplexity_transformer(options) do
-    # Example: Add citations inline if requested
-    if Keyword.get(options, :inline_citations, false) do
-      fn chunk ->
-        # Transform citations into inline format
-        if chunk.content && String.contains?(chunk.content, "[") do
-          transformed_content = transform_citations(chunk.content)
-          {:ok, %{chunk | content: transformed_content}}
-        else
-          {:ok, chunk}
-        end
-      end
+  defp validate_perplexity_parameters(options) do
+    with :ok <-
+           (case Keyword.get(options, :search_mode) do
+              nil -> :ok
+              mode -> validate_search_mode(mode)
+            end),
+         :ok <-
+           (case Keyword.get(options, :reasoning_effort) do
+              nil -> :ok
+              effort -> validate_reasoning_effort(effort)
+            end),
+         :ok <- validate_image_filter_param(options, :image_domain_filter) do
+      validate_image_filter_param(options, :image_format_filter)
     end
   end
 
-  defp create_perplexity_validator(options) do
-    # Validate search results if using search mode
-    if Keyword.get(options, :validate_sources, false) do
-      fn chunk ->
-        # Simple validation example
-        if chunk.metadata && chunk.metadata["sources"] do
-          validate_sources(chunk.metadata["sources"])
-        else
-          :ok
-        end
-      end
+  defp validate_image_filter_param(options, param_key) do
+    case Keyword.get(options, param_key) do
+      nil -> :ok
+      filters -> validate_image_filters(filters)
     end
-  end
-
-  defp transform_citations(content) do
-    # Simple example: Transform [1] to (Source 1)
-    Regex.replace(~r/\[(\d+)\]/, content, "(Source \\1)")
-  end
-
-  defp validate_sources(sources) when is_list(sources) do
-    # Check if sources are from reputable domains
-    untrusted =
-      Enum.filter(sources, fn source ->
-        url = source["url"] || ""
-        String.contains?(url, ["spam", "fake", "untrusted"])
-      end)
-
-    if length(untrusted) > 0 do
-      {:error, "Contains untrusted sources"}
-    else
-      :ok
-    end
-  end
-
-  defp validate_sources(_), do: :ok
-
-  defp build_request_body(messages, model, _config, options) do
-    body = %{
-      model: model,
-      messages: messages,
-      temperature: Keyword.get(options, :temperature, @default_temperature),
-      stream: Keyword.get(options, :stream, false)
-    }
-
-    # Add optional parameters
-    body
-    |> maybe_add_param(:max_tokens, Keyword.get(options, :max_tokens))
-    |> maybe_add_param(:top_p, Keyword.get(options, :top_p))
-    |> maybe_add_param(:presence_penalty, Keyword.get(options, :presence_penalty))
-    |> maybe_add_param(:frequency_penalty, Keyword.get(options, :frequency_penalty))
-    # Perplexity-specific parameters
-    |> maybe_add_param(:search_mode, Keyword.get(options, :search_mode))
-    |> maybe_add_param(:web_search_options, Keyword.get(options, :web_search_options))
-    |> maybe_add_param(:reasoning_effort, Keyword.get(options, :reasoning_effort))
-    |> maybe_add_param(:return_images, Keyword.get(options, :return_images))
-    |> maybe_add_param(:image_domain_filter, Keyword.get(options, :image_domain_filter))
-    |> maybe_add_param(:image_format_filter, Keyword.get(options, :image_format_filter))
-    |> maybe_add_param(:recency_filter, Keyword.get(options, :recency_filter))
-    |> Map.reject(fn {_, v} -> is_nil(v) end)
-  end
-
-  defp maybe_add_param(body, _key, nil), do: body
-  defp maybe_add_param(body, key, value), do: Map.put(body, key, value)
-
-  defp build_headers(api_key, _config) do
-    HTTPClient.build_provider_headers(:perplexity, api_key: api_key)
-  end
-
-  defp get_base_url(config) do
-    Map.get(config, :base_url) || @default_base_url
-  end
-
-  defp parse_response(response, model) do
-    ResponseBuilder.build_chat_response(response, model, provider: :perplexity)
-  end
-
-  defp parse_model_info(model_data) do
-    %Types.Model{
-      id: model_data["id"],
-      name: ModelUtils.format_model_name(model_data["id"]),
-      description: ModelUtils.generate_description(model_data["id"], :perplexity),
-      # Default for most Perplexity models
-      context_window: 128_000,
-      # Default max output
-      max_output_tokens: 8000,
-      capabilities: build_model_capabilities(model_data["id"])
-    }
-  end
-
-  defp build_model_capabilities(model_id) do
-    features = ["streaming"]
-
-    features =
-      if supports_web_search?(model_id) do
-        ["web_search" | features]
-      else
-        features
-      end
-
-    features =
-      if supports_reasoning?(model_id) do
-        ["reasoning" | features]
-      else
-        features
-      end
-
-    %{features: features}
   end
 
   defp load_models_from_config do
@@ -501,8 +270,8 @@ defmodule ExLLM.Providers.Perplexity do
 
           %Types.Model{
             id: model_id_str,
-            name: ModelUtils.format_model_name(model_id_str),
-            description: ModelUtils.generate_description(model_id_str, :perplexity),
+            name: format_model_name(model_id_str),
+            description: generate_description(model_id_str, :perplexity),
             context_window: Map.get(config, :context_window) || 128_000,
             max_output_tokens: Map.get(config, :max_output_tokens) || 8000,
             pricing: Map.get(config, :pricing),
@@ -535,42 +304,6 @@ defmodule ExLLM.Providers.Perplexity do
            capabilities: %{features: ["streaming", "web_search"]}
          }
        ]}
-    end
-  end
-
-  defp validate_perplexity_parameters(options) do
-    # Validate search mode if provided
-    case Keyword.get(options, :search_mode) do
-      nil -> :ok
-      mode -> validate_search_mode(mode)
-    end
-    |> case do
-      :ok ->
-        # Validate reasoning effort if provided
-        case Keyword.get(options, :reasoning_effort) do
-          nil -> :ok
-          effort -> validate_reasoning_effort(effort)
-        end
-
-      error ->
-        error
-    end
-    |> case do
-      :ok ->
-        # Validate image filters if provided
-        with :ok <- validate_image_filter_param(options, :image_domain_filter) do
-          validate_image_filter_param(options, :image_format_filter)
-        end
-
-      error ->
-        error
-    end
-  end
-
-  defp validate_image_filter_param(options, param_key) do
-    case Keyword.get(options, param_key) do
-      nil -> :ok
-      filters -> validate_image_filters(filters)
     end
   end
 end
