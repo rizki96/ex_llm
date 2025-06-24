@@ -3,6 +3,9 @@ defmodule ExLLM.Providers.OpenAIContractTest do
 
   alias ExLLM.Providers.OpenAI
 
+  @moduletag :integration
+  @moduletag :provider_openai
+
   # This test suite serves as a contract for the public API of the OpenAI provider.
   # It tests that function signatures and basic interactions remain consistent during
   # refactoring. It intentionally uses a dummy API key to ensure that all public

@@ -8,6 +8,15 @@ Code.require_file("support/oauth2_test_case.ex", __DIR__)
 Code.require_file("support/capability_helpers.ex", __DIR__)
 Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
 
+# Start hackney for tests that use Bypass
+{:ok, _} = Application.ensure_all_started(:hackney)
+
+# Set up Tesla.Mock as the default adapter for tests
+Application.put_env(:tesla, :adapter, Tesla.Mock)
+
+# Configure ExLLM to use Tesla.Mock for tests
+Application.put_env(:ex_llm, :use_tesla_mock, true)
+
 # Load environment variables from .env file if available
 case ExLLM.Testing.EnvHelper.load_env(warn_missing: false) do
   :ok ->

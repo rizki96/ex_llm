@@ -46,6 +46,8 @@ defmodule ExLLM.Providers.OpenAI.CoreTest do
   end
 
   describe "model listing" do
+    @tag :integration
+    @tag :provider_openai
     test "list_models returns models from config" do
       {:ok, models} = OpenAI.list_models()
 
@@ -60,6 +62,8 @@ defmodule ExLLM.Providers.OpenAI.CoreTest do
       assert is_map(model.capabilities)
     end
 
+    @tag :integration
+    @tag :provider_openai
     test "list_embedding_models returns embedding models" do
       {:ok, models} = OpenAI.list_embedding_models()
 
@@ -75,7 +79,8 @@ defmodule ExLLM.Providers.OpenAI.CoreTest do
   end
 
   describe "headers and base URL" do
-    @tag :skip  # TODO: Fix hackney adapter compatibility issue
+    # TODO: Fix hackney adapter compatibility issue
+    @tag :skip
     test "uses custom base URL from config" do
       config = %{
         openai: %{

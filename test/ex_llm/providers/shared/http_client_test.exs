@@ -5,6 +5,10 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
   alias ExLLM.Providers.Shared.HTTPClient
 
   setup do
+    # Disable Tesla.Mock for these tests since they use Bypass
+    original_mock_setting = Application.get_env(:ex_llm, :use_tesla_mock, false)
+    Application.put_env(:ex_llm, :use_tesla_mock, false)
+
     bypass = Bypass.open()
 
     config = %{
@@ -15,6 +19,10 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
     }
 
     {:ok, config_provider} = Static.start_link(config)
+
+    on_exit(fn ->
+      Application.put_env(:ex_llm, :use_tesla_mock, original_mock_setting)
+    end)
 
     %{
       bypass: bypass,
@@ -74,9 +82,9 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
       end)
 
       url = "http://localhost:#{bypass.port}/v1/models"
-      headers = %{"authorization" => "Bearer test-api-key"}
+      headers = [{"authorization", "Bearer test-api-key"}]
 
-      {:ok, response} = HTTPClient.get(url, headers: headers)
+      {:ok, response} = HTTPClient.get(url, headers)
 
       assert response.status == 200
       decoded = Jason.decode!(response.body)

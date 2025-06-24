@@ -2,7 +2,6 @@ defmodule ExLLM.StreamingTest do
   use ExUnit.Case, async: true
 
   alias ExLLM.Pipeline.Request
-  alias ExLLM.Plugs
 
   describe "streaming functionality" do
     @tag :streaming
@@ -16,31 +15,30 @@ defmodule ExLLM.StreamingTest do
         send(collector, {:chunk, chunk})
       end
 
-      # Create a mock streaming pipeline
-      pipeline = [
-        Plugs.ValidateProvider,
-        Plugs.FetchConfig,
-        {Plugs.Providers.MockHandler,
-         stream: [
-           %{content: "Hello"},
-           %{content: ", "},
-           %{content: "world!"},
-           %{done: true, usage: %{total_tokens: 10}}
-         ]}
-      ]
+      # Set up mock response in Application environment
+      Application.put_env(:ex_llm, :mock_responses, %{
+        stream: [
+          %{content: "Hello", finish_reason: nil},
+          %{content: ", ", finish_reason: nil},
+          %{content: "world!", finish_reason: nil},
+          %{content: "", finish_reason: "stop", done: true, usage: %{total_tokens: 10}}
+        ]
+      })
 
-      request =
-        Request.new(:mock, messages, %{stream: true, stream_callback: callback})
+      # Clean up
+      on_exit(fn -> Application.delete_env(:ex_llm, :mock_responses) end)
 
-      _result = ExLLM.run(request, pipeline)
+      # Use the high-level streaming API
+      result = ExLLM.stream(:mock, messages, callback)
 
-      # Wait for chunks to arrive
+      # Wait for processing to complete
       Process.sleep(100)
 
       # Collect chunks with sufficient timeout for all 4 chunks
       # 4 chunks * 10ms delay + buffer = 100ms timeout
       chunks = collect_chunks(100)
 
+      assert result == :ok
       assert length(chunks) == 4
       assert Enum.at(chunks, 0).content == "Hello"
       assert Enum.at(chunks, 1).content == ", "

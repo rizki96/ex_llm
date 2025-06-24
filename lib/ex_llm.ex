@@ -162,9 +162,14 @@ defmodule ExLLM do
 
     case ExLLM.Core.Chat.stream_chat(provider, messages, opts_with_callback) do
       {:ok, stream} ->
-        # Consume the stream to trigger callbacks
+        # Consume the stream and trigger callbacks
         try do
-          Enum.each(stream, fn _chunk -> :ok end)
+          Enum.each(stream, fn chunk ->
+            # Invoke the callback for each chunk
+            callback.(chunk)
+            :ok
+          end)
+
           :ok
         catch
           kind, reason -> {:error, {kind, reason}}

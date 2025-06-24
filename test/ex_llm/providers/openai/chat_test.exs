@@ -13,6 +13,8 @@ defmodule ExLLM.Providers.OpenAI.ChatTest do
   alias ExLLM.Types
 
   @moduletag :openai_chat
+  @moduletag :integration
+  @moduletag :provider_openai
 
   describe "message formatting" do
     test "handles simple text messages" do

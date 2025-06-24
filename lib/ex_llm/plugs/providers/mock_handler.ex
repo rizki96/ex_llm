@@ -23,7 +23,9 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
 
   def call(%Request{state: :executing} = request, opts) do
     messages = request.messages
-    config = request.assigns[:config] || request.options || %{}
+    # Use original request options for Mock provider behavior
+    # Provider config is in request.assigns[:config] for auth/settings
+    config = request.options || %{}
 
     # Check if this is a streaming request
     is_streaming = Keyword.get(request.options, :stream, false)
@@ -67,7 +69,7 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
     end
 
     # Check if we should simulate an error (from Mock agent or options)
-    error_to_simulate = get_mock_agent_error() || config[:mock_error] || opts[:error]
+    error_to_simulate = get_mock_agent_error() || request.options[:mock_error] || opts[:error]
 
     if error_to_simulate do
       # Use the Request error handling system properly
@@ -86,6 +88,8 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
         model: response.model,
         usage: response.usage,
         finish_reason: "stop",
+        function_call: response.function_call,
+        tool_calls: response.tool_calls,
         metadata: %{provider: response.provider, mock_config: response.mock_config}
       }
 
@@ -110,10 +114,11 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
       |> Request.put_state(:error)
       |> Request.halt()
     else
-      process_stream_callback(stream_response, config)
+      # Don't consume the stream here - let Pipeline.stream handle it
+      # The callback will be triggered when ExLLM.stream consumes the stream
 
       request
-      |> Request.assign(:stream, stream_response)
+      |> Request.assign(:response_stream, stream_response)
       |> Request.put_state(:streaming)
       |> Request.assign(:mock_handler_called, true)
     end
@@ -165,15 +170,6 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
     case stream_fn.(messages, config) do
       {:ok, stream} -> stream
       stream -> stream
-    end
-  end
-
-  defp process_stream_callback(stream_response, config) do
-    if callback = config[:stream_callback] do
-      Enum.each(stream_response, fn chunk ->
-        callback.(chunk)
-        Process.sleep(10)
-      end)
     end
   end
 
@@ -346,7 +342,9 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
         total_tokens: 30
       },
       provider: :mock,
-      mock_config: config
+      mock_config: config,
+      function_call: nil,
+      tool_calls: nil
     }
   end
 end

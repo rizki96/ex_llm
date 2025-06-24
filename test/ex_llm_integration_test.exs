@@ -37,7 +37,7 @@ defmodule ExLLM.IntegrationTest do
       # Execute with custom pipeline
       pipeline = [
         Plugs.ValidateProvider,
-        Plugs.FetchConfig,
+        Plugs.FetchConfiguration,
         {Plugs.Providers.MockHandler,
          response: %{
            content: "Custom response",
@@ -86,7 +86,7 @@ defmodule ExLLM.IntegrationTest do
         end)
 
       assert Plugs.ValidateProvider in plug_modules
-      assert Plugs.FetchConfig in plug_modules
+      assert Plugs.FetchConfiguration in plug_modules
       assert Plugs.ManageContext in plug_modules
       assert Plugs.BuildTeslaClient in plug_modules
       assert Plugs.Cache in plug_modules

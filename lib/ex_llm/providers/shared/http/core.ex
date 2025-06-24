@@ -207,13 +207,13 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
 
   defp build_adapter(opts) do
     # Use Tesla.Mock in tests if configured
-    default_adapter = 
+    default_adapter =
       if Application.get_env(:ex_llm, :use_tesla_mock, false) do
         Tesla.Mock
       else
         Tesla.Adapter.Hackney
       end
-    
+
     adapter_name = Keyword.get(opts, :adapter, default_adapter)
     adapter_opts = Keyword.get(opts, :adapter_opts, [])
 

@@ -56,7 +56,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.PrometheusEndpoint do
       # NOTE: Defensive error handling - export() currently only returns {:error, :prometheus_not_available}
       # If additional return values are needed in future, add appropriate clauses here
       {:error, :prometheus_not_available} = export()
-      
+
       conn
       |> Plug.Conn.send_resp(503, "Prometheus library not available")
     end

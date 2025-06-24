@@ -49,6 +49,15 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
         [recv_timeout: 60_000]
       end
 
-    Tesla.client(middleware, {Tesla.Adapter.Hackney, adapter_opts})
+    # Use Tesla.Mock only in certain test scenarios
+    # Otherwise use Hackney for Bypass-based tests
+    adapter =
+      if Application.get_env(:ex_llm, :use_tesla_mock, false) do
+        Tesla.Mock
+      else
+        {Tesla.Adapter.Hackney, adapter_opts}
+      end
+
+    Tesla.client(middleware, adapter)
   end
 end

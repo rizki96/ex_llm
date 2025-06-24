@@ -26,10 +26,18 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
     end
 
     # Required callbacks
-    @impl OpenAICompatible
-    def default_model_transformer(model, _options), do: model
+    @impl ExLLM.Provider
+    def default_model(), do: "mistral-model"
 
-    @impl OpenAICompatible
+    # Override to avoid loading from config file
+    defoverridable ensure_default_model: 0
+
+    defp ensure_default_model do
+      "mistral-model"
+    end
+
+    # These are not callbacks, they're helper functions
+    def default_model_transformer(model, _options), do: model
     def format_model_name(model), do: model
   end
 
@@ -43,7 +51,16 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
   ]
 
   setup do
+    # Disable Tesla.Mock for these tests since they use Bypass
+    original_mock_setting = Application.get_env(:ex_llm, :use_tesla_mock, false)
+    Application.put_env(:ex_llm, :use_tesla_mock, false)
+
     bypass = Bypass.open()
+
+    on_exit(fn ->
+      Application.put_env(:ex_llm, :use_tesla_mock, original_mock_setting)
+    end)
+
     %{bypass: bypass, base_url: "http://localhost:#{bypass.port}/v1"}
   end
 

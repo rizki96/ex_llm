@@ -106,6 +106,13 @@ defmodule ExLLM.Pipelines.StandardProvider do
     # Get authentication plug if provided
     auth_plug = Keyword.get(provider_plugs, :auth_request)
 
+    # Add Tesla client plug only for HTTP-based providers (not local providers)
+    tesla_client_plug =
+      case execute_request_plug do
+        {Plugs.ExecuteRequest, _} -> {Plugs.BuildTeslaClient, []}
+        _ -> nil
+      end
+
     # The main pipeline that will be wrapped by Telemetry
     inner_pipeline =
       [
@@ -113,6 +120,8 @@ defmodule ExLLM.Pipelines.StandardProvider do
         {Plugs.ValidateMessages, []},
         {Plugs.FetchConfiguration, []},
         build_request_plug,
+        # Build Tesla client for HTTP requests (only when using ExecuteRequest)
+        tesla_client_plug,
         # Add authentication plug before execution if provided
         auth_plug,
         # Use custom execute plug if provided, otherwise use default HTTP execution

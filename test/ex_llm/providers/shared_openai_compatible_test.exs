@@ -58,10 +58,11 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
 
         @tag :unit
         test "configured? works without API key" do
-          config_provider = ExLLM.Infrastructure.Config.ConfigProvider.Static
-
-          # Clear any existing key
-          Process.delete({config_provider, unquote(provider_atom), :api_key})
+          # Create a static config provider instance with no API key
+          {:ok, config_provider} =
+            ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{
+              unquote(provider_atom) => %{}
+            })
 
           refute unquote(provider_module).configured?(config_provider: config_provider)
         end
@@ -89,10 +90,12 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
 
           # Merge with provider-specific params
           extra_map = unquote(extra_params)
+
           all_params =
             case extra_map do
               map when is_map(map) ->
                 Keyword.merge(standard_params, Map.to_list(map))
+
               _ ->
                 standard_params
             end
@@ -109,8 +112,11 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
       describe "#{unquote(provider_atom)} error handling" do
         @tag :unit
         test "handles missing API key" do
-          config_provider = ExLLM.Infrastructure.Config.ConfigProvider.Static
-          Process.delete({config_provider, unquote(provider_atom), :api_key})
+          # Create a static config provider instance with no API key
+          {:ok, config_provider} =
+            ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{
+              unquote(provider_atom) => %{}
+            })
 
           messages = [%{role: "user", content: "Hello"}]
 
@@ -121,8 +127,11 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
 
         @tag :unit
         test "handles empty API key" do
-          config_provider = ExLLM.Infrastructure.Config.ConfigProvider.Static
-          Process.put({config_provider, unquote(provider_atom), :api_key}, "")
+          # Create a static config provider instance with empty API key
+          {:ok, config_provider} =
+            ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{
+              unquote(provider_atom) => %{api_key: ""}
+            })
 
           messages = [%{role: "user", content: "Hello"}]
 

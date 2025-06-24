@@ -45,6 +45,7 @@ defmodule ExLLM.Pipelines.StandardProviderTest do
                {Plugs.ValidateMessages, []},
                {Plugs.FetchConfiguration, []},
                {DummyBuildRequest, []},
+               {Plugs.BuildTeslaClient, []},
                {Plugs.ExecuteRequest, []},
                {DummyParseResponse, []}
              ]

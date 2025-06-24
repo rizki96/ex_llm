@@ -16,15 +16,30 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
       ConfigProvider.Env ->
         build_env_config(adapter_name)
 
+      ConfigProvider.Default ->
+        # Default delegates to Env
+        build_env_config(adapter_name)
+
+      ConfigProvider.Static ->
+        # Static provider requires an instance, not the module itself
+        # Return empty config or raise error
+        raise ArgumentError, """
+        ConfigProvider.Static cannot be used directly as a module.
+        You must create an instance first:
+
+          {:ok, provider} = ConfigProvider.Static.start_link(%{...})
+          ExLLM.chat(messages, config_provider: provider)
+        """
+
       provider when is_pid(provider) ->
-        # Static provider
+        # Static provider instance
         adapter_config =
           ExLLM.Infrastructure.ConfigProvider.Static.get(provider, adapter_name) || %{}
 
         normalize_config(adapter_config)
 
       provider ->
-        # Custom provider
+        # Custom provider module with static functions
         adapter_config = provider.get_all(adapter_name) || %{}
         normalize_config(adapter_config)
     end

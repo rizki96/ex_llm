@@ -598,7 +598,9 @@ defmodule ExLLM.Providers.Mock do
       model: "mock-model",
       usage: %{input_tokens: 10, output_tokens: 20},
       finish_reason: "stop",
-      id: generate_id()
+      id: generate_id(),
+      function_call: nil,
+      tool_calls: nil
     }
   end
 
@@ -650,7 +652,9 @@ defmodule ExLLM.Providers.Mock do
       model: "mock-model",
       usage: %{input_tokens: 10, output_tokens: 20, total_tokens: 30},
       finish_reason: "stop",
-      id: generate_id()
+      id: generate_id(),
+      function_call: nil,
+      tool_calls: nil
     }
   end
 

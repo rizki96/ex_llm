@@ -118,7 +118,7 @@ defmodule ExLLM.Providers do
   defp openai_chat_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -132,7 +132,7 @@ defmodule ExLLM.Providers do
   defp openai_stream_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.OpenAIPrepareRequest,
@@ -145,7 +145,7 @@ defmodule ExLLM.Providers do
   defp anthropic_chat_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -159,7 +159,7 @@ defmodule ExLLM.Providers do
   defp anthropic_stream_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.AnthropicPrepareRequest,
@@ -172,7 +172,7 @@ defmodule ExLLM.Providers do
   defp gemini_chat_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -187,7 +187,7 @@ defmodule ExLLM.Providers do
     # Groq uses OpenAI-compatible API
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -204,7 +204,7 @@ defmodule ExLLM.Providers do
     # Mistral uses OpenAI-compatible API
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -220,7 +220,7 @@ defmodule ExLLM.Providers do
   defp ollama_chat_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       # Ollama handles context internally
       {Plugs.ManageContext, strategy: :none},
       Plugs.BuildTeslaClient,
@@ -234,8 +234,12 @@ defmodule ExLLM.Providers do
   defp mock_chat_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
-      {Plugs.Cache, ttl: 300},
+      Plugs.FetchConfiguration,
+      # Build phase: :pending → :executing
+      Plugs.Providers.MockHandler,
+      # Execute phase: :executing → :completed
+      Plugs.Providers.MockHandler,
+      # Final phase: ensure completion
       Plugs.Providers.MockHandler
     ]
   end
@@ -243,8 +247,13 @@ defmodule ExLLM.Providers do
   defp mock_stream_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
+      # Build phase: :pending → :executing
+      Plugs.Providers.MockHandler,
       Plugs.StreamCoordinator,
+      # Execute phase: :executing → :streaming/:completed
+      Plugs.Providers.MockHandler,
+      # Final phase: ensure completion
       Plugs.Providers.MockHandler
     ]
   end
@@ -253,7 +262,7 @@ defmodule ExLLM.Providers do
     # Groq uses OpenAI-compatible streaming
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.OpenAIPrepareRequest,
@@ -266,7 +275,7 @@ defmodule ExLLM.Providers do
   defp gemini_stream_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :sliding_window},
       Plugs.BuildTeslaClient,
       Plugs.StreamCoordinator,
@@ -280,7 +289,7 @@ defmodule ExLLM.Providers do
     # Basic pipeline that works for most OpenAI-compatible APIs
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -295,7 +304,7 @@ defmodule ExLLM.Providers do
     # Mistral uses OpenAI-compatible streaming
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.OpenAIPrepareRequest,
@@ -310,7 +319,7 @@ defmodule ExLLM.Providers do
     # OpenRouter uses OpenAI-compatible API
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -325,7 +334,7 @@ defmodule ExLLM.Providers do
     # OpenRouter uses OpenAI-compatible streaming
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.OpenAIPrepareRequest,
@@ -340,7 +349,7 @@ defmodule ExLLM.Providers do
     # Perplexity uses OpenAI-compatible streaming
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.OpenAIPrepareRequest,
@@ -354,7 +363,7 @@ defmodule ExLLM.Providers do
   defp ollama_stream_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :none},
       Plugs.BuildTeslaClient,
       Plugs.StreamCoordinator,
@@ -369,7 +378,7 @@ defmodule ExLLM.Providers do
     # LMStudio uses OpenAI-compatible streaming
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.OpenAIPrepareRequest,
@@ -385,7 +394,7 @@ defmodule ExLLM.Providers do
     # Use direct provider call instead of building HTTP clients
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :none},
       Plugs.Providers.BumblebeeHandler
     ]
@@ -396,7 +405,7 @@ defmodule ExLLM.Providers do
     # Fall back to regular chat for now
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :none},
       Plugs.Providers.BumblebeeHandler
     ]
@@ -406,7 +415,7 @@ defmodule ExLLM.Providers do
     # X.AI uses OpenAI-compatible API
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -421,7 +430,7 @@ defmodule ExLLM.Providers do
     # X.AI uses OpenAI-compatible streaming
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.Providers.OpenAIPrepareRequest,
@@ -436,7 +445,7 @@ defmodule ExLLM.Providers do
     # AWS Bedrock requires special handling
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
@@ -451,7 +460,7 @@ defmodule ExLLM.Providers do
     # AWS Bedrock streaming
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       Plugs.StreamCoordinator,
@@ -467,7 +476,7 @@ defmodule ExLLM.Providers do
   defp openai_embeddings_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       # Cache embeddings longer
       {Plugs.Cache, ttl: 600},
@@ -481,7 +490,7 @@ defmodule ExLLM.Providers do
   defp gemini_embeddings_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 600},
       Plugs.Providers.GeminiPrepareEmbeddingRequest,
@@ -494,7 +503,7 @@ defmodule ExLLM.Providers do
   defp ollama_embeddings_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       # No cost tracking for local models
       Plugs.Providers.OllamaPrepareEmbeddingRequest,
@@ -506,7 +515,7 @@ defmodule ExLLM.Providers do
   defp mock_embeddings_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.Cache, ttl: 300},
       Plugs.Providers.MockEmbeddingHandler
     ]
@@ -516,7 +525,7 @@ defmodule ExLLM.Providers do
     # Default pipeline for OpenAI-compatible embedding APIs
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 600},
       Plugs.Providers.OpenAIPrepareEmbeddingRequest,
@@ -552,7 +561,7 @@ defmodule ExLLM.Providers do
   defp openai_list_models_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       # Cache model lists for 1 hour
       {Plugs.Cache, ttl: 3600},
@@ -565,7 +574,7 @@ defmodule ExLLM.Providers do
   defp anthropic_list_models_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       # Anthropic doesn't have a models API, return static list
       Plugs.Providers.AnthropicStaticModelsList
     ]
@@ -574,7 +583,7 @@ defmodule ExLLM.Providers do
   defp gemini_list_models_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 3600},
       Plugs.Providers.GeminiPrepareListModelsRequest,
@@ -586,7 +595,7 @@ defmodule ExLLM.Providers do
   defp groq_list_models_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 3600},
       Plugs.Providers.GroqPrepareListModelsRequest,
@@ -599,7 +608,7 @@ defmodule ExLLM.Providers do
     # OpenRouter has its own model listing format with richer metadata
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 3600},
       Plugs.Providers.OpenRouterPrepareListModelsRequest,
@@ -611,7 +620,7 @@ defmodule ExLLM.Providers do
   defp ollama_list_models_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.BuildTeslaClient,
       # No caching for local models as they can change
       Plugs.Providers.OllamaPrepareListModelsRequest,
@@ -623,7 +632,7 @@ defmodule ExLLM.Providers do
   defp mock_list_models_pipeline do
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       {Plugs.Cache, ttl: 300},
       Plugs.Providers.MockListModelsHandler
     ]
@@ -633,7 +642,7 @@ defmodule ExLLM.Providers do
     # Default pipeline that returns an error for unsupported providers
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.Providers.UnsupportedListModels
     ]
   end
@@ -642,7 +651,7 @@ defmodule ExLLM.Providers do
     # Simple pipeline for checking if a provider is configured
     [
       Plugs.ValidateProvider,
-      Plugs.FetchConfig,
+      Plugs.FetchConfiguration,
       Plugs.ValidateConfiguration
     ]
   end

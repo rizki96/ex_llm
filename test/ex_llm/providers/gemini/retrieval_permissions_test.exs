@@ -283,6 +283,7 @@ defmodule ExLLM.Providers.Gemini.RetrievalPermissionsTest do
   end
 
   describe "authentication methods" do
+    @describetag :integration
     test "supports API key authentication for corpus permissions" do
       permission = %{
         grantee_type: :EVERYONE,

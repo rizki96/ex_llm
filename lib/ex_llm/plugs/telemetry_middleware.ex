@@ -124,9 +124,9 @@ defmodule ExLLM.Plugs.TelemetryMiddleware do
       if acc_request.halted do
         acc_request
       else
-        # Initialize plug options if init/1 is defined
-        initialized_opts =
-          if function_exported?(plug, :init, 1), do: plug.init(plug_opts), else: plug_opts
+        # Initialize plug options. This enforces that all plugs must
+        # implement init/1, which is a more robust contract.
+        initialized_opts = plug.init(plug_opts)
 
         # Call the plug
         plug.call(acc_request, initialized_opts)
