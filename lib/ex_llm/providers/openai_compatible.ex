@@ -417,7 +417,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
             provider.get_all(@provider)
 
           provider when is_pid(provider) ->
-            ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider)
+            Agent.get(provider, & &1)
             |> Map.get(@provider, %{})
         end
       end

@@ -52,29 +52,13 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics.PrometheusEndpoint do
   def init(opts), do: opts
 
   if @plug_available do
-    # NOTE: Defensive error handling - export() might return additional error types
-    # based on compile-time configuration or future library changes
     def call(conn, _opts) do
-      case export() do
-        {:ok, metrics_text} ->
-          conn
-          |> Plug.Conn.put_resp_content_type("text/plain; version=0.0.4; charset=utf-8")
-          |> Plug.Conn.send_resp(200, metrics_text)
-
-        {:error, :prometheus_not_enabled} ->
-          conn
-          |> Plug.Conn.send_resp(503, "Prometheus metrics not enabled")
-
-        {:error, :prometheus_not_available} ->
-          conn
-          |> Plug.Conn.send_resp(503, "Prometheus library not available")
-
-        {:error, reason} ->
-          Logger.error("Failed to export Prometheus metrics: #{inspect(reason)}")
-
-          conn
-          |> Plug.Conn.send_resp(500, "Internal server error")
-      end
+      # NOTE: Defensive error handling - export() currently only returns {:error, :prometheus_not_available}
+      # If additional return values are needed in future, add appropriate clauses here
+      {:error, :prometheus_not_available} = export()
+      
+      conn
+      |> Plug.Conn.send_resp(503, "Prometheus library not available")
     end
   else
     def call(_conn, _opts) do

@@ -45,7 +45,7 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
 
   def get_config(provider_pid, provider_name) when is_pid(provider_pid) do
     try do
-      config = ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider_pid)
+      config = Agent.get(provider_pid, & &1)
 
       case Map.get(config, provider_name) do
         nil -> {:error, :not_found}

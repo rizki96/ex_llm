@@ -88,8 +88,14 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
           ]
 
           # Merge with provider-specific params
+          extra_map = unquote(extra_params)
           all_params =
-            Keyword.merge(standard_params, Map.to_list(unquote(Macro.escape(extra_params))))
+            case extra_map do
+              map when is_map(map) ->
+                Keyword.merge(standard_params, Map.to_list(map))
+              _ ->
+                standard_params
+            end
 
           # Just ensure we can build params without crashing
           assert is_list(all_params)

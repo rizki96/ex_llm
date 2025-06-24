@@ -717,7 +717,7 @@ defmodule ExLLM.Providers.Gemini do
         provider.get_all(:gemini)
 
       provider when is_pid(provider) ->
-        ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider)
+        Agent.get(provider, & &1)
         |> Map.get(:gemini, %{})
     end
   end
