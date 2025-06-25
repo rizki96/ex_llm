@@ -83,12 +83,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/messages"
 
       case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :anthropic) do
-        {:ok, %{status: _status, body: response_body}} ->
+        {:ok, response_body} ->
           {:ok, parse_response(response_body)}
-
-        {:ok, response} ->
-          # Fallback for direct response (shouldn't happen with provider: :anthropic)
-          {:ok, parse_response(response)}
 
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:anthropic, status, body)
@@ -210,7 +206,7 @@ defmodule ExLLM.Providers.Anthropic do
         case HTTPClient.get_json("https://api.anthropic.com/v1/models", headers,
                provider: :anthropic
              ) do
-          {:ok, %{status: 200, body: %{"data" => models}}} ->
+          {:ok, %{"data" => models}} ->
             parsed_models =
               models
               |> Enum.map(&parse_anthropic_model/1)
@@ -218,8 +214,9 @@ defmodule ExLLM.Providers.Anthropic do
 
             {:ok, parsed_models}
 
-          {:ok, %{status: status, body: body}} ->
-            ErrorHandler.handle_provider_error(:anthropic, status, body)
+          {:error, reason} when is_map(reason) ->
+            # Try to extract error details from response
+            ErrorHandler.handle_provider_error(:anthropic, 400, reason)
 
           {:error, reason} ->
             {:error, "Network error: #{inspect(reason)}"}
@@ -570,9 +567,6 @@ defmodule ExLLM.Providers.Anthropic do
         {:ok, %{status: _status, body: response_body}} ->
           {:ok, response_body}
 
-        {:ok, response} ->
-          {:ok, response}
-
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:anthropic, status, body)
 
@@ -595,11 +589,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/files"
 
       case HTTPClient.get_json(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: response}} ->
+        {:ok, response} ->
           {:ok, response}
-
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
 
         {:error, reason} ->
           {:error, reason}
@@ -620,11 +611,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/files/#{file_id}"
 
       case HTTPClient.get_json(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: response}} ->
+        {:ok, response} ->
           {:ok, response}
-
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
 
         {:error, reason} ->
           {:error, reason}
@@ -670,11 +658,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/files/#{file_id}"
 
       case HTTPClient.delete_json(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: response}} ->
+        {:ok, response} ->
           {:ok, response}
-
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
 
         {:error, reason} ->
           {:error, reason}
@@ -702,11 +687,8 @@ defmodule ExLLM.Providers.Anthropic do
       }
 
       case HTTPClient.post_json(url, body, headers, timeout: 120_000, provider: :anthropic) do
-        {:ok, %{status: _status, body: response_body}} ->
+        {:ok, response_body} ->
           {:ok, response_body}
-
-        {:ok, response} ->
-          {:ok, response}
 
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:anthropic, status, body)
@@ -730,11 +712,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/messages/batches"
 
       case HTTPClient.get_json(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: response}} ->
+        {:ok, response} ->
           {:ok, response}
-
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
 
         {:error, reason} ->
           {:error, reason}
@@ -755,11 +734,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
 
       case HTTPClient.get_json(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: response}} ->
+        {:ok, response} ->
           {:ok, response}
-
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
 
         {:error, reason} ->
           {:error, reason}
@@ -780,11 +756,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}/results"
 
       case HTTPClient.get_json(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: response}} ->
+        {:ok, response} ->
           {:ok, response}
-
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
 
         {:error, reason} ->
           {:error, reason}
@@ -805,11 +778,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}/cancel"
 
       case HTTPClient.post_json(url, %{}, headers, timeout: 60_000, provider: :anthropic) do
-        {:ok, %{status: _status, body: response_body}} ->
+        {:ok, response_body} ->
           {:ok, response_body}
-
-        {:ok, response} ->
-          {:ok, response}
 
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:anthropic, status, body)
@@ -833,11 +803,8 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
 
       case HTTPClient.delete_json(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: response}} ->
+        {:ok, response} ->
           {:ok, response}
-
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
 
         {:error, reason} ->
           {:error, reason}
@@ -880,9 +847,6 @@ defmodule ExLLM.Providers.Anthropic do
       case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :anthropic) do
         {:ok, %{status: _status, body: response_body}} ->
           {:ok, response_body}
-
-        {:ok, response} ->
-          {:ok, response}
 
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:anthropic, status, body)

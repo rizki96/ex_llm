@@ -364,10 +364,11 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           {:ok, any()} | {:error, term()}
   def get_json(url, headers, opts \\ []) do
     case get(url, headers, opts) do
-      {:ok, %Tesla.Env{body: body}} -> 
+      {:ok, %Tesla.Env{body: body}} ->
         # Body is already parsed by execute_get_request
         {:ok, body}
-      error -> 
+
+      error ->
         error
     end
   end

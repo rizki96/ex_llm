@@ -64,42 +64,42 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
       {:ok, parse_chunk_fn} ->
         provider = detect_provider_from_url(url)
 
-    Logger.debug("Starting compatibility stream for #{provider} at #{url}")
+        Logger.debug("Starting compatibility stream for #{provider} at #{url}")
 
-    # Extract provider-specific configuration
-    client_opts = [
-      provider: provider,
-      api_key: extract_api_key_from_headers(headers),
-      base_url: extract_base_url(url),
-      timeout: Keyword.get(options, :timeout, @default_timeout),
-      enable_metrics: Keyword.get(options, :track_metrics, false),
-      enable_recovery: Keyword.get(options, :stream_recovery, false)
-    ]
+        # Extract provider-specific configuration
+        client_opts = [
+          provider: provider,
+          api_key: extract_api_key_from_headers(headers),
+          base_url: extract_base_url(url),
+          timeout: Keyword.get(options, :timeout, @default_timeout),
+          enable_metrics: Keyword.get(options, :track_metrics, false),
+          enable_recovery: Keyword.get(options, :stream_recovery, false)
+        ]
 
-    # Create Tesla client
-    client = Engine.client(client_opts)
+        # Create Tesla client
+        client = Engine.client(client_opts)
 
-    # Convert options to new format
-    stream_opts = [
-      callback: create_enhanced_callback(callback, options),
-      parse_chunk: parse_chunk_fn,
-      timeout: Keyword.get(options, :timeout, @default_timeout),
-      recovery_enabled: Keyword.get(options, :stream_recovery, false),
-      metrics_callback: Keyword.get(options, :on_metrics),
-      chunk_validator: Keyword.get(options, :validate_chunk),
-      buffer_chunks: Keyword.get(options, :buffer_chunks, 1)
-    ]
+        # Convert options to new format
+        stream_opts = [
+          callback: create_enhanced_callback(callback, options),
+          parse_chunk: parse_chunk_fn,
+          timeout: Keyword.get(options, :timeout, @default_timeout),
+          recovery_enabled: Keyword.get(options, :stream_recovery, false),
+          metrics_callback: Keyword.get(options, :on_metrics),
+          chunk_validator: Keyword.get(options, :validate_chunk),
+          buffer_chunks: Keyword.get(options, :buffer_chunks, 1)
+        ]
 
-    # Extract path from full URL
-    path = extract_path_from_url(url)
+        # Extract path from full URL
+        path = extract_path_from_url(url)
 
-    # Start streaming using new engine
-    # NOTE: Defensive error handling - Engine.stream currently only returns {:ok, id}
-    # If error handling is needed in future, add appropriate clause here
-    {:ok, stream_id} = Engine.stream(client, path, request, stream_opts)
+        # Start streaming using new engine
+        # NOTE: Defensive error handling - Engine.stream currently only returns {:ok, id}
+        # If error handling is needed in future, add appropriate clause here
+        {:ok, stream_id} = Engine.stream(client, path, request, stream_opts)
 
-    Logger.debug("Compatibility stream #{stream_id} started successfully")
-    {:ok, stream_id}
+        Logger.debug("Compatibility stream #{stream_id} started successfully")
+        {:ok, stream_id}
 
       :error ->
         {:error, "Missing required option :parse_chunk_fn"}
