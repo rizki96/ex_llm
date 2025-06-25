@@ -321,6 +321,7 @@ defmodule ExLLM.Providers.LMStudio do
       {:ok, response} when is_list(response) ->
         # Handle older LM Studio API format (direct array)
         models = response
+
         filtered_models =
           if loaded_only do
             Enum.filter(models, fn model -> Map.get(model, "loaded", false) end)

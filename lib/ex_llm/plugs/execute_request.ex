@@ -199,8 +199,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
   defp handle_tesla_response(%Request{} = request, %Tesla.Env{} = response) do
     case response do
       # Handle successful Tesla responses
-      %Tesla.Env{status: status} = env when status in 200..299 ->
-        headers = env.headers || []
+      %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
 
         request
         |> Map.put(:response, env)

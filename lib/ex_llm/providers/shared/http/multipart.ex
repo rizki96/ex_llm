@@ -98,10 +98,6 @@ defmodule ExLLM.Providers.Shared.HTTP.Multipart do
       {:error, reason} ->
         Logger.error("Failed to add file #{file_path}: #{inspect(reason)}")
         multipart
-
-      # This will catch the error from check_file_size and File.stat
-      _ ->
-        multipart
     end
   end
 
