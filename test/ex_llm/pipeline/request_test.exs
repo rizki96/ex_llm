@@ -6,9 +6,9 @@ defmodule ExLLM.Pipeline.RequestTest do
     test "accepts map as options" do
       messages = [%{role: "user", content: "Hello"}]
       options = %{temperature: 0.5, model: "gpt-4"}
-      
+
       request = Request.new(:openai, messages, options)
-      
+
       assert request.provider == :openai
       assert request.messages == messages
       assert request.options == options
@@ -18,9 +18,9 @@ defmodule ExLLM.Pipeline.RequestTest do
     test "accepts keyword list as options" do
       messages = [%{role: "user", content: "Hello"}]
       options = [temperature: 0.5, model: "gpt-4"]
-      
+
       request = Request.new(:openai, messages, options)
-      
+
       assert request.provider == :openai
       assert request.messages == messages
       # Options should be normalized to a map
@@ -30,26 +30,26 @@ defmodule ExLLM.Pipeline.RequestTest do
 
     test "handles empty options" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       request = Request.new(:openai, messages)
-      
+
       assert request.options == %{}
     end
 
     test "handles nil options" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       request = Request.new(:openai, messages, nil)
-      
+
       assert request.options == %{}
     end
 
     test "generates unique IDs" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       request1 = Request.new(:openai, messages)
       request2 = Request.new(:openai, messages)
-      
+
       assert request1.id != request2.id
     end
   end
@@ -77,10 +77,10 @@ defmodule ExLLM.Pipeline.RequestTest do
     test "handles invalid input gracefully" do
       request = Request.new(:openai, [], "invalid")
       assert request.options == %{}
-      
+
       request = Request.new(:openai, [], 123)
       assert request.options == %{}
-      
+
       request = Request.new(:openai, [], [:not, :a, :keyword, :list])
       assert request.options == %{}
     end
@@ -92,9 +92,9 @@ defmodule ExLLM.Pipeline.RequestTest do
       messages = [%{role: "user", content: "Test"}]
       options = [temperature: 0.5, stream: true]
       options = Keyword.put(options, :model, "gpt-4")
-      
+
       request = Request.new(:openai, messages, options)
-      
+
       assert request.options.temperature == 0.5
       assert request.options.stream == true
       assert request.options.model == "gpt-4"
@@ -103,7 +103,7 @@ defmodule ExLLM.Pipeline.RequestTest do
     test "options can be accessed as a map after normalization" do
       options = [temperature: 0.5, model: "gpt-4"]
       request = Request.new(:openai, [], options)
-      
+
       # All map operations should work
       assert Map.get(request.options, :temperature) == 0.5
       assert Map.keys(request.options) == [:model, :temperature]

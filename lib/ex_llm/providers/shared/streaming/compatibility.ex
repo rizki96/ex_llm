@@ -60,8 +60,9 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
   # NOTE: Defensive error handling - Engine.stream currently only returns {:ok, id}
   # but this error clause provides safety if the function changes in future versions
   def start_stream(url, request, headers, callback, options \\ []) do
-    parse_chunk_fn = Keyword.fetch!(options, :parse_chunk_fn)
-    provider = detect_provider_from_url(url)
+    case Keyword.fetch(options, :parse_chunk_fn) do
+      {:ok, parse_chunk_fn} ->
+        provider = detect_provider_from_url(url)
 
     Logger.debug("Starting compatibility stream for #{provider} at #{url}")
 
@@ -99,6 +100,10 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
 
     Logger.debug("Compatibility stream #{stream_id} started successfully")
     {:ok, stream_id}
+
+      :error ->
+        {:error, "Missing required option :parse_chunk_fn"}
+    end
   end
 
   @doc """
@@ -119,10 +124,14 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
 
     # NOTE: Defensive error handling - start_stream currently only returns {:ok, id}
     # If error handling is needed in future, add appropriate clause here
-    {:ok, _stream_id} = start_stream(url, request, headers, callback, enhanced_options)
+    case start_stream(url, request, headers, callback, enhanced_options) do
+      {:ok, _stream_id} ->
+        # Wait for completion (synchronous behavior for compatibility)
+        wait_for_stream_completion()
 
-    # Wait for completion (synchronous behavior for compatibility)
-    wait_for_stream_completion()
+      {:error, _} = error ->
+        error
+    end
   end
 
   @doc """
@@ -132,16 +141,18 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
   """
   @spec simple_stream(keyword()) :: {:ok, String.t()} | {:error, term()}
   def simple_stream(params) do
-    url = Keyword.fetch!(params, :url)
-    request = Keyword.fetch!(params, :request)
-    headers = Keyword.fetch!(params, :headers)
-    callback = Keyword.fetch!(params, :callback)
-    parse_chunk = Keyword.fetch!(params, :parse_chunk)
-    options = Keyword.get(params, :options, [])
-
-    stream_options = Keyword.merge(options, parse_chunk_fn: parse_chunk)
-
-    start_stream(url, request, headers, callback, stream_options)
+    with {:ok, url} <- Keyword.fetch(params, :url),
+         {:ok, request} <- Keyword.fetch(params, :request),
+         {:ok, headers} <- Keyword.fetch(params, :headers),
+         {:ok, callback} <- Keyword.fetch(params, :callback),
+         {:ok, parse_chunk} <- Keyword.fetch(params, :parse_chunk) do
+      options = Keyword.get(params, :options, [])
+      stream_options = Keyword.merge(options, parse_chunk_fn: parse_chunk)
+      start_stream(url, request, headers, callback, stream_options)
+    else
+      :error ->
+        {:error, "Missing required parameter in simple_stream"}
+    end
   end
 
   # Private helper functions

@@ -40,6 +40,14 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
           {:ok, map()} | {:error, term()}
   def post_json(url, body, headers, opts \\ []) do
     # Check test interceptor first for backward compatibility
+    if should_use_test_interceptor?() do
+      handle_intercepted_post(url, body, headers, opts)
+    else
+      execute_post_request(url, body, headers, opts)
+    end
+  end
+
+  defp handle_intercepted_post(url, body, headers, opts) do
     case TestResponseInterceptor.intercept_request(url, body, headers, opts) do
       {:cached, cached_response} ->
         cached_response
@@ -55,34 +63,47 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   @spec get(String.t(), list({String.t(), String.t()}), keyword()) ::
           {:ok, Tesla.Env.t()} | {:error, term()}
   def get(url, headers, opts \\ []) do
+    # Check if test caching is enabled via configuration
+    if should_use_test_interceptor?() do
+      handle_intercepted_get(url, headers, opts)
+    else
+      do_get_request(url, headers, opts)
+    end
+  end
+
+  defp handle_intercepted_get(url, headers, opts) do
     case TestResponseInterceptor.intercept_request(url, nil, headers, opts) do
       {:cached, cached_response} ->
         cached_response
 
       {:proceed, _request_metadata} ->
-        case execute_get_request(url, headers, opts) do
-          {:ok, response_map} ->
-            # Convert back to Tesla.Env format for compatibility
-            body_content =
-              case response_map[:body] do
-                body when is_binary(body) -> body
-                body when is_map(body) -> Jason.encode!(body)
-                _ -> ""
-              end
+        do_get_request(url, headers, opts)
+    end
+  end
 
-            tesla_env = %Tesla.Env{
-              status: response_map[:status] || 200,
-              headers: response_map[:headers] || [],
-              body: body_content,
-              method: :get,
-              url: url
-            }
+  defp do_get_request(url, headers, opts) do
+    case execute_get_request(url, headers, opts) do
+      {:ok, response_map} ->
+        # Convert back to Tesla.Env format for compatibility
+        body_content =
+          case response_map[:body] do
+            body when is_binary(body) -> body
+            body when is_map(body) -> Jason.encode!(body)
+            _ -> ""
+          end
 
-            {:ok, tesla_env}
+        tesla_env = %Tesla.Env{
+          status: response_map[:status] || 200,
+          headers: response_map[:headers] || [],
+          body: body_content,
+          method: :get,
+          url: url
+        }
 
-          error ->
-            error
-        end
+        {:ok, tesla_env}
+
+      error ->
+        error
     end
   end
 
@@ -340,11 +361,14 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   Make a GET request with JSON response parsing.
   """
   @spec get_json(String.t(), list({String.t(), String.t()}), keyword()) ::
-          {:ok, map()} | {:error, term()}
+          {:ok, any()} | {:error, term()}
   def get_json(url, headers, opts \\ []) do
     case get(url, headers, opts) do
-      {:ok, response} -> {:ok, response.body}
-      error -> error
+      {:ok, %Tesla.Env{body: body}} -> 
+        # Body is already parsed by execute_get_request
+        {:ok, body}
+      error -> 
+        error
     end
   end
 
@@ -361,7 +385,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   Make a DELETE request with JSON response parsing.
   """
   @spec delete_json(String.t(), list({String.t(), String.t()}), keyword()) ::
-          {:ok, map()} | {:error, term()}
+          {:ok, any()} | {:error, term()}
   def delete_json(url, headers, opts \\ []) do
     # Extract base URL and path from the request URL to prevent double /v1 issues
     {base_url, path} = extract_base_url_and_path(url)
@@ -372,14 +396,9 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     additional_headers = normalize_headers(headers)
 
     case Tesla.delete(client, path, headers: additional_headers) do
-      {:ok, %Tesla.Env{status: status, headers: resp_headers, body: resp_body}} ->
-        response = %{
-          status: status,
-          headers: resp_headers,
-          body: parse_response_body(resp_body)
-        }
-
-        {:ok, response}
+      {:ok, %Tesla.Env{body: resp_body}} ->
+        # Return just the parsed body like get_json does
+        {:ok, parse_response_body(resp_body)}
 
       {:error, _} = error ->
         error
@@ -494,5 +513,11 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   @deprecated "Use HTTP.TestSupport.mock_response/2"
   def build_mock_response(content, opts \\ []) do
     HTTP.TestSupport.mock_chat_response(content, opts)
+  end
+
+  # Check if test interceptor should be used based on configuration
+  defp should_use_test_interceptor? do
+    Application.get_env(:ex_llm, :test_cache_enabled, false) &&
+      Application.get_env(:ex_llm, :env, :prod) == :test
   end
 end

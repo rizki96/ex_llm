@@ -79,7 +79,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Cache do
 
     key_components
     |> :erlang.term_to_binary()
-    |> :crypto.hash(:sha256)
+    |> then(&:crypto.hash(:sha256, &1))
     |> Base.encode16(case: :lower)
   end
 

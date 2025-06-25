@@ -291,16 +291,15 @@ defmodule ExLLM.Providers.Ollama do
     url = "#{get_base_url(config)}/api/tags"
 
     case HTTPClient.get_json(url, [], provider: :ollama, timeout: 5_000) do
-      {:ok, %{status: 200, body: body}} ->
+      {:ok, body} when is_map(body) ->
         models =
-          body["models"]
+          (body["models"] || [])
           |> Enum.map(&parse_ollama_api_model/1)
 
         {:ok, models}
 
-      {:ok, %{status: status, body: body}} ->
-        Logger.debug("Ollama API returned status #{status}: #{inspect(body)}")
-        {:error, "API returned status #{status}"}
+      {:ok, _} ->
+        {:error, "Invalid response format from Ollama API"}
 
       {:error, reason} ->
         Logger.debug("Failed to connect to Ollama: #{inspect(reason)}")

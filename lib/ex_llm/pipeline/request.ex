@@ -117,6 +117,7 @@ defmodule ExLLM.Pipeline.Request do
 
   # Convert options to map format to ensure consistency
   defp normalize_options(options) when is_map(options), do: options
+
   defp normalize_options(options) when is_list(options) do
     if Keyword.keyword?(options) do
       Enum.into(options, %{})
@@ -124,6 +125,7 @@ defmodule ExLLM.Pipeline.Request do
       %{}
     end
   end
+
   defp normalize_options(_), do: %{}
 
   @doc """
