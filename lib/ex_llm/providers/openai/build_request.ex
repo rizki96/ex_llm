@@ -23,7 +23,7 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
 
     # Determine model
     model =
-      Keyword.get(
+      Map.get(
         options,
         :model,
         Map.get(config, :model) || ConfigHelper.ensure_default_model(:openai)
@@ -35,6 +35,7 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
     url = "#{get_base_url(config)}/chat/completions"
 
     request
+    |> Map.put(:provider_request, body)
     |> Request.assign(:model, model)
     |> Request.assign(:request_body, body)
     |> Request.assign(:request_headers, headers)
@@ -47,7 +48,7 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
       model: model,
       messages: MessageFormatter.stringify_message_keys(messages),
       temperature:
-        Keyword.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
+        Map.get(options, :temperature, Map.get(config, :temperature, @default_temperature))
     }
     |> maybe_add_max_tokens(options, config)
     |> maybe_add_modern_parameters(options)
@@ -82,21 +83,21 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
   end
 
   defp maybe_add_system_prompt(body, options) do
-    case Keyword.get(options, :system) do
+    case Map.get(options, :system) do
       nil -> body
       system -> Map.update!(body, :messages, &MessageFormatter.add_system_message(&1, system))
     end
   end
 
   defp maybe_add_functions(body, options) do
-    case Keyword.get(options, :functions) do
+    case Map.get(options, :functions) do
       nil -> body
       functions -> Map.put(body, :functions, functions)
     end
   end
 
   defp maybe_add_max_tokens(body, options, config) do
-    case Keyword.get(options, :max_tokens) || Map.get(config, :max_tokens) do
+    case Map.get(options, :max_tokens) || Map.get(config, :max_tokens) do
       nil -> body
       max_tokens -> Map.put(body, :max_tokens, max_tokens)
     end
@@ -115,14 +116,14 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
   end
 
   defp maybe_add_response_format(body, options) do
-    case Keyword.get(options, :response_format) do
+    case Map.get(options, :response_format) do
       nil -> body
       format -> Map.put(body, :response_format, format)
     end
   end
 
   defp maybe_add_tools(body, options) do
-    case Keyword.get(options, :tools) do
+    case Map.get(options, :tools) do
       nil -> body
       tools -> Map.put(body, :tools, tools)
     end
@@ -134,7 +135,7 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
   end
 
   defp maybe_add_web_search(body, options) do
-    case Keyword.get(options, :web_search) do
+    case Map.get(options, :web_search) do
       nil -> body
       true -> Map.put(body, :web_search, true)
       false -> body
@@ -152,21 +153,21 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
   end
 
   defp maybe_add_prediction(body, options) do
-    case Keyword.get(options, :prediction) do
+    case Map.get(options, :prediction) do
       nil -> body
       prediction -> Map.put(body, :prediction, prediction)
     end
   end
 
   defp maybe_add_streaming_options(body, options) do
-    case Keyword.get(options, :stream) do
+    case Map.get(options, :stream) do
       true -> Map.put(body, :stream, true)
       _ -> body
     end
   end
 
   defp maybe_add_param(body, key, options) do
-    case Keyword.get(options, key) do
+    case Map.get(options, key) do
       nil -> body
       value -> Map.put(body, key, value)
     end

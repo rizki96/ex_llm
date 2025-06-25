@@ -88,6 +88,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
           parse_chunk: (binary() -> {:ok, Types.StreamChunk.t() | :done} | {:error, term()}),
           timeout: pos_integer(),
           recovery_enabled: boolean(),
+          return_env: boolean(),
 
           # Middleware options
           metrics_callback: (map() -> any()),
@@ -191,11 +192,12 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
   - `{:error, reason}` - Failed to start stream
   """
   @spec stream(Tesla.Client.t(), String.t(), map(), stream_opts()) ::
-          {:ok, String.t()} | {:error, term()}
+          {:ok, String.t()} | {:ok, {String.t(), Tesla.Env.t()}} | {:error, term()}
   def stream(client, path, body, opts \\ []) do
     callback = Keyword.fetch!(opts, :callback)
     parse_chunk_fn = Keyword.fetch!(opts, :parse_chunk)
     timeout = Keyword.get(opts, :timeout, @default_timeout)
+    return_env = Keyword.get(opts, :return_env, false)
 
     # Generate unique stream ID
     stream_id = generate_stream_id()
@@ -207,21 +209,30 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
       start_time: System.monotonic_time(:millisecond),
       callback: callback,
       parse_chunk_fn: parse_chunk_fn,
-      opts: opts
+      opts: opts,
+      return_env: return_env
     }
 
     Logger.debug("Starting stream #{stream_id} for #{path}")
 
-    # Start streaming task
-    task =
-      Task.async(fn ->
-        execute_stream(client, path, body, stream_context, timeout)
-      end)
+    if return_env do
+      # Synchronous execution for backward compatibility
+      case execute_stream_sync(client, path, body, stream_context, timeout) do
+        {:ok, response} -> {:ok, {stream_id, response}}
+        {:error, reason} -> {:error, reason}
+      end
+    else
+      # Start streaming task (original async behavior)
+      task =
+        Task.async(fn ->
+          execute_stream(client, path, body, stream_context, timeout)
+        end)
 
-    # Store task reference for potential cancellation
-    store_stream_task(stream_id, task)
+      # Store task reference for potential cancellation
+      store_stream_task(stream_id, task)
 
-    {:ok, stream_id}
+      {:ok, stream_id}
+    end
   end
 
   @doc """
@@ -276,6 +287,37 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
   end
 
   # Private functions
+
+  defp execute_stream_sync(client, path, body, stream_context, timeout) do
+    stream_id = stream_context.stream_id
+
+    try do
+      # Prepare streaming request
+      headers = [
+        {"accept", "text/event-stream"},
+        {"cache-control", "no-cache"}
+      ]
+
+      # Add stream context to client for middleware access
+      client_with_context = Tesla.put_opt(client, :stream_context, stream_context)
+
+      # Execute streaming POST request and return the response directly
+      case Tesla.post(client_with_context, path, body,
+             headers: headers,
+             opts: [recv_timeout: timeout, stream_to: self()]
+           ) do
+        {:ok, response} ->
+          {:ok, response}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
+    rescue
+      error ->
+        Logger.error("Stream #{stream_id} crashed: #{inspect(error)}")
+        {:error, {:exception, error}}
+    end
+  end
 
   defp execute_stream(client, path, body, stream_context, timeout) do
     stream_id = stream_context.stream_id

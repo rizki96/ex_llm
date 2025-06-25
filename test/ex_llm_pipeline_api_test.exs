@@ -32,7 +32,7 @@ defmodule ExLLM.PipelineAPITest do
       # Override the mock pipeline temporarily
       pipeline = [
         Plugs.ValidateProvider,
-        Plugs.FetchConfig,
+        Plugs.FetchConfiguration,
         MockHandler
       ]
 
@@ -76,7 +76,7 @@ defmodule ExLLM.PipelineAPITest do
       # Execute with a minimal pipeline (skip validation for test provider)
       result =
         ExLLM.Pipeline.run(builder.request, [
-          Plugs.FetchConfig,
+          Plugs.FetchConfiguration,
           TestHandler
         ])
 
@@ -132,7 +132,7 @@ defmodule ExLLM.PipelineAPITest do
       )
 
       request = Request.new(:test_provider, [], %{temperature: 0.7})
-      result = ExLLM.Pipeline.run(request, [Plugs.FetchConfig])
+      result = ExLLM.Pipeline.run(request, [Plugs.FetchConfiguration])
 
       assert result.config[:api_key] == "test-key"
       assert result.config[:default_model] == "test-model"
@@ -157,7 +157,7 @@ defmodule ExLLM.PipelineAPITest do
         end)
 
       assert Plugs.ValidateProvider in plug_modules
-      assert Plugs.FetchConfig in plug_modules
+      assert Plugs.FetchConfiguration in plug_modules
       assert Plugs.BuildTeslaClient in plug_modules
     end
 

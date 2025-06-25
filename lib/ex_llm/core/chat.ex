@@ -170,7 +170,8 @@ defmodule ExLLM.Core.Chat do
 
   defp handle_structured_output(provider, messages, options) do
     # Delegate to Instructor module if available
-    if Code.ensure_loaded?(ExLLM.StructuredOutputs) and ExLLM.Core.StructuredOutputs.available?() do
+    if Code.ensure_loaded?(ExLLM.Core.StructuredOutputs) and
+         ExLLM.Core.StructuredOutputs.available?() do
       ExLLM.Core.StructuredOutputs.chat(provider, messages, options)
     else
       {:error, :instructor_not_available}
@@ -500,9 +501,9 @@ defmodule ExLLM.Core.Chat do
               receive do
                 {:stream_chunk, _ref, chunk} -> {[chunk], pid}
                 {:stream_complete} -> {:halt, pid}
-                {:stream_error, error} -> raise "Stream error: #{inspect(error)}"
+                {:stream_error, error} -> {[{:error, {:stream_error, error}}], pid}
               after
-                30_000 -> raise "Stream timeout"
+                30_000 -> {[{:error, :stream_timeout}], pid}
               end
             end,
             fn pid -> ExLLM.Infrastructure.Streaming.StreamRecovery.stop_stream(pid) end
@@ -555,6 +556,23 @@ defmodule ExLLM.Core.Chat do
   end
 
   defp detect_provider(provider_or_model, options) when is_binary(provider_or_model) do
+    # Safe provider lookup - string keys to avoid atom creation
+    provider_strings = %{
+      "anthropic" => :anthropic,
+      "bumblebee" => :bumblebee,
+      "groq" => :groq,
+      "lmstudio" => :lmstudio,
+      "mistral" => :mistral,
+      "openai" => :openai,
+      "openrouter" => :openrouter,
+      "ollama" => :ollama,
+      "perplexity" => :perplexity,
+      "bedrock" => :bedrock,
+      "gemini" => :gemini,
+      "xai" => :xai,
+      "mock" => :mock
+    }
+
     providers = %{
       anthropic: ExLLM.Providers.Anthropic,
       bumblebee: ExLLM.Providers.Bumblebee,
@@ -573,14 +591,20 @@ defmodule ExLLM.Core.Chat do
 
     case String.split(provider_or_model, "/", parts: 2) do
       [provider_str, model] ->
-        # Found provider/model pattern
-        provider = String.to_existing_atom(provider_str)
+        # Validate provider string BEFORE any atom conversion
+        case Map.get(provider_strings, provider_str) do
+          nil ->
+            # Unknown provider, treat as model string
+            {:openai, Keyword.put(options, :model, provider_or_model)}
 
-        if Map.has_key?(providers, provider) do
-          {provider, Keyword.put(options, :model, model)}
-        else
-          # Unknown provider, treat as model string
-          {:openai, Keyword.put(options, :model, provider_or_model)}
+          provider_atom ->
+            # Valid provider, check if module exists
+            if Map.has_key?(providers, provider_atom) do
+              {provider_atom, Keyword.put(options, :model, model)}
+            else
+              # Should not happen, but defensive
+              {:openai, Keyword.put(options, :model, provider_or_model)}
+            end
         end
 
       [_] ->

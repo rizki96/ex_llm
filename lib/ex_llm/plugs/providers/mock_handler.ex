@@ -23,12 +23,12 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
 
   def call(%Request{state: :executing} = request, opts) do
     messages = request.messages
-    # Use original request options for Mock provider behavior
-    # Provider config is in request.assigns[:config] for auth/settings
-    config = request.options || %{}
+    # Use provider configuration from merged config sources
+    # Provider config contains API keys, model settings, and other configuration
+    config = request.config || %{}
 
     # Check if this is a streaming request
-    is_streaming = Keyword.get(request.options, :stream, false)
+    is_streaming = Map.get(request.options || %{}, :stream, false)
 
     if is_streaming do
       handle_streaming_request(request, messages, config, opts)

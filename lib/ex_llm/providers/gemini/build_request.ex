@@ -25,7 +25,7 @@ defmodule ExLLM.Providers.Gemini.BuildRequest do
     options = request.options
 
     model =
-      Keyword.get(
+      Map.get(
         options,
         :model,
         Map.get(config, :model) || ConfigHelper.ensure_default_model(:gemini)
@@ -36,6 +36,7 @@ defmodule ExLLM.Providers.Gemini.BuildRequest do
     url = build_url(model, api_key, config)
 
     request
+    |> Map.put(:provider_request, body)
     |> Request.assign(:model, model)
     |> Request.assign(:request_body, body)
     |> Request.assign(:request_headers, headers)
@@ -138,19 +139,19 @@ defmodule ExLLM.Providers.Gemini.BuildRequest do
 
   defp build_generation_config(options) do
     base_config = %{
-      temperature: Keyword.get(options, :temperature),
-      top_p: Keyword.get(options, :top_p),
-      top_k: Keyword.get(options, :top_k),
-      max_output_tokens: Keyword.get(options, :max_tokens),
-      stop_sequences: Keyword.get(options, :stop_sequences),
-      response_mime_type: Keyword.get(options, :response_mime_type)
+      temperature: Map.get(options, :temperature),
+      top_p: Map.get(options, :top_p),
+      top_k: Map.get(options, :top_k),
+      max_output_tokens: Map.get(options, :max_tokens),
+      stop_sequences: Map.get(options, :stop_sequences),
+      response_mime_type: Map.get(options, :response_mime_type)
     }
 
     advanced_config =
       base_config
-      |> maybe_add_field(:response_modalities, Keyword.get(options, :response_modalities))
-      |> maybe_add_field(:speech_config, Keyword.get(options, :speech_config))
-      |> maybe_add_field(:thinking_config, Keyword.get(options, :thinking_config))
+      |> maybe_add_field(:response_modalities, Map.get(options, :response_modalities))
+      |> maybe_add_field(:speech_config, Map.get(options, :speech_config))
+      |> maybe_add_field(:thinking_config, Map.get(options, :thinking_config))
 
     if Enum.any?(advanced_config, fn {_k, v} -> v != nil end) do
       struct(GenerationConfig, advanced_config)
@@ -163,7 +164,7 @@ defmodule ExLLM.Providers.Gemini.BuildRequest do
   defp maybe_add_field(map, key, value), do: Map.put(map, key, value)
 
   defp build_safety_settings(options) do
-    case Keyword.get(options, :safety_settings) do
+    case Map.get(options, :safety_settings) do
       nil ->
         nil
 
@@ -178,7 +179,7 @@ defmodule ExLLM.Providers.Gemini.BuildRequest do
   end
 
   defp build_tools(options) do
-    case Keyword.get(options, :tools) do
+    case Map.get(options, :tools) do
       nil ->
         nil
 

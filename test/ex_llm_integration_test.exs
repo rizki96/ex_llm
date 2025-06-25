@@ -59,8 +59,12 @@ defmodule ExLLM.IntegrationTest do
       messages = [%{role: "user", content: "Test"}]
 
       # Create a pipeline that will error
+      # MockHandler needs two calls: pending -> executing -> error
       pipeline = [
         Plugs.ValidateProvider,
+        # First call: pending -> executing
+        Plugs.Providers.MockHandler,
+        # Second call: executing -> error
         {Plugs.Providers.MockHandler, error: :simulated_error}
       ]
 

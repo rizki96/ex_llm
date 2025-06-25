@@ -21,7 +21,7 @@ defmodule ExLLM.Providers.Anthropic.BuildRequest do
 
     # Determine model
     model =
-      Keyword.get(
+      Map.get(
         options,
         :model,
         Map.get(config, :model) || ConfigHelper.ensure_default_model(:anthropic)
@@ -33,6 +33,7 @@ defmodule ExLLM.Providers.Anthropic.BuildRequest do
     url = "#{get_base_url(config)}/v1/messages"
 
     request
+    |> Map.put(:provider_request, body)
     |> Request.assign(:model, model)
     |> Request.assign(:request_body, body)
     |> Request.assign(:request_headers, headers)
@@ -50,7 +51,7 @@ defmodule ExLLM.Providers.Anthropic.BuildRequest do
     body = %{
       model: model,
       messages: formatted_messages,
-      max_tokens: Keyword.get(options, :max_tokens, Map.get(config, :max_tokens, 4096))
+      max_tokens: Map.get(options, :max_tokens, Map.get(config, :max_tokens, 4096))
     }
 
     # Add system message if present
@@ -62,7 +63,7 @@ defmodule ExLLM.Providers.Anthropic.BuildRequest do
       end
 
     # Add temperature if specified
-    case Keyword.get(options, :temperature) do
+    case Map.get(options, :temperature) do
       nil -> body
       temp -> Map.put(body, :temperature, temp)
     end

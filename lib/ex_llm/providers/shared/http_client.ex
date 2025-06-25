@@ -263,7 +263,6 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
     end
   end
 
-
   defp extract_base_url_and_path(url) do
     uri = URI.parse(url)
 

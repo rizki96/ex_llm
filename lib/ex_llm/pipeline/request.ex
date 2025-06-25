@@ -110,10 +110,15 @@ defmodule ExLLM.Pipeline.Request do
       id: generate_id(),
       provider: provider,
       messages: messages,
-      options: options,
+      options: normalize_options(options),
       state: :pending
     }
   end
+
+  # Convert options to map format to ensure consistency
+  defp normalize_options(options) when is_map(options), do: options
+  defp normalize_options(options) when is_list(options), do: Enum.into(options, %{})
+  defp normalize_options(_), do: %{}
 
   @doc """
   Halts the pipeline execution.

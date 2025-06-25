@@ -29,7 +29,7 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
     config = request.assigns.config || %{}
 
     # Get model from options
-    model = Keyword.get(options, :model, config[:model] || default_model())
+    model = Map.get(options, :model, config[:model] || default_model())
 
     # Determine provider from model ID
     provider = get_provider_from_model_id(model)
@@ -48,6 +48,7 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
         }
 
         request
+        |> Map.put(:provider_request, body)
         |> Request.assign(:model, model)
         |> Request.assign(:provider_type, provider)
         |> Request.assign(:url, url)
@@ -84,7 +85,7 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   end
 
   defp get_region(options, config) do
-    Keyword.get(options, :region) ||
+    Map.get(options, :region) ||
       config[:region] ||
       System.get_env("AWS_REGION") ||
       System.get_env("AWS_DEFAULT_REGION") ||
@@ -130,8 +131,8 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   defp build_anthropic_request(messages, options) do
     body = %{
       messages: format_messages_for_anthropic(messages),
-      max_tokens: Keyword.get(options, :max_tokens, 4096),
-      temperature: Keyword.get(options, :temperature, 0.7),
+      max_tokens: Map.get(options, :max_tokens, 4096),
+      temperature: Map.get(options, :temperature, 0.7),
       anthropic_version: "bedrock-2023-05-31"
     }
 
@@ -144,7 +145,7 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
 
     # Add tools if present
     body =
-      case Keyword.get(options, :tools) do
+      case Map.get(options, :tools) do
         nil -> body
         tools -> Map.put(body, :tools, tools)
       end
@@ -157,10 +158,10 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
     body = %{
       inputText: messages_to_text(messages),
       textGenerationConfig: %{
-        maxTokenCount: Keyword.get(options, :max_tokens, 4096),
-        temperature: Keyword.get(options, :temperature, 0.7),
-        topP: Keyword.get(options, :top_p, 0.9),
-        stopSequences: Keyword.get(options, :stop, [])
+        maxTokenCount: Map.get(options, :max_tokens, 4096),
+        temperature: Map.get(options, :temperature, 0.7),
+        topP: Map.get(options, :top_p, 0.9),
+        stopSequences: Map.get(options, :stop, [])
       }
     }
 
@@ -171,9 +172,9 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   defp build_meta_request(messages, options) do
     body = %{
       prompt: format_llama_prompt(messages),
-      max_gen_len: Keyword.get(options, :max_tokens, 512),
-      temperature: Keyword.get(options, :temperature, 0.7),
-      top_p: Keyword.get(options, :top_p, 0.9)
+      max_gen_len: Map.get(options, :max_tokens, 512),
+      temperature: Map.get(options, :temperature, 0.7),
+      top_p: Map.get(options, :top_p, 0.9)
     }
 
     {:ok, Jason.encode!(body)}
@@ -183,11 +184,11 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   defp build_cohere_request(messages, options) do
     body = %{
       prompt: messages_to_text(messages),
-      max_tokens: Keyword.get(options, :max_tokens, 1000),
-      temperature: Keyword.get(options, :temperature, 0.7),
-      p: Keyword.get(options, :top_p, 0.75),
-      k: Keyword.get(options, :top_k, 0),
-      stop_sequences: Keyword.get(options, :stop, [])
+      max_tokens: Map.get(options, :max_tokens, 1000),
+      temperature: Map.get(options, :temperature, 0.7),
+      p: Map.get(options, :top_p, 0.75),
+      k: Map.get(options, :top_k, 0),
+      stop_sequences: Map.get(options, :stop, [])
     }
 
     {:ok, Jason.encode!(body)}
@@ -197,10 +198,10 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   defp build_ai21_request(messages, options) do
     body = %{
       prompt: messages_to_text(messages),
-      maxTokens: Keyword.get(options, :max_tokens, 1000),
-      temperature: Keyword.get(options, :temperature, 0.7),
-      topP: Keyword.get(options, :top_p, 1.0),
-      stopSequences: Keyword.get(options, :stop, [])
+      maxTokens: Map.get(options, :max_tokens, 1000),
+      temperature: Map.get(options, :temperature, 0.7),
+      topP: Map.get(options, :top_p, 1.0),
+      stopSequences: Map.get(options, :stop, [])
     }
 
     {:ok, Jason.encode!(body)}
@@ -210,10 +211,10 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   defp build_mistral_request(messages, options) do
     body = %{
       prompt: format_mistral_prompt(messages),
-      max_tokens: Keyword.get(options, :max_tokens, 1000),
-      temperature: Keyword.get(options, :temperature, 0.7),
-      top_p: Keyword.get(options, :top_p, 1.0),
-      top_k: Keyword.get(options, :top_k, 50)
+      max_tokens: Map.get(options, :max_tokens, 1000),
+      temperature: Map.get(options, :temperature, 0.7),
+      top_p: Map.get(options, :top_p, 1.0),
+      top_k: Map.get(options, :top_k, 50)
     }
 
     {:ok, Jason.encode!(body)}
@@ -223,8 +224,8 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   defp build_writer_request(messages, options) do
     body = %{
       messages: format_messages_for_anthropic(messages),
-      max_tokens: Keyword.get(options, :max_tokens, 4096),
-      temperature: Keyword.get(options, :temperature, 0.7)
+      max_tokens: Map.get(options, :max_tokens, 4096),
+      temperature: Map.get(options, :temperature, 0.7)
     }
 
     {:ok, Jason.encode!(body)}
@@ -234,8 +235,8 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
   defp build_deepseek_request(messages, options) do
     body = %{
       messages: format_messages_for_anthropic(messages),
-      max_tokens: Keyword.get(options, :max_tokens, 4096),
-      temperature: Keyword.get(options, :temperature, 0.7)
+      max_tokens: Map.get(options, :max_tokens, 4096),
+      temperature: Map.get(options, :temperature, 0.7)
     }
 
     {:ok, Jason.encode!(body)}

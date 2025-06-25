@@ -18,7 +18,7 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
     config = request.assigns.config || %{}
 
     # Get model name
-    model = Keyword.get(options, :model, config[:model] || default_model())
+    model = Map.get(options, :model, config[:model] || default_model())
 
     # Load or get cached model
     case load_model(model) do
@@ -29,7 +29,15 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
         # Prepare generation config
         generation_config = build_generation_config(options)
 
+        # Create provider request structure for local execution
+        provider_request = %{
+          formatted_input: formatted_input,
+          generation_config: generation_config,
+          model_ref: model_ref
+        }
+
         request
+        |> Map.put(:provider_request, provider_request)
         |> Request.assign(:model, model)
         |> Request.assign(:model_ref, model_ref)
         |> Request.assign(:formatted_input, formatted_input)
@@ -192,11 +200,11 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
 
   defp build_generation_config(options) do
     %{
-      max_tokens: Keyword.get(options, :max_tokens, 2048),
-      temperature: Keyword.get(options, :temperature, 0.7),
-      top_p: Keyword.get(options, :top_p, 1.0),
-      stream: Keyword.get(options, :stream, false),
-      seed: Keyword.get(options, :seed)
+      max_tokens: Map.get(options, :max_tokens, 2048),
+      temperature: Map.get(options, :temperature, 0.7),
+      top_p: Map.get(options, :top_p, 1.0),
+      stream: Map.get(options, :stream, false),
+      seed: Map.get(options, :seed)
     }
   end
 end
