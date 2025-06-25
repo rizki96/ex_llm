@@ -276,7 +276,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.FlowControl do
     ]
 
     # Add to existing headers
-    updated_headers = (response.headers || []) ++ flow_control_headers
+    updated_headers = response.headers ++ flow_control_headers
 
     %{response | headers: updated_headers}
   end

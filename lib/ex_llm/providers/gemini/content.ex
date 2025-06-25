@@ -518,7 +518,7 @@ defmodule ExLLM.Providers.Gemini.Content do
 
         # Forward the completion or error message to the stream
         case result do
-          {:ok, :streaming} ->
+          {:ok, _stream_result} ->
             # Wait for the stream to complete
             receive do
               :stream_done ->

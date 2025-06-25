@@ -1,0 +1,99 @@
+Finding suitable PLTs
+Checking PLT...
+[:crypto, :elixir, :erts, :ex_llm, :gun, :hackney, :jason, :kernel, :logger, :req, :stdlib, :telemetry, :tesla, :yaml_elixir]
+PLT is up to date!
+ignore_warnings: .dialyzer_ignore.exs
+
+Starting Dialyzer
+[
+  check_plt: false,
+  init_plt: ~c"/Users/azmaveth/code/ex_llm/_build/dev/dialyxir_erlang-28.0.1_elixir-1.18.4_deps-dev.plt",
+  files: [~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Providers.Ollama.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Infrastructure.Retry.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Pipeline.Builder.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.Mix.Tasks.ExLlm.Cache.Stats.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Embeddings.beam",
+   ...],
+  warnings: [:unknown]
+]
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:43:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:44:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:45:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:46:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:47:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:48:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:49:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:52:67
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:53:67
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:56:69
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:59:76
+
+Total errors: 107, Skipped: 48, Unnecessary Skips: 11
+Unused filters:
+{"lib/ex_llm/providers/gemini/parse_response.ex", :unused_fun, {~c"extract_audio_from_candidate", 1}}
+{"lib/ex_llm/providers/gemini/parse_response.ex", :unused_fun, {~c"extract_tool_calls_from_candidate", 1}}
+{"lib/ex_llm/providers/ollama.ex", :unused_fun, {~c"build_basic_model_config", 1}}
+{"lib/ex_llm/providers/ollama.ex", :unused_fun, {~c"build_model_configs", 2}}
+{"lib/ex_llm/providers/ollama.ex", :unused_fun, {~c"deep_merge_models", 2}}
+{"lib/ex_llm/providers/ollama.ex", :unused_fun, {~c"determine_default_model", 2}}
+{"lib/ex_llm/providers/ollama.ex", :unused_fun, {~c"get_model_details_direct", 2}}
+{"lib/ex_llm/providers/ollama.ex", :unused_fun, {~c"load_existing_default", 1}}
+{"lib/ex_llm/providers/ollama.ex", :unused_fun, {~c"merge_with_existing_config", 2}}
+{"lib/ex_llm/providers/shared/streaming/compatibility.ex", :unused_fun, {~c"wait_for_stream_completion", 0}}
+{"lib/ex_llm/providers/shared/streaming/engine.ex", :unused_fun, {~c"handle_stream_response", 2}}
+unused filters present
+Halting VM with exit status 1

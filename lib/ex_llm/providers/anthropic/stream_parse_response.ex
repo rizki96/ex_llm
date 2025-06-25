@@ -52,7 +52,7 @@ defmodule ExLLM.Providers.Anthropic.StreamParseResponse do
                  timeout: timeout,
                  provider: request.provider
                ) do
-            {:ok, :streaming} ->
+            {:ok, _stream_result} ->
               # Return ref to identify chunks from this stream
               ref
 

@@ -1,0 +1,929 @@
+Finding suitable PLTs
+Checking PLT...
+[:crypto, :elixir, :erts, :ex_llm, :gun, :hackney, :jason, :kernel, :logger, :req, :stdlib, :telemetry, :tesla, :yaml_elixir]
+PLT is up to date!
+ignore_warnings: .dialyzer_ignore.exs
+
+Starting Dialyzer
+[
+  check_plt: false,
+  init_plt: ~c"/Users/azmaveth/code/ex_llm/_build/dev/dialyxir_erlang-28.0.1_elixir-1.18.4_deps-dev.plt",
+  files: [~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Providers.Ollama.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Infrastructure.Retry.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Pipeline.Builder.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.Mix.Tasks.ExLlm.Cache.Stats.beam",
+   ~c"/Users/azmaveth/code/ex_llm/_build/dev/lib/ex_llm/ebin/Elixir.ExLLM.Embeddings.beam",
+   ...],
+  warnings: [:unknown]
+]
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:43:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:44:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:45:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:46:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:47:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:48:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:49:52
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:52:67
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:53:67
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:56:69
+
+warning: using single-quoted strings to represent charlists is deprecated.
+Use ~c"" if you indeed want a charlist or use "" instead.
+You may run "mix format --migrate" to change all single-quoted
+strings to use the ~c sigil and fix this warning.
+└─ nofile:59:76
+
+Total errors: 107, Skipped: 48, Unnecessary Skips: 11
+done in 0m1.55s
+lib/ex_llm/plugs/execute_request.ex:93:11:pattern_match
+The pattern can never match the type.
+
+Pattern:
+_response = %Tesla.Env{}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:209:17:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, %{<<100, 97, 116, 97>> => _models}}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:592:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:614:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:636:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, %{:body => _content, :status => 200}}
+
+Type:
+{:error, _} | {:ok, binary()}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:639:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, %{:body => _body, :status => _status}}
+
+Type:
+{:error, _} | {:ok, binary()}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:715:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:737:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/anthropic.ex:759:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/bedrock/build_request.ex:51:16:call
+The function call will not succeed.
+
+ExLLM.Pipeline.Request.assign(
+  %ExLLM.Pipeline.Request{:provider_request => binary(), :state => :pending, _ => _},
+  :model,
+  _model :: binary()
+)
+
+breaks the contract
+(t(), atom(), any()) :: t()
+
+________________________________________________________________________________
+lib/ex_llm/providers/bedrock/stream_parse_response.ex:32:8:no_return
+Function initiate_streaming/1 has no local return.
+________________________________________________________________________________
+lib/ex_llm/providers/gemini/parse_response.ex:45:64:call
+The function call will not succeed.
+
+ExLLM.Core.Cost.calculate(
+  <<103, 101, 109, 105, 110, 105>>,
+  _model :: any(),
+  _usage :: %{:input_tokens => _, :output_tokens => _, :total_tokens => _}
+)
+
+breaks the contract
+(String.t() | atom(), String.t(), ExLLM.Types.token_usage()) ::
+  ExLLM.Types.cost_result() | %{:error => String.t()}
+
+________________________________________________________________________________
+lib/ex_llm/providers/gemini/parse_response.ex:93:8:unused_fun
+Function extract_tool_calls_from_candidate/1 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/gemini/parse_response.ex:115:8:unused_fun
+Function extract_audio_from_candidate/1 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/gemini/stream_parse_response.ex:55:31:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/groq/stream_parse_response.ex:7:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/lmstudio.ex:309:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response = %{<<100, 97, 116, 97>> => _models}}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/lmstudio.ex:321:13:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/lmstudio.ex:352:13:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/lmstudio/build_request.ex:8:guard_fail
+The guard clause:
+
+when _ :: <<_::136>> === nil
+
+can never succeed.
+
+________________________________________________________________________________
+lib/ex_llm/providers/lmstudio/stream_parse_response.ex:7:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/mistral/build_request.ex:8:guard_fail
+The guard clause:
+
+when _ :: <<_::128>> === nil
+
+can never succeed.
+
+________________________________________________________________________________
+lib/ex_llm/providers/mistral/stream_parse_response.ex:7:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:294:13:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _body}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:301:13:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1573:13:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _models}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1794:8:unused_fun
+Function build_model_configs/2 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1816:8:unused_fun
+Function get_model_details_direct/2 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1882:8:unused_fun
+Function build_basic_model_config/1 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1893:8:unused_fun
+Function determine_default_model/2 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1916:8:unused_fun
+Function merge_with_existing_config/2 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1929:8:unused_fun
+Function deep_merge_models/2 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/ollama.ex:1961:8:unused_fun
+Function load_existing_default/1 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/ollama/build_request.ex:8:guard_fail
+The guard clause:
+
+when _ :: <<_::120>> === nil
+
+can never succeed.
+
+________________________________________________________________________________
+lib/ex_llm/providers/ollama/stream_parse_response.ex:54:31:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/openai.ex:3393:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/openai.ex:3431:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/openai.ex:3512:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/openai.ex:3557:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/openai/stream_parse_response.ex:55:31:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/openrouter/build_request.ex:8:guard_fail
+The guard clause:
+
+when _ :: <<_::152>> === nil
+
+can never succeed.
+
+________________________________________________________________________________
+lib/ex_llm/providers/openrouter/stream_parse_response.ex:7:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/perplexity/build_request.ex:8:guard_fail
+The guard clause:
+
+when _ :: <<_::152>> === nil
+
+can never succeed.
+
+________________________________________________________________________________
+lib/ex_llm/providers/perplexity/stream_parse_response.ex:7:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/http/multipart.ex:159:73:unknown_type
+Unknown type: Tesla.Multipart.part/0.
+________________________________________________________________________________
+lib/ex_llm/providers/shared/http/multipart.ex:349:7:no_return
+Function stream_file/2 has no local return.
+________________________________________________________________________________
+lib/ex_llm/providers/shared/http/multipart.ex:349:45:call
+The function call will not succeed.
+
+ExLLM.Providers.Shared.HTTP.Multipart.stream_file(_ :: any(), _ :: any(), nil, [])
+
+breaks the contract
+(String.t(), String.t(), String.t(), :elixir.keyword()) :: Enumerable.t()
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/http_client.ex:74:8:no_return
+Function handle_intercepted_get/3 has no local return.
+________________________________________________________________________________
+lib/ex_llm/providers/shared/http_client.ex:75:34:call
+The function call will not succeed.
+
+ExLLM.Testing.TestResponseInterceptor.intercept_request(_url :: any(), nil, _headers :: any(), _opts :: any())
+
+breaks the contract
+(String.t(), map(), [any()], :elixir.keyword()) :: intercept_result()
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/http_client.ex:367:13:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, %Tesla.Env{:body => _body}}
+
+Type:
+{:error, _}
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/streaming/compatibility.ex:128:13:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, __stream_id}
+
+Type:
+{:error, <<_::312>>}
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/streaming/compatibility.ex:226:8:unused_fun
+Function wait_for_stream_completion/0 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/shared/streaming/engine.ex:221:15:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, _response}
+
+Type:
+{:error, {:exception, %{:__exception__ => true, :__struct__ => atom(), atom() => _}}}
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/streaming/engine.ex:305:23:call
+The function call will not succeed.
+
+Tesla.post(
+  _client_with_context :: %Tesla.Env{
+    :__client__ => %Tesla.Client{
+      :adapter =>
+        nil
+        | {atom(),
+           atom()
+           | (... ->
+                %Tesla.Env{
+                  :__client__ => %Tesla.Client{
+                    :adapter => _,
+                    :fun => _,
+                    :post => [any()],
+                    :pre => [any()]
+                  },
+                  _ => _
+                })}
+        | {atom(), atom(), _},
+      :fun => _,
+      :post => [
+        {atom(),
+         atom()
+         | (... ->
+              %Tesla.Env{
+                :__client__ => %Tesla.Client{
+                  :adapter => _,
+                  :fun => _,
+                  :post => [any()],
+                  _ => _
+                },
+                _ => _
+              })}
+        | {atom(), atom(), _}
+      ],
+      :pre => [
+        {atom(),
+         atom()
+         | (... ->
+              %Tesla.Env{
+                :__client__ => %Tesla.Client{
+                  :adapter => _,
+                  :fun => _,
+                  :post => [any()],
+                  _ => _
+                },
+                _ => _
+              })}
+        | {atom(), atom(), _}
+      ]
+    },
+    :__module__ => atom(),
+    :body => _,
+    :headers => [{binary(), binary()}],
+    :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+    :opts => Keyword.t(),
+    :query => [{atom() | binary(), binary() | [{atom() | binary(), binary() | [{_, _}]}]}],
+    :status => nil | integer(),
+    :url => binary()
+  },
+  _path :: any(),
+  _body :: any(),
+  [
+    {:headers, [{<<_::48, _::size(56)>>, <<_::64, _::size(72)>>}, ...]}
+    | {:opts, [{:recv_timeout, _} | {:stream_to, pid()}, ...]},
+    ...
+  ]
+)
+
+will never return since the success typing is:
+(
+  %Tesla.Client{
+    :adapter => nil | {atom(), atom() | (... -> map())} | {atom(), atom(), _},
+    :fun => _,
+    :post => [{atom(), atom() | (... -> any)} | {atom(), atom(), _}],
+    :pre => [{atom(), atom() | (... -> any)} | {atom(), atom(), _}]
+  },
+  any(),
+  any(),
+  [{:body | :headers | :method | :opts | :query | :url, _}]
+) ::
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+and the contract is
+(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body(), [option()]) :: Tesla.Env.result()
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/streaming/engine.ex:336:23:call
+The function call will not succeed.
+
+Tesla.post(
+  _client_with_context :: %Tesla.Env{
+    :__client__ => %Tesla.Client{
+      :adapter =>
+        nil
+        | {atom(),
+           atom()
+           | (... ->
+                %Tesla.Env{
+                  :__client__ => %Tesla.Client{
+                    :adapter => _,
+                    :fun => _,
+                    :post => [any()],
+                    :pre => [any()]
+                  },
+                  _ => _
+                })}
+        | {atom(), atom(), _},
+      :fun => _,
+      :post => [
+        {atom(),
+         atom()
+         | (... ->
+              %Tesla.Env{
+                :__client__ => %Tesla.Client{
+                  :adapter => _,
+                  :fun => _,
+                  :post => [any()],
+                  _ => _
+                },
+                _ => _
+              })}
+        | {atom(), atom(), _}
+      ],
+      :pre => [
+        {atom(),
+         atom()
+         | (... ->
+              %Tesla.Env{
+                :__client__ => %Tesla.Client{
+                  :adapter => _,
+                  :fun => _,
+                  :post => [any()],
+                  _ => _
+                },
+                _ => _
+              })}
+        | {atom(), atom(), _}
+      ]
+    },
+    :__module__ => atom(),
+    :body => _,
+    :headers => [{binary(), binary()}],
+    :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+    :opts => Keyword.t(),
+    :query => [{atom() | binary(), binary() | [{atom() | binary(), binary() | [{_, _}]}]}],
+    :status => nil | integer(),
+    :url => binary()
+  },
+  _path :: any(),
+  _body :: any(),
+  [
+    {:headers, [{<<_::48, _::size(56)>>, <<_::64, _::size(72)>>}, ...]}
+    | {:opts, [{:recv_timeout, _} | {:stream_to, pid()}, ...]},
+    ...
+  ]
+)
+
+will never return since the success typing is:
+(
+  %Tesla.Client{
+    :adapter => nil | {atom(), atom() | (... -> map())} | {atom(), atom(), _},
+    :fun => _,
+    :post => [{atom(), atom() | (... -> any)} | {atom(), atom(), _}],
+    :pre => [{atom(), atom() | (... -> any)} | {atom(), atom(), _}]
+  },
+  any(),
+  any(),
+  [{:body | :headers | :method | :opts | :query | :url, _}]
+) ::
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+and the contract is
+(Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body(), [option()]) :: Tesla.Env.result()
+
+________________________________________________________________________________
+lib/ex_llm/providers/shared/streaming/engine.ex:355:8:unused_fun
+Function handle_stream_response/2 will never be called.
+________________________________________________________________________________
+lib/ex_llm/providers/xai.ex:60:pattern_match
+The pattern can never match the type.
+
+Pattern:
+:get
+
+Type:
+:post
+
+________________________________________________________________________________
+lib/ex_llm/providers/xai/build_request.ex:8:guard_fail
+The guard clause:
+
+when _ :: <<_::96>> === nil
+
+can never succeed.
+
+________________________________________________________________________________
+lib/ex_llm/providers/xai/stream_parse_response.ex:7:pattern_match
+The pattern can never match the type.
+
+Pattern:
+{:ok, :streaming}
+
+Type:
+
+  {:error, _}
+  | {:ok,
+     %Tesla.Env{
+       :__client__ => %Tesla.Client{
+         :adapter => nil | {_, _} | {_, _, _},
+         :fun => _,
+         :post => [any()],
+         :pre => [any()]
+       },
+       :__module__ => atom(),
+       :body => _,
+       :headers => [{_, _}],
+       :method => :delete | :get | :head | :options | :patch | :post | :put | :trace,
+       :opts => [{_, _}],
+       :query => [{_, _}],
+       :status => nil | integer(),
+       :url => binary()
+     }}
+
+
+________________________________________________________________________________
+done (warnings were emitted)
+Halting VM with exit status 2
