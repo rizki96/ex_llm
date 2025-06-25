@@ -4,6 +4,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
   alias ExLLM.Infrastructure.ConfigProvider.Static
   alias ExLLM.Providers.OpenAICompatible
   alias ExLLM.Types
+  alias ExLLM.Testing.ConfigProviderHelper
 
   # This module defines a shared test suite for any provider that implements
   # the OpenAICompatible behavior. It tests the common contract for chat,
@@ -83,46 +84,62 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
       end
 
       test "configured?/1 returns false without API key" do
-        {:ok, pid} = Static.start_link(%{unquote(provider_atom) => %{}})
-        refute unquote(provider_module).configured?(config_provider: pid)
+        restore_env = ConfigProviderHelper.disable_env_api_keys()
+        
+        try do
+          {:ok, pid} = Static.start_link(%{unquote(provider_atom) => %{}})
+          refute unquote(provider_module).configured?(config_provider: pid)
+        after
+          restore_env.()
+        end
       end
 
       test "list_models/1 fetches and parses models", %{bypass: bypass, config_provider: pid} do
-        response_body = """
-        {
-          "object": "list",
-          "data": [
-            { "id": "model-1", "object": "model" },
-            { "id": "model-2-vision", "object": "model" },
-            { "id": "whisper-large-v3", "object": "model" }
-          ]
-        }
-        """
-
-        Bypass.stub(bypass, "GET", "/v1/models", fn conn ->
-          Plug.Conn.resp(conn, 200, response_body)
-        end)
-
-        {:ok, models} = unquote(provider_module).list_models(config_provider: pid, source: :api)
-
-        assert is_list(models)
-
-        # Groq provider has a filter_model/1 implementation that removes non-LLM models.
-        if unquote(provider_atom) == :groq do
-          refute Enum.any?(models, &(&1.id == "whisper-large-v3"))
-          assert length(models) == 2
+        # Some providers (like XAI) override list_models completely and don't use API fetching
+        if unquote(provider_atom) in [:xai] do
+          {:ok, models} = unquote(provider_module).list_models(config_provider: pid)
+          assert is_list(models)
+          assert length(models) > 0
+          # Just verify basic structure for providers that use static configs
+          first_model = List.first(models)
+          assert %Types.Model{} = first_model
+          assert is_binary(first_model.id)
         else
-          assert Enum.any?(models, &(&1.id == "whisper-large-v3"))
-          assert length(models) == 3
+          response_body = """
+          {
+            "object": "list",
+            "data": [
+              { "id": "model-1", "object": "model" },
+              { "id": "model-2-vision", "object": "model" },
+              { "id": "whisper-large-v3", "object": "model" }
+            ]
+          }
+          """
+
+          Bypass.stub(bypass, "GET", "/v1/models", fn conn ->
+            Plug.Conn.resp(conn, 200, response_body)
+          end)
+
+          {:ok, models} = unquote(provider_module).list_models(config_provider: pid, source: :api)
+
+          assert is_list(models)
+
+          # Groq provider has a filter_model/1 implementation that removes non-LLM models.
+          if unquote(provider_atom) == :groq do
+            refute Enum.any?(models, &(&1.id == "whisper-large-v3"))
+            assert length(models) == 2
+          else
+            assert Enum.any?(models, &(&1.id == "whisper-large-v3"))
+            assert length(models) == 3
+          end
+
+          model1 = Enum.find(models, &(&1.id == "model-1"))
+          assert %Types.Model{} = model1
+          assert model1.capabilities.supports_vision == false
+          model2 = Enum.find(models, &(&1.id == "model-2-vision"))
+          assert %Types.Model{} = model2
+          assert model2.capabilities.supports_vision == true
         end
-
-        model1 = Enum.find(models, &(&1.id == "model-1"))
-        assert %Types.Model{} = model1
-        assert model1.capabilities.supports_vision == false
-
-        model2 = Enum.find(models, &(&1.id == "model-2-vision"))
-        assert %Types.Model{} = model2
-        assert model2.capabilities.supports_vision == true
       end
 
       test "chat/2 sends a valid request and parses response", %{
@@ -130,15 +147,18 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
         config_provider: pid
       } do
         test_pid = self()
-        
+
         Bypass.stub(bypass, "POST", "/v1/chat/completions", fn conn ->
           # Capture request details
           {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
           body = Jason.decode!(raw_body)
-          
+
           # Send request details to test process
-          send(test_pid, {:request_captured, conn.method, conn.request_path, conn.req_headers, body})
-          
+          send(
+            test_pid,
+            {:request_captured, conn.method, conn.request_path, conn.req_headers, body}
+          )
+
           Plug.Conn.resp(conn, 200, """
           {
             "id": "chatcmpl-123", "object": "chat.completion", "created": 1677652288, "model": "test-model",
@@ -172,15 +192,15 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
         config_provider: pid
       } do
         test_pid = self()
-        
+
         Bypass.stub(bypass, "POST", "/v1/chat/completions", fn conn ->
           # Capture request details
           {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
           body = Jason.decode!(raw_body)
-          
+
           # Send body to test process
           send(test_pid, {:request_body, body})
-          
+
           Plug.Conn.resp(conn, 200, """
           {
             "id": "chatcmpl-123", "object": "chat.completion", "created": 1677652288, "model": "test-model",
@@ -260,16 +280,25 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
 
         # Handle both direct error maps and nested error structures
         case error do
-          %{type: :authentication_error} -> :ok
-          %{error: %{type: :authentication_error}} -> :ok
-          {:connection_failed, %{type: :authentication_error}} -> :ok
-          {:connection_failed, %{type: :authentication_error, status_code: 401}} -> :ok
-          other -> 
+          %{type: :authentication_error} ->
+            :ok
+
+          %{error: %{type: :authentication_error}} ->
+            :ok
+
+          {:connection_failed, %{type: :authentication_error, status_code: 401}} ->
+            :ok
+
+          {:connection_failed, %{type: :authentication_error}} ->
+            :ok
+
+          other ->
             # Check if it contains authentication error anywhere in the structure
             error_str = inspect(error)
-            if String.contains?(error_str, "authentication_error") or 
-               String.contains?(error_str, "Invalid API key") or
-               String.contains?(error_str, "status: 401") do
+
+            if String.contains?(error_str, "authentication_error") or
+                 String.contains?(error_str, "Invalid API key") or
+                 String.contains?(error_str, "status: 401") do
               :ok
             else
               flunk("Expected authentication error, got: #{inspect(other)}")
@@ -287,16 +316,25 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
 
         # Handle both direct error maps and nested error structures
         case error do
-          %{type: :rate_limit_error} -> :ok
-          %{error: %{type: :rate_limit_error}} -> :ok
-          {:connection_failed, %{type: :rate_limit_error}} -> :ok
-          {:connection_failed, %{type: :rate_limit_error, status_code: 429}} -> :ok
-          other -> 
+          %{type: :rate_limit_error} ->
+            :ok
+
+          %{error: %{type: :rate_limit_error}} ->
+            :ok
+
+          {:connection_failed, %{type: :rate_limit_error, status_code: 429}} ->
+            :ok
+
+          {:connection_failed, %{type: :rate_limit_error}} ->
+            :ok
+
+          other ->
             # Check if it contains rate limit error anywhere in the structure
             error_str = inspect(error)
-            if String.contains?(error_str, "rate_limit_error") or 
-               String.contains?(error_str, "Rate limit exceeded") or
-               String.contains?(error_str, "status: 429") do
+
+            if String.contains?(error_str, "rate_limit_error") or
+                 String.contains?(error_str, "Rate limit exceeded") or
+                 String.contains?(error_str, "status: 429") do
               :ok
             else
               flunk("Expected rate limit error, got: #{inspect(other)}")
@@ -314,16 +352,25 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
 
         # Handle both direct error maps and nested error structures
         case error do
-          %{type: :api_error, status_code: 500} -> :ok
-          %{error: %{type: :api_error, status_code: 500}} -> :ok
-          {:connection_failed, %{type: :api_error, status_code: 500}} -> :ok
-          {:connection_failed, %{status_code: 500}} -> :ok
-          other -> 
+          %{type: :api_error, status_code: 500} ->
+            :ok
+
+          %{error: %{type: :api_error, status_code: 500}} ->
+            :ok
+
+          {:connection_failed, %{type: :api_error, status_code: 500}} ->
+            :ok
+
+          {:connection_failed, %{status_code: 500}} ->
+            :ok
+
+          other ->
             # Check if it contains server error anywhere in the structure
             error_str = inspect(error)
-            if String.contains?(error_str, "api_error") or 
-               String.contains?(error_str, "Internal Server Error") or
-               String.contains?(error_str, "status: 500") do
+
+            if String.contains?(error_str, "api_error") or
+                 String.contains?(error_str, "Internal Server Error") or
+                 String.contains?(error_str, "status: 500") do
               :ok
             else
               flunk("Expected API error with status 500, got: #{inspect(other)}")
@@ -338,15 +385,15 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
           config_provider: pid
         } do
           test_pid = self()
-          
+
           Bypass.stub(bypass, "POST", "/v1/chat/completions", fn conn ->
             # Capture request details
             {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
             body = Jason.decode!(raw_body)
-            
+
             # Send body to test process
             send(test_pid, {:request_body, body})
-            
+
             Plug.Conn.resp(conn, 200, """
             {
               "id": "chatcmpl-123", "object": "chat.completion", "created": 1677652288, "model": "test-model",

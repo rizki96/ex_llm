@@ -67,7 +67,8 @@ defmodule ExLLM.Testing.ConfigProviderHelper do
       "PERPLEXITY_API_KEY",
       "OPENROUTER_API_KEY",
       "GOOGLE_API_KEY",
-      "GEMINI_API_KEY"
+      "GEMINI_API_KEY",
+      "XAI_API_KEY"
     ]
 
     # Save current values

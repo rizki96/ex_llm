@@ -203,7 +203,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.RecoveryPlugTest do
     end
 
     test "passes through when recovery is disabled" do
-      chunks = []
+      _chunks = []
       callback = fn chunk -> send(self(), {:chunk, chunk}) end
 
       stream_context = %{
@@ -364,7 +364,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.RecoveryPlugTest do
         model: "gpt-4"
       }
 
-      opts = [
+      _opts = [
         stream_context: stream_context,
         enabled: true,
         auto_resume: true,

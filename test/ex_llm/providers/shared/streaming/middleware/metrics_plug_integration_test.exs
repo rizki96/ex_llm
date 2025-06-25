@@ -1,7 +1,6 @@
 defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugIntegrationTest do
   use ExUnit.Case, async: true
 
-  alias ExLLM.Providers.Shared.Streaming.Engine
   alias ExLLM.Providers.Shared.Streaming.Middleware.{MetricsPlug, StreamCollector}
   alias ExLLM.Types.StreamChunk
 
@@ -62,7 +61,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugIntegrationTest
          ]}
       ]
 
-      client = Tesla.client(middleware, {MockStreamingAdapter, []})
+      _client = Tesla.client(middleware, {MockStreamingAdapter, []})
 
       # Simple chunk parser
       parse_chunk = fn data ->
@@ -141,7 +140,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugIntegrationTest
         {MetricsPlug, [enabled: false]}
       ]
 
-      client =
+      _client =
         Tesla.client(middleware, fn env, _opts ->
           # Simulate successful response
           {:ok, %{env | status: 200, body: "ok"}}
@@ -170,7 +169,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugIntegrationTest
 
     test "error handling in metrics" do
       test_pid = self()
-      error_metrics = nil
+      _error_metrics = nil
 
       # Client that will error
       middleware = [
@@ -186,7 +185,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugIntegrationTest
          ]}
       ]
 
-      client =
+      _client =
         Tesla.client(middleware, fn _env, _opts ->
           {:error, :connection_timeout}
         end)

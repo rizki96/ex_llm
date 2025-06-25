@@ -67,13 +67,13 @@ defmodule ExLLM.Providers.XAI do
   # Override base implementation for XAI-specific features
 
   @impl ExLLM.Providers.OpenAICompatible
-  def get_base_url(_config) do
-    "https://api.x.ai/v1"
+  def get_base_url(config) do
+    Map.get(config, :base_url, "https://api.x.ai/v1")
   end
 
   @impl ExLLM.Providers.OpenAICompatible
   def get_api_key(config) do
-    Map.get(config, :api_key)
+    Map.get(config, :api_key) || System.get_env("XAI_API_KEY")
   end
 
   @impl ExLLM.Providers.OpenAICompatible

@@ -31,7 +31,7 @@ defmodule ExLLM.Providers.Shared.Streaming.EngineTest do
         {:gemini, "https://generativelanguage.googleapis.com/v1beta"}
       ]
 
-      for {provider, expected_base_url} <- providers do
+      for {provider, _expected_base_url} <- providers do
         client = Engine.client(provider: provider, api_key: "test-key")
         # Note: We can't easily test the base URL without making an actual request
         # But we can verify the client was created successfully
@@ -275,7 +275,7 @@ defmodule ExLLM.Providers.Shared.Streaming.CompatibilityTest do
 
   describe "chunk transformation and validation" do
     test "applies transform_chunk function when provided" do
-      received_chunks = []
+      _received_chunks = []
       callback_spy = self()
 
       callback = fn chunk ->

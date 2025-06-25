@@ -107,7 +107,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugTest do
         opts: []
       }
 
-      opts = [
+      _opts = [
         stream_context: stream_context,
         enabled: true,
         interval: 0
@@ -138,7 +138,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugTest do
         opts: []
       }
 
-      opts = [
+      _opts = [
         stream_context: stream_context,
         enabled: true,
         interval: 0
@@ -172,7 +172,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugTest do
         opts: []
       }
 
-      opts = [
+      _opts = [
         stream_context: stream_context,
         enabled: true,
         include_raw_data: true,
@@ -326,7 +326,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugTest do
         opts: []
       }
 
-      opts = [
+      _opts = [
         stream_context: stream_context,
         callback: metrics_callback,
         enabled: true,
