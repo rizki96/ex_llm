@@ -200,7 +200,6 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     case response do
       # Handle successful Tesla responses
       %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
-
         request
         |> Map.put(:response, env)
         |> Request.put_state(:completed)

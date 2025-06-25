@@ -49,7 +49,7 @@ defmodule ExLLM.Providers.Bedrock.StreamParseResponse do
              timeout: timeout,
              provider: request.provider
            ) do
-        {:ok, :streaming} ->
+        {:ok, _stream_result} ->
           request
           |> Request.put_state(:streaming)
 
