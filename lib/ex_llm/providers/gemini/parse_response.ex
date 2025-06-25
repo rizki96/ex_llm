@@ -47,6 +47,7 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
           input_tokens: usage.input_tokens,
           output_tokens: usage.output_tokens
         }
+
         cost_info = ExLLM.Core.Cost.calculate(:gemini, model, cost_usage)
         cost_value = Map.get(cost_info, :total_cost)
 

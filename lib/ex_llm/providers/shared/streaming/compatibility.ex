@@ -98,7 +98,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
           {:ok, stream_id} ->
             Logger.debug("Compatibility stream #{stream_id} started successfully")
             {:ok, stream_id}
-          
+
           {:error, reason} ->
             {:error, reason}
         end
