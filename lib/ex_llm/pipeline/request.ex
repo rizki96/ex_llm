@@ -104,7 +104,7 @@ defmodule ExLLM.Pipeline.Request do
       iex> request.state
       :pending
   """
-  @spec new(atom(), list(map()), map()) :: t()
+  @spec new(atom(), list(map()), map() | keyword()) :: t()
   def new(provider, messages, options \\ %{}) do
     %__MODULE__{
       id: generate_id(),
@@ -117,7 +117,13 @@ defmodule ExLLM.Pipeline.Request do
 
   # Convert options to map format to ensure consistency
   defp normalize_options(options) when is_map(options), do: options
-  defp normalize_options(options) when is_list(options), do: Enum.into(options, %{})
+  defp normalize_options(options) when is_list(options) do
+    if Keyword.keyword?(options) do
+      Enum.into(options, %{})
+    else
+      %{}
+    end
+  end
   defp normalize_options(_), do: %{}
 
   @doc """
