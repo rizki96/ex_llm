@@ -85,7 +85,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
 
       test "configured?/1 returns false without API key" do
         restore_env = ConfigProviderHelper.disable_env_api_keys()
-        
+
         try do
           {:ok, pid} = Static.start_link(%{unquote(provider_atom) => %{}})
           refute unquote(provider_module).configured?(config_provider: pid)
