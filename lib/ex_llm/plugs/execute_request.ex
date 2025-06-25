@@ -89,6 +89,11 @@ defmodule ExLLM.Plugs.ExecuteRequest do
             maybe_save_response(request_to_execute, response)
             handle_tesla_response(request_to_execute, response)
 
+          %Tesla.Env{} = response ->
+            # Handle direct Tesla.Env response (e.g., from Tesla.Mock)
+            maybe_save_response(request_to_execute, response)
+            handle_tesla_response(request_to_execute, response)
+
           {:error, reason} ->
             # Network or other error
             error = build_network_error(reason, request_to_execute.provider)
@@ -197,6 +202,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
       %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
         request
         |> Map.put(:response, env)
+        |> Request.assign(:http_response, env.body)
         |> Request.put_state(:completed)
         |> Request.put_metadata(:http_status, status)
         |> Request.put_metadata(:response_headers, headers)

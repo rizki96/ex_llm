@@ -252,7 +252,8 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
             config_provider: pid
           )
 
-        assert %Stream{} = stream
+        # Stream.resource/3 returns a function, not a %Stream{} struct
+        assert is_function(stream)
       end
 
       test "parse_stream_chunk/1 correctly parses SSE data" do
@@ -405,7 +406,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
 
           options =
             [model: "test-model", config_provider: pid]
-            |> Keyword.merge(unquote(Macro.escape(special_opts)))
+            |> Keyword.merge(Enum.to_list(unquote(Macro.escape(special_opts))))
 
           :ok =
             unquote(provider_module).chat([%{role: "user", content: "Hi"}], options) |> elem(0)

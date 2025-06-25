@@ -149,7 +149,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         response = %{
           status: status,
           headers: resp_headers,
-          body: parse_response_body(resp_body)
+          body: resp_body  # Don't parse multipart responses - they may already be parsed
         }
 
         {:ok, response}

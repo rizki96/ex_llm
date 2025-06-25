@@ -213,6 +213,14 @@ defmodule ExLLM.Providers.Shared.HTTP.ErrorHandling do
     }
   end
 
+  defp map_tesla_error({:function_clause, _} = reason, opts) do
+    %{
+      type: :connection_error,
+      message: "Connection failed: #{inspect(reason)}",
+      provider: Keyword.get(opts, :provider)
+    }
+  end
+
   defp map_tesla_error(reason, opts) do
     %{
       type: :unknown_error,

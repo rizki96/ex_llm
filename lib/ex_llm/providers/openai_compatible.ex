@@ -193,15 +193,73 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
         provider_name = get_provider_name()
 
-        # Use HTTPClient streaming
-        case HTTPClient.post_json(url, request, headers,
-               provider: provider_name,
-               timeout: 60_000,
-               stream: true
-             ) do
-          {:ok, stream} -> {:ok, stream}
-          error -> error
-        end
+        # Create a proper Stream using Stream.resource like other providers
+        stream =
+          Stream.resource(
+            # Start function - creates initial state
+            fn ->
+              ref = make_ref()
+              parent = self()
+
+              # Spawn a process to handle the streaming request
+              spawn_link(fn ->
+                case HTTPClient.post_json(url, request, headers,
+                       provider: provider_name,
+                       timeout: 60_000
+                     ) do
+                  {:ok, %{status: 200, body: body}} ->
+                    # Parse SSE data and send chunks to parent
+                    body
+                    |> String.split("\n")
+                    |> Enum.each(fn line ->
+                      case parse_sse_line(line) do
+                        {:ok, data} ->
+                          case parse_stream_chunk(data) do
+                            {:ok, chunk} -> send(parent, {ref, {:chunk, chunk}})
+                            _ -> :ok
+                          end
+
+                        :done ->
+                          send(parent, {ref, :done})
+
+                        _ ->
+                          :ok
+                      end
+                    end)
+
+                    send(parent, {ref, :done})
+
+                  {:error, error} ->
+                    send(parent, {ref, {:error, error}})
+                end
+              end)
+
+              {ref, :streaming}
+            end,
+            # Next function - receives chunks
+            fn {ref, :streaming} = state ->
+              receive do
+                {^ref, {:chunk, chunk}} ->
+                  {[chunk], state}
+
+                {^ref, :done} ->
+                  {:halt, state}
+
+                {^ref, {:error, error}} ->
+                  throw({:error, error})
+              after
+                100 ->
+                  {[], state}
+              end
+
+            {ref, :done} = state ->
+              {:halt, state}
+            end,
+            # Stop function - cleanup
+            fn _ -> :ok end
+          )
+
+        {:ok, stream}
       end
 
       defp build_chat_request(messages, model, options) do
@@ -264,14 +322,29 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
         case method do
           :get ->
-            HTTPClient.get_json(url, headers, provider: provider_name, timeout: 60_000)
+            case HTTPClient.get_json(url, headers, provider: provider_name, timeout: 60_000) do
+              {:ok, parsed_body} ->
+                {:ok, %{status: 200, body: parsed_body}}
+              {:error, reason} ->
+                {:error, reason}
+            end
 
           :post ->
             HTTPClient.post_json(url, body, headers, provider: provider_name, timeout: 60_000)
         end
         |> case do
           {:ok, %{status: status, body: body}} when status in 200..299 ->
-            {:ok, body}
+            # Handle case where body might still be a JSON string
+            parsed_body = 
+              case body do
+                body when is_binary(body) ->
+                  case Jason.decode(body) do
+                    {:ok, parsed} -> parsed
+                    {:error, _} -> body
+                  end
+                body -> body
+              end
+            {:ok, parsed_body}
 
           {:ok, %{status: status, body: body}} ->
             {:error, %{status: status, body: body}}

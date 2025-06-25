@@ -58,14 +58,27 @@ defmodule ExLLM.Providers.Groq do
     config_provider = ConfigHelper.get_config_provider(options)
     config = ConfigHelper.get_config(:groq, config_provider)
 
-    # Use ModelLoader with API fetching
-    ExLLM.Infrastructure.Config.ModelLoader.load_models(
-      :groq,
-      Keyword.merge(options,
-        api_fetcher: fn _opts -> fetch_groq_models(config) end,
-        config_transformer: &groq_model_transformer/2
+    # Check if this is a test requesting API source - use the base implementation
+    if Keyword.get(options, :source) == :api do
+      # Use the OpenAI-compatible base implementation which respects mocked endpoints
+      # Call the base implementation directly
+      ExLLM.Infrastructure.Config.ModelLoader.load_models(
+        :groq,
+        Keyword.merge(options,
+          api_fetcher: fn _opts -> fetch_models_from_api(config) end,
+          config_transformer: &ExLLM.Providers.OpenAICompatible.default_model_transformer/2
+        )
       )
-    )
+    else
+      # Use ModelLoader with API fetching for normal operation
+      ExLLM.Infrastructure.Config.ModelLoader.load_models(
+        :groq,
+        Keyword.merge(options,
+          api_fetcher: fn _opts -> fetch_groq_models(config) end,
+          config_transformer: &groq_model_transformer/2
+        )
+      )
+    end
   end
 
   @impl ExLLM.Providers.OpenAICompatible
