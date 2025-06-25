@@ -760,13 +760,10 @@ defmodule ExLLM.Testing.TestCacheStrategy do
 
   defp extract_streaming_chunks(_response), do: []
 
-  @spec extract_response_content(any()) :: String.t()
+  @spec extract_response_content(map()) :: String.t()
   defp extract_response_content(response) when is_map(response) do
     response
     |> Map.get("content", Map.get(response, :content, ""))
     |> to_string()
   end
-
-  defp extract_response_content(response) when is_binary(response), do: response
-  defp extract_response_content(_response), do: ""
 end

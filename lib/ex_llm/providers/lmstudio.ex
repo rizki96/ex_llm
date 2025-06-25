@@ -171,7 +171,7 @@ defmodule ExLLM.Providers.LMStudio do
   end
 
   @impl ExLLM.Provider
-  def default_model, do: nil
+  def default_model, do: "local-model"
 
   @impl true
   def configured?(opts) do
@@ -306,7 +306,7 @@ defmodule ExLLM.Providers.LMStudio do
            timeout: timeout,
            provider: :lmstudio
          ) do
-      {:ok, %{"data" => models}} when is_list(models) ->
+      {:ok, %{"data" => models} = response} when is_map(response) and is_list(models) ->
         # Handle newer LM Studio API format with "data" wrapper
         filtered_models =
           if loaded_only do
@@ -318,8 +318,9 @@ defmodule ExLLM.Providers.LMStudio do
         formatted_models = Enum.map(filtered_models, &format_enhanced_model/1)
         {:ok, formatted_models}
 
-      {:ok, models} when is_list(models) ->
+      {:ok, response} when is_list(response) ->
         # Handle older LM Studio API format (direct array)
+        models = response
         filtered_models =
           if loaded_only do
             Enum.filter(models, fn model -> Map.get(model, "loaded", false) end)
