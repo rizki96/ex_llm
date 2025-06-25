@@ -34,7 +34,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
   describe "basic HTTP operations" do
     test "post/3 sends POST request with correct headers and body", %{
       bypass: bypass,
-      config_provider: config_provider
+      config_provider: _config_provider
     } do
       Bypass.expect(bypass, "POST", "/v1/chat/completions", fn conn ->
         # Verify headers
@@ -123,7 +123,7 @@ defmodule ExLLM.Providers.Shared.HTTPClientTest do
       headers = %{"authorization" => "Bearer test-api-key", "content-type" => "application/json"}
       body = %{model: "gpt-4", messages: [%{role: "user", content: "Hello"}], stream: true}
 
-      collected_chunks = []
+      _collected_chunks = []
 
       collector = fn chunk ->
         send(self(), {:chunk, chunk})

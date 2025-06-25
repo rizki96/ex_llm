@@ -70,7 +70,7 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
     end
   end
 
-  defmacro run_parameter_tests(provider_module, provider_atom, extra_params \\ quote(do: %{})) do
+  defmacro run_parameter_tests(_provider_module, provider_atom, extra_params \\ quote(do: %{})) do
     quote do
       describe "#{unquote(provider_atom)} parameter handling" do
         @tag :unit

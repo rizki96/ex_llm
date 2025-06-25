@@ -2,7 +2,6 @@ defmodule ExLLM.Providers.Anthropic.PipelinePlugsTest do
   use ExUnit.Case, async: false
 
   alias ExLLM.Pipeline.Request
-  alias ExLLM.Pipelines.StandardProvider
   alias ExLLM.Providers.Anthropic.{BuildRequest, ParseResponse}
 
   setup do

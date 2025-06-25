@@ -1,5 +1,8 @@
 import Config
 
+# Tesla Configuration
+config :tesla, disable_deprecated_builder_warning: true
+
 # ExLLM Configuration
 config :ex_llm,
   # Caching strategy

@@ -76,7 +76,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugIntegrationTest
       end
 
       # Callback to collect chunks
-      chunks_received = []
+      _chunks_received = []
 
       callback = fn chunk ->
         send(test_pid, {:chunk, chunk})

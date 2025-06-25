@@ -18,7 +18,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
     test "callbacks receive chunks in exact order with correct content" do
       # Capture callback invocations to verify order and content
       callback_spy = self()
-      chunks_received = []
+      _chunks_received = []
 
       callback = fn chunk ->
         send(callback_spy, {:chunk_received, chunk})
@@ -234,7 +234,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
 
       parser = fn data ->
         case Jason.decode(data) do
-          {:ok, parsed} ->
+          {:ok, _parsed} ->
             {:ok, %StreamChunk{content: "parsed", finish_reason: nil}}
 
           {:error, _} ->

@@ -47,13 +47,52 @@ defmodule ExLLM.Core.StreamingPipelineTest do
   end
 
   defp mock_stream_request do
-    # This would normally mock ExLLM.Providers.Shared.HTTPClient.stream_request/5
-    # For now, we'll rely on the test interceptor
-    :ok
+    Tesla.Mock.mock(fn
+      %{method: :post, url: url} ->
+        if String.contains?(url, "chat/completions") do
+          %Tesla.Env{
+            status: 200,
+            headers: [{"content-type", "text/event-stream"}],
+            body: """
+            data: {"choices":[{"delta":{"content":"1"}}],"id":"1"}
+
+            data: {"choices":[{"delta":{"content":"2"}}],"id":"1"}
+
+            data: {"choices":[{"delta":{"content":"3"}}],"id":"1"}
+
+            data: {"choices":[{"delta":{},"finish_reason":"stop"}],"id":"1"}
+
+            data: [DONE]
+
+            """
+          }
+        else
+          %Tesla.Env{status: 404, body: "Not Found"}
+        end
+    end)
   end
 
   defp mock_anthropic_stream_request do
-    # This would normally mock for Anthropic format
-    :ok
+    Tesla.Mock.mock(fn
+      %{method: :post, url: url} ->
+        if String.contains?(url, "messages") do
+          %Tesla.Env{
+            status: 200,
+            headers: [{"content-type", "text/event-stream"}],
+            body: """
+            data: {"type":"content_block_delta","delta":{"text":"Hello"},"index":0}
+
+            data: {"type":"content_block_delta","delta":{"text":" there"},"index":0}
+
+            data: {"type":"message_delta","delta":{"stop_reason":"end_turn"}}
+
+            data: {"type":"message_stop"}
+
+            """
+          }
+        else
+          %Tesla.Env{status: 404, body: "Not Found"}
+        end
+    end)
   end
 end
