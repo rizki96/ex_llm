@@ -199,6 +199,14 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
             app_url: get(:openrouter, :app_url)
           }
 
+        :test_provider ->
+          %{
+            api_key: get(:test_provider, :api_key),
+            base_url: get(:test_provider, :base_url),
+            model: get(:test_provider, :model),
+            default_model: get(:test_provider, :default_model)
+          }
+
         _ ->
           %{}
       end

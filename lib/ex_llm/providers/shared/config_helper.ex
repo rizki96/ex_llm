@@ -190,6 +190,15 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     }
   end
 
+  defp build_env_config(:test_provider) do
+    %{
+      api_key: ConfigProvider.Env.get(:test_provider, :api_key),
+      base_url: ConfigProvider.Env.get(:test_provider, :base_url),
+      model: ConfigProvider.Env.get(:test_provider, :model),
+      default_model: ConfigProvider.Env.get(:test_provider, :default_model)
+    }
+  end
+
   defp normalize_config(config) when is_map(config), do: config
   defp normalize_config(_), do: %{}
 end

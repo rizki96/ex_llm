@@ -226,7 +226,7 @@ defmodule ExLLM.Core.Chat do
       # Extract response from pipeline result
       case result.state do
         :completed ->
-          response = result.assigns.llm_response
+          response = result.result
 
           # Track costs if enabled
           if Keyword.get(options, :track_cost, true) do

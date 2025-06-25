@@ -39,7 +39,9 @@ defmodule ExLLM.Plugs.FetchConfiguration do
     options_kw = if is_map(options), do: Map.to_list(options), else: options
 
     config_provider = ConfigHelper.get_config_provider(options_kw)
-    config = ConfigHelper.get_config(provider, config_provider)
+    base_config = ConfigHelper.get_config(provider, config_provider)
+    # Merge options into config so they're available as configuration
+    config = Map.merge(base_config, options)
 
     case api_key_env_var(provider) do
       nil ->
@@ -47,7 +49,7 @@ defmodule ExLLM.Plugs.FetchConfiguration do
         # We just assign the config and continue.
         # Specific validation (e.g., for Bedrock credentials) will be
         # handled within the provider module itself.
-        request
+        %{request | config: config}
         |> Request.assign(:config, config)
 
       env_var ->
@@ -57,7 +59,7 @@ defmodule ExLLM.Plugs.FetchConfiguration do
 
         case Validation.validate_api_key(api_key) do
           {:ok, :valid} ->
-            request
+            %{request | config: config}
             |> Request.assign(:config, config)
             |> Request.assign(:api_key, api_key)
 
@@ -78,6 +80,8 @@ defmodule ExLLM.Plugs.FetchConfiguration do
   defp api_key_env_var(:openrouter), do: "OPENROUTER_API_KEY"
   defp api_key_env_var(:perplexity), do: "PERPLEXITY_API_KEY"
   defp api_key_env_var(:xai), do: "XAI_API_KEY"
+  # Test provider for testing purposes
+  defp api_key_env_var(:test_provider), do: "TEST_API_KEY"
   # Providers without a standard API key (e.g., ollama, bedrock, mock)
   defp api_key_env_var(_provider), do: nil
 end

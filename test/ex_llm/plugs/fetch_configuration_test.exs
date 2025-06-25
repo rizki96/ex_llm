@@ -42,8 +42,8 @@ defmodule ExLLM.Plugs.FetchConfigurationTest do
 
       assert result.halted == false
       assert result.assigns.api_key == "sk-env-key"
-      assert is_map(result.assigns.config)
-      assert result.assigns.config.api_key == "sk-env-key"
+      assert is_map(result.config)
+      assert result.config.api_key == "sk-env-key"
     end
 
     test "halts if API key is missing" do
@@ -67,7 +67,8 @@ defmodule ExLLM.Plugs.FetchConfigurationTest do
 
       assert result.halted == false
       assert result.assigns.api_key == "sk-static-key"
-      assert result.assigns.config == %{api_key: "sk-static-key", model: "gpt-4"}
+      assert result.config.api_key == "sk-static-key"
+      assert result.config.model == "gpt-4"
     end
   end
 
@@ -82,7 +83,7 @@ defmodule ExLLM.Plugs.FetchConfigurationTest do
       # No api_key assignment for providers that don't use API keys
       refute Map.has_key?(result.assigns, :api_key)
       # Config will be fetched, should contain base_url for ollama
-      assert is_map(result.assigns.config)
+      assert is_map(result.config)
     end
 
     test "fetches config with other env vars" do
@@ -97,7 +98,7 @@ defmodule ExLLM.Plugs.FetchConfigurationTest do
       # No api_key assignment for providers that don't use API keys  
       refute Map.has_key?(result.assigns, :api_key)
 
-      assert result.assigns.config == %{
+      assert result.config == %{
                model: "llama3",
                base_url: "http://localhost:11434"
              }

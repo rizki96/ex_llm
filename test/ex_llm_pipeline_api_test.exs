@@ -50,8 +50,8 @@ defmodule ExLLM.PipelineAPITest do
         use ExLLM.Plug
 
         def call(request, _opts) do
-          temperature = request.config[:temperature] || 1.0
-          model = request.config[:model] || "default"
+          temperature = request.options[:temperature] || 1.0
+          model = request.options[:model] || "default"
 
           result = %{
             content: "Temperature: #{temperature}, Model: #{model}",
@@ -125,11 +125,9 @@ defmodule ExLLM.PipelineAPITest do
     end
 
     test "FetchConfig plug integration" do
-      # Set some test config
-      Application.put_env(:ex_llm, :test_provider,
-        api_key: "test-key",
-        default_model: "test-model"
-      )
+      # Set test environment variables
+      System.put_env("TEST_PROVIDER_API_KEY", "test-key")
+      System.put_env("TEST_PROVIDER_DEFAULT_MODEL", "test-model")
 
       request = Request.new(:test_provider, [], %{temperature: 0.7})
       result = ExLLM.Pipeline.run(request, [Plugs.FetchConfiguration])
@@ -139,7 +137,8 @@ defmodule ExLLM.PipelineAPITest do
       assert result.config[:temperature] == 0.7
 
       # Cleanup
-      Application.delete_env(:ex_llm, :test_provider)
+      System.delete_env("TEST_PROVIDER_API_KEY")
+      System.delete_env("TEST_PROVIDER_DEFAULT_MODEL")
     end
   end
 

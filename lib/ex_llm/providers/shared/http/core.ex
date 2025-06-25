@@ -138,7 +138,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
     Tesla.post(
       client,
       path,
-      {:multipart, format_multipart_data(multipart_data)},
+      format_multipart_data(multipart_data),
       headers: headers
     )
   end
@@ -300,14 +300,17 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   end
 
   defp format_multipart_data(data) do
-    # Build a single multipart form directly
-    Enum.reduce(data, Tesla.Multipart.new(), fn
-      {name, content}, acc ->
-        Tesla.Multipart.add_field(acc, name, content)
+    # Convert to Tesla-compatible multipart format
+    parts =
+      Enum.map(data, fn
+        {name, content} ->
+          {name, content}
 
-      {name, content, headers}, acc ->
-        Tesla.Multipart.add_field(acc, name, content, headers)
-    end)
+        {name, content, headers} ->
+          {name, content, headers}
+      end)
+
+    {:multipart, parts}
   end
 
   defp ensure_map(data) when is_map(data), do: data

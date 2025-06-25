@@ -12,13 +12,15 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
   alias ExLLM.Types
 
   @impl true
-  def call(%Request{state: :pending} = request, _opts) do
-    # Build request phase - just pass through to executing
+  def call(%Request{state: :pending} = request, opts) do
+    # For single-call execution, go directly to executing state and then complete
     request
     |> Request.assign(:url, "http://mock/api")
     |> Request.assign(:headers, %{"content-type" => "application/json"})
     |> Request.assign(:body, Jason.encode!(%{messages: request.messages}))
     |> Request.put_state(:executing)
+    # Continue to executing state handler
+    |> then(&call(&1, opts))
   end
 
   def call(%Request{state: :executing} = request, opts) do
@@ -84,17 +86,19 @@ defmodule ExLLM.Plugs.Providers.MockHandler do
     else
       # Convert response to LLMResponse
       llm_response = %Types.LLMResponse{
-        content: response.content,
-        model: response.model,
-        usage: response.usage,
+        content: Map.get(response, :content),
+        model: Map.get(response, :model),
+        usage: Map.get(response, :usage),
         finish_reason: "stop",
-        function_call: response.function_call,
-        tool_calls: response.tool_calls,
-        metadata: %{provider: response.provider, mock_config: response.mock_config}
+        function_call: Map.get(response, :function_call),
+        tool_calls: Map.get(response, :tool_calls),
+        metadata: %{
+          provider: Map.get(response, :provider),
+          mock_config: Map.get(response, :mock_config)
+        }
       }
 
-      request
-      |> Request.assign(:llm_response, llm_response)
+      %{request | result: llm_response}
       |> Request.put_state(:completed)
       |> Request.assign(:mock_handler_called, true)
     end
