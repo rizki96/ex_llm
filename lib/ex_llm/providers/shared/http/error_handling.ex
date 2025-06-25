@@ -205,6 +205,22 @@ defmodule ExLLM.Providers.Shared.HTTP.ErrorHandling do
     }
   end
 
+  defp map_tesla_error({:error, :connection_failed}, opts) do
+    %{
+      type: :connection_error,
+      message: "Connection failed",
+      provider: Keyword.get(opts, :provider)
+    }
+  end
+
+  defp map_tesla_error(:connection_failed, opts) do
+    %{
+      type: :connection_error,
+      message: "Connection failed",
+      provider: Keyword.get(opts, :provider)
+    }
+  end
+
   defp map_tesla_error({:error, reason}, opts) when is_atom(reason) do
     %{
       type: :connection_error,

@@ -32,6 +32,11 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseResponse do
     })
   end
 
+  def call(%Request{options: %{stream: true}} = request, _opts) do
+    # Skip parsing for streaming requests - handled by stream parser
+    request
+  end
+
   def call(%Request{response: %Tesla.Env{body: body}} = request, _opts) when is_map(body) do
     case parse_response(body, request) do
       {:ok, parsed} ->

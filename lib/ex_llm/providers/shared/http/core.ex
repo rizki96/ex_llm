@@ -226,7 +226,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
       if Application.get_env(:ex_llm, :use_tesla_mock, false) do
         Tesla.Mock
       else
-        Tesla.Adapter.Hackney
+        ExLLM.Providers.Shared.HTTP.SafeHackneyAdapter
       end
 
     adapter_name = Keyword.get(opts, :adapter, default_adapter)

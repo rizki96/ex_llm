@@ -149,7 +149,8 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
         response = %{
           status: status,
           headers: resp_headers,
-          body: resp_body  # Don't parse multipart responses - they may already be parsed
+          # Don't parse multipart responses - they may already be parsed
+          body: resp_body
         }
 
         {:ok, response}
@@ -214,8 +215,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
         {:ok, response}
 
-      {:error, _} = error ->
-        error
+      {:error, error} ->
+        # The error from ErrorHandling middleware is already a map with :type field
+        # Just wrap it in an error tuple for backward compatibility
+        require Logger
+        Logger.debug("HTTPClient.post error: #{inspect(error)}")
+        {:error, error}
     end
   end
 

@@ -16,6 +16,11 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseResponse do
     request
   end
 
+  def call(%Request{options: %{stream: true}} = request, _opts) do
+    # Skip parsing for streaming requests - handled by stream parser
+    request
+  end
+
   def call(%Request{response: %Tesla.Env{status: 200, body: body}} = request, _opts) do
     case parse_response(body) do
       {:ok, result} ->

@@ -285,14 +285,14 @@ defmodule ExLLM.Core.Chat do
     # Define provider plugs for providers that have been migrated to pipeline system
     provider_plugs = %{
       openai: [
-        build_request: {ExLLM.Providers.OpenAI.BuildRequest, []},
-        parse_response: {ExLLM.Providers.OpenAI.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.OpenAI.StreamParseResponse, []}
+        build_request: {ExLLM.Plugs.Providers.OpenAIPrepareRequest, []},
+        parse_response: {ExLLM.Plugs.Providers.OpenAIParseResponse, []},
+        stream_parse_response: {ExLLM.Plugs.Providers.OpenAIParseStreamResponse, []}
       ],
       anthropic: [
-        build_request: {ExLLM.Providers.Anthropic.BuildRequest, []},
-        parse_response: {ExLLM.Providers.Anthropic.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Anthropic.StreamParseResponse, []}
+        build_request: {ExLLM.Plugs.Providers.AnthropicPrepareRequest, []},
+        parse_response: {ExLLM.Plugs.Providers.AnthropicParseResponse, []},
+        stream_parse_response: {ExLLM.Plugs.Providers.AnthropicParseStreamResponse, []}
       ],
       groq: [
         build_request: {ExLLM.Providers.Groq.BuildRequest, []},

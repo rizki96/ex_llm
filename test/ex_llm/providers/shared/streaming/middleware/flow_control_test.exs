@@ -429,7 +429,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.FlowControlTest do
     test "gracefully handles missing flow control infrastructure" do
       # This test would require mocking Code.ensure_loaded?/1
       # For now, we'll just verify the function exists
-      assert function_exported?(FlowControl, :call, 3)
+      assert function_exported?(ExLLM.Providers.Shared.Streaming.Middleware.FlowControl, :call, 3)
     end
   end
 

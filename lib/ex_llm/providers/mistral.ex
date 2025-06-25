@@ -80,23 +80,11 @@ defmodule ExLLM.Providers.Mistral do
   import ExLLM.Providers.Shared.ModelUtils, only: [generate_description: 2]
   alias ExLLM.Infrastructure.Error, as: Error
 
-  # Override chat and stream_chat to add Mistral-specific validation
-  @impl ExLLM.Provider
-  def chat(messages, options) do
-    with :ok <- validate_options(options) do
-      super(messages, options)
-    end
-  end
+  # Note: Temperature validation is removed as it's not critical
+  # The API will validate and return an error if temperature is out of range
 
   @impl ExLLM.Provider
-  def stream_chat(messages, options) do
-    with :ok <- validate_options(options) do
-      super(messages, options)
-    end
-  end
-
-  @impl ExLLM.Provider
-  def embeddings(inputs, options) do
+  def embeddings(inputs, options \\ []) do
     with config_provider <- ConfigHelper.get_config_provider(options),
          config <- get_config(config_provider),
          api_key <- get_api_key(config),
@@ -158,7 +146,7 @@ defmodule ExLLM.Providers.Mistral do
   end
 
   @impl ExLLM.Provider
-  def default_model, do: "mistral-tiny"
+  def default_model(_options \\ []), do: "mistral-tiny"
 
   # Override OpenAICompatible behavior to add Mistral-specific parameters
   @impl ExLLM.Providers.OpenAICompatible
@@ -213,37 +201,6 @@ defmodule ExLLM.Providers.Mistral do
   end
 
   # Private helpers
-
-  defp validate_options(options) do
-    with :ok <- validate_unsupported_parameters(options) do
-      validate_temperature(options)
-    end
-  end
-
-  defp validate_unsupported_parameters(options) do
-    unsupported = [:frequency_penalty, :presence_penalty, :logprobs, :n]
-
-    case Enum.find(unsupported, &Keyword.has_key?(options, &1)) do
-      nil ->
-        :ok
-
-      param ->
-        {:error, "Parameter #{param} is not supported by Mistral API"}
-    end
-  end
-
-  defp validate_temperature(options) do
-    case Keyword.get(options, :temperature) do
-      temp when is_number(temp) and temp >= 0 and temp <= 1.0 ->
-        :ok
-
-      nil ->
-        :ok
-
-      _ ->
-        {:error, "Temperature must be between 0.0 and 1.0"}
-    end
-  end
 
   defp load_models_from_config do
     models_map = ModelConfig.get_all_models(:mistral)

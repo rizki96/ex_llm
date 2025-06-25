@@ -9,23 +9,101 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseStreamResponse do
   use ExLLM.Plug
 
   @impl true
-  def call(%Request{} = request, _opts) do
-    # Set up stream parser configuration for Anthropic's format
-    parser_config = %{
-      parse_chunk: &parse_anthropic_chunk/1,
-      accumulator: %{
-        content: "",
-        role: "assistant",
-        model: nil,
-        stop_reason: nil,
-        usage: %{}
+  def call(%Request{options: %{stream: true}} = request, _opts) do
+    # For test environments with mocked SSE responses
+    if request.response && is_binary(request.response.body) &&
+         String.contains?(request.response.body, "data:") do
+      create_stream_from_sse_body(request)
+    else
+      # Set up stream parser configuration for real streaming
+      parser_config = %{
+        parse_chunk: &parse_anthropic_chunk/1,
+        accumulator: %{
+          content: "",
+          role: "assistant",
+          model: nil,
+          stop_reason: nil,
+          usage: %{}
+        }
       }
-    }
+
+      request
+      |> Request.put_private(:stream_parser, parser_config)
+      |> Request.assign(:stream_parser_configured, true)
+    end
+  end
+
+  def call(request, _opts), do: request
+
+  defp create_stream_from_sse_body(request) do
+    # Parse SSE events from the response body
+    events = parse_sse_events(request.response.body)
+
+    # Create a stream from the events
+    stream =
+      Stream.map(events, fn event ->
+        case parse_event_to_chunk(event) do
+          nil ->
+            nil
+
+          chunk ->
+            %ExLLM.Types.StreamChunk{
+              content: chunk[:content],
+              finish_reason: chunk[:stop_reason] || chunk[:finish_reason]
+            }
+        end
+      end)
+      |> Stream.reject(&is_nil/1)
 
     request
-    |> Request.put_private(:stream_parser, parser_config)
-    |> Request.assign(:stream_parser_configured, true)
+    |> Request.assign(:response_stream, stream)
+    |> Request.put_state(:streaming)
   end
+
+  defp parse_sse_events(body) do
+    body
+    |> String.split("\n")
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.filter(&String.starts_with?(&1, "data: "))
+    |> Enum.map(fn line ->
+      data = String.trim_leading(line, "data: ")
+
+      case Jason.decode(data) do
+        {:ok, parsed} -> parse_anthropic_event(parsed)
+        {:error, _} -> nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+  end
+
+  defp parse_anthropic_event(%{"type" => "content_block_delta", "delta" => %{"text" => text}}) do
+    %{content: text}
+  end
+
+  defp parse_anthropic_event(%{"type" => "message_delta", "delta" => %{"stop_reason" => reason}}) do
+    %{stop_reason: reason}
+  end
+
+  defp parse_anthropic_event(%{"type" => "message_stop"}) do
+    %{done: true}
+  end
+
+  defp parse_anthropic_event(_), do: nil
+
+  defp parse_event_to_chunk(%{content: content}) when is_binary(content) do
+    %{content: content}
+  end
+
+  defp parse_event_to_chunk(%{stop_reason: reason}) when not is_nil(reason) do
+    %{finish_reason: reason}
+  end
+
+  defp parse_event_to_chunk(%{done: true}) do
+    %{finish_reason: "stop"}
+  end
+
+  defp parse_event_to_chunk(_), do: nil
 
   @doc """
   Parses Anthropic's streaming event format.

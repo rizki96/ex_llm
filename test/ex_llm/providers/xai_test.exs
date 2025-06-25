@@ -5,8 +5,19 @@ defmodule ExLLM.Providers.XAITest do
 
   describe "XAI adapter" do
     test "configured?/1 returns false when no API key" do
-      {:ok, pid} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{xai: %{}})
-      refute XAI.configured?(config_provider: pid)
+      # Save current env var
+      original_key = System.get_env("XAI_API_KEY")
+
+      try do
+        # Temporarily unset the env var
+        System.delete_env("XAI_API_KEY")
+
+        {:ok, pid} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{xai: %{}})
+        refute XAI.configured?(config_provider: pid)
+      after
+        # Restore env var if it existed
+        if original_key, do: System.put_env("XAI_API_KEY", original_key)
+      end
     end
 
     test "configured?/1 returns true when API key is set" do

@@ -237,23 +237,24 @@ defmodule ExLLM.Providers.OpenAICompatible do
               {ref, :streaming}
             end,
             # Next function - receives chunks
-            fn {ref, :streaming} = state ->
-              receive do
-                {^ref, {:chunk, chunk}} ->
-                  {[chunk], state}
+            fn
+              {ref, :streaming} = state ->
+                receive do
+                  {^ref, {:chunk, chunk}} ->
+                    {[chunk], state}
 
-                {^ref, :done} ->
-                  {:halt, state}
+                  {^ref, :done} ->
+                    {:halt, state}
 
-                {^ref, {:error, error}} ->
-                  throw({:error, error})
-              after
-                100 ->
-                  {[], state}
-              end
+                  {^ref, {:error, error}} ->
+                    throw({:error, error})
+                after
+                  100 ->
+                    {[], state}
+                end
 
-            {ref, :done} = state ->
-              {:halt, state}
+              {ref, :done} = state ->
+                {:halt, state}
             end,
             # Stop function - cleanup
             fn _ -> :ok end
@@ -325,6 +326,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
             case HTTPClient.get_json(url, headers, provider: provider_name, timeout: 60_000) do
               {:ok, parsed_body} ->
                 {:ok, %{status: 200, body: parsed_body}}
+
               {:error, reason} ->
                 {:error, reason}
             end
@@ -335,15 +337,18 @@ defmodule ExLLM.Providers.OpenAICompatible do
         |> case do
           {:ok, %{status: status, body: body}} when status in 200..299 ->
             # Handle case where body might still be a JSON string
-            parsed_body = 
+            parsed_body =
               case body do
                 body when is_binary(body) ->
                   case Jason.decode(body) do
                     {:ok, parsed} -> parsed
                     {:error, _} -> body
                   end
-                body -> body
+
+                body ->
+                  body
               end
+
             {:ok, parsed_body}
 
           {:ok, %{status: status, body: body}} ->
