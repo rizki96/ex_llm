@@ -299,13 +299,11 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
         {"cache-control", "no-cache"}
       ]
 
-      # Add stream context to client for middleware access
-      client_with_context = Tesla.put_opt(client, :stream_context, stream_context)
-
       # Execute streaming POST request and return the response directly
-      case Tesla.post(client_with_context, path, body,
+      # Pass stream context in opts for middleware access
+      case Tesla.post(client, path, body,
              headers: headers,
-             opts: [recv_timeout: timeout, stream_to: self()]
+             opts: [recv_timeout: timeout, stream_to: self(), stream_context: stream_context]
            ) do
         {:ok, response} ->
           {:ok, response}
@@ -330,13 +328,11 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
         {"cache-control", "no-cache"}
       ]
 
-      # Add stream context to client for middleware access
-      client_with_context = Tesla.put_opt(client, :stream_context, stream_context)
-
       # Execute streaming POST request
-      case Tesla.post(client_with_context, path, body,
+      # Pass stream context in opts for middleware access
+      case Tesla.post(client, path, body,
              headers: headers,
-             opts: [recv_timeout: timeout, stream_to: self()]
+             opts: [recv_timeout: timeout, stream_to: self(), stream_context: stream_context]
            ) do
         {:ok, response} ->
           handle_stream_response(response, stream_context)

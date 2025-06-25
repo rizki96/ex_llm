@@ -72,7 +72,7 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   end
 
   defp handle_intercepted_get(url, headers, opts) do
-    case TestResponseInterceptor.intercept_request(url, nil, headers, opts) do
+    case TestResponseInterceptor.intercept_request(url, %{}, headers, opts) do
       {:cached, cached_response} ->
         cached_response
 

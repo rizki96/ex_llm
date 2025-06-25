@@ -93,13 +93,15 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
         # Extract path from full URL
         path = extract_path_from_url(url)
 
-        # Start streaming using new engine
-        # NOTE: Defensive error handling - Engine.stream currently only returns {:ok, id}
-        # If error handling is needed in future, add appropriate clause here
-        {:ok, stream_id} = Engine.stream(client, path, request, stream_opts)
-
-        Logger.debug("Compatibility stream #{stream_id} started successfully")
-        {:ok, stream_id}
+        # Start streaming using new engine with proper error handling
+        case Engine.stream(client, path, request, stream_opts) do
+          {:ok, stream_id} ->
+            Logger.debug("Compatibility stream #{stream_id} started successfully")
+            {:ok, stream_id}
+          
+          {:error, reason} ->
+            {:error, reason}
+        end
 
       :error ->
         {:error, "Missing required option :parse_chunk_fn"}

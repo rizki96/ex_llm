@@ -156,7 +156,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Multipart do
   This function generates the complete multipart body with proper boundaries
   and headers that can be used directly with Tesla HTTP client.
   """
-  @spec to_tesla_multipart(multipart()) :: {:multipart, [Tesla.Multipart.part()]}
+  @spec to_tesla_multipart(multipart()) :: {:multipart, [map()]}
   def to_tesla_multipart(%{parts: parts}) do
     tesla_parts = Enum.map(parts, &convert_part_to_tesla/1)
     {:multipart, tesla_parts}
@@ -345,7 +345,9 @@ defmodule ExLLM.Providers.Shared.HTTP.Multipart do
   This is useful for very large files that shouldn't be loaded entirely into memory.
   Returns a stream that yields chunks of the multipart body.
   """
-  @spec stream_file(String.t(), String.t(), String.t(), keyword()) :: Enumerable.t()
+  @spec stream_file(String.t(), String.t()) :: Enumerable.t()
+  @spec stream_file(String.t(), String.t(), String.t() | nil) :: Enumerable.t()
+  @spec stream_file(String.t(), String.t(), String.t() | nil, keyword()) :: Enumerable.t()
   def stream_file(name, file_path, filename \\ nil, opts \\ []) do
     filename = filename || Path.basename(file_path)
     content_type = Keyword.get(opts, :content_type) || detect_content_type(file_path)

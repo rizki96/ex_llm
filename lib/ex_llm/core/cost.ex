@@ -14,7 +14,7 @@ defmodule ExLLM.Core.Cost do
   @doc """
   Calculate cost for token usage.
   """
-  @spec calculate(String.t() | atom(), String.t(), Types.token_usage()) ::
+  @spec calculate(String.t() | atom(), String.t() | atom(), Types.token_usage()) ::
           Types.cost_result() | %{error: String.t()}
   def calculate(provider, model, token_usage) do
     case get_pricing(provider, model) do
@@ -48,7 +48,7 @@ defmodule ExLLM.Core.Cost do
   @doc """
   Get pricing for a specific provider and model.
   """
-  @spec get_pricing(String.t(), String.t()) :: %{input: float(), output: float()} | nil
+  @spec get_pricing(String.t() | atom(), String.t()) :: %{input: float(), output: float()} | nil
   def get_pricing(provider, model) do
     provider_atom = if is_binary(provider), do: String.to_existing_atom(provider), else: provider
     ModelConfig.get_pricing(provider_atom, model)

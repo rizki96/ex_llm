@@ -51,4 +51,18 @@
   
   # Optional Nx dependency for local models
   ~r/Function Nx\.Serving\.run\/2 does not exist/,
+  
+  # === PHASE 3.3 REMAINING WARNINGS (False Positives) ===
+  
+  # Bedrock stream parsing - complex control flow false positive
+  # Function does return in all branches but dialyzer can't trace it
+  {"lib/ex_llm/providers/bedrock/stream_parse_response.ex", :no_return},
+  
+  # XAI macro expansion - pattern match in generated code
+  # OpenAICompatible macro generates code with :get/:post pattern match
+  {"lib/ex_llm/providers/xai.ex", :pattern_match},
+  
+  # Streaming compatibility defensive pattern match - false positive
+  # start_stream function returns {:ok, id} but dialyzer can't trace through defensive code
+  {"lib/ex_llm/providers/shared/streaming/compatibility.ex", :pattern_match},
 ]

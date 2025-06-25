@@ -42,7 +42,12 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
             }
           end
 
-        cost_info = ExLLM.Core.Cost.calculate("gemini", model, usage)
+        # Extract only the required fields for cost calculation
+        cost_usage = %{
+          input_tokens: usage.input_tokens,
+          output_tokens: usage.output_tokens
+        }
+        cost_info = ExLLM.Core.Cost.calculate(:gemini, model, cost_usage)
         cost_value = Map.get(cost_info, :total_cost)
 
         tool_calls = extract_tool_calls_from_candidate(candidate)

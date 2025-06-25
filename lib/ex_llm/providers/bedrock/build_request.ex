@@ -48,7 +48,7 @@ defmodule ExLLM.Providers.Bedrock.BuildRequest do
         }
 
         request
-        |> Map.put(:provider_request, body)
+        |> Request.assign(:provider_request, body)
         |> Request.assign(:model, model)
         |> Request.assign(:provider_type, provider)
         |> Request.assign(:url, url)

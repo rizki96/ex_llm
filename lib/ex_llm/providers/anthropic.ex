@@ -633,11 +633,11 @@ defmodule ExLLM.Providers.Anthropic do
       url = "#{get_base_url(config)}/files/#{file_id}/content"
 
       case HTTPClient.get_binary(url, headers, provider: :anthropic) do
-        {:ok, %{status: 200, body: content}} ->
+        {:ok, content} when is_binary(content) ->
           {:ok, content}
 
-        {:ok, %{status: status, body: body}} ->
-          ErrorHandler.handle_provider_error(:anthropic, status, body)
+        {:error, %{status_code: status, response: response}} ->
+          ErrorHandler.handle_provider_error(:anthropic, status, response.body)
 
         {:error, reason} ->
           {:error, reason}
