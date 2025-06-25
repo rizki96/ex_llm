@@ -89,11 +89,6 @@ defmodule ExLLM.Plugs.ExecuteRequest do
             maybe_save_response(request_to_execute, response)
             handle_tesla_response(request_to_execute, response)
 
-          # Tesla can sometimes return bare Tesla.Env instead of {:ok, Tesla.Env}
-          %Tesla.Env{} = response ->
-            maybe_save_response(request_to_execute, response)
-            handle_tesla_response(request_to_execute, response)
-
           {:error, reason} ->
             # Network or other error
             error = build_network_error(reason, request_to_execute.provider)

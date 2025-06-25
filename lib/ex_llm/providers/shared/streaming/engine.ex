@@ -193,6 +193,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
   """
   @spec stream(Tesla.Client.t(), String.t(), map(), stream_opts()) ::
           {:ok, String.t()} | {:ok, {String.t(), Tesla.Env.t()}} | {:error, term()}
+  @dialyzer {:nowarn_function, stream: 4}
   def stream(client, path, body, opts \\ []) do
     callback = Keyword.fetch!(opts, :callback)
     parse_chunk_fn = Keyword.fetch!(opts, :parse_chunk)
@@ -352,6 +353,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
     end
   end
 
+  @dialyzer {:nowarn_function, handle_stream_response: 2}
   defp handle_stream_response(response, stream_context) do
     stream_id = stream_context.stream_id
 

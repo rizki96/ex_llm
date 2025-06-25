@@ -377,9 +377,12 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
   Make a streaming request with callback support.
   """
   @spec stream_request(String.t(), map(), list({String.t(), String.t()}), function(), keyword()) ::
-          {:ok, any()} | {:error, term()}
+          {:ok, :streaming} | {:error, term()}
   def stream_request(url, body, headers, callback, opts \\ []) do
-    post_stream(url, body, Keyword.merge(opts, headers: headers, into: callback))
+    case post_stream(url, body, Keyword.merge(opts, headers: headers, into: callback)) do
+      {:ok, _response} -> {:ok, :streaming}
+      {:error, _} = error -> error
+    end
   end
 
   @doc """

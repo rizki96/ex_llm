@@ -162,7 +162,8 @@ defmodule ExLLM.Pipeline do
           IO.inspect(request.errors)
       end
   """
-  @spec stream(Request.t(), pipeline(), keyword()) :: {:ok, Enumerable.t()} | {:error, Request.t()}
+  @spec stream(Request.t(), pipeline(), keyword()) ::
+          {:ok, Enumerable.t()} | {:error, Request.t()}
   def stream(%Request{} = request, pipeline, opts \\ []) when is_list(pipeline) do
     start_time = System.monotonic_time()
     telemetry_metadata = opts[:telemetry_metadata] || %{}

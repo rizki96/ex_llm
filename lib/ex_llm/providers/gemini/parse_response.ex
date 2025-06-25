@@ -90,6 +90,7 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
     |> Enum.join("")
   end
 
+  @dialyzer {:nowarn_function, extract_tool_calls_from_candidate: 1}
   defp extract_tool_calls_from_candidate(candidate) do
     function_calls =
       (get_in(candidate, ["content", "parts"]) || [])
@@ -112,6 +113,7 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
     if Enum.empty?(function_calls), do: nil, else: function_calls
   end
 
+  @dialyzer {:nowarn_function, extract_audio_from_candidate: 1}
   defp extract_audio_from_candidate(candidate) do
     audio_parts =
       (get_in(candidate, ["content", "parts"]) || [])

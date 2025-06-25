@@ -39,24 +39,15 @@
   # - Complex case statement analysis
   # - Macro-generated code
   
-  # Unused functions that ARE used but Dialyzer can't trace the call chain
-  {"lib/ex_llm/providers/ollama.ex", :unused_fun, {'build_model_configs', 2}},
-  {"lib/ex_llm/providers/ollama.ex", :unused_fun, {'determine_default_model', 2}},
-  {"lib/ex_llm/providers/ollama.ex", :unused_fun, {'build_basic_model_config', 1}},
-  {"lib/ex_llm/providers/ollama.ex", :unused_fun, {'get_model_details_direct', 2}},
-  {"lib/ex_llm/providers/ollama.ex", :unused_fun, {'merge_with_existing_config', 2}},
-  {"lib/ex_llm/providers/ollama.ex", :unused_fun, {'deep_merge_models', 2}},
-  {"lib/ex_llm/providers/ollama.ex", :unused_fun, {'load_existing_default', 1}},
-  
-  # Functions in Gemini parse_response that are used through dynamic dispatch
-  {"lib/ex_llm/providers/gemini/parse_response.ex", :unused_fun, {'extract_tool_calls_from_candidate', 1}},
-  {"lib/ex_llm/providers/gemini/parse_response.ex", :unused_fun, {'extract_audio_from_candidate', 1}},
-  
-  # Streaming engine function used through task spawning
-  {"lib/ex_llm/providers/shared/streaming/engine.ex", :unused_fun, {'handle_stream_response', 2}},
-  
-  # Compatibility layer function used but Dialyzer can't trace
-  {"lib/ex_llm/providers/shared/streaming/compatibility.ex", :unused_fun, {'wait_for_stream_completion', 0}},
+  # Guard failures in OpenAICompatible.BuildRequest macro expansion
+  # These are false positives where dialyzer incorrectly infers a binary type
+  # for something that could be nil during macro expansion
+  {"lib/ex_llm/providers/lmstudio/build_request.ex", :guard_fail},
+  {"lib/ex_llm/providers/mistral/build_request.ex", :guard_fail},
+  {"lib/ex_llm/providers/ollama/build_request.ex", :guard_fail},
+  {"lib/ex_llm/providers/openrouter/build_request.ex", :guard_fail},
+  {"lib/ex_llm/providers/perplexity/build_request.ex", :guard_fail},
+  {"lib/ex_llm/providers/xai/build_request.ex", :guard_fail},
   
   # Optional Nx dependency for local models
   ~r/Function Nx\.Serving\.run\/2 does not exist/,

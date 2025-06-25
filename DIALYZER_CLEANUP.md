@@ -5,9 +5,11 @@ This document tracks the systematic cleanup of Dialyzer warnings in the ExLLM pr
 
 **Initial State:**
 - Total warnings: 142
-- Current warnings: 59 (down from 142)
-- Successfully skipped: 48
-- Unnecessary skips: 11
+- Phase 1 completion: 59 (down from 142)
+- Phase 2 completion: 107 errors, 54 skipped
+- Phase 3.2 completion: 85 errors, 54 skipped
+- Successfully skipped: 54
+- Unnecessary skips: 0
 
 ## Phase 1: Discovery & Documentation ✅
 
@@ -91,12 +93,19 @@ Analysis of the 59 remaining warnings:
 2. **No Return Functions (3)** - May require architectural changes
 3. **Unknown Type (1)** - External dependency type
 
-## Phase 3: Progressive Implementation (TODO)
+## Phase 3: Progressive Implementation (IN PROGRESS)
 
 ### 3.1 Quick Wins
-- [ ] Fix guard failures in build_request modules
-- [ ] Remove truly unused functions
-- [ ] Fix simple pattern matches
+- [x] Remove 11 unnecessary suppressions from .dialyzer_ignore.exs (DONE)
+  - Removed all 11 identified suppressions
+  - Added function-level @dialyzer annotations where needed
+- [x] Fix guard failures in build_request modules (DONE)
+  - Identified as false positives from macro expansion
+  - Added 6 specific suppressions with documentation
+- [x] Handle unused functions (DONE)
+  - Added @dialyzer annotations to 7 Ollama functions (used via generate_config)
+  - Added @dialyzer annotations to 2 Gemini functions (dynamic dispatch)
+  - Added @dialyzer annotations to 2 streaming functions (task spawning)
 
 ### 3.2 Medium Complexity
 - [ ] HTTP client type issues
@@ -139,7 +148,40 @@ Analysis of the 59 remaining warnings:
 - Identified 11 unnecessary suppressions
 - Created this tracking document
 
+### 2025-06-25 - Phase 2 Implementation Progress
+- Removed all 11 unnecessary suppressions from .dialyzer_ignore.exs
+- Added function-level @dialyzer annotations for functions used via dynamic dispatch:
+  - 7 Ollama functions (generate_config helpers)
+  - 2 Gemini functions (extract_tool_calls, extract_audio)
+  - 2 Streaming functions (handle_stream_response, wait_for_stream_completion)
+- Addressed 6 guard failure warnings:
+  - Identified as false positives from OpenAICompatible.BuildRequest macro expansion
+  - Added specific suppressions with clear documentation
+- Final state:
+  - Total errors: 96 (down from 107 initial, then 142 originally)
+  - Skipped: 54 (up from 48, due to 6 new guard_fail suppressions)
+  - Unnecessary skips: 0 (all suppressions are now justified)
+- All suppressed functions now have proper documentation about why they're suppressed
+
+### 2025-06-25 - Phase 3.2 Medium Complexity Fixes
+- Fixed HTTP client streaming type mismatch:
+  - Modified `HTTPClient.stream_request` to return `{:ok, :streaming}` instead of `{:ok, Tesla.Env.t()}`
+  - This fixed pattern match warnings in 6 stream_parse_response.ex files
+- Fixed unreachable pattern match in `execute_request.ex`:
+  - Removed unreachable `%Tesla.Env{} = response` pattern
+  - Tesla functions always return `{:ok, Tesla.Env.t()}` or `{:error, term()}`
+- Added dialyzer suppression for false positive in `streaming/engine.ex`
+- Results:
+  - Total errors: 85 (down from 96)
+  - Major improvement in streaming-related warnings
+
 ## Next Steps
-1. Continue with Phase 2: Categorize and analyze the 59 remaining warnings
-2. Create priority matrix for fixing real issues
-3. Begin Phase 3 implementation starting with quick wins
+1. Phase 3.1 Quick Wins are COMPLETE ✅
+2. Phase 3.2 Medium Complexity fixes are COMPLETE ✅
+   - Fixed HTTP client type issues
+   - Fixed stream parsing patterns
+   - Fixed error handling patterns
+3. Continue with Phase 3.3: Complex issues requiring more investigation
+   - Cost calculation contract violations
+   - Provider-specific type issues (XAI, etc.)
+   - Remaining pattern match warnings

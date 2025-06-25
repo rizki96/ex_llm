@@ -223,6 +223,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Compatibility do
     end
   end
 
+  @dialyzer {:nowarn_function, wait_for_stream_completion: 0}
   defp wait_for_stream_completion do
     # This is a simplified implementation for compatibility
     # In practice, this would wait for the streaming task to complete

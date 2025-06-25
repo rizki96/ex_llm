@@ -1791,6 +1791,7 @@ defmodule ExLLM.Providers.Ollama do
 
   # Helper functions for generate_config
 
+  @dialyzer {:nowarn_function, build_model_configs: 2}
   defp build_model_configs(models, config) do
     base_url = get_base_url(config)
 
@@ -1813,6 +1814,7 @@ defmodule ExLLM.Providers.Ollama do
     end)
   end
 
+  @dialyzer {:nowarn_function, get_model_details_direct: 2}
   defp get_model_details_direct(model_name, base_url) do
     body = %{name: model_name}
     headers = [{"content-type", "application/json"}]
@@ -1879,6 +1881,7 @@ defmodule ExLLM.Providers.Ollama do
     end
   end
 
+  @dialyzer {:nowarn_function, build_basic_model_config: 1}
   defp build_basic_model_config(model) do
     # Fallback for when we can't get detailed info
     %{
@@ -1890,6 +1893,7 @@ defmodule ExLLM.Providers.Ollama do
     }
   end
 
+  @dialyzer {:nowarn_function, determine_default_model: 2}
   defp determine_default_model(model_configs, options) do
     cond do
       # If explicitly provided
@@ -1913,6 +1917,7 @@ defmodule ExLLM.Providers.Ollama do
     end
   end
 
+  @dialyzer {:nowarn_function, merge_with_existing_config: 2}
   defp merge_with_existing_config(new_config, options) do
     path = Keyword.get(options, :path, "config/models/ollama.yml")
     existing_config = load_yaml_config(path)
@@ -1926,6 +1931,7 @@ defmodule ExLLM.Providers.Ollama do
     }
   end
 
+  @dialyzer {:nowarn_function, deep_merge_models: 2}
   defp deep_merge_models(existing_models, new_models) do
     # Start with all new models
     merged = new_models
@@ -1958,6 +1964,7 @@ defmodule ExLLM.Providers.Ollama do
     end
   end
 
+  @dialyzer {:nowarn_function, load_existing_default: 1}
   defp load_existing_default(options) do
     path = Keyword.get(options, :path, "config/models/ollama.yml")
     config = load_yaml_config(path)

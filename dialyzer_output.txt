@@ -16,74 +16,8 @@ Starting Dialyzer
    ...],
   warnings: [:unknown]
 ]
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:43:52
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:44:52
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:45:52
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:46:52
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:47:52
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:48:52
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:49:52
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:52:67
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:53:67
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:56:69
-
-warning: using single-quoted strings to represent charlists is deprecated.
-Use ~c"" if you indeed want a charlist or use "" instead.
-You may run "mix format --migrate" to change all single-quoted
-strings to use the ~c sigil and fix this warning.
-└─ nofile:59:76
-
-Total errors: 107, Skipped: 48, Unnecessary Skips: 11
-done in 0m1.55s
+Total errors: 96, Skipped: 54, Unnecessary Skips: 0
+done in 0m1.6s
 lib/ex_llm/plugs/execute_request.ex:93:11:pattern_match
 The pattern can never match the type.
 
@@ -204,12 +138,6 @@ breaks the contract
   ExLLM.Types.cost_result() | %{:error => String.t()}
 
 ________________________________________________________________________________
-lib/ex_llm/providers/gemini/parse_response.ex:93:8:unused_fun
-Function extract_tool_calls_from_candidate/1 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/gemini/parse_response.ex:115:8:unused_fun
-Function extract_audio_from_candidate/1 will never be called.
-________________________________________________________________________________
 lib/ex_llm/providers/gemini/stream_parse_response.ex:55:31:pattern_match
 The pattern can never match the type.
 
@@ -298,14 +226,6 @@ Type:
 {:error, _}
 
 ________________________________________________________________________________
-lib/ex_llm/providers/lmstudio/build_request.ex:8:guard_fail
-The guard clause:
-
-when _ :: <<_::136>> === nil
-
-can never succeed.
-
-________________________________________________________________________________
 lib/ex_llm/providers/lmstudio/stream_parse_response.ex:7:pattern_match
 The pattern can never match the type.
 
@@ -333,14 +253,6 @@ Type:
        :url => binary()
      }}
 
-
-________________________________________________________________________________
-lib/ex_llm/providers/mistral/build_request.ex:8:guard_fail
-The guard clause:
-
-when _ :: <<_::128>> === nil
-
-can never succeed.
 
 ________________________________________________________________________________
 lib/ex_llm/providers/mistral/stream_parse_response.ex:7:pattern_match
@@ -400,35 +312,6 @@ Pattern:
 
 Type:
 {:error, _}
-
-________________________________________________________________________________
-lib/ex_llm/providers/ollama.ex:1794:8:unused_fun
-Function build_model_configs/2 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/ollama.ex:1816:8:unused_fun
-Function get_model_details_direct/2 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/ollama.ex:1882:8:unused_fun
-Function build_basic_model_config/1 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/ollama.ex:1893:8:unused_fun
-Function determine_default_model/2 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/ollama.ex:1916:8:unused_fun
-Function merge_with_existing_config/2 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/ollama.ex:1929:8:unused_fun
-Function deep_merge_models/2 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/ollama.ex:1961:8:unused_fun
-Function load_existing_default/1 will never be called.
-________________________________________________________________________________
-lib/ex_llm/providers/ollama/build_request.ex:8:guard_fail
-The guard clause:
-
-when _ :: <<_::120>> === nil
-
-can never succeed.
 
 ________________________________________________________________________________
 lib/ex_llm/providers/ollama/stream_parse_response.ex:54:31:pattern_match
@@ -529,14 +412,6 @@ Type:
 
 
 ________________________________________________________________________________
-lib/ex_llm/providers/openrouter/build_request.ex:8:guard_fail
-The guard clause:
-
-when _ :: <<_::152>> === nil
-
-can never succeed.
-
-________________________________________________________________________________
 lib/ex_llm/providers/openrouter/stream_parse_response.ex:7:pattern_match
 The pattern can never match the type.
 
@@ -564,14 +439,6 @@ Type:
        :url => binary()
      }}
 
-
-________________________________________________________________________________
-lib/ex_llm/providers/perplexity/build_request.ex:8:guard_fail
-The guard clause:
-
-when _ :: <<_::152>> === nil
-
-can never succeed.
 
 ________________________________________________________________________________
 lib/ex_llm/providers/perplexity/stream_parse_response.ex:7:pattern_match
@@ -649,9 +516,6 @@ Pattern:
 Type:
 {:error, <<_::312>>}
 
-________________________________________________________________________________
-lib/ex_llm/providers/shared/streaming/compatibility.ex:226:8:unused_fun
-Function wait_for_stream_completion/0 will never be called.
 ________________________________________________________________________________
 lib/ex_llm/providers/shared/streaming/engine.ex:221:15:pattern_match
 The pattern can never match the type.
@@ -875,9 +739,6 @@ and the contract is
 (Tesla.Env.client(), Tesla.Env.url(), Tesla.Env.body(), [option()]) :: Tesla.Env.result()
 
 ________________________________________________________________________________
-lib/ex_llm/providers/shared/streaming/engine.ex:355:8:unused_fun
-Function handle_stream_response/2 will never be called.
-________________________________________________________________________________
 lib/ex_llm/providers/xai.ex:60:pattern_match
 The pattern can never match the type.
 
@@ -886,14 +747,6 @@ Pattern:
 
 Type:
 :post
-
-________________________________________________________________________________
-lib/ex_llm/providers/xai/build_request.ex:8:guard_fail
-The guard clause:
-
-when _ :: <<_::96>> === nil
-
-can never succeed.
 
 ________________________________________________________________________________
 lib/ex_llm/providers/xai/stream_parse_response.ex:7:pattern_match
