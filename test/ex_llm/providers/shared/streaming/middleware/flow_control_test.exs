@@ -427,9 +427,15 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.FlowControlTest do
 
   describe "flow control not available" do
     test "gracefully handles missing flow control infrastructure" do
-      # This test would require mocking Code.ensure_loaded?/1
-      # For now, we'll just verify the function exists
-      assert function_exported?(ExLLM.Providers.Shared.Streaming.Middleware.FlowControl, :call, 3)
+      # Test that the module loads and has the required Tesla middleware behavior
+      assert Code.ensure_loaded?(ExLLM.Providers.Shared.Streaming.Middleware.FlowControl)
+      
+      # Verify it implements Tesla.Middleware behavior
+      behaviours = ExLLM.Providers.Shared.Streaming.Middleware.FlowControl.__info__(:attributes)
+                   |> Enum.filter(fn {key, _} -> key == :behaviour end)
+                   |> Enum.flat_map(fn {_, behaviours} -> behaviours end)
+      
+      assert Tesla.Middleware in behaviours
     end
   end
 
