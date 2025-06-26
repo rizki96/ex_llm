@@ -19,6 +19,7 @@ defmodule ExLLM.IntegrationTest do
       else
         assert response.role == "assistant"
       end
+
       assert response.role == "assistant"
       assert response.provider == :mock
       assert response.usage.total_tokens == 30
@@ -155,6 +156,7 @@ defmodule ExLLM.IntegrationTest do
       else
         assert response.role == "assistant"
       end
+
       assert response.metadata.mock_config.model == "fluent-model"
     end
   end

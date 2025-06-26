@@ -38,23 +38,41 @@ defmodule ExLLM.Testing.Config do
   """
 
   @doc """
-  Default test exclusions based on cache freshness and environment.
+  Default test exclusions based on cache configuration and environment.
+  
+  Integration tests run against live APIs by default unless caching is explicitly enabled.
   """
   @spec default_exclusions() :: keyword()
   def default_exclusions do
+    cache_enabled = cache_enabled?()
     run_live = System.get_env("MIX_RUN_LIVE") == "true"
-    cache_fresh = cache_fresh?()
 
     base_exclusions = always_excluded_tags()
 
-    if run_live or cache_fresh do
-      # Include cached API tests when cache is fresh or explicitly requested
-      log_test_mode(run_live, cache_fresh)
-      base_exclusions
-    else
-      # Exclude live tests when cache is stale
-      log_cache_stale()
-      base_exclusions ++ api_excluded_tags()
+    cond do
+      run_live ->
+        # Force live mode - always include integration tests, never cache
+        log_test_mode(true, false)
+        base_exclusions
+
+      cache_enabled ->
+        # Cache mode explicitly enabled - use cached responses when available
+        cache_fresh = cache_fresh?()
+        log_test_mode(false, cache_fresh)
+        
+        if cache_fresh do
+          # Cache is fresh - include integration tests using cached responses
+          base_exclusions
+        else
+          # Cache is stale - exclude integration tests or run live
+          log_cache_stale()
+          base_exclusions ++ api_excluded_tags()
+        end
+
+      true ->
+        # Default mode - run integration tests against live APIs (no caching)
+        log_test_mode(:live_default, false)
+        base_exclusions
     end
   end
 
@@ -259,15 +277,33 @@ defmodule ExLLM.Testing.Config do
     end
   end
 
-  defp log_test_mode(run_live, cache_fresh) do
-    IO.puts("\n🚀 Running with API tests enabled")
-    if run_live, do: IO.puts("   Mode: Live API calls")
-    if cache_fresh and not run_live, do: IO.puts("   Mode: Cached responses (fresh)")
+  defp log_test_mode(mode, cache_fresh) do
+    case mode do
+      true ->
+        IO.puts("\n🚀 Running with integration tests enabled")
+        IO.puts("   Mode: Live API calls (forced)")
+
+      :live_default ->
+        IO.puts("\n🚀 Running with integration tests enabled")
+        IO.puts("   Mode: Live API calls (default - cache disabled)")
+        IO.puts("   💡 Enable caching with: export EX_LLM_TEST_CACHE_ENABLED=true")
+
+      false ->
+        IO.puts("\n🚀 Running with integration tests enabled")
+        if cache_fresh do
+          IO.puts("   Mode: Cached responses (fresh)")
+        else
+          IO.puts("   Mode: Cache enabled but stale")
+        end
+    end
   end
 
   defp log_cache_stale do
-    IO.puts("\n⚠️  Test cache is stale (>24h) - excluding live API tests")
-    IO.puts("   💡 Run `mix test.live` to refresh cache and test against live APIs")
+    IO.puts("\n⚠️  Cache is enabled but stale (>24h) - excluding integration tests")
+    IO.puts("   💡 Options:")
+    IO.puts("     - Run `mix test.live` to refresh cache and run against live APIs")
+    IO.puts("     - Run `MIX_RUN_LIVE=true mix test` to bypass cache and use live APIs")
+    IO.puts("     - Disable cache with: unset EX_LLM_TEST_CACHE_ENABLED")
     IO.puts("   📊 Check cache status: `mix cache.status`")
   end
 end

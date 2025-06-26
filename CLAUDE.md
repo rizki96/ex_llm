@@ -70,10 +70,10 @@ mix test --cover
 #### Streamlined Testing (12 Mix Aliases)
 ```bash
 # === CORE TESTING STRATEGY ===
-mix test.fast           # Fast development tests (cached, excludes API calls)
+mix test.fast           # Fast development tests (excludes API calls and slow tests)
 mix test.unit           # Unit tests only (pure logic, no external dependencies)  
-mix test.integration    # Integration tests (requires API keys)
-mix test.live           # Live API tests (refreshes cache, comprehensive)
+mix test.integration    # Integration tests (live APIs by default, requires API keys)
+mix test.live           # Force live API tests (bypasses cache, refreshes if enabled)
 mix test.all            # All tests including slow/comprehensive suites
 
 # === PROVIDER-SPECIFIC TESTING ===
@@ -93,14 +93,18 @@ mix cache.status        # Check cache status
 
 #### Test Caching (25x Speed Improvement)
 
-**Test caching is disabled by default** to prevent interference with unit tests that expect specific error conditions.
+**Integration tests run against live APIs by default.** Test caching is disabled by default and must be explicitly enabled.
 
 ```bash
-# Enable test caching for faster integration test runs
-export EX_LLM_TEST_CACHE_ENABLED=true
+# DEFAULT BEHAVIOR: Integration tests hit live APIs
+mix test --include integration     # Calls live provider APIs
 
-# Run integration tests with caching enabled
-mix test.anthropic --include live_api
+# ENABLE CACHING: Use cached responses when available
+export EX_LLM_TEST_CACHE_ENABLED=true
+mix test --include integration     # Uses cache if fresh, otherwise excludes tests
+
+# FORCE LIVE: Always use live APIs regardless of cache settings  
+MIX_RUN_LIVE=true mix test --include integration
 
 # Manage test cache
 mix ex_llm.cache stats

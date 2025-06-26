@@ -171,7 +171,7 @@ defmodule ExLLM.MixProject do
         "cmd MIX_RUN_LIVE=true mix test --include live_api --include external --include integration"
       ],
 
-      # Fast development tests (cached, excludes API calls)
+      # Fast development tests (excludes API calls and slow tests)
       "test.fast": [
         "test --exclude live_api --exclude external --exclude integration --exclude slow"
       ],
