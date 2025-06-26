@@ -106,7 +106,7 @@ defmodule ExLLM.Providers.Shared.HTTPCoreStreamingValidationTest do
     test "HTTPClient has been removed and HTTP.Core is used everywhere" do
       # Verify HTTPClient module no longer exists
       refute Code.ensure_loaded?(ExLLM.Providers.Shared.HTTPClient)
-      
+
       # Verify HTTP.Core is loaded and functioning
       assert Code.ensure_loaded?(ExLLM.Providers.Shared.HTTP.Core)
     end

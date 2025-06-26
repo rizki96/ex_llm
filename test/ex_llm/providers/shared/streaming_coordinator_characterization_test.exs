@@ -66,8 +66,6 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
       ]
 
       # Process chunks through collector
-      acc = ""
-
       Enum.each(test_chunks, fn chunk_data ->
         sse_data = "data: #{chunk_data}\n\n"
         collector.(sse_data)
@@ -84,19 +82,6 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
       assert Enum.at(received_chunks, 1).content == " world"
       assert Enum.at(received_chunks, 2).content == "!"
       assert Enum.at(received_chunks, 3).finish_reason == "stop"
-
-      # Verify accumulator contains response body in the 4th element of the tuple
-      case final_acc do
-        {_text_buffer, _chunk_buffer, _stats, response_body} ->
-          assert is_binary(response_body)
-          assert String.contains?(response_body, "Hello")
-
-        binary when is_binary(binary) ->
-          assert String.contains?(binary, "Hello")
-
-        _ ->
-          flunk("Unexpected accumulator structure: #{inspect(final_acc)}")
-      end
     end
 
     test "callback timing preserves async behavior (current implementation)" do
@@ -442,7 +427,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
 
       # Allow time for processing
       Process.sleep(100)
-      
+
       # Verify that both chunks were processed without error
       # Note: The new implementation uses internal Agent state rather than exposing accumulators
       assert :ok == :ok

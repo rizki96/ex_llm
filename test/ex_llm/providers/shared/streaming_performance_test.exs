@@ -30,7 +30,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
   setup do
     bypass = Bypass.open()
-    
+
     # Setup Tesla.Mock to allow HTTP requests to proceed normally
     Tesla.Mock.mock_global(fn env ->
       # Allow actual HTTP requests to go through (for Bypass)
