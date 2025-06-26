@@ -212,7 +212,7 @@ defmodule ExLLM.InputValidationTest do
       messages = [%{role: "user", content: "test"}]
 
       # Valid callback
-      callback = fn chunk -> IO.inspect(chunk) end
+      callback = fn _chunk -> :ok end
       assert :ok = ExLLM.stream(:mock, messages, callback)
 
       # Should validate arity - ExLLM.stream expects a 1-arity function
