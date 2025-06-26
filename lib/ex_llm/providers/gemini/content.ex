@@ -602,7 +602,7 @@ defmodule ExLLM.Providers.Gemini.Content do
       # Build request body
       body = build_request_body(request)
 
-      # Use HTTPClient directly for streaming
+      # Use HTTP.Core directly for streaming
       chunks_ref = make_ref()
       parent = self()
 

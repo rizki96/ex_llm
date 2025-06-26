@@ -54,7 +54,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker do
 
   ## Examples
       iex> ExLLM.CircuitBreaker.call("api_service", fn -> 
-      ...>   HTTPClient.get("/api/data")
+      ...>   HTTP.Core.get("/api/data")
       ...> end)
       {:ok, response}
       

@@ -4,7 +4,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
   This plug handles streaming responses by setting up a process to receive
   and forward chunks to the configured callback function. It has been migrated
-  from HTTPClient to use the modern HTTP.Core streaming infrastructure.
+  from legacy HTTP client to use the modern HTTP.Core streaming infrastructure.
 
   ## Prerequisites
 

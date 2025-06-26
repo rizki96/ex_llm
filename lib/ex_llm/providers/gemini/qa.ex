@@ -246,14 +246,14 @@ defmodule ExLLM.Providers.Gemini.QA do
   """
   @spec parse_generate_answer_response(map()) :: GenerateAnswerResponse.t()
   def parse_generate_answer_response(response_body) do
-    # Handle different response formats from HTTPClient
+    # Handle different response formats from HTTP client
     actual_body =
       cond do
         # Direct response body format (expected)
         is_map(response_body) and Map.has_key?(response_body, "answer") ->
           response_body
 
-        # Wrapped HTTP response format (from cache or HTTPClient)
+        # Wrapped HTTP response format (from cache or HTTP client)
         is_map(response_body) and Map.has_key?(response_body, :body) and
             is_map(response_body[:body]) ->
           response_body[:body]

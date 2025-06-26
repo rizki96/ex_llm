@@ -39,7 +39,7 @@ defmodule ExLLM.Providers.Gemini.Base do
         {build_url(path, Map.put(query, "key", api_key)), build_headers()}
       end
 
-    # Use shared HTTPClient for caching support
+    # Use shared HTTP.Core for caching support
     case make_http_request(method, url, body, headers, opts) do
       {:error, reason} ->
         {:error, %{reason: :network_error, message: inspect(reason)}}
@@ -71,7 +71,7 @@ defmodule ExLLM.Providers.Gemini.Base do
         {build_url_v1(path, Map.put(query, "key", api_key)), build_headers()}
       end
 
-    # Use shared HTTPClient for caching support
+    # Use shared HTTP.Core for caching support
     case make_http_request(method, url, body, headers, opts) do
       {:error, reason} ->
         {:error, %{reason: :network_error, message: inspect(reason)}}

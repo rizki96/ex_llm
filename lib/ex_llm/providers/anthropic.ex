@@ -855,7 +855,7 @@ defmodule ExLLM.Providers.Anthropic do
 
   # Private helper functions
 
-  # HTTP client helper functions to migrate from HTTPClient to Core
+  # HTTP client helper functions using HTTP.Core
 
   defp anthropic_request(method, url, body, headers, api_key, opts \\ []) do
     # Create client with Anthropic-specific configuration

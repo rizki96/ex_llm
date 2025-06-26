@@ -32,7 +32,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Bulkhead do
       # Execute with bulkhead protection
       ExLLM.Infrastructure.CircuitBreaker.call_with_bulkhead("api_circuit", fn ->
         # Your API call here
-        HTTPClient.get("/api/data")
+        HTTP.Core.get("/api/data")
       end)
   """
 

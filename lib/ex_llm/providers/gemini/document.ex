@@ -714,14 +714,14 @@ defmodule ExLLM.Providers.Gemini.Document do
 
   @doc false
   def parse_document(response) do
-    # Handle different response formats from HTTPClient
+    # Handle different response formats from HTTP client
     actual_body =
       cond do
         # Direct response body format (expected)
         is_map(response) and Map.has_key?(response, "name") ->
           response
 
-        # Wrapped HTTP response format (from cache or HTTPClient)
+        # Wrapped HTTP response format (from cache or HTTP client)
         is_map(response) and Map.has_key?(response, :body) and is_map(response[:body]) ->
           response[:body]
 

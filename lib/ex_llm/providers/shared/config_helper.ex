@@ -199,6 +199,33 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     }
   end
 
+  defp build_env_config(:lmstudio) do
+    %{
+      api_key: ConfigProvider.Env.get(:lmstudio, :api_key) || "lm-studio",
+      base_url: ConfigProvider.Env.get(:lmstudio, :base_url) || "http://localhost:1234",
+      model: ConfigProvider.Env.get(:lmstudio, :model),
+      host: ConfigProvider.Env.get(:lmstudio, :host),
+      port: ConfigProvider.Env.get(:lmstudio, :port)
+    }
+  end
+
+  defp build_env_config(:xai) do
+    %{
+      api_key: ConfigProvider.Env.get(:xai, :api_key),
+      base_url: ConfigProvider.Env.get(:xai, :base_url),
+      model: ConfigProvider.Env.get(:xai, :model)
+    }
+  end
+
+  # Default case for any provider not explicitly handled
+  defp build_env_config(provider) do
+    %{
+      api_key: ConfigProvider.Env.get(provider, :api_key),
+      base_url: ConfigProvider.Env.get(provider, :base_url),
+      model: ConfigProvider.Env.get(provider, :model)
+    }
+  end
+
   defp normalize_config(config) when is_map(config), do: config
   defp normalize_config(_), do: %{}
 end

@@ -38,7 +38,7 @@ defmodule ExLLM.Infrastructure.Telemetry.Instrumentation do
 
       def post_json(url, body, headers, opts) do
         instrument_http :post, url do
-          HTTPClient.post(url, body, headers)
+          HTTP.Core.post(url, body, headers)
         end
       end
   """

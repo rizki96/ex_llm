@@ -138,7 +138,7 @@ defmodule ExLLM.Providers.OpenAI do
       # Create stream with standard behavior
 
       Logger.with_context([provider: :openai, model: model], fn ->
-        # Create a stream using HTTPClient's streaming capabilities
+        # Create a stream using HTTP.Core streaming capabilities
         stream =
           Stream.resource(
             # Start function - initiates the HTTP request
@@ -3534,7 +3534,7 @@ defmodule ExLLM.Providers.OpenAI do
     end
   end
 
-  # HTTP client helper functions to migrate from HTTPClient to Core
+  # HTTP client helper functions using HTTP.Core
 
   defp openai_request(method, url, body, headers, api_key, opts) do
     # Create client with OpenAI-specific configuration
@@ -3567,10 +3567,6 @@ defmodule ExLLM.Providers.OpenAI do
         :post_multipart ->
           # For multipart, we'll need special handling
           Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
-
-        :get_json ->
-          # For JSON GET requests
-          Tesla.get(client, path, opts: [timeout: timeout])
 
         :stream ->
           # For streaming requests, use the provided callback

@@ -2,7 +2,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
   @moduledoc """
   Automatically intercept and cache responses during tests.
 
-  This module hooks into the HTTPClient request/response cycle to provide
+  This module hooks into the HTTP request/response cycle to provide
   automatic cache key generation, rich metadata capture, and streaming
   response reassembly for the test caching system.
   """
@@ -352,7 +352,7 @@ defmodule ExLLM.Testing.TestResponseInterceptor do
 
     %{
       "content" => complete_content,
-      # Use string key for HTTPClient replay compatibility
+      # Use string key for HTTP client replay compatibility
       "chunks" => chunks,
       # Store chunks for easy cache replay
       "streaming_chunks" => chunks,

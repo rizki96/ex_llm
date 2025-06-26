@@ -102,7 +102,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       alias ExLLM.Providers.Shared.HTTP.Core
 
-      # Store provider name for HTTPClient
+      # Store provider name for HTTP requests
       @provider_name unquote(provider)
 
       @provider unquote(provider)
