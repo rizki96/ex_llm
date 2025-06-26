@@ -164,74 +164,55 @@ defmodule ExLLM.MixProject do
 
   defp aliases do
     [
-      # === HYBRID TESTING STRATEGY ===
-      # Live API tests (refreshes cache)
+      # === CORE TESTING STRATEGY ===
+
+      # Live API tests (refreshes cache, comprehensive)
       "test.live": [
         "cmd MIX_RUN_LIVE=true mix test --include live_api --include external --include integration"
       ],
 
-      # Cached tests only (fast)
-      "test.cached": ["test --exclude live_api --exclude external --exclude integration"],
+      # Fast development tests (cached, excludes API calls)
+      "test.fast": [
+        "test --exclude live_api --exclude external --exclude integration --exclude slow"
+      ],
 
-      # Cache management
-      "cache.clear": ["cmd rm -rf test/cache/*"],
-      "cache.status": ["run -e ExLLM.Testing.Cache.status()"],
-
-      # === LEGACY ALIASES (for compatibility) ===
-      # Fast local development tests (excludes integration, external, slow tests)
-      "test.fast": ["test --exclude integration --exclude external --exclude slow"],
-
-      # Unit tests only
+      # Unit tests only (pure logic, no external dependencies)
       "test.unit": ["test --only unit"],
 
       # Integration tests (requires API keys)
-      "test.integration": ["test --only integration"],
+      "test.integration": ["test --include integration --include external"],
 
-      # External tests
-      "test.external": ["test --only external"],
-
-      # Live API tests
-      "test.live_api": ["test --only live_api"],
-
-      # Local-only tests (no API calls)
-      "test.local_only": ["test --exclude live_api --exclude external --exclude integration"],
-
-      # Provider-specific tests
-      "test.anthropic": ["test --only provider:anthropic"],
-      "test.openai": ["test --only provider:openai"],
-      "test.gemini": ["test --only provider:gemini"],
-      "test.groq": ["test --only provider:groq"],
-      "test.mistral": ["test --only provider:mistral"],
-      "test.openrouter": ["test --only provider:openrouter"],
-      "test.perplexity": ["test --only provider:perplexity"],
-      "test.ollama": ["test --only provider:ollama"],
-      "test.lmstudio": ["test --only provider:lmstudio"],
-      "test.bumblebee": ["test --only provider:bumblebee"],
-
-      # Capability-based tests
-      "test.streaming": ["test --only streaming"],
-      "test.vision": ["test --only vision"],
-      "test.multimodal": ["test --only multimodal"],
-      "test.function_calling": ["test --only function_calling"],
-      "test.embedding": ["test --only embedding"],
-
-      # Test type tests
-      "test.oauth2": ["test --only requires_oauth"],
-
-      # CI configurations
-      "test.ci": ["test --exclude wip --exclude flaky --exclude quota_sensitive"],
-      "test.ci.full": ["test --exclude wip --exclude flaky"],
-
-      # All tests including slow ones
+      # All tests including slow/comprehensive suites
       "test.all": [
         "test --include slow --include very_slow --include integration --include external"
       ],
 
-      # Experimental/beta features
-      "test.experimental": ["test --only experimental --only beta"],
+      # === PROVIDER-SPECIFIC TESTING ===
 
-      # Service-dependent tests
-      "test.services": ["test --only requires_service"]
+      # Major cloud providers (covers 80% of usage)
+      "test.anthropic": ["test --only provider:anthropic"],
+      "test.openai": ["test --only provider:openai"],
+      "test.gemini": ["test --only provider:gemini"],
+
+      # Local providers (for offline development)
+      "test.local": [
+        "test --only provider:ollama --only provider:lmstudio --only provider:bumblebee"
+      ],
+
+      # === SPECIALIZED TESTING ===
+
+      # OAuth2 authentication tests
+      "test.oauth2": ["test --only requires_oauth"],
+
+      # CI/CD pipeline tests
+      "test.ci": [
+        "test --exclude wip --exclude flaky --exclude quota_sensitive --exclude very_slow"
+      ],
+
+      # === CACHE MANAGEMENT ===
+
+      "cache.clear": ["cmd rm -rf test/cache/*"],
+      "cache.status": ["run -e ExLLM.Testing.Cache.status()"]
     ]
   end
 end

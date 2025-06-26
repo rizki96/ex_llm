@@ -27,12 +27,33 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
 
         ExLLM.Infrastructure.CircuitBreaker.init()
 
+        # Reset all circuit breakers to closed state for fresh testing
+        providers = [
+          :openai,
+          :anthropic,
+          :gemini,
+          :groq,
+          :mistral,
+          :ollama,
+          :openrouter,
+          :perplexity,
+          :xai,
+          :lmstudio
+        ]
+
+        Enum.each(providers, fn provider ->
+          ExLLM.Infrastructure.CircuitBreaker.reset("#{provider}_circuit")
+        end)
+
         enable_cache_debug()
         :ok
       end
 
       setup context do
         setup_test_cache(context)
+
+        # Reset circuit breaker for this provider before each test
+        ExLLM.Infrastructure.CircuitBreaker.reset("#{@provider}_circuit")
 
         on_exit(fn ->
           ExLLM.Testing.TestCacheDetector.clear_test_context()

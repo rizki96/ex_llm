@@ -71,7 +71,8 @@ defmodule ExLLM.Providers.LMStudio do
     base_url: "http://localhost:1234"
 
   alias ExLLM.Providers.Shared.EnhancedStreamingCoordinator
-  alias ExLLM.Providers.Shared.{HTTPClient, MessageFormatter, Validation}
+  alias ExLLM.Providers.Shared.{MessageFormatter, Validation}
+  alias ExLLM.Providers.Shared.HTTP.Core
   alias ExLLM.Types
 
   import ExLLM.Providers.OpenAICompatible, only: [default_model_transformer: 2]
@@ -299,14 +300,10 @@ defmodule ExLLM.Providers.LMStudio do
     loaded_only = Keyword.get(opts, :loaded_only, false)
     api_key = get_api_key(config)
 
-    url = "#{get_base_url(config)}/api/v0/models"
-    headers = get_headers(api_key, opts)
+    client = Core.client(provider: :lmstudio, api_key: api_key, base_url: get_base_url(config))
 
-    case HTTPClient.get_json(url, headers,
-           timeout: timeout,
-           provider: :lmstudio
-         ) do
-      {:ok, %{"data" => models} = response} when is_map(response) and is_list(models) ->
+    case Tesla.get(client, "/api/v0/models", opts: [timeout: timeout]) do
+      {:ok, %Tesla.Env{status: 200, body: %{"data" => models}}} when is_list(models) ->
         # Handle newer LM Studio API format with "data" wrapper
         filtered_models =
           if loaded_only do
@@ -318,7 +315,7 @@ defmodule ExLLM.Providers.LMStudio do
         formatted_models = Enum.map(filtered_models, &format_enhanced_model/1)
         {:ok, formatted_models}
 
-      {:ok, response} when is_list(response) ->
+      {:ok, %Tesla.Env{status: 200, body: response}} when is_list(response) ->
         # Handle older LM Studio API format (direct array)
         models = response
 
@@ -332,7 +329,7 @@ defmodule ExLLM.Providers.LMStudio do
         formatted_models = Enum.map(filtered_models, &format_enhanced_model/1)
         {:ok, formatted_models}
 
-      {:error, {:api_error, %{status: status, body: error_body}}} ->
+      {:ok, %Tesla.Env{status: status, body: error_body}} ->
         handle_error_response(status, error_body)
 
       {:error, reason} ->
@@ -341,15 +338,11 @@ defmodule ExLLM.Providers.LMStudio do
   end
 
   defp test_connection(config) do
-    url = "#{get_base_url(config)}/v1/models"
     api_key = get_api_key(config)
-    headers = get_headers(api_key, [])
+    client = Core.client(provider: :lmstudio, api_key: api_key, base_url: get_base_url(config))
 
-    case HTTPClient.get_json(url, headers,
-           timeout: 5_000,
-           provider: :lmstudio
-         ) do
-      {:ok, _} ->
+    case Tesla.get(client, "/v1/models", opts: [timeout: 5_000]) do
+      {:ok, %Tesla.Env{}} ->
         :ok
 
       {:error, {:api_error, %{status: 401}}} ->

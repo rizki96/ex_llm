@@ -390,6 +390,33 @@ models:
     supported_output_modalities:
     - text
     - image
+  gemini-2.5-pro:
+    context_window: 1048576
+    max_output_tokens: 65535
+    pricing:
+      input: 1.25
+      output: 10.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - audio_input
+    - structured_output
+    - system_messages
+    - reasoning
+    - web_search
+    - pdf_input
+    - tool_choice
+    supported_endpoints:
+    - /v1/chat/completions
+    - /v1/completions
+    supported_modalities:
+    - text
+    - image
+    - audio
+    - video
+    supported_output_modalities:
+    - text
   gemini-2.5-flash:
     context_window: 1048576
     max_output_tokens: 65535
@@ -405,6 +432,7 @@ models:
     - system_messages
     - reasoning
     - web_search
+    - pdf_input
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -422,9 +450,9 @@ models:
     context_window: 1048576
     max_output_tokens: 65535
     pricing:
-      input: 0.15
-      output: 0.6
-      reasoning: 3.5
+      input: 0.3
+      output: 2.5
+      reasoning: 2.5
     capabilities:
     - streaming
     - function_calling
@@ -433,6 +461,7 @@ models:
     - system_messages
     - reasoning
     - web_search
+    - pdf_input
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -461,6 +490,7 @@ models:
     - system_messages
     - reasoning
     - web_search
+    - pdf_input
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -489,6 +519,7 @@ models:
     - system_messages
     - reasoning
     - web_search
+    - pdf_input
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -588,6 +619,7 @@ models:
     - system_messages
     - reasoning
     - web_search
+    - pdf_input
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -615,6 +647,7 @@ models:
     - system_messages
     - reasoning
     - web_search
+    - pdf_input
     - parallel_function_calling
     - tool_choice
     supported_endpoints:
@@ -642,6 +675,7 @@ models:
     - system_messages
     - reasoning
     - web_search
+    - pdf_input
     - parallel_function_calling
     - tool_choice
     supported_endpoints:

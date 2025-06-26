@@ -53,11 +53,12 @@ defmodule ExLLM.Providers.Anthropic do
     ConfigHelper,
     EnhancedStreamingCoordinator,
     ErrorHandler,
-    HTTPClient,
     MessageFormatter,
     StreamingBehavior,
     Validation
   }
+
+  alias ExLLM.Providers.Shared.HTTP.Core
 
   import ExLLM.Providers.OpenAICompatible,
     only: [format_model_name: 1, default_model_transformer: 2]
@@ -82,7 +83,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :anthropic) do
+      case anthropic_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response_body} ->
           {:ok, parse_response(response_body)}
 
@@ -203,9 +204,7 @@ defmodule ExLLM.Providers.Anthropic do
       {:ok, _} ->
         headers = build_headers(api_key)
 
-        case HTTPClient.get_json("https://api.anthropic.com/v1/models", headers,
-               provider: :anthropic
-             ) do
+        case anthropic_request(:get, "https://api.anthropic.com/v1/models", %{}, headers, api_key) do
           {:ok, %{"data" => models}} ->
             parsed_models =
               models
@@ -560,10 +559,7 @@ defmodule ExLLM.Providers.Anthropic do
         {"purpose", "user_message"}
       ]
 
-      case HTTPClient.post_multipart(url, multipart, headers,
-             timeout: 120_000,
-             provider: :anthropic
-           ) do
+      case anthropic_request(:post_multipart, url, multipart, headers, api_key, timeout: 120_000) do
         {:ok, %{status: _status, body: response_body}} ->
           {:ok, response_body}
 
@@ -588,7 +584,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_files_headers(api_key)
       url = "#{get_base_url(config)}/files"
 
-      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+      case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
           {:ok, response}
 
@@ -610,7 +606,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_files_headers(api_key)
       url = "#{get_base_url(config)}/files/#{file_id}"
 
-      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+      case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
           {:ok, response}
 
@@ -632,7 +628,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_files_headers(api_key)
       url = "#{get_base_url(config)}/files/#{file_id}/content"
 
-      case HTTPClient.get_binary(url, headers, provider: :anthropic) do
+      case anthropic_request(:get_binary, url, %{}, headers, api_key) do
         {:ok, content} when is_binary(content) ->
           {:ok, content}
 
@@ -657,7 +653,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_files_headers(api_key)
       url = "#{get_base_url(config)}/files/#{file_id}"
 
-      case HTTPClient.delete_json(url, headers, provider: :anthropic) do
+      case anthropic_request(:delete, url, %{}, headers, api_key) do
         {:ok, response} ->
           {:ok, response}
 
@@ -686,7 +682,7 @@ defmodule ExLLM.Providers.Anthropic do
         requests: validated_requests
       }
 
-      case HTTPClient.post_json(url, body, headers, timeout: 120_000, provider: :anthropic) do
+      case anthropic_request(:post, url, body, headers, api_key, timeout: 120_000) do
         {:ok, response_body} ->
           {:ok, response_body}
 
@@ -711,7 +707,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages/batches"
 
-      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+      case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
           {:ok, response}
 
@@ -733,7 +729,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
 
-      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+      case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
           {:ok, response}
 
@@ -755,7 +751,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}/results"
 
-      case HTTPClient.get_json(url, headers, provider: :anthropic) do
+      case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
           {:ok, response}
 
@@ -777,7 +773,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}/cancel"
 
-      case HTTPClient.post_json(url, %{}, headers, timeout: 60_000, provider: :anthropic) do
+      case anthropic_request(:post, url, %{}, headers, api_key, timeout: 60_000) do
         {:ok, response_body} ->
           {:ok, response_body}
 
@@ -802,7 +798,7 @@ defmodule ExLLM.Providers.Anthropic do
       headers = build_headers(api_key)
       url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
 
-      case HTTPClient.delete_json(url, headers, provider: :anthropic) do
+      case anthropic_request(:delete, url, %{}, headers, api_key) do
         {:ok, response} ->
           {:ok, response}
 
@@ -844,7 +840,7 @@ defmodule ExLLM.Providers.Anthropic do
           body
         end
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :anthropic) do
+      case anthropic_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, %{status: _status, body: response_body}} ->
           {:ok, response_body}
 
@@ -858,6 +854,87 @@ defmodule ExLLM.Providers.Anthropic do
   end
 
   # Private helper functions
+
+  # HTTP client helper functions to migrate from HTTPClient to Core
+
+  defp anthropic_request(method, url, body, headers, api_key, opts \\ []) do
+    # Create client with Anthropic-specific configuration
+    client_opts = [
+      provider: :anthropic,
+      base_url: get_base_url_from_full_url(url)
+    ]
+
+    client_opts = if api_key, do: Keyword.put(client_opts, :api_key, api_key), else: client_opts
+    client = Core.client(client_opts)
+
+    # Extract path from full URL
+    path = get_path_from_url(url)
+
+    # Set default timeout
+    timeout = Keyword.get(opts, :timeout, 60_000)
+
+    # Execute request
+    result =
+      case method do
+        :get ->
+          Tesla.get(client, path, opts: [timeout: timeout])
+
+        :post ->
+          Tesla.post(client, path, body, opts: [timeout: timeout])
+
+        :delete ->
+          Tesla.delete(client, path, opts: [timeout: timeout])
+
+        :post_multipart ->
+          # For multipart, we'll need special handling
+          Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
+
+        :get_binary ->
+          # For binary downloads, similar to get but preserve binary response
+          Tesla.get(client, path, opts: [timeout: timeout])
+      end
+
+    # Convert Tesla response to the expected format
+    case result do
+      {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
+        # For JSON responses, try to decode if it's a string
+        parsed_body =
+          case {method, body} do
+            {method, body} when method in [:get_binary] ->
+              # Keep binary responses as-is
+              body
+
+            {_, body} when is_binary(body) ->
+              case Jason.decode(body) do
+                {:ok, parsed} -> parsed
+                {:error, _} -> body
+              end
+
+            {_, body} ->
+              body
+          end
+
+        {:ok, parsed_body}
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, {:api_error, %{status: status, body: body}}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Helper to extract base URL from full URL
+  defp get_base_url_from_full_url(url) do
+    uri = URI.parse(url)
+
+    "#{uri.scheme}://#{uri.host}#{if uri.port && uri.port not in [80, 443], do: ":#{uri.port}", else: ""}"
+  end
+
+  # Helper to extract path from full URL  
+  defp get_path_from_url(url) do
+    URI.parse(url).path || "/"
+  end
 
   defp build_files_headers(api_key) do
     [

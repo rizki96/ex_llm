@@ -1,9 +1,12 @@
 import Config
 
-# Configure ExLLM for testing
+# Configure ExLLM for testing using centralized configuration
 #
-# Use the Test cache strategy, which allows test-specific caching behavior
-# (e.g., for live API calls) while falling back to the production cache
-# for regular unit tests.
+# The centralized config provides consistent test settings across
+# all test environments and helpers.
+
+# Note: This is loaded early before the Testing.Config module is available,
+# so we define minimal config here and let test_helper.exs apply the full config
 config :ex_llm,
-  cache_strategy: ExLLM.Cache.Strategies.Test
+  cache_strategy: ExLLM.Cache.Strategies.Test,
+  env: :test

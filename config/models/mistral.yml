@@ -8,6 +8,7 @@ models:
       output: 0.25
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/mistral-small:
     context_window: 32000
@@ -18,6 +19,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/mistral-small-latest:
     context_window: 32000
@@ -28,6 +30,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/mistral-medium:
     context_window: 32000
@@ -37,6 +40,7 @@ models:
       output: 8.1
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/mistral-medium-latest:
     context_window: 131072
@@ -47,6 +51,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/mistral-medium-2505:
     context_window: 131072
@@ -57,6 +62,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/mistral-medium-2312:
     context_window: 32000
@@ -66,6 +72,7 @@ models:
       output: 8.1
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/mistral-large-latest:
     context_window: 128000
@@ -76,6 +83,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/mistral-large-2411:
     context_window: 128000
@@ -86,6 +94,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/mistral-large-2402:
     context_window: 32000
@@ -96,6 +105,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/mistral-large-2407:
     context_window: 128000
@@ -106,6 +116,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/pixtral-large-latest:
     context_window: 128000
@@ -117,6 +128,7 @@ models:
     - streaming
     - function_calling
     - vision
+    - structured_output
     - tool_choice
   mistral/pixtral-large-2411:
     context_window: 128000
@@ -128,6 +140,7 @@ models:
     - streaming
     - function_calling
     - vision
+    - structured_output
     - tool_choice
   mistral/pixtral-12b-2409:
     context_window: 128000
@@ -139,6 +152,7 @@ models:
     - streaming
     - function_calling
     - vision
+    - structured_output
     - tool_choice
   mistral/open-mistral-7b:
     context_window: 32000
@@ -148,6 +162,7 @@ models:
       output: 0.25
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/open-mixtral-8x7b:
     context_window: 32000
@@ -158,6 +173,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/open-mixtral-8x22b:
     context_window: 65336
@@ -168,6 +184,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/codestral-latest:
     context_window: 32000
@@ -177,6 +194,7 @@ models:
       output: 3.0
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/codestral-2405:
     context_window: 32000
@@ -186,6 +204,7 @@ models:
       output: 3.0
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/open-mistral-nemo:
     context_window: 128000
@@ -195,6 +214,7 @@ models:
       output: 0.3
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/open-mistral-nemo-2407:
     context_window: 128000
@@ -204,6 +224,7 @@ models:
       output: 0.3
     capabilities:
     - streaming
+    - structured_output
     - tool_choice
   mistral/open-codestral-mamba:
     context_window: 256000
@@ -232,6 +253,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - tool_choice
   mistral/magistral-medium-latest:
     context_window: 40000
@@ -242,6 +264,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - reasoning
     - tool_choice
   mistral/magistral-medium-2506:
@@ -253,6 +276,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - reasoning
     - tool_choice
   mistral/magistral-small-latest:
@@ -264,6 +288,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - reasoning
     - tool_choice
   mistral/magistral-small-2506:
@@ -275,6 +300,7 @@ models:
     capabilities:
     - streaming
     - function_calling
+    - structured_output
     - reasoning
     - tool_choice
   mistral/mistral-embed:

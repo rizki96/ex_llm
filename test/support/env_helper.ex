@@ -36,9 +36,6 @@ defmodule ExLLM.Testing.EnvHelper do
 
   require Logger
 
-  @default_env_file ".env"
-  @env_file_env_var "EX_LLM_ENV_FILE"
-
   @doc """
   Loads environment variables from the configured .env file.
 
@@ -243,16 +240,7 @@ defmodule ExLLM.Testing.EnvHelper do
   # Private functions
 
   defp get_env_file_path do
-    cond do
-      env_var = System.get_env(@env_file_env_var) ->
-        env_var
-
-      config_path = Application.get_env(:ex_llm, :env_file) ->
-        config_path
-
-      true ->
-        Path.join(File.cwd!(), @default_env_file)
-    end
+    ExLLM.Testing.Config.env_file_path()
   end
 
   defp load_env_file(path, opts) do
@@ -318,18 +306,7 @@ defmodule ExLLM.Testing.EnvHelper do
   Returns the default list of API keys to check for.
   """
   def default_api_keys do
-    [
-      "ANTHROPIC_API_KEY",
-      "OPENAI_API_KEY",
-      "GEMINI_API_KEY",
-      "GROQ_API_KEY",
-      "MISTRAL_API_KEY",
-      "OPENROUTER_API_KEY",
-      "PERPLEXITY_API_KEY",
-      "XAI_API_KEY",
-      "OLLAMA_HOST",
-      "LMSTUDIO_HOST"
-    ]
+    ExLLM.Testing.Config.default_api_keys()
   end
 
   defp should_refresh_gemini_oauth?(opts) do

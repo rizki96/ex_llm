@@ -16,7 +16,7 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
   """
 
   alias ExLLM.{Infrastructure.Logger, Types}
-  alias ExLLM.Providers.Shared.{ConfigHelper, HTTPClient, ModelUtils}
+  alias ExLLM.Providers.Shared.{ConfigHelper, HTTP.Core, ModelUtils}
 
   @doc """
   Callback to fetch models from the provider's API.
@@ -82,25 +82,35 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
   @spec fetch_openai_compatible_models(String.t(), String.t(), keyword()) ::
           {:ok, list(map())} | {:error, term()}
   def fetch_openai_compatible_models(base_url, api_key, options \\ []) do
-    headers =
-      [
-        {"Authorization", "Bearer #{api_key}"},
-        {"Content-Type", "application/json"}
-      ] ++ Keyword.get(options, :extra_headers, [])
+    # Extract provider from options, default to :openai for OpenAI-compatible endpoints
+    provider = Keyword.get(options, :provider, :openai)
 
-    url = "#{base_url}/models"
+    # Build client with provider-specific configuration
+    client =
+      Core.client(
+        provider: provider,
+        api_key: api_key,
+        base_url: base_url,
+        timeout: Keyword.get(options, :timeout, 30_000)
+      )
 
-    case HTTPClient.post_json(url, %{}, headers, method: :get) do
-      {:ok, %{"data" => models}} when is_list(models) ->
+    # Additional headers if needed
+    extra_headers = Keyword.get(options, :extra_headers, [])
+
+    case Tesla.get(client, "/models", headers: extra_headers) do
+      {:ok, %Tesla.Env{status: 200, body: %{"data" => models}}} when is_list(models) ->
         {:ok, models}
 
-      {:ok, %{"models" => models}} when is_list(models) ->
+      {:ok, %Tesla.Env{status: 200, body: %{"models" => models}}} when is_list(models) ->
         # Some providers use "models" instead of "data"
         {:ok, models}
 
-      {:ok, response} ->
+      {:ok, %Tesla.Env{status: 200, body: response}} ->
         Logger.warning("Unexpected models API response format: #{inspect(response)}")
         {:error, "Unexpected response format"}
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, %{status_code: status, response: body}}
 
       {:error, reason} ->
         {:error, reason}

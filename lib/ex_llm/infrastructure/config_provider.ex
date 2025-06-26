@@ -127,40 +127,48 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
       get_known_config(provider, key) || get_generic_config(provider, key)
     end
 
-    defp get_known_config(:openai, :api_key), do: System.get_env("OPENAI_API_KEY")
+    defp get_known_config(provider, key) do
+      case {provider, key} do
+        # API Keys
+        {prov, :api_key} ->
+          case ExLLM.Environment.api_key_var(prov) do
+            vars when is_list(vars) -> Enum.find_value(vars, &System.get_env/1)
+            var when is_binary(var) -> System.get_env(var)
+            _ -> nil
+          end
 
-    defp get_known_config(:openai, :base_url),
-      do: System.get_env("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        # Base URLs
+        {prov, :base_url} ->
+          case ExLLM.Environment.base_url_var(prov) do
+            {var, default} -> System.get_env(var, default)
+            _ -> nil
+          end
 
-    defp get_known_config(:openai, :model),
-      do: System.get_env("OPENAI_MODEL", "gpt-4-turbo-preview")
+        # Models
+        {prov, :model} ->
+          case ExLLM.Environment.model_var(prov) do
+            {var, default} -> System.get_env(var, default)
+            _ -> nil
+          end
 
-    defp get_known_config(:anthropic, :api_key), do: System.get_env("ANTHROPIC_API_KEY")
+        # Special cases
+        {:openai, :organization} ->
+          System.get_env("OPENAI_ORGANIZATION")
 
-    defp get_known_config(:anthropic, :base_url),
-      do: System.get_env("ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1")
+        {:openrouter, :app_name} ->
+          System.get_env("OPENROUTER_APP_NAME")
 
-    defp get_known_config(:anthropic, :model),
-      do: System.get_env("ANTHROPIC_MODEL", "claude-sonnet-4-20250514")
+        {:openrouter, :app_url} ->
+          System.get_env("OPENROUTER_APP_URL")
 
-    defp get_known_config(:ollama, :base_url),
-      do: System.get_env("OLLAMA_BASE_URL", "http://localhost:11434")
+        {:ollama, :base_url} ->
+          System.get_env("OLLAMA_BASE_URL") || System.get_env("OLLAMA_HOST") ||
+            "http://localhost:11434"
 
-    defp get_known_config(:ollama, :model), do: System.get_env("OLLAMA_MODEL")
-
-    defp get_known_config(:openrouter, :api_key), do: System.get_env("OPENROUTER_API_KEY")
-
-    defp get_known_config(:openrouter, :base_url),
-      do: System.get_env("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
-
-    defp get_known_config(:openrouter, :model),
-      do: System.get_env("OPENROUTER_MODEL", "openai/gpt-4o-mini")
-
-    defp get_known_config(:openrouter, :app_name), do: System.get_env("OPENROUTER_APP_NAME")
-
-    defp get_known_config(:openrouter, :app_url), do: System.get_env("OPENROUTER_APP_URL")
-
-    defp get_known_config(_, _), do: nil
+        _ ->
+          nil
+      end
+    end
 
     defp get_generic_config(provider, key) do
       env_var = "#{String.upcase(to_string(provider))}_#{String.upcase(to_string(key))}"
@@ -169,46 +177,24 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
 
     @impl true
     def get_all(provider) when is_atom(provider) do
+      # Get base configuration from centralized environment
+      base_config = ExLLM.Environment.provider_config(provider)
+
+      # Add provider-specific extras
       case provider do
         :openai ->
-          %{
-            api_key: get(:openai, :api_key),
-            base_url: get(:openai, :base_url),
-            model: get(:openai, :model)
-          }
-
-        :anthropic ->
-          %{
-            api_key: get(:anthropic, :api_key),
-            base_url: get(:anthropic, :base_url),
-            model: get(:anthropic, :model)
-          }
-
-        :ollama ->
-          %{
-            base_url: get(:ollama, :base_url),
-            model: get(:ollama, :model)
-          }
+          Map.put(base_config, :organization, get(:openai, :organization))
 
         :openrouter ->
-          %{
-            api_key: get(:openrouter, :api_key),
-            base_url: get(:openrouter, :base_url),
-            model: get(:openrouter, :model),
-            app_name: get(:openrouter, :app_name),
-            app_url: get(:openrouter, :app_url)
-          }
+          base_config
+          |> Map.put(:app_name, get(:openrouter, :app_name))
+          |> Map.put(:app_url, get(:openrouter, :app_url))
 
         :test_provider ->
-          %{
-            api_key: get(:test_provider, :api_key),
-            base_url: get(:test_provider, :base_url),
-            model: get(:test_provider, :model),
-            default_model: get(:test_provider, :default_model)
-          }
+          Map.put(base_config, :default_model, get(:test_provider, :default_model))
 
         _ ->
-          %{}
+          base_config
       end
     end
   end

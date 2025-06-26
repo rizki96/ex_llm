@@ -111,6 +111,43 @@ models:
     - prompt_caching
     - structured_output
     - pdf_input
+  apac.amazon.nova-micro-v1:0:
+    context_window: 300000
+    max_output_tokens: 10000
+    pricing:
+      input: 0.037
+      output: 0.148
+    capabilities:
+    - streaming
+    - function_calling
+    - prompt_caching
+    - structured_output
+  apac.amazon.nova-lite-v1:0:
+    context_window: 128000
+    max_output_tokens: 10000
+    pricing:
+      input: 0.063
+      output: 0.252
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+  apac.amazon.nova-pro-v1:0:
+    context_window: 300000
+    max_output_tokens: 10000
+    pricing:
+      input: 0.84
+      output: 3.36
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
   us.amazon.nova-premier-v1:0:
     context_window: 1000000
     max_output_tokens: 10000
@@ -229,6 +266,21 @@ models:
     - pdf_input
     - tool_choice
   eu.anthropic.claude-sonnet-4-20250514-v1:0:
+    context_window: 200000
+    max_output_tokens: 64000
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - reasoning
+    - pdf_input
+    - tool_choice
+  apac.anthropic.claude-sonnet-4-20250514-v1:0:
     context_window: 200000
     max_output_tokens: 64000
     pricing:

@@ -458,6 +458,59 @@ models:
     - structured_output
     - pdf_input
     - tool_choice
+  apac.anthropic.claude-3-haiku-20240307-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 0.25
+      output: 1.25
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - pdf_input
+    - tool_choice
+  apac.anthropic.claude-3-sonnet-20240229-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - pdf_input
+    - tool_choice
+  apac.anthropic.claude-3-5-sonnet-20240620-v1:0:
+    context_window: 200000
+    max_output_tokens: 4096
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - pdf_input
+    - tool_choice
+  apac.anthropic.claude-3-5-sonnet-20241022-v2:0:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - prompt_caching
+    - structured_output
+    - pdf_input
+    - tool_choice
   eu.anthropic.claude-3-5-haiku-20241022-v1:0:
     context_window: 200000
     max_output_tokens: 8192

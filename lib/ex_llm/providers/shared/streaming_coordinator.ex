@@ -12,7 +12,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
   - Provider-agnostic streaming patterns
   """
 
-  alias ExLLM.Providers.Shared.HTTPClient
+  alias ExLLM.Providers.Shared.HTTP.Core
   alias ExLLM.Types
 
   alias ExLLM.Infrastructure.Logger
@@ -77,15 +77,32 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Create enhanced callback with transformations
     enhanced_callback = create_enhanced_callback(callback, stream_context, options)
 
-    # Use HTTPClient for consistent request handling
-    stream_opts = [
-      headers: headers,
-      receive_timeout: Keyword.get(options, :timeout, @default_timeout),
-      into: create_stream_collector(enhanced_callback, parse_chunk_fn, stream_context, options)
-    ]
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
+
+    # Extract provider from options, required for proper auth headers
+    provider = Keyword.get(options, :provider, :unknown)
+    api_key = Keyword.get(options, :api_key)
+
+    # Build client with provider-specific configuration
+    client =
+      Core.client(
+        provider: provider,
+        api_key: api_key,
+        base_url: base_url,
+        timeout: Keyword.get(options, :timeout, @default_timeout)
+      )
+
+    # Create the streaming callback that processes SSE data
+    stream_callback =
+      create_stream_collector(enhanced_callback, parse_chunk_fn, stream_context, options)
 
     result =
-      case HTTPClient.post_stream(url, request, stream_opts) do
+      case Core.stream(client, path, request, stream_callback,
+             headers: headers,
+             parse_chunk: parse_chunk_fn,
+             timeout: Keyword.get(options, :timeout, @default_timeout)
+           ) do
         {:ok, _response} ->
           # Send completion chunk
           enhanced_callback.(%ExLLM.Types.StreamChunk{
@@ -120,21 +137,24 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Initialize chunk buffer for batching
     buffer_size = Keyword.get(options, :buffer_chunks, 1)
 
-    # Enhanced collector that maintains stream state and processes synchronously
-    fn
-      {:data, data}, acc ->
-        # Initialize or extract state tuple: {text_buffer, chunk_buffer, stats, response_body}
-        {text_buffer, chunk_buffer, stats, response_body} =
-          case acc do
-            {_, _, _, _} = state -> state
-            binary when is_binary(binary) -> {"", [], stream_context, binary}
-            _ -> {"", [], stream_context, ""}
-          end
+    # Create an Agent to maintain internal accumulator state
+    {:ok, state_agent} = Agent.start_link(fn -> {"", [], stream_context, ""} end)
+
+    # Return 1-argument callback compatible with HTTP.Core.stream
+    fn chunk ->
+      # For direct chunk processing (HTTP.Core.stream path)
+      if is_struct(chunk, ExLLM.Types.StreamChunk) do
+        # Direct chunk processing - call the callback immediately
+        callback.(chunk)
+      else
+        # Legacy SSE data processing path - maintain compatibility
+        # Get current state from agent
+        {text_buffer, chunk_buffer, stats, response_body} = Agent.get(state_agent, & &1)
 
         # Process stream data synchronously (NO TASK SPAWNING!)
         {new_text_buffer, new_chunk_buffer, new_stats} =
           process_stream_data_sync(
-            data,
+            chunk,
             text_buffer,
             chunk_buffer,
             callback,
@@ -144,20 +164,11 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
             options
           )
 
-        # Accumulate the raw data as binary for Req while maintaining state
-        {:cont, {new_text_buffer, new_chunk_buffer, new_stats, response_body <> data}}
-
-      {:error, reason}, acc ->
-        # Extract stats for error counting if available
-        stats =
-          case acc do
-            {_, _, s, _} -> s
-            _ -> stream_context
-          end
-
-        _new_stats = update_stream_stats(stats, :error_count, 1)
-        Logger.error("Stream collector error: #{inspect(reason)}")
-        {:halt, {:error, reason}}
+        # Update state in agent
+        Agent.update(state_agent, fn _ ->
+          {new_text_buffer, new_chunk_buffer, new_stats, response_body <> to_string(chunk)}
+        end)
+      end
     end
   end
 
@@ -629,5 +640,38 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     stream_options = Keyword.merge(options, parse_chunk_fn: parse_chunk)
 
     start_stream(url, request, headers, callback, stream_options)
+  end
+
+  # Private helper functions
+
+  defp extract_base_url_and_path(url) do
+    uri = URI.parse(url)
+
+    # Check if this is an absolute URL (has scheme and host)
+    if uri.scheme && uri.host do
+      # Extract base URL (scheme + host + port)
+      port_part =
+        if uri.port && uri.port != URI.default_port(uri.scheme) do
+          ":#{uri.port}"
+        else
+          ""
+        end
+
+      base_url = "#{uri.scheme}://#{uri.host}#{port_part}"
+      path = uri.path || "/"
+
+      # Include query if present
+      path_with_query =
+        if uri.query do
+          "#{path}?#{uri.query}"
+        else
+          path
+        end
+
+      {base_url, path_with_query}
+    else
+      # Relative URL - return nil for base_url and the original URL as path
+      {nil, url}
+    end
   end
 end

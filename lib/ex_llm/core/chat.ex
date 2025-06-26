@@ -297,54 +297,54 @@ defmodule ExLLM.Core.Chat do
       groq: [
         build_request: {ExLLM.Providers.Groq.BuildRequest, []},
         parse_response: {ExLLM.Providers.Groq.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Groq.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.GroqParseStreamResponse, []}
       ],
       lmstudio: [
         build_request: {ExLLM.Providers.LMStudio.BuildRequest, []},
         parse_response: {ExLLM.Providers.LMStudio.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.LMStudio.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.LMStudioParseStreamResponse, []}
       ],
       xai: [
         build_request: {ExLLM.Providers.XAI.BuildRequest, []},
         parse_response: {ExLLM.Providers.XAI.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.XAI.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.XAIParseStreamResponse, []}
       ],
       mistral: [
         build_request: {ExLLM.Providers.Mistral.BuildRequest, []},
         parse_response: {ExLLM.Providers.Mistral.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Mistral.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.MistralParseStreamResponse, []}
       ],
       ollama: [
         build_request: {ExLLM.Providers.Ollama.BuildRequest, []},
         parse_response: {ExLLM.Providers.Ollama.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Ollama.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.OllamaParseStreamResponse, []}
       ],
       openrouter: [
         build_request: {ExLLM.Providers.OpenRouter.BuildRequest, []},
         parse_response: {ExLLM.Providers.OpenRouter.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.OpenRouter.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.OpenRouterParseStreamResponse, []}
       ],
       perplexity: [
         build_request: {ExLLM.Providers.Perplexity.BuildRequest, []},
         parse_response: {ExLLM.Providers.Perplexity.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Perplexity.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.PerplexityParseStreamResponse, []}
       ],
       gemini: [
         build_request: {ExLLM.Providers.Gemini.BuildRequest, []},
         parse_response: {ExLLM.Providers.Gemini.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Gemini.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.GeminiParseStreamResponse, []}
       ],
       bumblebee: [
         build_request: {ExLLM.Providers.Bumblebee.BuildRequest, []},
         execute_request: {ExLLM.Plugs.ExecuteLocal, []},
         parse_response: {ExLLM.Providers.Bumblebee.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Bumblebee.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.BumblebeeParseStreamResponse, []}
       ],
       bedrock: [
         build_request: {ExLLM.Providers.Bedrock.BuildRequest, []},
         auth_request: {ExLLM.Plugs.AWSAuth, []},
         parse_response: {ExLLM.Providers.Bedrock.ParseResponse, []},
-        stream_parse_response: {ExLLM.Providers.Bedrock.StreamParseResponse, []}
+        stream_parse_response: {ExLLM.Plugs.Providers.BedrockParseStreamResponse, []}
       ],
       mock: [
         build_request: {ExLLM.Plugs.Providers.MockHandler, []},

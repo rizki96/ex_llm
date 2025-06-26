@@ -67,38 +67,28 @@ mix test test/ex_llm_test.exs:42
 mix test --cover
 ```
 
-#### Provider-Specific Testing (24 Mix Aliases)
+#### Streamlined Testing (12 Mix Aliases)
 ```bash
-# Test individual providers
+# === CORE TESTING STRATEGY ===
+mix test.fast           # Fast development tests (cached, excludes API calls)
+mix test.unit           # Unit tests only (pure logic, no external dependencies)  
+mix test.integration    # Integration tests (requires API keys)
+mix test.live           # Live API tests (refreshes cache, comprehensive)
+mix test.all            # All tests including slow/comprehensive suites
+
+# === PROVIDER-SPECIFIC TESTING ===
 mix test.anthropic      # Anthropic Claude tests
-mix test.openai         # OpenAI GPT tests  
-mix test.gemini         # Google Gemini tests
-mix test.groq           # Groq tests
-mix test.mistral        # Mistral AI tests
-mix test.openrouter     # OpenRouter tests
-mix test.perplexity     # Perplexity tests
-mix test.ollama         # Ollama local tests
-mix test.lmstudio       # LM Studio tests
-mix test.bumblebee      # Bumblebee local tests
+mix test.openai         # OpenAI GPT tests
+mix test.gemini         # Google Gemini tests  
+mix test.local          # Local providers (Ollama, LM Studio, Bumblebee)
 
-# By test type
-mix test.unit           # Unit tests only
-mix test.integration    # Integration tests
-mix test.external       # Tests with external calls
+# === SPECIALIZED TESTING ===
 mix test.oauth2         # OAuth2 authentication tests
+mix test.ci             # CI/CD pipeline tests (excludes flaky/slow)
 
-# By capability
-mix test.streaming      # Streaming response tests
-mix test.vision         # Vision/image processing tests
-mix test.multimodal     # Multimodal input tests
-mix test.function_calling # Function/tool calling tests
-mix test.embedding      # Embedding generation tests
-
-# By environment needs
-mix test.live_api       # Tests calling live APIs
-mix test.local_only     # Local-only tests (no API calls)
-mix test.fast           # Fast tests (cached/mocked)
-mix test.all            # All tests including slow ones
+# === CACHE MANAGEMENT ===
+mix cache.clear         # Clear test cache
+mix cache.status        # Check cache status
 ```
 
 #### Test Caching (25x Speed Improvement)
@@ -245,14 +235,14 @@ ExLLM is a unified Elixir client for Large Language Models that provides a consi
 
 7. **Instructor Integration (`lib/ex_llm/instructor.ex`)**: Optional integration for structured outputs with schema validation and retries.
 
-### Provider Adapters
+### Provider Implementations
 
-- **Anthropic Adapter (`lib/ex_llm/adapters/anthropic.ex`)**: Claude API integration with streaming support
-- **OpenAI Adapter (`lib/ex_llm/adapters/openai.ex`)**: GPT and o1 models with function calling
-- **Gemini Adapter (`lib/ex_llm/adapters/gemini.ex`)**: Complete Gemini API suite (15 APIs) with OAuth2
-- **Groq Adapter (`lib/ex_llm/adapters/groq.ex`)**: Ultra-fast inference with Llama and DeepSeek
-- **OpenRouter Adapter (`lib/ex_llm/adapters/openrouter.ex`)**: Access to 300+ models
-- **Local Adapters**: Ollama, LM Studio, and Bumblebee for local model inference
+- **Anthropic Provider (`lib/ex_llm/providers/anthropic.ex`)**: Claude API integration with streaming support
+- **OpenAI Provider (`lib/ex_llm/providers/openai.ex`)**: GPT and o1 models with function calling  
+- **Gemini Provider (`lib/ex_llm/providers/gemini.ex`)**: Complete Gemini API suite (15 APIs) with OAuth2
+- **Groq Provider (`lib/ex_llm/providers/groq.ex`)**: Ultra-fast inference with Llama and DeepSeek
+- **OpenRouter Provider (`lib/ex_llm/providers/openrouter.ex`)**: Access to 300+ models
+- **Local Providers**: Ollama, LM Studio, and Bumblebee for local model inference
 
 ### Configuration System
 
@@ -273,17 +263,124 @@ The `ExLLM.Application` module starts the supervision tree, including the option
 ## Key Design Patterns
 
 1. **Unified Interface**: All providers expose the same API through the main `ExLLM` module
-2. **Adapter Pattern**: Each provider implements the `ExLLM.Adapter` behavior
-3. **Intelligent Test Caching**: Automatic response caching with smart cache invalidation
-4. **Semantic Test Organization**: Tag-based test categorization with automatic requirement checking
-5. **Optional Dependencies**: Features like local models and structured outputs are optional
-6. **Automatic Cost Tracking**: Usage and costs are calculated transparently
-7. **Context Window Management**: Automatic message truncation based on model limits
-8. **Streaming Support**: Real-time responses with advanced coordinator and error recovery
+2. **Provider Pattern**: Each provider implements the `ExLLM.Provider` behavior
+3. **Tesla Middleware Architecture**: Modern HTTP client with composable middleware stack
+4. **Intelligent Test Caching**: Automatic response caching with smart cache invalidation (25x speedup)
+5. **Semantic Test Organization**: Tag-based test categorization with automatic requirement checking
+6. **Optional Dependencies**: Features like local models and structured outputs are optional
+7. **Automatic Cost Tracking**: Usage and costs are calculated transparently
+8. **Context Window Management**: Automatic message truncation based on model limits
+9. **Enhanced Streaming**: Real-time responses with direct HTTP.Core integration and error recovery
+
+## HTTP Client Architecture Migration
+
+**Status: Complete Migration to HTTP.Core (2025-06-26)**
+
+ExLLM has successfully migrated from a legacy HTTPClient facade to a modern Tesla middleware-based HTTP architecture:
+
+### ✅ **Completed Migrations**
+- **All Core Providers**: OpenAI (55 calls), Anthropic (14 calls), OpenAI-Compatible base (affects Mistral, XAI, OpenRouter, Perplexity), Gemini modules, Ollama, Groq, LMStudio
+- **HTTP.Core**: New Tesla-based client with middleware for authentication, error handling, caching, and multipart uploads
+- **Provider-Specific Helpers**: Each provider now has optimized request helpers that handle all HTTP methods and streaming
+- **Streaming Coordinators**: Both StreamingCoordinator and EnhancedStreamingCoordinator now use HTTP.Core.stream directly
+- **ModelFetcher**: Migrated to use HTTP.Core for fetching provider model lists
+
+### 🔧 **Architecture Benefits**
+- **Better Error Handling**: Comprehensive retry logic with exponential backoff
+- **Improved Authentication**: Provider-specific auth middleware with automatic header management  
+- **Enhanced Streaming**: Direct HTTP.Core.stream integration with callback support
+- **Modular Design**: Focused middleware components for specific concerns
+- **Test Support**: Automatic response caching for 25x faster integration tests
+
+### 📁 **New HTTP Module Structure**
+```
+lib/ex_llm/providers/shared/http/
+├── core.ex              # Main Tesla client and middleware management
+├── authentication.ex   # Provider-specific auth headers  
+├── error_handling.ex   # Retry logic and error mapping
+├── multipart.ex        # File upload handling
+└── safe_hackney_adapter.ex # Secure HTTP adapter
+```
+
+### ✅ **Legacy Component Cleanup Complete**
+- **Stream Parsing Migration**: Successfully replaced all 13 legacy StreamParseResponse modules with modern ParseStreamResponse plugs
+- **HTTP.Core Adoption**: All streaming components now use HTTP.Core.stream directly instead of HTTPClient.stream_request
+- **Pipeline Modernization**: Updated Core.Chat pipeline configurations to use new plug-based streaming approach
+- **Zero Legacy Dependencies**: No remaining references to HTTPClient.stream_request in the codebase
+
+### 📝 **Migration Notes**
+- **HTTPClient.post_stream** is now deprecated and serves as a compatibility shim
+- New code should use `ExLLM.Providers.Shared.HTTP.Core` directly
+- All active providers and coordinators have been migrated to the new architecture
+
+## Test Configuration
+
+**Status: Centralized Configuration Complete (2025-06-25)**
+
+ExLLM uses a centralized test configuration system for consistent behavior across all environments:
+
+### 🎯 **Centralized Config (`ExLLM.Testing.Config`)**
+- **Single source of truth**: All test settings defined in one module
+- **Semantic categories**: Tests organized by tags (unit, integration, provider, etc.)
+- **Dynamic exclusions**: Smart cache-based and environment-based test selection
+- **Maintainable**: Easy to add new test categories and strategies
+
+### 📋 **Test Strategies**
+
+#### CI Pipeline (`test.ci`)
+- **Fast execution**: Excludes slow and problematic tests (`wip`, `flaky`, `quota_sensitive`, `very_slow`)
+- **Reliable**: Focuses on core functionality without external dependencies
+- **Used in**: GitHub Actions CI workflow for pull requests and pushes
+
+#### Release Pipeline (`test.integration`) 
+- **Comprehensive**: Includes integration and external tests
+- **Cached responses**: Uses test caching for faster integration test execution
+- **Mock API keys**: Provides mock credentials for integration tests
+- **Used in**: GitHub Actions release workflow for validation before publishing
+
+#### Hybrid Strategy (Default)
+- **Cache-aware**: Includes integration tests when cache is fresh (<24h)
+- **Fallback**: Excludes external tests when cache is stale
+- **Override**: `MIX_RUN_LIVE=true` forces live API calls
+
+### 🗂️ **File Organization**
+- `lib/ex_llm/testing/config.ex` - Centralized configuration module
+- `test/test_helper.exs` - Applies centralized settings
+- `test/CENTRALIZED_CONFIG.md` - Detailed documentation
+- Config files delegate to centralized module
+
+## Environment Variables
+
+**Status: Centralized Environment Configuration Complete (2025-06-25)**
+
+ExLLM uses centralized environment variable management through the `ExLLM.Environment` module:
+
+### 🎯 **Centralized Module (`ExLLM.Environment`)**
+- **Single source of truth**: All environment variables documented in one module
+- **Consistent naming**: Standardized variable names across all providers
+- **Type-safe access**: Helper functions for accessing provider configuration
+- **Auto-discovery**: Check which providers have API keys configured
+
+### 📋 **Key Environment Variables**
+
+#### Provider API Keys
+- `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, etc.
+- See [ENVIRONMENT.md](ENVIRONMENT.md) for complete reference
+
+#### Test Environment
+- `EX_LLM_TEST_CACHE_ENABLED` - Enable test response caching
+- `EX_LLM_LOG_LEVEL` - Control test logging verbosity
+- `MIX_RUN_LIVE` - Force live API calls in tests
+
+### 🗂️ **File Organization**
+- `lib/ex_llm/environment.ex` - Centralized environment module
+- `ENVIRONMENT.md` - Complete environment variable reference
+- Provider modules use `ExLLM.Environment` for configuration
 
 ## Provider Testing and API Keys
 
 - Anytime you run live API tests, use the `scripts/run_with_env.sh` script to set the api keys
+- Environment variables are documented in [ENVIRONMENT.md](ENVIRONMENT.md)
 
 ### OAuth2 Testing Requirements
 
@@ -312,6 +409,56 @@ end
 - Confirm automatic cleanup is not manually overridden
 
 See [OAuth2 Testing Guide](test/OAUTH2_TESTING.md) for complete documentation.
+
+## HTTP Client Migration Lessons Learned
+
+**Status: Callback Signature Migration Complete (2025-06-26)**
+
+During the HTTP client migration from HTTPClient to HTTP.Core, we encountered and resolved several critical callback signature mismatches:
+
+### 🔧 **Key Lesson: Callback Signature Compatibility**
+
+**Problem**: HTTP.Core.stream calls callbacks with 1 argument, but legacy StreamingCoordinator expected 2-argument accumulator pattern.
+
+**Root Cause**: 
+- Legacy: `callback.(chunk, accumulator)` → `{:cont, new_accumulator}`
+- New: `callback.(chunk)` → direct processing
+
+**Solution Pattern**: Use Agent for internal state management in streaming callbacks:
+
+```elixir
+# ✅ Correct: Agent-based state management
+{:ok, state_agent} = Agent.start_link(fn -> initial_state end)
+
+callback = fn chunk ->
+  # Process chunk and update Agent state
+  Agent.update(state_agent, fn state -> new_state end)
+end
+
+# Later: Retrieve state
+final_state = Agent.get(state_agent, & &1)
+```
+
+**Anti-Pattern**:
+```elixir
+# ❌ Incorrect: Variable shadowing in closures
+chunks = []
+callback = fn chunk ->
+  chunks = [chunk | chunks]  # Variable shadowing error!
+end
+```
+
+### 🎯 **Critical Migration Steps**
+1. **Audit all callback signatures** in streaming components
+2. **Replace accumulator patterns** with Agent-based state management  
+3. **Test both sync and async callback paths** thoroughly
+4. **Reset circuit breakers** in test setup to prevent state pollution
+
+### 📋 **Files Updated**
+- `lib/ex_llm/providers/shared/streaming_coordinator.ex` - Callback adapter pattern
+- `test/ex_llm/providers/shared/streaming_performance_test.exs` - Agent patterns
+- `test/ex_llm/providers/shared/http_core_streaming_test.exs` - Variable fixes
+- `test/support/shared/provider_integration_test.exs` - Circuit breaker resets
 
 ## Memory and Development Tips
 

@@ -35,6 +35,7 @@ defmodule ExLLM.Providers.Groq do
 
   alias ExLLM.Infrastructure.Config.ModelConfig
   alias ExLLM.Providers.Shared.{ConfigHelper, ErrorHandler, ModelUtils}
+  alias ExLLM.Providers.Shared.HTTP.Core
   import ExLLM.Providers.Shared.ModelUtils, only: [format_model_name: 1]
 
   @dialyzer :no_match
@@ -148,13 +149,10 @@ defmodule ExLLM.Providers.Groq do
     if !api_key || api_key == "" do
       {:error, "No API key available"}
     else
-      headers = [
-        {"Authorization", "Bearer #{api_key}"},
-        {"Content-Type", "application/json"}
-      ]
+      client = Core.client(provider: :groq, api_key: api_key)
 
-      case HTTPClient.get_json("https://api.groq.com/openai/v1/models", headers, provider: :groq) do
-        {:ok, %{status: 200, body: %{"data" => models}}} ->
+      case Tesla.get(client, "/models") do
+        {:ok, %Tesla.Env{status: 200, body: %{"data" => models}}} ->
           # Return a list of transformed models directly
           parsed_models =
             models
@@ -177,7 +175,7 @@ defmodule ExLLM.Providers.Groq do
 
           {:ok, parsed_models}
 
-        {:ok, %{status: status, body: body}} ->
+        {:ok, %Tesla.Env{status: status, body: body}} ->
           ErrorHandler.handle_provider_error(:groq, status, body)
 
         {:error, reason} ->

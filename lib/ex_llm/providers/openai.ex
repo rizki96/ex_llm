@@ -53,12 +53,13 @@ defmodule ExLLM.Providers.OpenAI do
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
     ErrorHandler,
-    HTTPClient,
     MessageFormatter,
     ModelUtils,
     StreamingBehavior,
     Validation
   }
+
+  alias ExLLM.Providers.Shared.HTTP.Core
 
   @default_base_url "https://api.openai.com/v1"
   @default_temperature 0.7
@@ -93,7 +94,7 @@ defmodule ExLLM.Providers.OpenAI do
         headers = build_headers(api_key, config)
         url = "#{get_base_url(config)}/chat/completions"
 
-        case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+        case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
           {:ok, response} ->
             result = parse_response(response, model)
             emit_rate_limit_telemetry_if_needed(response, metadata)
@@ -180,14 +181,10 @@ defmodule ExLLM.Providers.OpenAI do
 
   defp start_streaming_task(parent, ref, url, body, headers) do
     Task.start_link(fn ->
-      HTTPClient.stream_request(
-        url,
-        body,
-        headers,
-        fn chunk ->
+      openai_request(:stream, url, body, headers, nil,
+        callback: fn chunk ->
           send(parent, {ref, {:chunk, chunk}})
-        end,
-        provider: :openai
+        end
       )
 
       send(parent, {ref, :done})
@@ -251,7 +248,7 @@ defmodule ExLLM.Providers.OpenAI do
         headers = build_headers(api_key, config)
         url = "#{get_base_url(config)}/models"
 
-        case HTTPClient.post_json(url, %{}, headers, method: :get, provider: :openai) do
+        case openai_request(:get, url, %{}, headers) do
           {:ok, %{"data" => data}} ->
             models =
               data
@@ -872,7 +869,7 @@ defmodule ExLLM.Providers.OpenAI do
   defp send_embeddings_request(url, body, config, api_key) do
     headers = build_headers(api_key, config)
 
-    case HTTPClient.post_json(url, body, headers, timeout: 30_000) do
+    case openai_request(:post, url, body, headers, nil, timeout: 30_000) do
       {:ok, response} -> {:ok, response}
       {:error, reason} -> {:error, reason}
     end
@@ -933,7 +930,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/moderations"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, parse_moderation_response(response)}
 
@@ -967,7 +964,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/images/generations"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 120_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1012,7 +1009,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/images/edits"
 
-      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+      case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1055,7 +1052,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/images/variations"
 
-      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+      case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1103,7 +1100,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/assistants"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1144,11 +1141,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1181,11 +1174,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/assistants/#{assistant_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1221,11 +1210,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/assistants/#{assistant_id}"
 
-      case HTTPClient.post_json(url, updates, headers,
-             method: :post,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1258,11 +1243,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/assistants/#{assistant_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :delete,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1308,7 +1289,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads"
 
-      case HTTPClient.post_json(url, thread_params, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, thread_params, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1341,11 +1322,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1383,11 +1360,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}"
 
-      case HTTPClient.post_json(url, updates, headers,
-             method: :post,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1420,11 +1393,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :delete,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1468,7 +1437,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}/messages"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1515,11 +1484,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1553,11 +1518,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}/messages/#{message_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1595,11 +1556,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}/messages/#{message_id}"
 
-      case HTTPClient.post_json(url, updates, headers,
-             method: :post,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1647,7 +1604,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}/runs"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1698,7 +1655,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/runs"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1740,11 +1697,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1778,11 +1731,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1820,11 +1769,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}"
 
-      case HTTPClient.post_json(url, updates, headers,
-             method: :post,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1858,7 +1803,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/cancel"
 
-      case HTTPClient.post_json(url, %{}, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1908,7 +1853,7 @@ defmodule ExLLM.Providers.OpenAI do
       # Add streaming if requested
       body = if Keyword.get(options, :stream, false), do: Map.put(body, :stream, true), else: body
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -1957,11 +1902,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2003,11 +1944,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2050,10 +1987,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores"
 
-      case HTTPClient.post_json(url, vector_store_params, headers,
-             timeout: 60_000,
-             provider: :openai
-           ) do
+      case openai_request(:post, url, vector_store_params, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2093,11 +2027,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2130,11 +2060,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2173,11 +2099,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
 
-      case HTTPClient.post_json(url, updates, headers,
-             method: :post,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2210,11 +2132,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :delete,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2255,7 +2173,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2301,11 +2219,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2339,11 +2253,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files/#{file_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2377,11 +2287,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files/#{file_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :delete,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2422,7 +2328,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
       url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/search"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2461,7 +2367,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/audio/speech"
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           # TTS responses should contain binary audio data
           case Map.get(response, "audio") || Map.get(response, :audio) do
@@ -2510,7 +2416,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/audio/transcriptions"
 
-      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+      case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2552,7 +2458,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/audio/translations"
 
-      case HTTPClient.post_multipart(url, form_data, headers, timeout: 120_000, provider: :openai) do
+      case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2616,7 +2522,7 @@ defmodule ExLLM.Providers.OpenAI do
         file: {:file, file_path}
       ]
 
-      case HTTPClient.post_multipart(url, form_data, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2704,11 +2610,7 @@ defmodule ExLLM.Providers.OpenAI do
           url
         end
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           # Response should have "data" array and "object": "list"
           {:ok, response}
@@ -2734,11 +2636,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/files/#{file_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2763,11 +2661,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/files/#{file_id}"
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :delete,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2795,11 +2689,7 @@ defmodule ExLLM.Providers.OpenAI do
       # Remove content-type header for file download
       headers = List.keydelete(headers, "Content-Type", 0)
 
-      case HTTPClient.post_json(url, %{}, headers,
-             method: :get,
-             timeout: 60_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           # Convert response to string
           {:ok, Jason.encode!(response)}
@@ -2879,7 +2769,7 @@ defmodule ExLLM.Providers.OpenAI do
         purpose: params[:purpose]
       }
 
-      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2922,7 +2812,7 @@ defmodule ExLLM.Providers.OpenAI do
         data: data
       ]
 
-      case HTTPClient.post_multipart(url, form_data, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -2974,7 +2864,7 @@ defmodule ExLLM.Providers.OpenAI do
           body
         end
 
-      case HTTPClient.post_json(url, body, headers, timeout: 60_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3010,7 +2900,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/uploads/#{upload_id}/cancel"
 
-      case HTTPClient.post_json(url, %{}, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3093,7 +2983,7 @@ defmodule ExLLM.Providers.OpenAI do
         completion_window: Keyword.get(options, :completion_window, "24h")
       }
 
-      case HTTPClient.post_json(url, body, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3341,10 +3231,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/fine_tuning/jobs"
 
-      case HTTPClient.post_json(url, validated_params, headers,
-             timeout: 60_000,
-             provider: :openai
-           ) do
+      case openai_request(:post, url, validated_params, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3384,12 +3271,9 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       query_params = build_list_query_params(options)
       url = "#{get_base_url(config)}/fine_tuning/jobs"
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.get_json(url, headers,
-             query: query_params,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3427,7 +3311,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}"
 
-      case HTTPClient.get_json(url, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3463,7 +3347,7 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/cancel"
 
-      case HTTPClient.post_json(url, %{}, headers, timeout: 30_000, provider: :openai) do
+      case openai_request(:post, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3503,12 +3387,9 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       query_params = build_list_query_params(options)
       url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/events"
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.get_json(url, headers,
-             query: query_params,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3548,12 +3429,9 @@ defmodule ExLLM.Providers.OpenAI do
       headers = build_headers(api_key, config)
       query_params = build_list_query_params(options)
       url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/checkpoints"
+      url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
-      case HTTPClient.get_json(url, headers,
-             query: query_params,
-             timeout: 30_000,
-             provider: :openai
-           ) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
           {:ok, response}
 
@@ -3653,6 +3531,107 @@ defmodule ExLLM.Providers.OpenAI do
 
       _ ->
         {:error, "training_file and model must be strings"}
+    end
+  end
+
+  # HTTP client helper functions to migrate from HTTPClient to Core
+
+  defp openai_request(method, url, body \\ %{}, headers \\ [], api_key, opts) do
+    # Create client with OpenAI-specific configuration
+    client_opts = [
+      provider: :openai,
+      base_url: get_base_url_from_full_url(url)
+    ]
+
+    client_opts = if api_key, do: Keyword.put(client_opts, :api_key, api_key), else: client_opts
+    client = Core.client(client_opts)
+
+    # Extract path from full URL
+    path = get_path_from_url(url)
+
+    # Set default timeout
+    timeout = Keyword.get(opts, :timeout, 60_000)
+
+    # Execute request
+    result =
+      case method do
+        :get ->
+          Tesla.get(client, path, opts: [timeout: timeout])
+
+        :post ->
+          Tesla.post(client, path, body, opts: [timeout: timeout])
+
+        :delete ->
+          Tesla.delete(client, path, opts: [timeout: timeout])
+
+        :post_multipart ->
+          # For multipart, we'll need special handling
+          Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
+
+        :get_json ->
+          # For JSON GET requests
+          Tesla.get(client, path, opts: [timeout: timeout])
+
+        :stream ->
+          # For streaming requests, use the provided callback
+          callback = Keyword.get(opts, :callback)
+
+          if callback do
+            Core.stream(client, path, body, callback, timeout: timeout)
+          else
+            {:error, "Callback required for streaming requests"}
+          end
+      end
+
+    # Convert Tesla response to the expected format
+    case result do
+      {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
+        # For JSON responses, try to decode if it's a string
+        parsed_body =
+          case body do
+            body when is_binary(body) ->
+              case Jason.decode(body) do
+                {:ok, parsed} -> parsed
+                {:error, _} -> body
+              end
+
+            body ->
+              body
+          end
+
+        {:ok, parsed_body}
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, {:api_error, %{status: status, body: body}}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Helper to extract base URL from full URL
+  defp get_base_url_from_full_url(url) do
+    uri = URI.parse(url)
+
+    base =
+      "#{uri.scheme}://#{uri.host}#{if uri.port && uri.port not in [80, 443], do: ":#{uri.port}", else: ""}"
+
+    # For URLs like "http://host/v1/chat/completions", we want base as "http://host"
+    # The path will be extracted separately
+    base
+  end
+
+  # Helper to extract path from full URL  
+  defp get_path_from_url(url) do
+    if String.starts_with?(url, "http") do
+      # Full URL - extract just the path
+      uri = URI.parse(url)
+      path = uri.path || "/"
+      # Include query parameters if present
+      if uri.query, do: "#{path}?#{uri.query}", else: path
+    else
+      # Already a path
+      url
     end
   end
 end

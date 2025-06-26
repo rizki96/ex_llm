@@ -6,7 +6,8 @@ defmodule ExLLM.Providers.Gemini.Content do
   text generation, streaming, multimodal inputs, function calling, and structured outputs.
   """
 
-  alias ExLLM.Providers.Shared.{ConfigHelper, HTTPClient}
+  alias ExLLM.Providers.Shared.ConfigHelper
+  alias ExLLM.Providers.Gemini.Base
 
   defmodule Part do
     @moduledoc """
@@ -448,9 +449,8 @@ defmodule ExLLM.Providers.Gemini.Content do
 
       # Make API request
       url = build_url(normalized_model, "generateContent", api_key)
-      headers = build_headers()
 
-      case HTTPClient.post_json(url, body, headers, provider: :gemini) do
+      case Base.request(method: :post, url: url, body: body, api_key: api_key) do
         {:ok, response_body} ->
           # Check if the response contains an error
           parsed = parse_response(response_body)
@@ -504,16 +504,12 @@ defmodule ExLLM.Providers.Gemini.Content do
       # Build URL with SSE support
       url = build_url(normalized_model, "streamGenerateContent", api_key) <> "&alt=sse"
 
-      headers =
-        HTTPClient.build_provider_headers(:gemini, api_key: api_key) ++
-          [{"Accept", "text/event-stream"}]
-
-      # Start async streaming request
+      # Start async streaming request using Base module
       Task.start(fn ->
         result =
-          HTTPClient.stream_request(url, body, headers, callback,
-            provider: :gemini,
-            timeout: 60_000
+          Base.stream_request(
+            [method: :post, url: url, body: body, api_key: api_key, opts: [timeout: 60_000]],
+            callback
           )
 
         # Forward the completion or error message to the stream
@@ -531,7 +527,7 @@ defmodule ExLLM.Providers.Gemini.Content do
                 send(parent, {chunks_ref, {:error, "Stream timeout"}})
             end
 
-            # Note: HTTPClient.stream_request currently always returns {:ok, :streaming} on success
+            # Note: Base.stream_request currently always returns {:ok, :streaming} on success
             # but keeping this clause for completeness in case of future changes
             # {:error, error} ->
             #   send(parent, {chunks_ref, {:error, error}})
@@ -636,13 +632,6 @@ defmodule ExLLM.Providers.Gemini.Content do
   defp build_url(model_name, method, api_key) do
     base = "https://generativelanguage.googleapis.com"
     "#{base}/v1beta/#{model_name}:#{method}?key=#{api_key}"
-  end
-
-  defp build_headers do
-    [
-      {"Content-Type", "application/json"},
-      {"User-Agent", "ExLLM/0.4.2 (Elixir)"}
-    ]
   end
 
   defp build_request_body(request) do

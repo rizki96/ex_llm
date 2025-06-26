@@ -5,11 +5,12 @@ defmodule ExLLM.Providers.OpenAICompatible do
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
     ErrorHandler,
-    HTTPClient,
     MessageFormatter,
     ModelUtils,
     StreamingBehavior
   }
+
+  alias ExLLM.Providers.Shared.HTTP.Core
 
   @moduledoc """
   Base implementation for OpenAI-compatible API providers.
@@ -93,12 +94,13 @@ defmodule ExLLM.Providers.OpenAICompatible do
       alias ExLLM.Providers.Shared.{
         ConfigHelper,
         ErrorHandler,
-        HTTPClient,
         MessageFormatter,
         ResponseBuilder,
         StreamingBehavior,
         Validation
       }
+
+      alias ExLLM.Providers.Shared.HTTP.Core
 
       # Store provider name for HTTPClient
       @provider_name unquote(provider)
@@ -171,7 +173,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
         headers = get_headers(api_key, options)
         url = "#{get_base_url(config)}/chat/completions"
 
-        case send_request(url, request, headers) do
+        case send_request_with_client(url, request, headers, :post, config, api_key) do
           {:ok, response} ->
             response = transform_response(response, options)
             parse_chat_response(response, model, options)
@@ -203,11 +205,15 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
               # Spawn a process to handle the streaming request
               spawn_link(fn ->
-                case HTTPClient.post_json(url, request, headers,
-                       provider: provider_name,
-                       timeout: 60_000
-                     ) do
-                  {:ok, %{status: 200, body: body}} ->
+                client =
+                  Core.client(
+                    provider: provider_name,
+                    api_key: api_key,
+                    base_url: get_base_url(config)
+                  )
+
+                case Tesla.post(client, "/chat/completions", request, opts: [timeout: 60_000]) do
+                  {:ok, %Tesla.Env{status: 200, body: body}} ->
                     # Parse SSE data and send chunks to parent
                     body
                     |> String.split("\n")
@@ -319,23 +325,58 @@ defmodule ExLLM.Providers.OpenAICompatible do
       defp get_provider_name, do: @provider_name
 
       defp send_request(url, body, headers, method \\ :post) do
+        # Extract API key and base URL from the calling context
+        # Note: This function needs to be updated to accept config and api_key parameters
+        send_request_with_client(url, body, headers, method, nil, nil)
+      end
+
+      defp send_request_with_client(url, body, headers, method, config, api_key) do
         provider_name = get_provider_name()
 
-        case method do
-          :get ->
-            case HTTPClient.get_json(url, headers, provider: provider_name, timeout: 60_000) do
-              {:ok, parsed_body} ->
-                {:ok, %{status: 200, body: parsed_body}}
+        # Extract path and base URL appropriately
+        {base_url, path} =
+          if String.starts_with?(url, "http") do
+            # Full URL - extract base and path separately
+            uri = URI.parse(url)
 
-              {:error, reason} ->
-                {:error, reason}
-            end
+            base =
+              "#{uri.scheme}://#{uri.host}#{if uri.port && uri.port not in [80, 443], do: ":#{uri.port}", else: ""}"
 
-          :post ->
-            HTTPClient.post_json(url, body, headers, provider: provider_name, timeout: 60_000)
-        end
-        |> case do
-          {:ok, %{status: status, body: body}} when status in 200..299 ->
+            path_with_query = uri.path || "/"
+
+            path_with_query =
+              if uri.query, do: "#{path_with_query}?#{uri.query}", else: path_with_query
+
+            {base, path_with_query}
+          else
+            # Just a path - use config base URL
+            base = if config, do: get_base_url(config), else: nil
+            {base, url}
+          end
+
+        # Create client
+        client_opts = [provider: provider_name]
+
+        client_opts =
+          if api_key, do: Keyword.put(client_opts, :api_key, api_key), else: client_opts
+
+        client_opts =
+          if base_url, do: Keyword.put(client_opts, :base_url, base_url), else: client_opts
+
+        client = Core.client(client_opts)
+
+        result =
+          case method do
+            :get ->
+              Tesla.get(client, path, opts: [timeout: 60_000])
+
+            :post ->
+              Tesla.post(client, path, body, opts: [timeout: 60_000])
+          end
+
+        # Convert Tesla.Env response to the expected format
+        case result do
+          {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
             # Handle case where body might still be a JSON string
             parsed_body =
               case body do
@@ -351,7 +392,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
             {:ok, parsed_body}
 
-          {:ok, %{status: status, body: body}} ->
+          {:ok, %Tesla.Env{status: status, body: body}} ->
             {:error, %{status: status, body: body}}
 
           {:error, reason} ->
@@ -578,7 +619,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
           headers = get_headers(api_key, [])
           url = "#{get_base_url(config)}/models"
 
-          case send_request(url, %{}, headers, :get) do
+          case send_request_with_client(url, %{}, headers, :get, config, api_key) do
             {:ok, %{"data" => models}} when is_list(models) ->
               parsed_models =
                 models

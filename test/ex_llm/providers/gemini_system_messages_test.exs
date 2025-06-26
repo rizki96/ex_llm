@@ -47,7 +47,7 @@ defmodule ExLLM.Providers.GeminiSystemMessagesTest do
       assert result.system_instruction != nil
       assert result.system_instruction.role == "system"
       assert length(result.system_instruction.parts) == 1
-      
+
       # Should combine both system messages
       expected_system_text = "You are a helpful assistant. Always be polite and respectful."
       assert hd(result.system_instruction.parts).text == expected_system_text
@@ -56,17 +56,20 @@ defmodule ExLLM.Providers.GeminiSystemMessagesTest do
       assert length(result.contents) == 4
       remaining_roles = Enum.map(result.contents, & &1.role)
       assert remaining_roles == ["user", "user", "model", "user"]
-      
+
       # Verify the content is preserved
-      remaining_texts = result.contents |> Enum.map(fn content -> 
-        hd(content.parts).text 
-      end)
+      remaining_texts =
+        result.contents
+        |> Enum.map(fn content ->
+          hd(content.parts).text
+        end)
+
       assert remaining_texts == [
-        "Hello there!",
-        "What is 2+2?",
-        "2+2 equals 4.",
-        "Thank you!"
-      ]
+               "Hello there!",
+               "What is 2+2?",
+               "2+2 equals 4.",
+               "Thank you!"
+             ]
     end
 
     test "handles conversation with no system messages" do
@@ -96,7 +99,7 @@ defmodule ExLLM.Providers.GeminiSystemMessagesTest do
       assert result.system_instruction == nil
       # All messages should remain as user messages
       assert length(result.contents) == 2
-      assert Enum.all?(result.contents, & &1.role == "user")
+      assert Enum.all?(result.contents, &(&1.role == "user"))
     end
 
     test "verifies system instruction is set in GenerateContentRequest via public API" do
@@ -112,7 +115,7 @@ defmodule ExLLM.Providers.GeminiSystemMessagesTest do
       assert result.system_instruction != nil
       assert result.system_instruction.role == "system"
       assert hd(result.system_instruction.parts).text == "You are a math tutor."
-      
+
       # Verify contents only contain non-system messages
       assert length(result.contents) == 1
       assert hd(result.contents).role == "user"
@@ -124,32 +127,35 @@ defmodule ExLLM.Providers.GeminiSystemMessagesTest do
   # This simulates what happens internally when the provider processes messages
   defp test_system_extraction(messages) do
     # Convert messages to Content format first (this is what convert_message_to_content does)
-    contents = Enum.map(messages, fn
-      %{role: role, content: content} ->
-        %Content{
-          role: convert_role_for_content(role),
-          parts: [%Part{text: content}]
-        }
-    end)
+    contents =
+      Enum.map(messages, fn
+        %{role: role, content: content} ->
+          %Content{
+            role: convert_role_for_content(role),
+            parts: [%Part{text: content}]
+          }
+      end)
 
     # Now test the extraction logic by simulating what extract_system_instruction does
     system_contents = contents |> Enum.filter(fn content -> content.role == "system" end)
-    
-    {system_instruction, remaining_contents} = case system_contents do
-      [] -> 
-        {nil, contents}
-      system_messages ->
-        # Flatten and filter parts
-        system_parts = system_messages |> Enum.flat_map(& &1.parts)
-        
-        # Map and join the system instruction text  
-        system_text = system_parts |> Enum.map(& &1.text) |> Enum.join(" ")
-        
-        system_instruction = %Content{role: "system", parts: [%Part{text: system_text}]}
-        remaining_contents = contents |> Enum.reject(fn content -> content.role == "system" end)
-        
-        {system_instruction, remaining_contents}
-    end
+
+    {system_instruction, remaining_contents} =
+      case system_contents do
+        [] ->
+          {nil, contents}
+
+        system_messages ->
+          # Flatten and filter parts
+          system_parts = system_messages |> Enum.flat_map(& &1.parts)
+
+          # Map and join the system instruction text  
+          system_text = system_parts |> Enum.map(& &1.text) |> Enum.join(" ")
+
+          system_instruction = %Content{role: "system", parts: [%Part{text: system_text}]}
+          remaining_contents = contents |> Enum.reject(fn content -> content.role == "system" end)
+
+          {system_instruction, remaining_contents}
+      end
 
     # Return a GenerateContentRequest-like structure for testing
     %GenerateContentRequest{

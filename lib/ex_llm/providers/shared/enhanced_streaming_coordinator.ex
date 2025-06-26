@@ -98,7 +98,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
   """
 
   alias ExLLM.Infrastructure.Streaming.FlowController
-  alias ExLLM.Providers.Shared.{HTTPClient, StreamingCoordinator}
+  alias ExLLM.Providers.Shared.{HTTP.Core, StreamingCoordinator}
   alias ExLLM.Types
 
   alias ExLLM.Infrastructure.Logger
@@ -212,8 +212,31 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
         )
     ]
 
+    # Extract base URL and path from the request URL to prevent double /v1 issues
+    {base_url, path} = extract_base_url_and_path(url)
+
+    # Extract provider from options, required for proper auth headers
+    provider = Keyword.get(options, :provider, :unknown)
+    api_key = Keyword.get(options, :api_key)
+
+    # Build client with provider-specific configuration
+    client =
+      Core.client(
+        provider: provider,
+        api_key: api_key,
+        base_url: base_url,
+        timeout: Keyword.get(options, :timeout, @default_timeout)
+      )
+
+    # Create the streaming callback that will be passed to Core.stream
+    stream_callback = stream_opts[:into]
+
     result =
-      case HTTPClient.post_stream(url, request, stream_opts) do
+      case Core.stream(client, path, request, stream_callback,
+             headers: headers,
+             parse_chunk: parse_chunk_fn,
+             timeout: Keyword.get(options, :timeout, @default_timeout)
+           ) do
         {:ok, _response} ->
           Logger.debug("Enhanced stream #{recovery_id} completed successfully")
 
@@ -794,5 +817,38 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinator do
       |> Keyword.put(:parse_chunk_fn, parse_chunk)
 
     start_stream(url, request, headers, callback, enhanced_options)
+  end
+
+  # Private helper functions
+
+  defp extract_base_url_and_path(url) do
+    uri = URI.parse(url)
+
+    # Check if this is an absolute URL (has scheme and host)
+    if uri.scheme && uri.host do
+      # Extract base URL (scheme + host + port)
+      port_part =
+        if uri.port && uri.port != URI.default_port(uri.scheme) do
+          ":#{uri.port}"
+        else
+          ""
+        end
+
+      base_url = "#{uri.scheme}://#{uri.host}#{port_part}"
+      path = uri.path || "/"
+
+      # Include query if present
+      path_with_query =
+        if uri.query do
+          "#{path}?#{uri.query}"
+        else
+          path
+        end
+
+      {base_url, path_with_query}
+    else
+      # Relative URL - return nil for base_url and the original URL as path
+      {nil, url}
+    end
   end
 end

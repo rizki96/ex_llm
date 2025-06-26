@@ -67,7 +67,8 @@ defmodule ExLLM.Providers.Ollama do
 
   @behaviour ExLLM.Provider
 
-  alias ExLLM.Providers.Shared.{ConfigHelper, EnhancedStreamingCoordinator, HTTPClient}
+  alias ExLLM.Providers.Shared.{ConfigHelper, EnhancedStreamingCoordinator}
+  alias ExLLM.Providers.Shared.HTTP.Core
   alias ExLLM.{Infrastructure.Logger, Types}
 
   @default_base_url "http://localhost:11434"
@@ -123,31 +124,18 @@ defmodule ExLLM.Providers.Ollama do
         context -> Map.put(body, "context", context)
       end
 
-    headers = [{"content-type", "application/json"}]
-    url = "#{get_base_url(config)}/api/chat"
-
     # Ollama can be slow, especially with function calling
     # Default to 2 minutes, but allow override
     timeout = Keyword.get(options, :timeout, 120_000)
 
-    result = HTTPClient.post_json(url, body, headers, provider: :ollama, timeout: timeout)
+    client = Core.client(provider: :ollama, base_url: get_base_url(config))
 
-    case result do
-      {:ok, response} when is_map(response) ->
-        # Check if this is a raw JSON response or wrapped response
-        if Map.has_key?(response, :status) do
-          # Wrapped response from HTTPClient
-          case response do
-            %{status: 200, body: body} ->
-              {:ok, parse_response(body, model)}
+    case Tesla.post(client, "/api/chat", body, opts: [timeout: timeout]) do
+      {:ok, %Tesla.Env{status: 200, body: response_body}} ->
+        {:ok, parse_response(response_body, model)}
 
-            %{status: status, body: body} ->
-              ExLLM.Infrastructure.Error.api_error(status, body)
-          end
-        else
-          # Raw JSON response from Ollama
-          {:ok, parse_response(response, model)}
-        end
+      {:ok, %Tesla.Env{status: status, body: error_body}} ->
+        ExLLM.Infrastructure.Error.api_error(status, error_body)
 
       {:error, reason} ->
         ExLLM.Infrastructure.Error.connection_error(reason)
@@ -288,18 +276,21 @@ defmodule ExLLM.Providers.Ollama do
   end
 
   defp fetch_ollama_models(config) do
-    url = "#{get_base_url(config)}/api/tags"
+    client = Core.client(provider: :ollama, base_url: get_base_url(config))
 
-    case HTTPClient.get_json(url, [], provider: :ollama, timeout: 5_000) do
-      {:ok, body} when is_map(body) ->
+    case Tesla.get(client, "/api/tags", opts: [timeout: 5_000]) do
+      {:ok, %Tesla.Env{status: 200, body: body}} when is_map(body) ->
         models =
           (body["models"] || [])
           |> Enum.map(&parse_ollama_api_model/1)
 
         {:ok, models}
 
-      {:ok, _} ->
+      {:ok, %Tesla.Env{status: 200, body: _}} ->
         {:error, "Invalid response format from Ollama API"}
+
+      {:ok, %Tesla.Env{status: status, body: error_body}} ->
+        ExLLM.Infrastructure.Error.api_error(status, error_body)
 
       {:error, reason} ->
         Logger.debug("Failed to connect to Ollama: #{inspect(reason)}")

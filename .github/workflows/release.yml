@@ -54,7 +54,7 @@ jobs:
       run: |
         # Enable test caching for faster integration tests
         export EX_LLM_TEST_CACHE_ENABLED=true
-        mix test --include integration --exclude live_api
+        mix test.integration
       env:
         # Mock API keys for integration tests with caching
         OPENAI_API_KEY: "test-key"

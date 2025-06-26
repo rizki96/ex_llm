@@ -11,11 +11,24 @@ Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
 # Start hackney for tests that use Bypass
 {:ok, _} = Application.ensure_all_started(:hackney)
 
-# Set up Tesla.Mock as the default adapter for tests
-Application.put_env(:tesla, :adapter, Tesla.Mock)
+# Apply centralized test configuration
+tesla_config = ExLLM.Testing.Config.tesla_config()
+app_config = ExLLM.Testing.Config.app_config()
+logger_config = ExLLM.Testing.Config.logger_config()
 
-# Configure ExLLM to use Tesla.Mock for tests
-Application.put_env(:ex_llm, :use_tesla_mock, true)
+# Set up Tesla configuration
+Application.put_env(:tesla, :adapter, tesla_config[:adapter])
+Application.put_env(:ex_llm, :use_tesla_mock, tesla_config[:use_tesla_mock])
+
+# Apply ExLLM configuration  
+Enum.each(app_config, fn {key, value} ->
+  Application.put_env(:ex_llm, key, value)
+end)
+
+# Apply Logger configuration
+Enum.each(logger_config, fn {key, value} ->
+  Application.put_env(:logger, key, value)
+end)
 
 # Load environment variables from .env file if available
 case ExLLM.Testing.EnvHelper.load_env(warn_missing: false) do
@@ -42,48 +55,11 @@ case ExLLM.Testing.EnvHelper.load_env(warn_missing: false) do
     IO.puts("\n⚠️  Failed to load .env file: #{inspect(reason)}")
 end
 
-# Hybrid Testing Strategy: Balance speed with live API validation
-run_live = System.get_env("MIX_RUN_LIVE") == "true"
-cache_fresh = ExLLM.Testing.Cache.fresh?(max_age: 24 * 60 * 60)
-
-default_exclusions =
-  if run_live or cache_fresh do
-    # Include cached API tests when cache is fresh or explicitly requested
-    IO.puts("\n🚀 Running with API tests enabled")
-    if run_live, do: IO.puts("   Mode: Live API calls")
-    if cache_fresh and not run_live, do: IO.puts("   Mode: Cached responses (fresh)")
-
-    [
-      # Always exclude these for stability
-      slow: true,
-      very_slow: true,
-      quota_sensitive: true,
-      flaky: true,
-      wip: true,
-      oauth2: true
-    ]
-  else
-    # Exclude live tests when cache is stale
-    IO.puts("\n⚠️  Test cache is stale (>24h) - excluding live API tests")
-    IO.puts("   💡 Run `mix test.live` to refresh cache and test against live APIs")
-    IO.puts("   📊 Check cache status: `mix cache.status`")
-
-    [
-      # Exclude API tests when cache is stale
-      integration: true,
-      external: true,
-      live_api: true,
-      slow: true,
-      very_slow: true,
-      quota_sensitive: true,
-      flaky: true,
-      wip: true,
-      oauth2: true
-    ]
-  end
+# Use centralized test configuration for exclusions
+default_exclusions = ExLLM.Testing.Config.default_exclusions()
 
 # Check for OAuth2 tokens for backward compatibility
-oauth2_available = File.exists?(".gemini_tokens")
+oauth2_available = ExLLM.Testing.Config.oauth2_available?()
 
 if not oauth2_available do
   IO.puts("\n⚠️  OAuth2 tests excluded - no .gemini_tokens file found")

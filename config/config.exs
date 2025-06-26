@@ -82,26 +82,10 @@ if Mix.env() == :dev do
 end
 
 if Mix.env() == :test do
-  # Minimal logging during tests - reduces noise significantly
-  config :logger,
-    level: :error,
-    console: [metadata: []]
-
-  # Test-specific configuration
-  config :ex_llm,
-    cache_enabled: false,
-    cache_persist_disk: false,
-    # Disable startup validation during tests to reduce noise
-    startup_validation: %{enabled: false},
-    # Silent logging during tests
-    # To troubleshoot tests, temporarily change to log_level: :debug
-    log_level: :none,
-    log_components: %{
-      requests: false,
-      responses: false,
-      streaming: false,
-      retries: false,
-      cache: false,
-      models: false
-    }
+  # Test configuration is now centralized in ExLLM.Testing.Config
+  # and applied in test_helper.exs for better maintainability
+  # 
+  # Minimal config here to avoid duplication
+  config :logger, level: :error
+  config :ex_llm, startup_validation: %{enabled: false}
 end

@@ -10,4 +10,11 @@ defmodule ExLLM.Providers.Ollama.BuildRequest do
     base_url_env: "OLLAMA_API_BASE",
     default_base_url: "http://localhost:11434/v1",
     api_key_env: "OLLAMA_API_KEY"
+
+  # Override build_headers to not require authorization for Ollama
+  defp build_headers(_api_key, _config) do
+    [
+      {"content-type", "application/json"}
+    ]
+  end
 end

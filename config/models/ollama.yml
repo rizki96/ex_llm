@@ -1,45 +1,5 @@
 provider: ollama
-default_model: ollama/codegemma
 models:
-  ollama/llama2:latest:
-    context_window: 4096
-    capabilities:
-    - streaming
-    parameter_size: 7B
-  ollama/mxbai-embed-large:latest:
-    context_window: 512
-    capabilities:
-    - streaming
-    - embeddings
-    parameter_size: 334M
-  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_XS:
-    context_window: 40960
-    capabilities:
-    - streaming
-    - function_calling
-    parameter_size: 8.19B
-  ollama/hf.co/unsloth/Qwen3-8B-GGUF:IQ4_NL:
-    context_window: 40960
-    capabilities:
-    - streaming
-    - function_calling
-    parameter_size: 8.19B
-  ollama/hf.co/bartowski/Zyphra_ZR1-1.5B-GGUF:Q8_0:
-    context_window: 4096
-    capabilities:
-    - streaming
-    parameter_size: 1.78B
-  ollama/nomic-embed-text:latest:
-    context_window: 4096
-    capabilities:
-    - streaming
-    - embeddings
-    parameter_size: 137M
-  ollama/hf.co/mradermacher/Darkest-muse-v1-GGUF:Q8_0:
-    context_window: 8192
-    capabilities:
-    - streaming
-    parameter_size: 9.24B
   ollama/codegemma:
     context_window: 8192
     max_output_tokens: 8192
@@ -172,6 +132,16 @@ models:
     context_window: 2048
     max_output_tokens: 2048
     mode: completion
-metadata:
-  updated_at: '2025-06-19T12:01:36.065648'
-  source: ollama_api
+  llama3.2:1b:
+    context_window: 131072
+    max_output_tokens: 8192
+    capabilities:
+    - streaming
+    - function_calling
+    - tool_choice
+    model_info:
+      parameter_count: 1235814432
+      size_label: "1B"
+      architecture: "llama"
+      finetune: "Instruct"
+default_model: llama3.2:1b

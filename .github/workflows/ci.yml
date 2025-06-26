@@ -55,11 +55,11 @@ jobs:
     - name: Compile without warnings
       run: mix compile --warnings-as-errors
     
-    - name: Run tests (unit only)
-      run: mix test --exclude integration --exclude external --exclude live_api
+    - name: Run tests (fast CI suite)
+      run: mix test.ci
     
     - name: Run tests with coverage
-      run: mix test --cover --exclude integration --exclude external --exclude live_api
+      run: mix test.ci --cover
       if: matrix.elixir == '1.18.4' && matrix.otp == '27.0'
     
     - name: Run security audit

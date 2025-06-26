@@ -1,9 +1,10 @@
 defmodule ExLLM.Plugs.ExecuteStreamRequest do
   @moduledoc """
-  Executes streaming HTTP requests to LLM providers using the configured Tesla client.
+  Executes streaming HTTP requests to LLM providers using HTTP.Core.
 
   This plug handles streaming responses by setting up a process to receive
-  and forward chunks to the configured callback function.
+  and forward chunks to the configured callback function. It has been migrated
+  from HTTPClient to use the modern HTTP.Core streaming infrastructure.
 
   ## Prerequisites
 
@@ -158,34 +159,27 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     headers = extract_headers_from_client(client)
     Logger.debug("Extracted headers: #{inspect(headers)}")
 
-    # Use HTTPClient for streaming to ensure test cache interceptor is used
-    full_url = build_full_url(client, endpoint)
-
     # Create a callback that forwards chunks to coordinator
     callback = fn chunk ->
       send(coordinator, {:stream_chunk, ref, chunk})
     end
 
-    Logger.debug("Starting stream request to #{full_url}")
+    Logger.debug("Starting stream request to #{endpoint}")
 
-    ExLLM.Providers.Shared.HTTPClient.stream_request(
-      full_url,
-      body,
-      headers,
-      callback,
-      opts
-    )
-
-    # HTTPClient handles streaming in another process - wait for completion messages
-    receive do
-      :stream_done ->
+    # Use HTTP.Core for streaming
+    case ExLLM.Providers.Shared.HTTP.Core.stream(
+           client,
+           endpoint,
+           body,
+           callback,
+           headers: headers,
+           timeout: opts[:timeout] || @default_timeout
+         ) do
+      {:ok, _response} ->
         send(coordinator, {:stream_complete, ref})
 
-      {:stream_error, reason} ->
+      {:error, reason} ->
         send(coordinator, {:stream_error, ref, reason})
-    after
-      opts[:receive_timeout] || 60_000 ->
-        send(coordinator, {:stream_error, ref, :timeout})
     end
   end
 
@@ -193,27 +187,20 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     # Extract headers from the client's middleware
     headers = extract_headers_from_client(client)
 
-    # Use HTTPClient for streaming to ensure test cache interceptor is used
-    full_url = build_full_url(client, endpoint)
-
-    ExLLM.Providers.Shared.HTTPClient.stream_request(
-      full_url,
-      body,
-      headers,
-      callback,
-      opts
-    )
-
-    # HTTPClient handles streaming in another process - wait for completion messages
-    receive do
-      :stream_done ->
+    # Use HTTP.Core for streaming
+    case ExLLM.Providers.Shared.HTTP.Core.stream(
+           client,
+           endpoint,
+           body,
+           callback,
+           headers: headers,
+           timeout: opts[:timeout] || @default_timeout
+         ) do
+      {:ok, _response} ->
         send(parent, {:stream_complete, ref})
 
-      {:stream_error, reason} ->
+      {:error, reason} ->
         send(parent, {:stream_error, ref, reason})
-    after
-      opts[:receive_timeout] || 60_000 ->
-        send(parent, {:stream_error, ref, :timeout})
     end
   end
 
@@ -228,32 +215,6 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     model = config[:model] || "gemini-pro"
     base = config[:base_url] || "https://generativelanguage.googleapis.com/v1beta"
     "#{base}/models/#{model}:streamGenerateContent"
-  end
-
-  defp build_full_url(%Tesla.Client{pre: middleware}, endpoint) do
-    # If endpoint is already a full URL, use it directly
-    if String.starts_with?(endpoint, "http") do
-      Logger.debug("Using full URL directly: #{endpoint}")
-      endpoint
-    else
-      # Extract base URL from middleware
-      base_url =
-        middleware
-        |> Enum.find_value(fn
-          {Tesla.Middleware.BaseUrl, :call, [url]} -> url
-          {Tesla.Middleware.BaseUrl, url} -> url
-          _ -> nil
-        end)
-
-      if base_url do
-        full_url = Path.join(base_url, endpoint)
-        Logger.debug("Built full URL: #{full_url} from base: #{base_url}, endpoint: #{endpoint}")
-        full_url
-      else
-        Logger.error("No base URL found in middleware: #{inspect(middleware)}")
-        endpoint
-      end
-    end
   end
 
   defp extract_headers_from_client(%Tesla.Client{pre: middleware}) do

@@ -3,7 +3,7 @@ defmodule ExLLM.Providers.Gemini.Base do
   Base HTTP request functionality for Gemini API modules.
   """
 
-  alias ExLLM.Providers.Shared.HTTPClient
+  alias ExLLM.Providers.Shared.HTTP.Core
 
   @base_url "https://generativelanguage.googleapis.com/v1beta"
   @base_url_v1 "https://generativelanguage.googleapis.com/v1"
@@ -95,7 +95,7 @@ defmodule ExLLM.Providers.Gemini.Base do
     request_opts = Keyword.get(opts, :opts, [])
 
     # Support both API key and OAuth token
-    {url, headers} =
+    {url, _headers} =
       if oauth_token = opts[:oauth_token] do
         # OAuth2 authentication with SSE
         {build_url(path, Map.put(query, "alt", "sse")),
@@ -108,16 +108,34 @@ defmodule ExLLM.Providers.Gemini.Base do
          build_headers(streaming: true)}
       end
 
-    # Use HTTPClient for streaming with proper caching support
+    # Use Core.stream for streaming requests
     case method do
       :post ->
-        HTTPClient.stream_request(
-          url,
-          body || %{},
-          headers,
-          callback,
-          [provider: :gemini] ++ request_opts
-        )
+        # Extract configuration from opts  
+        api_key = get_api_key_from_opts(request_opts)
+        oauth_token = get_oauth_token_from_opts(request_opts)
+        timeout = Keyword.get(request_opts, :timeout, 300_000)
+
+        # Create client with Gemini-specific configuration
+        client_opts = [
+          provider: :gemini,
+          base_url: get_base_url_from_full_url(url)
+        ]
+
+        client_opts =
+          cond do
+            oauth_token -> Keyword.put(client_opts, :oauth_token, oauth_token)
+            api_key -> Keyword.put(client_opts, :api_key, api_key)
+            true -> client_opts
+          end
+
+        client = Core.client(client_opts)
+
+        # Extract path from full URL
+        path = get_path_from_url(url)
+
+        # Use Core.stream for streaming
+        Core.stream(client, path, body || %{}, callback, timeout: timeout)
 
       _ ->
         {:error, %{reason: :unsupported_method, message: "Streaming only supports POST requests"}}
@@ -147,19 +165,100 @@ defmodule ExLLM.Providers.Gemini.Base do
     end
   end
 
-  # Helper function to route requests through shared HTTPClient for caching
+  # Helper function to route requests through Core HTTP client
   defp make_http_request(method, url, body, headers, opts) when method in [:post, :patch] do
-    # For POST/PATCH with body, use post_json
-    HTTPClient.post_json(url, body || %{}, headers, [method: method, provider: :gemini] ++ opts)
+    gemini_core_request(method, url, body, headers, opts)
   end
 
   defp make_http_request(:get, url, _body, headers, opts) do
-    # Use HTTPClient.get_json for caching support
-    HTTPClient.get_json(url, headers, [provider: :gemini] ++ opts)
+    gemini_core_request(:get, url, nil, headers, opts)
   end
 
   defp make_http_request(:delete, url, _body, headers, opts) do
-    # Use HTTPClient.post_json with DELETE method for caching support
-    HTTPClient.post_json(url, %{}, headers, [method: :delete, provider: :gemini] ++ opts)
+    gemini_core_request(:delete, url, %{}, headers, opts)
+  end
+
+  # Core HTTP client helper for Gemini API
+  defp gemini_core_request(method, url, body, _headers, opts) do
+    # Extract configuration from opts
+    api_key = get_api_key_from_opts(opts)
+    oauth_token = get_oauth_token_from_opts(opts)
+    timeout = Keyword.get(opts, :timeout, 60_000)
+
+    # Create client with Gemini-specific configuration  
+    client_opts = [
+      provider: :gemini,
+      base_url: get_base_url_from_full_url(url)
+    ]
+
+    client_opts =
+      cond do
+        oauth_token -> Keyword.put(client_opts, :oauth_token, oauth_token)
+        api_key -> Keyword.put(client_opts, :api_key, api_key)
+        true -> client_opts
+      end
+
+    client = Core.client(client_opts)
+
+    # Extract path from full URL
+    path = get_path_from_url(url)
+
+    # Execute request
+    result =
+      case method do
+        :get -> Tesla.get(client, path, opts: [timeout: timeout])
+        :post -> Tesla.post(client, path, body || %{}, opts: [timeout: timeout])
+        :patch -> Tesla.patch(client, path, body || %{}, opts: [timeout: timeout])
+        :delete -> Tesla.delete(client, path, opts: [timeout: timeout])
+      end
+
+    # Convert Tesla response to expected format
+    case result do
+      {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
+        # Try to decode JSON if it's a string
+        parsed_body =
+          case body do
+            body when is_binary(body) ->
+              case Jason.decode(body) do
+                {:ok, parsed} -> parsed
+                {:error, _} -> body
+              end
+
+            body ->
+              body
+          end
+
+        {:ok, parsed_body}
+
+      {:ok, %Tesla.Env{status: status, body: body}} ->
+        {:error, %{status: status, body: body}}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  # Helper to extract API key from opts (could be in nested structure)
+  defp get_api_key_from_opts(opts) do
+    Keyword.get(opts, :api_key)
+  end
+
+  # Helper to extract OAuth token from opts  
+  defp get_oauth_token_from_opts(opts) do
+    Keyword.get(opts, :oauth_token)
+  end
+
+  # Helper to extract base URL from full URL
+  defp get_base_url_from_full_url(url) do
+    uri = URI.parse(url)
+
+    "#{uri.scheme}://#{uri.host}#{if uri.port && uri.port not in [80, 443], do: ":#{uri.port}", else: ""}"
+  end
+
+  # Helper to extract path from full URL (preserving query params)
+  defp get_path_from_url(url) do
+    uri = URI.parse(url)
+    path = uri.path || "/"
+    if uri.query, do: "#{path}?#{uri.query}", else: path
   end
 end

@@ -19,17 +19,8 @@ defmodule ExLLM.Testing.Case do
       end
   """
 
-  # Provider API key mappings
-  @provider_api_keys %{
-    anthropic: ["ANTHROPIC_API_KEY"],
-    openai: ["OPENAI_API_KEY"],
-    gemini: ["GEMINI_API_KEY", "GOOGLE_API_KEY"],
-    openrouter: ["OPENROUTER_API_KEY"],
-    mistral: ["MISTRAL_API_KEY"],
-    perplexity: ["PERPLEXITY_API_KEY"],
-    groq: ["GROQ_API_KEY"],
-    xai: ["XAI_API_KEY"]
-  }
+  # Provider API key mappings from centralized config
+  @provider_api_keys ExLLM.Testing.Config.provider_api_keys()
 
   use ExUnit.CaseTemplate
 

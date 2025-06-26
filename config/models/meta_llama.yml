@@ -5,6 +5,8 @@ models:
     max_output_tokens: 4028
     capabilities:
     - streaming
+    - function_calling
+    - tool_choice
     supported_modalities:
     - text
     - image
@@ -15,6 +17,8 @@ models:
     max_output_tokens: 4028
     capabilities:
     - streaming
+    - function_calling
+    - tool_choice
     supported_modalities:
     - text
     - image
@@ -25,6 +29,8 @@ models:
     max_output_tokens: 4028
     capabilities:
     - streaming
+    - function_calling
+    - tool_choice
     supported_modalities:
     - text
     supported_output_modalities:
@@ -34,6 +40,8 @@ models:
     max_output_tokens: 4028
     capabilities:
     - streaming
+    - function_calling
+    - tool_choice
     supported_modalities:
     - text
     supported_output_modalities:

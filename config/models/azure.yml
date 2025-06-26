@@ -244,12 +244,56 @@ models:
     - image
     supported_output_modalities:
     - text
+  azure/o3-pro:
+    context_window: 200000
+    max_output_tokens: 100000
+    pricing:
+      input: 20.0
+      output: 80.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - reasoning
+    - tool_choice
+    supported_endpoints:
+    - /v1/chat/completions
+    - /v1/batch
+    - /v1/responses
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
+  azure/o3-pro-2025-06-10:
+    context_window: 200000
+    max_output_tokens: 100000
+    pricing:
+      input: 20.0
+      output: 80.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - structured_output
+    - reasoning
+    - tool_choice
+    supported_endpoints:
+    - /v1/chat/completions
+    - /v1/batch
+    - /v1/responses
+    supported_modalities:
+    - text
+    - image
+    supported_output_modalities:
+    - text
   azure/o3:
     context_window: 200000
     max_output_tokens: 100000
     pricing:
-      input: 10.0
-      output: 40.0
+      input: 2.0
+      output: 8.0
     capabilities:
     - streaming
     - function_calling
@@ -640,7 +684,7 @@ models:
     - prompt_caching
     - parallel_function_calling
     - tool_choice
-  azure/codex-mini-latest:
+  azure/codex-mini:
     context_window: 200000
     max_output_tokens: 100000
     pricing:

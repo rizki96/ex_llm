@@ -109,7 +109,34 @@ defmodule ExLLM.Providers.Shared.HTTPClient do
 
   @doc """
   Make a streaming POST request with Server-Sent Events.
+
+  ## Deprecation Notice
+
+  This function now serves as a compatibility shim. New code should use 
+  `ExLLM.Providers.Shared.HTTP.Core.stream/5` directly for better composability
+  and performance.
+
+  ### Migration Example
+
+      # Old approach
+      HTTPClient.post_stream(url, body, 
+        headers: headers,
+        into: callback,
+        timeout: 60_000
+      )
+      
+      # New approach
+      client = HTTP.Core.client(
+        provider: :openai,
+        api_key: api_key,
+        base_url: base_url
+      )
+      HTTP.Core.stream(client, path, body, callback,
+        headers: headers,
+        timeout: 60_000
+      )
   """
+  @deprecated "Use ExLLM.Providers.Shared.HTTP.Core.stream/5 instead"
   @spec post_stream(String.t(), map(), keyword()) :: {:ok, any()} | {:error, term()}
   def post_stream(url, body, opts \\ []) do
     headers = Keyword.get(opts, :headers, [])
