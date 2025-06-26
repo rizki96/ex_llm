@@ -135,25 +135,39 @@ defmodule ExLLM.OAuth2Test do
 
   describe "token storage utilities" do
     test "token_needs_refresh?/1 validates token expiration" do
-      # Test with expired token
+      # Test with expired token (expires_at in the past)
+      past_time = DateTime.utc_now() |> DateTime.add(-3600, :second) |> DateTime.to_iso8601()
       expired_tokens = %{
         "access_token" => "test_token",
-        "expires_in" => 3600,
-        # 2 hours ago
-        "created_at" => System.system_time(:second) - 7200
+        "expires_at" => past_time
       }
 
       assert TokenStorage.token_needs_refresh?(expired_tokens) == true
 
-      # Test with fresh token
+      # Test with fresh token (expires_at in the future)
+      future_time = DateTime.utc_now() |> DateTime.add(3600, :second) |> DateTime.to_iso8601()
       fresh_tokens = %{
         "access_token" => "test_token",
-        "expires_in" => 3600,
-        # 30 minutes ago
-        "created_at" => System.system_time(:second) - 1800
+        "expires_at" => future_time
       }
 
       assert TokenStorage.token_needs_refresh?(fresh_tokens) == false
+
+      # Test with low expires_in value (should need refresh)
+      low_expires_tokens = %{
+        "access_token" => "test_token",
+        "expires_in" => 200  # Less than 300 seconds
+      }
+
+      assert TokenStorage.token_needs_refresh?(low_expires_tokens) == true
+
+      # Test with high expires_in value (should not need refresh)
+      high_expires_tokens = %{
+        "access_token" => "test_token",
+        "expires_in" => 3600  # Greater than 300 seconds
+      }
+
+      assert TokenStorage.token_needs_refresh?(high_expires_tokens) == false
 
       # Test with missing expiration info
       incomplete_tokens = %{"access_token" => "test_token"}

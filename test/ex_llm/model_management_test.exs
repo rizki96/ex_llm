@@ -12,21 +12,15 @@ defmodule ExLLM.ModelManagementTest do
 
   describe "model listing and discovery" do
     test "lists all models across providers" do
-      case Models.list_all() do
-        {:ok, models} ->
-          assert is_list(models)
+      {:ok, models} = Models.list_all()
+      assert is_list(models)
 
-          # Each model should have required fields
-          for model <- models do
-            assert Map.has_key?(model, :provider)
-            assert Map.has_key?(model, :id)
-            assert is_atom(model.provider)
-            assert is_binary(model.id) or is_atom(model.id)
-          end
-
-        {:error, _reason} ->
-          # May fail if no providers are configured
-          assert true
+      # Each model should have required fields
+      for model <- models do
+        assert Map.has_key?(model, :provider)
+        assert Map.has_key?(model, :id)
+        assert is_atom(model.provider)
+        assert is_binary(model.id) or is_atom(model.id)
       end
     end
 
@@ -271,26 +265,20 @@ defmodule ExLLM.ModelManagementTest do
     end
 
     test "gets all model count across providers" do
-      case Models.list_all() do
-        {:ok, models} ->
-          model_count = length(models)
+      {:ok, models} = Models.list_all()
+      model_count = length(models)
 
-          assert is_integer(model_count)
-          assert model_count >= 0
+      assert is_integer(model_count)
+      assert model_count >= 0
 
-          # Group by provider
-          grouped = Enum.group_by(models, & &1.provider)
+      # Group by provider
+      grouped = Enum.group_by(models, & &1.provider)
 
-          # Each group should have at least one model
-          for {provider, provider_models} <- grouped do
-            assert is_atom(provider)
-            assert is_list(provider_models)
-            assert length(provider_models) > 0
-          end
-
-        {:error, _reason} ->
-          # No models available in test environment
-          assert true
+      # Each group should have at least one model
+      for {provider, provider_models} <- grouped do
+        assert is_atom(provider)
+        assert is_list(provider_models)
+        assert length(provider_models) > 0
       end
     end
   end

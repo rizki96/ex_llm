@@ -11,7 +11,6 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
   Run with: mix test --only performance
   """
   use ExUnit.Case, async: false
-  import Tesla.Mock
 
   @moduletag :performance
   @moduletag timeout: :infinity
