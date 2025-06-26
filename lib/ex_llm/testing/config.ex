@@ -39,7 +39,7 @@ defmodule ExLLM.Testing.Config do
 
   @doc """
   Default test exclusions based on cache configuration and environment.
-  
+
   Integration tests run against live APIs by default unless caching is explicitly enabled.
   """
   @spec default_exclusions() :: keyword()
@@ -59,7 +59,7 @@ defmodule ExLLM.Testing.Config do
         # Cache mode explicitly enabled - use cached responses when available
         cache_fresh = cache_fresh?()
         log_test_mode(false, cache_fresh)
-        
+
         if cache_fresh do
           # Cache is fresh - include integration tests using cached responses
           base_exclusions
@@ -290,6 +290,7 @@ defmodule ExLLM.Testing.Config do
 
       false ->
         IO.puts("\n🚀 Running with integration tests enabled")
+
         if cache_fresh do
           IO.puts("   Mode: Cached responses (fresh)")
         else
