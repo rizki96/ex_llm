@@ -1,0 +1,131 @@
+defmodule ExLLM.Integration.FineTuningTest do
+  use ExUnit.Case, async: true
+
+  import ExLLM.Testing.AdvancedFeatureHelpers
+
+  @moduledoc """
+  Integration tests for fine-tuning functionality in ExLLM.
+
+  Tests the complete lifecycle of fine-tuning operations:
+  - create_fine_tune/3
+  - list_fine_tunes/2
+  - get_fine_tune/3
+  - cancel_fine_tune/3
+
+  Fine-tuning allows customization of models with specific training data
+  for improved performance on domain-specific tasks.
+
+  These tests are currently skipped pending implementation.
+  """
+
+  @moduletag :fine_tuning
+  @moduletag :skip
+
+  describe "fine-tuning job lifecycle" do
+    test "creates a fine-tuning job" do
+      # TODO: Implement test
+      # training_data = [
+      #   %{
+      #     messages: [
+      #       %{role: "system", content: "You are a helpful assistant"},
+      #       %{role: "user", content: "What is the capital of France?"},
+      #       %{role: "assistant", content: "The capital of France is Paris."}
+      #     ]
+      #   }
+      # ]
+      # 
+      # {:ok, job} = ExLLM.create_fine_tune(:openai, training_data,
+      #   model: "gpt-3.5-turbo",
+      #   suffix: "custom-model"
+      # )
+      # assert job.id
+      # assert job.status in ["pending", "running"]
+    end
+
+    test "lists fine-tuning jobs" do
+      # TODO: Implement test
+      # {:ok, jobs} = ExLLM.list_fine_tunes(:openai)
+      # assert is_list(jobs)
+    end
+
+    test "retrieves specific fine-tuning job status" do
+      # TODO: Implement test
+      # {:ok, job} = ExLLM.get_fine_tune(:openai, "ft-123")
+      # assert job.id == "ft-123"
+      # assert job.status in ["pending", "running", "succeeded", "failed"]
+    end
+
+    test "cancels a running fine-tuning job" do
+      # TODO: Implement test
+      # :ok = ExLLM.cancel_fine_tune(:openai, "ft-123")
+    end
+  end
+
+  describe "training data management" do
+    test "validates training data format" do
+      # TODO: Test JSONL format validation
+    end
+
+    test "uploads training file for fine-tuning" do
+      # TODO: Test file upload integration
+      # {:ok, file} = ExLLM.upload_file(:openai, "training.jsonl", purpose: "fine-tune")
+      # {:ok, job} = ExLLM.create_fine_tune(:openai, file_id: file.id)
+    end
+
+    test "handles validation errors in training data" do
+      # TODO: Test error scenarios
+    end
+  end
+
+  describe "fine-tuned model usage" do
+    test "uses fine-tuned model for chat" do
+      # TODO: Implement test
+      # {:ok, response} = ExLLM.chat(:openai, messages,
+      #   model: "ft:gpt-3.5-turbo:org-id:custom-model:123"
+      # )
+      # assert response.model =~ "ft:"
+    end
+
+    test "compares performance with base model" do
+      # TODO: Test quality improvements
+    end
+  end
+
+  describe "fine-tuning monitoring" do
+    test "tracks fine-tuning progress" do
+      # TODO: Monitor job progress
+      # - Training loss
+      # - Validation metrics
+      # - Estimated completion time
+    end
+
+    test "retrieves fine-tuning events" do
+      # TODO: Test event streaming for job updates
+    end
+  end
+
+  describe "provider-specific fine-tuning" do
+    @tag provider: :openai
+    test "OpenAI fine-tuning with hyperparameters" do
+      # TODO: Test OpenAI-specific options
+      # - n_epochs
+      # - batch_size
+      # - learning_rate_multiplier
+    end
+
+    @tag provider: :anthropic
+    test "Anthropic model customization" do
+      # TODO: Test if/when Anthropic supports fine-tuning
+    end
+  end
+
+  describe "cost tracking for fine-tuning" do
+    test "estimates fine-tuning costs" do
+      # TODO: Calculate training costs based on tokens
+    end
+
+    test "tracks actual fine-tuning expenses" do
+      # TODO: Monitor billed amounts
+    end
+  end
+end
