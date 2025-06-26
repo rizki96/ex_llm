@@ -198,7 +198,7 @@ defmodule ExLLM.SessionStreamingCostTest do
 
         callback = fn chunk ->
           # Accumulate content
-          if chunk[:content] do
+          if chunk.content do
             Agent.update(response_content, fn acc -> acc <> chunk.content end)
           end
 
