@@ -42,21 +42,39 @@ defmodule ExLLM.Providers.Shared.HTTP.Authentication do
 
   # Provider-specific authentication
 
-  defp add_authentication_headers(env, :openai, api_key, _opts) do
+  defp add_authentication_headers(env, :openai, api_key, _opts) when is_binary(api_key) do
     Tesla.put_header(env, "authorization", "Bearer #{api_key}")
   end
 
-  defp add_authentication_headers(env, :anthropic, api_key, _opts) do
+  defp add_authentication_headers(env, :openai, api_key, _opts) do
+    require Logger
+    Logger.warning("Invalid API key for OpenAI: #{inspect(api_key)}")
+    env
+  end
+
+  defp add_authentication_headers(env, :anthropic, api_key, _opts) when is_binary(api_key) do
     env
     |> Tesla.put_header("x-api-key", api_key)
     |> Tesla.put_header("anthropic-version", "2023-06-01")
   end
 
-  defp add_authentication_headers(env, :groq, api_key, _opts) do
+  defp add_authentication_headers(env, :anthropic, api_key, _opts) do
+    require Logger
+    Logger.warning("Invalid API key for Anthropic: #{inspect(api_key)}")
+    env
+  end
+
+  defp add_authentication_headers(env, :groq, api_key, _opts) when is_binary(api_key) do
     Tesla.put_header(env, "authorization", "Bearer #{api_key}")
   end
 
-  defp add_authentication_headers(env, :gemini, api_key, opts) do
+  defp add_authentication_headers(env, :groq, api_key, _opts) do
+    require Logger
+    Logger.warning("Invalid API key for Groq: #{inspect(api_key)}")
+    env
+  end
+
+  defp add_authentication_headers(env, :gemini, api_key, opts) when is_binary(api_key) do
     auth_method = Keyword.get(opts, :auth_method, :query_param)
 
     case auth_method do
@@ -81,11 +99,23 @@ defmodule ExLLM.Providers.Shared.HTTP.Authentication do
     end
   end
 
-  defp add_authentication_headers(env, :mistral, api_key, _opts) do
+  defp add_authentication_headers(env, :gemini, api_key, _opts) do
+    require Logger
+    Logger.warning("Invalid API key for Gemini: #{inspect(api_key)}")
+    env
+  end
+
+  defp add_authentication_headers(env, :mistral, api_key, _opts) when is_binary(api_key) do
     Tesla.put_header(env, "authorization", "Bearer #{api_key}")
   end
 
-  defp add_authentication_headers(env, :openrouter, api_key, opts) do
+  defp add_authentication_headers(env, :mistral, api_key, _opts) do
+    require Logger
+    Logger.warning("Invalid API key for Mistral: #{inspect(api_key)}")
+    env
+  end
+
+  defp add_authentication_headers(env, :openrouter, api_key, opts) when is_binary(api_key) do
     env = Tesla.put_header(env, "authorization", "Bearer #{api_key}")
 
     # Add optional HTTP referer for OpenRouter
@@ -95,12 +125,30 @@ defmodule ExLLM.Providers.Shared.HTTP.Authentication do
     end
   end
 
+  defp add_authentication_headers(env, :openrouter, api_key, _opts) do
+    require Logger
+    Logger.warning("Invalid API key for OpenRouter: #{inspect(api_key)}")
+    env
+  end
+
+  defp add_authentication_headers(env, :perplexity, api_key, _opts) when is_binary(api_key) do
+    Tesla.put_header(env, "authorization", "Bearer #{api_key}")
+  end
+
   defp add_authentication_headers(env, :perplexity, api_key, _opts) do
+    require Logger
+    Logger.warning("Invalid API key for Perplexity: #{inspect(api_key)}")
+    env
+  end
+
+  defp add_authentication_headers(env, :xai, api_key, _opts) when is_binary(api_key) do
     Tesla.put_header(env, "authorization", "Bearer #{api_key}")
   end
 
   defp add_authentication_headers(env, :xai, api_key, _opts) do
-    Tesla.put_header(env, "authorization", "Bearer #{api_key}")
+    require Logger
+    Logger.warning("Invalid API key for XAI: #{inspect(api_key)}")
+    env
   end
 
   defp add_authentication_headers(env, :ollama, _api_key, _opts) do
@@ -119,9 +167,15 @@ defmodule ExLLM.Providers.Shared.HTTP.Authentication do
     env
   end
 
-  defp add_authentication_headers(env, provider, api_key, _opts) do
+  defp add_authentication_headers(env, provider, api_key, _opts) when is_binary(api_key) do
     Logger.warning("Unknown provider #{provider}, using default Bearer auth")
     Tesla.put_header(env, "authorization", "Bearer #{api_key}")
+  end
+
+  defp add_authentication_headers(env, provider, api_key, _opts) do
+    require Logger
+    Logger.warning("Unknown provider #{provider} with invalid API key: #{inspect(api_key)}")
+    env
   end
 
   # Provider-specific version headers and additional headers

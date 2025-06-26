@@ -8,7 +8,6 @@ defmodule ExLLM.Providers.Shared.HTTPCoreStreamingValidationTest do
   use ExUnit.Case, async: false
 
   alias ExLLM.Providers.Shared.{HTTP.Core, StreamingCoordinator}
-  alias ExLLM.Types.StreamChunk
 
   describe "HTTP.Core streaming basics" do
     test "can create a client and handle streaming responses" do

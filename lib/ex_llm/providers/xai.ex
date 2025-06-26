@@ -158,44 +158,48 @@ defmodule ExLLM.Providers.XAI do
   # Override list_models to use local config since XAI doesn't have a models endpoint
   @impl ExLLM.Provider
   def list_models(_options \\ []) do
-    models = ModelConfig.get_all_models(:xai)
+    case ModelConfig.get_all_models(:xai) do
+      models when is_map(models) ->
+        formatted_models =
+          Enum.map(models, fn {id, model_data} ->
+            # Convert string capabilities to atoms safely
+            capabilities =
+              model_data
+              |> Map.get(:capabilities, [])
+              |> Enum.map(fn
+                cap when is_binary(cap) ->
+                  # Only convert known capability atoms
+                  case cap do
+                    "chat" -> :chat
+                    "streaming" -> :streaming
+                    "function_calling" -> :function_calling
+                    "vision" -> :vision
+                    "audio" -> :audio
+                    "embeddings" -> :embeddings
+                    "reasoning" -> :reasoning
+                    _ -> nil
+                  end
 
-    formatted_models =
-      Enum.map(models, fn {id, model_data} ->
-        # Convert string capabilities to atoms safely
-        capabilities =
-          model_data
-          |> Map.get(:capabilities, [])
-          |> Enum.map(fn
-            cap when is_binary(cap) ->
-              # Only convert known capability atoms
-              case cap do
-                "chat" -> :chat
-                "streaming" -> :streaming
-                "function_calling" -> :function_calling
-                "vision" -> :vision
-                "audio" -> :audio
-                "embeddings" -> :embeddings
-                "reasoning" -> :reasoning
-                _ -> nil
-              end
+                cap when is_atom(cap) ->
+                  cap
+              end)
+              |> Enum.filter(&(&1 != nil))
 
-            cap when is_atom(cap) ->
-              cap
+            %Types.Model{
+              id: to_string(id),
+              name: "X.AI " <> format_model_name(to_string(id)),
+              context_window: Map.get(model_data, :context_window, 131_072),
+              max_output_tokens: Map.get(model_data, :max_output_tokens),
+              # Match old format for backward compatibility
+              capabilities: capabilities
+            }
           end)
-          |> Enum.filter(&(&1 != nil))
 
-        %Types.Model{
-          id: to_string(id),
-          name: "X.AI " <> format_model_name(to_string(id)),
-          context_window: Map.get(model_data, :context_window, 131_072),
-          max_output_tokens: Map.get(model_data, :max_output_tokens),
-          # Match old format for backward compatibility
-          capabilities: capabilities
-        }
-      end)
+        {:ok, formatted_models}
 
-    {:ok, formatted_models}
+      _ ->
+        {:error, "Failed to load XAI models from configuration"}
+    end
   end
 
   # Add default_model/0 for backward compatibility

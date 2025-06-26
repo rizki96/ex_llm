@@ -17,7 +17,6 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
   alias ExLLM.Providers.Shared.{
     HTTP.Core,
-    HTTPClient,
     StreamingCoordinator,
     EnhancedStreamingCoordinator
   }
@@ -195,8 +194,8 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
     end_time = System.monotonic_time(:millisecond)
     end_memory = :erlang.memory(:total)
 
-    # Get collected chunks from Agent
-    received_chunks = Agent.get(chunk_agent, & &1)
+    # Get collected chunks from Agent (for verification)
+    _received_chunks = Agent.get(chunk_agent, & &1)
 
     calculate_metrics(
       start_time,

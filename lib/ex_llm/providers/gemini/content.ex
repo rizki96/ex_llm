@@ -24,6 +24,14 @@ defmodule ExLLM.Providers.Gemini.Content do
 
     defstruct [:text, :inline_data, :function_call, :function_response, :code_execution_result]
 
+    defimpl Jason.Encoder, for: __MODULE__ do
+      def encode(part, opts) do
+        part
+        |> ExLLM.Providers.Gemini.Content.Part.to_json()
+        |> Jason.Encoder.encode(opts)
+      end
+    end
+
     @doc """
     Converts Part struct to JSON format for API requests.
     """
@@ -62,6 +70,14 @@ defmodule ExLLM.Providers.Gemini.Content do
 
     @enforce_keys [:role, :parts]
     defstruct [:role, :parts]
+
+    defimpl Jason.Encoder, for: __MODULE__ do
+      def encode(content, opts) do
+        content
+        |> ExLLM.Providers.Gemini.Content.content_to_json()
+        |> Jason.Encoder.encode(opts)
+      end
+    end
   end
 
   defmodule GenerationConfig do
@@ -92,6 +108,53 @@ defmodule ExLLM.Providers.Gemini.Content do
       :response_schema,
       :thinking_config
     ]
+
+    defimpl Jason.Encoder, for: __MODULE__ do
+      def encode(config, opts) do
+        # Convert to JSON using existing serialization logic
+        json = %{}
+
+        json =
+          if config.temperature, do: Map.put(json, "temperature", config.temperature), else: json
+
+        json = if config.top_p, do: Map.put(json, "topP", config.top_p), else: json
+        json = if config.top_k, do: Map.put(json, "topK", config.top_k), else: json
+
+        json =
+          if config.candidate_count,
+            do: Map.put(json, "candidateCount", config.candidate_count),
+            else: json
+
+        json =
+          if config.max_output_tokens,
+            do: Map.put(json, "maxOutputTokens", config.max_output_tokens),
+            else: json
+
+        json =
+          if config.stop_sequences,
+            do: Map.put(json, "stopSequences", config.stop_sequences),
+            else: json
+
+        json =
+          if config.response_mime_type,
+            do: Map.put(json, "responseMimeType", config.response_mime_type),
+            else: json
+
+        json =
+          if config.response_schema,
+            do: Map.put(json, "responseSchema", config.response_schema),
+            else: json
+
+        final_json =
+          if config.thinking_config do
+            Map.put(json, "thinkingConfig", config.thinking_config)
+          else
+            json
+          end
+
+        Jason.Encoder.encode(final_json, opts)
+      end
+    end
   end
 
   defmodule SafetySetting do
@@ -106,6 +169,16 @@ defmodule ExLLM.Providers.Gemini.Content do
 
     @enforce_keys [:category, :threshold]
     defstruct [:category, :threshold]
+
+    defimpl Jason.Encoder, for: __MODULE__ do
+      def encode(setting, opts) do
+        %{
+          "category" => setting.category,
+          "threshold" => setting.threshold
+        }
+        |> Jason.Encoder.encode(opts)
+      end
+    end
   end
 
   defmodule Tool do
@@ -120,6 +193,29 @@ defmodule ExLLM.Providers.Gemini.Content do
           }
 
     defstruct [:function_declarations, :google_search, :code_execution]
+
+    defimpl Jason.Encoder, for: __MODULE__ do
+      def encode(tool, opts) do
+        json = %{}
+
+        json =
+          if tool.function_declarations,
+            do: Map.put(json, "functionDeclarations", tool.function_declarations),
+            else: json
+
+        json =
+          if tool.google_search, do: Map.put(json, "googleSearch", tool.google_search), else: json
+
+        final_json =
+          if tool.code_execution do
+            Map.put(json, "codeExecution", tool.code_execution)
+          else
+            json
+          end
+
+        Jason.Encoder.encode(final_json, opts)
+      end
+    end
   end
 
   defmodule ToolConfig do
@@ -132,6 +228,17 @@ defmodule ExLLM.Providers.Gemini.Content do
           }
 
     defstruct [:function_calling_config]
+
+    defimpl Jason.Encoder, for: __MODULE__ do
+      def encode(config, opts) do
+        if config.function_calling_config do
+          %{"functionCallingConfig" => config.function_calling_config}
+        else
+          %{}
+        end
+        |> Jason.Encoder.encode(opts)
+      end
+    end
   end
 
   defmodule GenerateContentRequest do
@@ -161,6 +268,14 @@ defmodule ExLLM.Providers.Gemini.Content do
       :tool_config,
       :cached_content
     ]
+
+    defimpl Jason.Encoder, for: __MODULE__ do
+      def encode(request, opts) do
+        request
+        |> ExLLM.Providers.Gemini.Content.GenerateContentRequest.to_json()
+        |> Jason.Encoder.encode(opts)
+      end
+    end
 
     @doc """
     Converts GenerateContentRequest struct to JSON format for API requests.

@@ -97,11 +97,11 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
         |> send_sse_chunk("data: [DONE]\n\n")
       end)
 
-      # Collect chunks
-      collected_chunks = []
+      # Collect chunks using Agent to avoid variable shadowing
+      {:ok, chunk_agent} = Agent.start_link(fn -> [] end)
 
       callback = fn chunk ->
-        collected_chunks = [chunk.content | collected_chunks]
+        Agent.update(chunk_agent, fn chunks -> [chunk.content | chunks] end)
       end
 
       # Parse function
@@ -139,8 +139,9 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
       Process.sleep(100)
 
       # Verify results
-      assert "Coordinator" in collected_chunks
-      assert " test" in collected_chunks
+      chunks = Agent.get(chunk_agent, & &1)
+      assert "Coordinator" in chunks
+      assert " test" in chunks
     end
   end
 
@@ -159,11 +160,11 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
         |> send_sse_chunk("data: [DONE]\n\n")
       end)
 
-      # Collect chunks
-      collected_chunks = []
+      # Collect chunks using Agent to avoid variable shadowing
+      {:ok, chunk_agent} = Agent.start_link(fn -> [] end)
 
       callback = fn chunk ->
-        collected_chunks = [chunk.content | collected_chunks]
+        Agent.update(chunk_agent, fn chunks -> [chunk.content | chunks] end)
       end
 
       # Parse function
@@ -203,7 +204,8 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
       Process.sleep(100)
 
       # Verify results
-      assert "Enhanced" in collected_chunks
+      chunks = Agent.get(chunk_agent, & &1)
+      assert "Enhanced" in chunks
     end
   end
 
@@ -216,7 +218,7 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
         {:groq, "/openai/v1/chat/completions", "authorization", "Bearer test-key"}
       ]
 
-      Enum.each(providers, fn {provider, path, header_name, header_value} ->
+      Enum.each(providers, fn {provider, path, header_name, _header_value} ->
         # Reset bypass for each provider
         Bypass.expect_once(bypass, "POST", path, fn conn ->
           # Verify proper auth header
@@ -237,15 +239,16 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
             base_url: "http://localhost:#{bypass.port}"
           )
 
-        received = []
+        {:ok, received_agent} = Agent.start_link(fn -> [] end)
 
         callback = fn chunk ->
-          received = [chunk | received]
+          Agent.update(received_agent, fn chunks -> [chunk | chunks] end)
         end
 
         assert {:ok, _} = Core.stream(client, path, %{"stream" => true}, callback)
 
         # Basic verification that streaming worked
+        received = Agent.get(received_agent, & &1)
         assert length(received) > 0
       end)
     end
@@ -265,12 +268,13 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
       end)
     end)
 
-    chunks = []
+    {:ok, chunks_agent} = Agent.start_link(fn -> [] end)
 
     callback = fn
       {:data, data}, acc ->
         case parse_sse_data(data) do
-          {:ok, content} -> chunks = [content | chunks]
+          {:ok, content} -> 
+            Agent.update(chunks_agent, fn chunks -> [content | chunks] end)
           _ -> :ok
         end
 
@@ -292,7 +296,7 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
 
     {:ok, _} = HTTPClient.post_stream(url, body, opts)
     Process.sleep(50)
-    chunks
+    Agent.get(chunks_agent, & &1)
   end
 
   defp test_new_streaming(bypass, base_url, api_key, response_chunks) do
@@ -314,10 +318,10 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
         base_url: base_url
       )
 
-    chunks = []
+    {:ok, chunks_agent} = Agent.start_link(fn -> [] end)
 
     callback = fn chunk ->
-      chunks = [chunk.content | chunks]
+      Agent.update(chunks_agent, fn chunks -> [chunk.content | chunks] end)
     end
 
     parse_chunk = fn data ->
@@ -336,7 +340,7 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
       )
 
     Process.sleep(50)
-    chunks
+    Agent.get(chunks_agent, & &1)
   end
 
   defp test_legacy_error(bypass, base_url, api_key, error_response) do
