@@ -1310,4 +1310,4 @@ models:
     - audio
     supported_output_modalities:
     - audio
-default_model: omni-moderation-latest
+default_model: gpt-4o-mini
