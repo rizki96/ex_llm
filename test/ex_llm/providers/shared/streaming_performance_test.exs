@@ -11,6 +11,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
   Run with: mix test --only performance
   """
   use ExUnit.Case, async: false
+  import Tesla.Mock
 
   @moduletag :performance
   @moduletag timeout: :infinity
@@ -29,6 +30,12 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
   setup do
     bypass = Bypass.open()
+    
+    # Setup Tesla.Mock to allow HTTP requests to proceed normally
+    Tesla.Mock.mock_global(fn env ->
+      # Allow actual HTTP requests to go through (for Bypass)
+      Tesla.Adapter.Hackney.call(env, [])
+    end)
 
     %{
       bypass: bypass,
@@ -187,7 +194,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
     # Create HTTP.Core client and use new streaming approach
     client = Core.client(provider: :openai, api_key: api_key, base_url: base_url)
 
-    {:ok, _} = Core.stream(client, "/v1/stream", %{"stream" => true}, callback)
+    {:ok, _} = Core.stream(client, "/v1/stream", %{"stream" => true}, callback, [])
     # Ensure completion
     Process.sleep(50)
 
@@ -429,7 +436,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
   defp measure_first_chunk_latency(bypass, base_url, api_key, benchmark_fn) do
     # Setup to measure time to first chunk
-    first_chunk_time = :atomics.new(1, signed: false)
+    first_chunk_time = :atomics.new(1, signed: true)
     start_time = System.monotonic_time(:millisecond)
 
     # Create a single chunk response

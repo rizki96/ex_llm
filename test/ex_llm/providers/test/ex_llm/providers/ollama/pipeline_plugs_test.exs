@@ -39,7 +39,9 @@ defmodule ExLLM.Providers.Ollama.PipelinePlugsTest do
       assert body.messages == [%{"role" => "user", "content" => "Hello"}]
 
       headers = result.assigns.request_headers
-      assert {"authorization", "Bearer test-key-not-required"} in headers
+      # Ollama doesn't require authorization headers
+      assert {"content-type", "application/json"} in headers
+      refute Enum.any?(headers, fn {key, _} -> key == "authorization" end)
     end
 
     test "ParseResponse plug correctly transforms Ollama response" do

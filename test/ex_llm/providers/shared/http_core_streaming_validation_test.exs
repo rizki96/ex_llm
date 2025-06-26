@@ -102,12 +102,13 @@ defmodule ExLLM.Providers.Shared.HTTPCoreStreamingValidationTest do
     end
   end
 
-  describe "Deprecation warnings" do
-    test "HTTPClient.post_stream is marked as deprecated" do
-      # Check that the deprecation attribute is present
-      source = File.read!("lib/ex_llm/providers/shared/http_client.ex")
-      assert source =~ "@deprecated"
-      assert source =~ "Use ExLLM.Providers.Shared.HTTP.Core.stream/5 instead"
+  describe "Migration completion" do
+    test "HTTPClient has been removed and HTTP.Core is used everywhere" do
+      # Verify HTTPClient module no longer exists
+      refute Code.ensure_loaded?(ExLLM.Providers.Shared.HTTPClient)
+      
+      # Verify HTTP.Core is loaded and functioning
+      assert Code.ensure_loaded?(ExLLM.Providers.Shared.HTTP.Core)
     end
   end
 
