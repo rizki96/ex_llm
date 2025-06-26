@@ -6,8 +6,8 @@ defmodule ExLLM.Providers.Gemini.Content do
   text generation, streaming, multimodal inputs, function calling, and structured outputs.
   """
 
-  alias ExLLM.Providers.Shared.ConfigHelper
   alias ExLLM.Providers.Gemini.Base
+  alias ExLLM.Providers.Shared.ConfigHelper
 
   defmodule Part do
     @moduledoc """

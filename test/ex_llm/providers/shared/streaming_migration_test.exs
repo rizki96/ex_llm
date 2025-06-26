@@ -12,10 +12,10 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
   use ExUnit.Case, async: true
 
   alias ExLLM.Providers.Shared.{
+    EnhancedStreamingCoordinator,
     HTTP.Core,
     HTTPClient,
-    StreamingCoordinator,
-    EnhancedStreamingCoordinator
+    StreamingCoordinator
   }
 
   alias ExLLM.Types.StreamChunk
@@ -273,9 +273,11 @@ defmodule ExLLM.Providers.Shared.StreamingMigrationTest do
     callback = fn
       {:data, data}, acc ->
         case parse_sse_data(data) do
-          {:ok, content} -> 
+          {:ok, content} ->
             Agent.update(chunks_agent, fn chunks -> [content | chunks] end)
-          _ -> :ok
+
+          _ ->
+            :ok
         end
 
         {:cont, acc}

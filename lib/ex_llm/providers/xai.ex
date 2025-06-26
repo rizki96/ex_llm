@@ -163,27 +163,7 @@ defmodule ExLLM.Providers.XAI do
         formatted_models =
           Enum.map(models, fn {id, model_data} ->
             # Convert string capabilities to atoms safely
-            capabilities =
-              model_data
-              |> Map.get(:capabilities, [])
-              |> Enum.map(fn
-                cap when is_binary(cap) ->
-                  # Only convert known capability atoms
-                  case cap do
-                    "chat" -> :chat
-                    "streaming" -> :streaming
-                    "function_calling" -> :function_calling
-                    "vision" -> :vision
-                    "audio" -> :audio
-                    "embeddings" -> :embeddings
-                    "reasoning" -> :reasoning
-                    _ -> nil
-                  end
-
-                cap when is_atom(cap) ->
-                  cap
-              end)
-              |> Enum.filter(&(&1 != nil))
+            capabilities = convert_capabilities(model_data)
 
             %Types.Model{
               id: to_string(id),
@@ -216,5 +196,28 @@ defmodule ExLLM.Providers.XAI do
   @impl ExLLM.Provider
   def embeddings(_input, _options \\ []) do
     {:error, {:not_supported, "XAI does not support embeddings API"}}
+  end
+
+  defp convert_capabilities(model_data) do
+    model_data
+    |> Map.get(:capabilities, [])
+    |> Enum.map(fn
+      cap when is_binary(cap) ->
+        # Only convert known capability atoms
+        case cap do
+          "chat" -> :chat
+          "streaming" -> :streaming
+          "function_calling" -> :function_calling
+          "vision" -> :vision
+          "audio" -> :audio
+          "embeddings" -> :embeddings
+          "reasoning" -> :reasoning
+          _ -> nil
+        end
+
+      cap when is_atom(cap) ->
+        cap
+    end)
+    |> Enum.filter(&(&1 != nil))
   end
 end

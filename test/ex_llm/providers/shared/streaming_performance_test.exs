@@ -16,9 +16,9 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
   @moduletag timeout: :infinity
 
   alias ExLLM.Providers.Shared.{
+    EnhancedStreamingCoordinator,
     HTTP.Core,
-    StreamingCoordinator,
-    EnhancedStreamingCoordinator
+    StreamingCoordinator
   }
 
   alias ExLLM.Types.StreamChunk
