@@ -9,11 +9,7 @@ defmodule ExLLM.Providers.Shared.HTTP.SafeHackneyAdapter do
   @impl Tesla.Adapter
   def call(env, opts) do
     try do
-      case Tesla.Adapter.Hackney.call(env, opts) do
-        {:ok, _} = success -> success
-        {:error, _} = error -> error
-        other -> {:error, {:unexpected_response, other}}
-      end
+      Tesla.Adapter.Hackney.call(env, opts)
     rescue
       FunctionClauseError ->
         # Handle cases where hackney returns unexpected error formats

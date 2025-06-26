@@ -248,7 +248,7 @@ defmodule ExLLM.Providers.OpenAI do
         headers = build_headers(api_key, config)
         url = "#{get_base_url(config)}/models"
 
-        case openai_request(:get, url, %{}, headers) do
+        case openai_request(:get, url, %{}, headers, api_key, []) do
           {:ok, %{"data" => data}} ->
             models =
               data
@@ -3536,7 +3536,7 @@ defmodule ExLLM.Providers.OpenAI do
 
   # HTTP client helper functions to migrate from HTTPClient to Core
 
-  defp openai_request(method, url, body \\ %{}, headers \\ [], api_key, opts) do
+  defp openai_request(method, url, body, headers, api_key, opts) do
     # Create client with OpenAI-specific configuration
     client_opts = [
       provider: :openai,
