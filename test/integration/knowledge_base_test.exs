@@ -1,8 +1,6 @@
 defmodule ExLLM.Integration.KnowledgeBaseTest do
   use ExUnit.Case, async: true
 
-  import ExLLM.Testing.AdvancedFeatureHelpers
-
   @moduledoc """
   Integration tests for knowledge base (corpus) functionality in ExLLM.
 

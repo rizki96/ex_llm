@@ -1,8 +1,6 @@
 defmodule ExLLM.Integration.ContextCachingTest do
   use ExUnit.Case, async: true
 
-  import ExLLM.Testing.AdvancedFeatureHelpers
-
   @moduledoc """
   Integration tests for context caching functionality in ExLLM.
 

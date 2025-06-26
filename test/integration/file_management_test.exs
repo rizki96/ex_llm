@@ -1,8 +1,6 @@
 defmodule ExLLM.Integration.FileManagementTest do
   use ExUnit.Case, async: true
 
-  import ExLLM.Testing.AdvancedFeatureHelpers
-
   @moduledoc """
   Integration tests for file management functionality in ExLLM.
 

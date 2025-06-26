@@ -1,8 +1,6 @@
 defmodule ExLLM.Integration.BatchProcessingTest do
   use ExUnit.Case, async: true
 
-  import ExLLM.Testing.AdvancedFeatureHelpers
-
   @moduledoc """
   Integration tests for batch processing functionality in ExLLM.
 

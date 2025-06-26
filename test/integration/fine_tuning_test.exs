@@ -1,8 +1,6 @@
 defmodule ExLLM.Integration.FineTuningTest do
   use ExUnit.Case, async: true
 
-  import ExLLM.Testing.AdvancedFeatureHelpers
-
   @moduledoc """
   Integration tests for fine-tuning functionality in ExLLM.
 

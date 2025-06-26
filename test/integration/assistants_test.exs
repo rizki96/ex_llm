@@ -1,8 +1,6 @@
 defmodule ExLLM.Integration.AssistantsTest do
   use ExUnit.Case, async: true
 
-  import ExLLM.Testing.AdvancedFeatureHelpers
-
   @moduledoc """
   Integration tests for OpenAI Assistants API functionality in ExLLM.
 
