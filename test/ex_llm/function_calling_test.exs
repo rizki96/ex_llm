@@ -42,7 +42,7 @@ defmodule ExLLM.FunctionCallingTest do
                  function_call: "auto"
                )
 
-      assert response.role == "assistant"
+      assert response.metadata.role == "assistant"
     end
 
     test "supports multiple function definitions" do
@@ -179,7 +179,7 @@ defmodule ExLLM.FunctionCallingTest do
         assert Enum.all?(response.tool_calls, &(&1.function.name == "get_weather"))
       else
         # Verify basic response structure instead
-        assert response.role == "assistant"
+        assert response.metadata.role == "assistant"
         assert is_binary(response.content) or is_nil(response.content)
       end
 

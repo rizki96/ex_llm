@@ -27,9 +27,11 @@ defmodule ExLLM.Plugs.Providers.AnthropicParseStreamResponse do
         }
       }
 
+      # CRITICAL FIX: Set streaming state to halt pipeline for ALL streaming requests
       request
       |> Request.put_private(:stream_parser, parser_config)
       |> Request.assign(:stream_parser_configured, true)
+      |> Request.put_state(:streaming)
     end
   end
 

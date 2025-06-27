@@ -225,7 +225,7 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   defp get_base_url(:ollama, config) do
-    config[:base_url] || config[:ollama_url] || "http://localhost:11434/api"
+    config[:base_url] || config[:ollama_url] || "http://localhost:11434"
   end
 
   defp get_base_url(:lmstudio, config) do

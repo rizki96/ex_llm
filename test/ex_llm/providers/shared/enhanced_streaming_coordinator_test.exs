@@ -67,7 +67,7 @@ defmodule ExLLM.Providers.Shared.EnhancedStreamingCoordinatorTest do
 
       # Should delegate to original collector when no flow controller.
       # We verify the side-effect (callback) rather than the accumulator.
-      {:cont, _} = collector.({:data, data}, nil)
+      collector.(data)
 
       # Should receive the chunk via callback (allow more time for async Task)
       assert_receive {:chunk, chunk}, 2000

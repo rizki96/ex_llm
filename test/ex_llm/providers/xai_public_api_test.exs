@@ -17,7 +17,7 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
 
       case ExLLM.chat(:xai, messages, model: "grok-2", max_tokens: 100) do
         {:ok, response} ->
-          assert response.provider == :xai
+          assert response.metadata.provider == :xai
           assert is_binary(response.content)
           assert response.model =~ "grok"
           # Grok tends to have a unique personality
@@ -44,7 +44,7 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
       for model <- models do
         case ExLLM.chat(:xai, messages, model: model, max_tokens: 20) do
           {:ok, response} ->
-            assert response.provider == :xai
+            assert response.metadata.provider == :xai
             assert response.model == model
 
           {:error, {:api_error, %{status: 402}}} ->
@@ -104,7 +104,7 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
       # XAI might support unique parameters
       case ExLLM.chat(:xai, messages, temperature: 0.9, max_tokens: 100) do
         {:ok, response} ->
-          assert response.provider == :xai
+          assert response.metadata.provider == :xai
           # Jokes should be reasonably long
           assert String.length(response.content) > 30
 

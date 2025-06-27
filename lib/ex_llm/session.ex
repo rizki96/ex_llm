@@ -347,7 +347,16 @@ defmodule ExLLM.Session do
     case ExLLM.chat(session.llm_backend, messages, opts) do
       {:ok, response} ->
         # Add assistant response to session
-        final_session = add_message(updated_session, "assistant", response.content)
+        session_with_message = add_message(updated_session, "assistant", response.content)
+
+        # Update token usage if available
+        final_session =
+          if response.usage do
+            ExLLM.Core.Session.update_token_usage(session_with_message, response.usage)
+          else
+            session_with_message
+          end
+
         {:ok, response, final_session}
 
       {:error, reason} ->

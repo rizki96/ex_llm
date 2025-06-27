@@ -18,7 +18,7 @@ defmodule ExLLM.Providers.PerplexityPublicAPITest do
              max_tokens: 100
            ) do
         {:ok, response} ->
-          assert response.provider == :perplexity
+          assert response.metadata.provider == :perplexity
           assert is_binary(response.content)
           # Online models should provide current information
           assert response.content =~ ~r/2024|recent|latest/i
@@ -39,7 +39,7 @@ defmodule ExLLM.Providers.PerplexityPublicAPITest do
 
         case ExLLM.chat(:perplexity, messages, model: model, max_tokens: 100) do
           {:ok, response} ->
-            assert response.provider == :perplexity
+            assert response.metadata.provider == :perplexity
             assert is_binary(response.content)
 
             if is_online do
@@ -105,7 +105,7 @@ defmodule ExLLM.Providers.PerplexityPublicAPITest do
              max_tokens: 200
            ) do
         {:ok, response} ->
-          assert response.provider == :perplexity
+          assert response.metadata.provider == :perplexity
           # Response should attempt to find information
           assert is_binary(response.content)
           assert String.length(response.content) > 50
@@ -125,7 +125,7 @@ defmodule ExLLM.Providers.PerplexityPublicAPITest do
 
       case ExLLM.chat(:perplexity, messages, max_tokens: 50) do
         {:ok, response} ->
-          assert response.provider == :perplexity
+          assert response.metadata.provider == :perplexity
           assert is_binary(response.content)
           # Should handle large context well
           assert response.content =~ ~r/test|sentence|repeat/i

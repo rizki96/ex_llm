@@ -74,8 +74,31 @@ defmodule ExLLM.Core.Cost do
 
   def estimate_tokens(%{content: nil}), do: 0
 
-  def estimate_tokens(%{content: content}) do
+  def estimate_tokens(%{content: content}) when is_binary(content) do
     estimate_tokens(content)
+  end
+
+  def estimate_tokens(%{content: content}) when is_list(content) do
+    # Content can be a list of multimodal parts
+    Enum.reduce(content, 0, fn part, acc ->
+      acc + estimate_tokens(part)
+    end)
+  end
+
+  # Handle multimodal content parts
+  def estimate_tokens(%{type: "text", text: text}) when is_binary(text) do
+    estimate_tokens(text)
+  end
+
+  def estimate_tokens(%{type: "image_url", image_url: %{url: _url}}) do
+    # Images typically use ~85 tokens for low detail, ~765 for high detail
+    # Using average estimate
+    425
+  end
+
+  def estimate_tokens(%{type: "image", image: %{data: _data}}) do
+    # Base64 images, same estimate as image_url
+    425
   end
 
   def estimate_tokens(messages) when is_list(messages) do

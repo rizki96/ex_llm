@@ -51,6 +51,7 @@ defmodule ExLLM.Plugs.FetchConfiguration do
         # handled within the provider module itself.
         %{request | config: config}
         |> Request.assign(:config, config)
+        |> Request.assign(:api_key, "no-api-key-required")
 
       env_var ->
         # This provider uses a standard API key.

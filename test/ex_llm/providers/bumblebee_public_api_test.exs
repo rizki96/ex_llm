@@ -23,7 +23,7 @@ defmodule ExLLM.Providers.BumblebeePublicAPITest do
       case ExLLM.chat(:bumblebee, messages, max_tokens: 10) do
         {:ok, response} ->
           assert response.content =~ ~r/2|two/i
-          assert response.provider == :bumblebee
+          assert response.metadata.provider == :bumblebee
           # Local models have no cost
           assert response.cost == 0.0
 
@@ -51,7 +51,7 @@ defmodule ExLLM.Providers.BumblebeePublicAPITest do
       for model <- models_to_test do
         case ExLLM.chat(:bumblebee, messages, model: model, max_tokens: 20) do
           {:ok, response} ->
-            assert response.provider == :bumblebee
+            assert response.metadata.provider == :bumblebee
             assert is_binary(response.content)
             assert response.model == model
 
@@ -77,7 +77,7 @@ defmodule ExLLM.Providers.BumblebeePublicAPITest do
       # Bumblebee runs on CPU by default
       case ExLLM.chat(:bumblebee, messages, temperature: 0.1, max_tokens: 10) do
         {:ok, response} ->
-          assert response.provider == :bumblebee
+          assert response.metadata.provider == :bumblebee
           # Common completions
           assert response.content =~ ~r/blue|clear|cloudy|gray|dark/i
 
@@ -119,7 +119,7 @@ defmodule ExLLM.Providers.BumblebeePublicAPITest do
 
       case ExLLM.chat(:bumblebee, messages, max_tokens: 10) do
         {:ok, response} ->
-          assert response.provider == :bumblebee
+          assert response.metadata.provider == :bumblebee
           assert is_binary(response.content)
           # Should produce some output even with long context
           assert String.length(response.content) > 0

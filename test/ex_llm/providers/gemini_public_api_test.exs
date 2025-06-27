@@ -56,7 +56,11 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
         }
       ]
 
-      case ExLLM.chat(:gemini, messages, safety_settings: safety_settings, max_tokens: 100) do
+      case ExLLM.chat(:gemini, messages,
+             model: "gemini-2.5-pro-exp-03-25",
+             safety_settings: safety_settings,
+             max_tokens: 100
+           ) do
         {:ok, response} ->
           assert is_binary(response.content)
 
@@ -76,7 +80,11 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
         send(self(), {:chunk, chunk})
       end
 
-      case ExLLM.stream(:gemini, messages, collector, max_tokens: 20, timeout: 10_000) do
+      case ExLLM.stream(:gemini, messages, collector,
+             model: "gemini-2.5-pro-exp-03-25",
+             max_tokens: 20,
+             timeout: 10_000
+           ) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
           last_chunk = List.last(chunks)
@@ -96,10 +104,10 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
         %{role: "user", content: "How are you?"}
       ]
 
-      case ExLLM.chat(:gemini, messages, max_tokens: 50) do
+      case ExLLM.chat(:gemini, messages, model: "gemini-2.5-pro-exp-03-25", max_tokens: 50) do
         {:ok, response} ->
           assert is_binary(response.content)
-          assert response.provider == :gemini
+          assert response.metadata.provider == :gemini
 
         {:error, _} ->
           :ok
@@ -111,10 +119,10 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
       texts = ["Hello world", "How are you?"]
 
       case ExLLM.embeddings(:gemini, texts, model: "text-embedding-004") do
-        {:ok, embeddings} ->
-          assert length(embeddings) == 2
-          assert is_list(hd(embeddings))
-          assert is_float(hd(hd(embeddings)))
+        {:ok, response} ->
+          assert length(response.embeddings) == 2
+          assert is_list(hd(response.embeddings))
+          assert is_float(hd(hd(response.embeddings)))
 
         {:error, {:api_error, %{status: 404}}} ->
           # Model might not be available

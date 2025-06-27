@@ -212,7 +212,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   end
 
   defp build_gemini_endpoint(config) do
-    model = config[:model] || "gemini-pro"
+    model = config[:model] || "gemini-2.0-flash"
     base = config[:base_url] || "https://generativelanguage.googleapis.com/v1beta"
     "#{base}/models/#{model}:streamGenerateContent"
   end

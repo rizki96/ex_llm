@@ -399,6 +399,18 @@ models:
     - reasoning
     - parallel_function_calling
     - tool_choice
+  openai/gpt-4.1-nano:
+    context_window: 1047576
+    max_output_tokens: 4096
+    pricing:
+      input: 0.1
+      output: 0.4
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - parallel_function_calling
+    - tool_choice
   openrouter/openai/gpt-4o:
     context_window: 128000
     max_output_tokens: 4096

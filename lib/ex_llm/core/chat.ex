@@ -231,7 +231,16 @@ defmodule ExLLM.Core.Chat do
           # Track costs if enabled
           if Keyword.get(options, :track_cost, true) do
             cost_info = track_response_cost(provider, response, options)
-            response_with_cost = Map.put(response, :cost, cost_info)
+            # If cost_info is a map with total_cost, extract just the float value
+            cost_value =
+              case cost_info do
+                %{total_cost: total} -> total
+                nil -> nil
+                cost when is_float(cost) -> cost
+                _ -> 0.0
+              end
+
+            response_with_cost = Map.put(response, :cost, cost_value)
             {:ok, response_with_cost}
           else
             {:ok, response}
@@ -286,12 +295,12 @@ defmodule ExLLM.Core.Chat do
     provider_plugs = %{
       openai: [
         build_request: {ExLLM.Plugs.Providers.OpenAIPrepareRequest, []},
-        parse_response: {ExLLM.Plugs.Providers.OpenAIParseResponse, []},
+        parse_response: {ExLLM.Providers.OpenAI.ParseResponse, []},
         stream_parse_response: {ExLLM.Plugs.Providers.OpenAIParseStreamResponse, []}
       ],
       anthropic: [
         build_request: {ExLLM.Plugs.Providers.AnthropicPrepareRequest, []},
-        parse_response: {ExLLM.Plugs.Providers.AnthropicParseResponse, []},
+        parse_response: {ExLLM.Providers.Anthropic.ParseResponse, []},
         stream_parse_response: {ExLLM.Plugs.Providers.AnthropicParseStreamResponse, []}
       ],
       groq: [
@@ -393,36 +402,54 @@ defmodule ExLLM.Core.Chat do
   end
 
   defp track_response_cost(provider, response, options) do
-    # Extract usage info if available
-    case Map.get(response, :usage) do
-      %{input_tokens: _, output_tokens: _} = usage ->
-        model = Keyword.get(options, :model) || ExLLM.default_model(provider)
-        cost_info = Cost.calculate(to_string(provider), model, usage)
+    # Guard against nil response
+    case response do
+      nil ->
+        nil
 
-        # Log cost info if logger is available and cost calculation succeeded
-        case cost_info do
-          %{total_cost: total_cost} ->
-            if function_exported?(Logger, :info, 1) do
-              Logger.info("LLM cost: #{Cost.format(total_cost)} for #{provider}/#{model}")
+      response ->
+        # Extract usage info if available
+        case Map.get(response, :usage) do
+          usage when is_map(usage) ->
+            # Normalize usage keys - different providers use different naming
+            normalized_usage = %{
+              input_tokens: usage[:input_tokens] || usage[:prompt_tokens] || 0,
+              output_tokens: usage[:output_tokens] || usage[:completion_tokens] || 0
+            }
+
+            model = Keyword.get(options, :model) || ExLLM.default_model(provider)
+            cost_info = Cost.calculate(to_string(provider), model, normalized_usage)
+
+            # Log cost info if logger is available and cost calculation succeeded
+            case cost_info do
+              %{total_cost: total_cost} ->
+                if function_exported?(Logger, :info, 1) do
+                  Logger.info("LLM cost: #{Cost.format(total_cost)} for #{provider}/#{model}")
+                end
+
+                # Emit cost telemetry
+                ExLLM.Infrastructure.Telemetry.emit_cost_calculated(
+                  provider,
+                  model,
+                  # Convert to cents
+                  round(total_cost * 100)
+                )
+
+                # Return the full cost info map
+                cost_info
+
+              %{error: error_msg} ->
+                # Log error but don't fail - return 0 cost
+                if function_exported?(Logger, :warning, 1) do
+                  Logger.warning("Cost calculation failed: #{error_msg}")
+                end
+
+                0.0
             end
 
-            # Emit cost telemetry
-            ExLLM.Infrastructure.Telemetry.emit_cost_calculated(
-              provider,
-              model,
-              # Convert to cents
-              round(total_cost * 100)
-            )
-
-            cost_info
-
-          %{error: _} ->
-            # No pricing data available, just return nil
+          _ ->
             nil
         end
-
-      _ ->
-        nil
     end
   end
 

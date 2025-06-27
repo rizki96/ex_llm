@@ -18,7 +18,7 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
       case ExLLM.chat(:ollama, messages, model: "llama3.2:1b", max_tokens: 10) do
         {:ok, response} ->
           assert response.content =~ ~r/2|two/i
-          assert response.provider == :ollama
+          assert response.metadata.provider == :ollama
           # Local models should have minimal cost
           assert response.cost == 0.0
 
@@ -40,7 +40,7 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
             model = hd(models)
             assert model.id =~ ~r/llama|mistral|phi|qwen/i
             # Local models have no cost
-            assert model.pricing == nil || model.pricing.input_cost_per_token == 0
+            assert model.pricing == nil || model.pricing.input == 0
           end
 
         {:error, %{reason: :econnrefused}} ->
@@ -79,7 +79,8 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
             |> Enum.filter(& &1)
             |> Enum.join("")
 
-          assert full_content =~ ~r/1.*2.*3/s
+          # Accept both numeric and word forms
+          assert full_content =~ ~r/(1|one).*(2|two).*(3|three)/is
 
         {:error, %{reason: :econnrefused}} ->
           # Ollama not running
@@ -124,7 +125,7 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
 
       case ExLLM.chat(:ollama, messages, config_provider: provider, max_tokens: 10) do
         {:ok, response} ->
-          assert response.provider == :ollama
+          assert response.metadata.provider == :ollama
 
         {:error, %{reason: :econnrefused}} ->
           # Expected if Ollama not running

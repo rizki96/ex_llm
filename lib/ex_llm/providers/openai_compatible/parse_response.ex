@@ -39,14 +39,20 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
 
       @impl true
       def call(request, _opts) do
-        response = request.assigns.http_response
-        model = request.assigns.model
+        # Skip parsing if this is a streaming request that was already handled
+        if request.state == :streaming do
+          request
+        else
+          response = request.assigns.http_response
+          model = request.assigns.model
 
-        parsed_response = parse_response(response, model)
+          parsed_response = parse_response(response, model)
 
-        request
-        |> Request.assign(:llm_response, parsed_response)
-        |> Request.put_state(:completed)
+          request
+          |> Request.assign(:llm_response, parsed_response)
+          |> Map.put(:result, parsed_response)
+          |> Request.put_state(:completed)
+        end
       end
 
       defp parse_response(response, model) do
@@ -57,9 +63,11 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
         # Parse usage in OpenAI format
         enhanced_usage = parse_usage(usage)
 
-        # Calculate cost for provider
+        # Calculate cost for provider (model needs provider prefix for pricing lookup)
+        full_model_name = "#{@cost_provider}/#{model}"
+
         cost_info =
-          ExLLM.Core.Cost.calculate(@cost_provider, model, %{
+          ExLLM.Core.Cost.calculate(@cost_provider, full_model_name, %{
             input_tokens: enhanced_usage.input_tokens,
             output_tokens: enhanced_usage.output_tokens
           })

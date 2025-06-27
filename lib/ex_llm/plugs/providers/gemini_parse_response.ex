@@ -100,7 +100,7 @@ defmodule ExLLM.Plugs.Providers.GeminiParseResponse do
   defp extract_content(_), do: ""
 
   defp extract_model_name(%{"modelVersion" => version}), do: version
-  defp extract_model_name(_), do: "gemini-pro"
+  defp extract_model_name(_), do: "gemini-2.0-flash"
 
   defp parse_usage(nil), do: %{}
 

@@ -294,7 +294,7 @@ defmodule ExLLM.SessionStreamingCostTest do
     test "streaming cost matches non-streaming cost for same input" do
       # Ensure mock provider is in clean state
       :ok = ExLLM.Providers.Mock.reset()
-      
+
       messages = [%{role: "user", content: "Cost comparison test"}]
 
       # Get cost from regular chat

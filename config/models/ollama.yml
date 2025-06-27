@@ -144,4 +144,7 @@ models:
       size_label: "1B"
       architecture: "llama"
       finetune: "Instruct"
+    pricing:
+      input: 0.0
+      output: 0.0
 default_model: llama3.2:1b

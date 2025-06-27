@@ -59,7 +59,7 @@ defmodule ExLLM.StreamingCallbackTest do
       {:ok, final_chunk_agent} = Agent.start_link(fn -> nil end)
 
       callback = fn chunk ->
-        if chunk[:finish_reason] == "stop" do
+        if chunk.finish_reason == "stop" do
           Agent.update(final_chunk_agent, fn _ -> chunk end)
         end
       end

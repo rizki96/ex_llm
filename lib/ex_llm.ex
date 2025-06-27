@@ -108,18 +108,26 @@ defmodule ExLLM do
     
   Returns `{:error, error}` on failure.
   """
-  @spec chat(atom(), list(map()), keyword()) :: {:ok, map()} | {:error, term()}
+  @spec chat(atom(), list(map()), keyword()) ::
+          {:ok, Types.LLMResponse.t() | struct()} | {:error, term()}
   def chat(provider, messages, opts \\ []) do
     case ExLLM.Core.Chat.chat(provider, messages, opts) do
-      {:ok, response} when is_struct(response) ->
-        # Convert struct to map and add missing fields for backward compatibility
-        response_map =
+      {:ok, %ExLLM.Types.LLMResponse{} = response} ->
+        # Handle standard LLMResponse - add provider info and normalize fields
+        enhanced_response = %{
           response
-          |> Map.from_struct()
-          |> Map.put(:provider, provider)
-          |> Map.put(:role, "assistant")
+          | metadata:
+              Map.merge(response.metadata || %{}, %{
+                provider: provider,
+                role: "assistant"
+              })
+        }
 
-        {:ok, response_map}
+        {:ok, normalize_usage_fields_struct(enhanced_response)}
+
+      {:ok, struct} when is_struct(struct) ->
+        # Handle structured output - pass through unchanged
+        {:ok, struct}
 
       result ->
         result
@@ -262,6 +270,23 @@ defmodule ExLLM do
 
   # Private helpers
 
+  defp normalize_usage_fields_struct(response) do
+    case response.usage do
+      %{input_tokens: input, output_tokens: output} = usage ->
+        # Add backward compatible fields
+        normalized_usage =
+          usage
+          |> Map.put(:prompt_tokens, input)
+          |> Map.put(:completion_tokens, output)
+          |> Map.put(:total_tokens, (input || 0) + (output || 0))
+
+        %{response | usage: normalized_usage}
+
+      _ ->
+        response
+    end
+  end
+
   ## Legacy API Support
 
   @doc false
@@ -394,7 +419,7 @@ defmodule ExLLM do
   Returns `{:ok, models}` on success where models is a list of model information maps.
   Returns `{:error, error}` on failure.
   """
-  @spec list_models(atom()) :: {:ok, list(map())} | {:error, term()}
+  @spec list_models(atom()) :: {:ok, list(Types.Model.t())} | {:error, term()}
   defdelegate list_models(provider), to: ExLLM.Core.Models, as: :list_for_provider
 
   ## Session Management Functions

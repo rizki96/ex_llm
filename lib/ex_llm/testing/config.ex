@@ -164,13 +164,27 @@ defmodule ExLLM.Testing.Config do
 
   @doc """
   Tesla configuration for tests.
+
+  Unit tests should use Tesla.Mock, but integration tests should use real HTTP adapter
+  to make actual API calls.
   """
   @spec tesla_config() :: keyword()
   def tesla_config do
-    [
-      adapter: Tesla.Mock,
-      use_tesla_mock: true
-    ]
+    cache_enabled = cache_enabled?()
+    run_live = System.get_env("MIX_RUN_LIVE") == "true"
+
+    # Use real HTTP adapter for integration tests, mock for unit tests
+    if cache_enabled or run_live or integration_tests_enabled?() do
+      [
+        adapter: Tesla.Adapter.Hackney,
+        use_tesla_mock: false
+      ]
+    else
+      [
+        adapter: Tesla.Mock,
+        use_tesla_mock: true
+      ]
+    end
   end
 
   @doc """
@@ -243,6 +257,17 @@ defmodule ExLLM.Testing.Config do
   @spec debug_logging?() :: boolean()
   def debug_logging? do
     System.get_env("EX_LLM_LOG_LEVEL") == "debug"
+  end
+
+  @doc """
+  Check if integration tests should use real HTTP adapter.
+
+  Always return true - integration tests should use real HTTP by default
+  as per the new design where cache is disabled by default.
+  """
+  @spec integration_tests_enabled?() :: boolean()
+  def integration_tests_enabled? do
+    true
   end
 
   # Private functions

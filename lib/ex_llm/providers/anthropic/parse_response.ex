@@ -13,13 +13,19 @@ defmodule ExLLM.Providers.Anthropic.ParseResponse do
 
   @impl true
   def call(request, _opts) do
-    response = request.assigns.http_response
+    # Skip parsing if this is a streaming request that was already handled
+    if request.state == :streaming do
+      request
+    else
+      response = request.assigns.http_response
 
-    parsed_response = parse_response(response)
+      parsed_response = parse_response(response)
 
-    request
-    |> Request.assign(:llm_response, parsed_response)
-    |> Request.put_state(:completed)
+      request
+      |> Request.assign(:llm_response, parsed_response)
+      |> Map.put(:result, parsed_response)
+      |> Request.put_state(:completed)
+    end
   end
 
   defp parse_response(response) do
@@ -40,10 +46,11 @@ defmodule ExLLM.Providers.Anthropic.ParseResponse do
           }
       end
 
-    # Calculate cost if we have usage data
+    # Calculate cost if we have usage data (model needs provider prefix for pricing lookup)
     cost =
       if usage && response["model"] do
-        cost_result = ExLLM.Core.Cost.calculate("anthropic", response["model"], usage)
+        full_model_name = "anthropic/#{response["model"]}"
+        cost_result = ExLLM.Core.Cost.calculate("anthropic", full_model_name, usage)
         Map.get(cost_result, :total_cost)
       else
         nil

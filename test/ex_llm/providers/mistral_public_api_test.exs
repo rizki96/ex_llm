@@ -20,7 +20,7 @@ defmodule ExLLM.Providers.MistralPublicAPITest do
       for model <- models_to_test do
         case ExLLM.chat(:mistral, messages, model: model, max_tokens: 20) do
           {:ok, response} ->
-            assert response.provider == :mistral
+            assert response.metadata.provider == :mistral
             assert is_binary(response.content)
             # Mistral models often respond in French when greeted in French
             assert response.content =~ ~r/bonjour|salut|comment/i

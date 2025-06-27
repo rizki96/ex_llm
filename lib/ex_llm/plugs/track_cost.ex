@@ -87,8 +87,11 @@ defmodule ExLLM.Plugs.TrackCost do
     provider = request.provider
     model = get_model(request.result) || request.config[:model]
 
+    # Strip any provider prefix from model name for pricing lookup
+    clean_model = strip_provider_prefix(model, provider)
+
     # Get pricing
-    pricing = get_pricing(provider, model, opts)
+    pricing = get_pricing(provider, clean_model, opts)
 
     # Extract token counts
     input_tokens = usage[:prompt_tokens] || 0
@@ -147,6 +150,9 @@ defmodule ExLLM.Plugs.TrackCost do
       :gemini -> %{input: 0.50, output: 1.50}
       :groq -> %{input: 0.10, output: 0.10}
       :mistral -> %{input: 2.00, output: 6.00}
+      :ollama -> %{input: 0.00, output: 0.00}
+      :lmstudio -> %{input: 0.00, output: 0.00}
+      :bumblebee -> %{input: 0.00, output: 0.00}
       _ -> %{input: 1.00, output: 3.00}
     end
   end
@@ -173,4 +179,19 @@ defmodule ExLLM.Plugs.TrackCost do
   end
 
   defp put_cost_details(result, _cost_data), do: result
+
+  # Strip provider prefix from model name to ensure clean lookup
+  defp strip_provider_prefix(model, provider) when is_binary(model) and is_atom(provider) do
+    provider_prefix = "#{provider}/"
+
+    # Recursively strip provider prefixes until none remain
+    if String.starts_with?(model, provider_prefix) do
+      cleaned = String.replace_prefix(model, provider_prefix, "")
+      strip_provider_prefix(cleaned, provider)
+    else
+      model
+    end
+  end
+
+  defp strip_provider_prefix(model, _provider), do: model
 end

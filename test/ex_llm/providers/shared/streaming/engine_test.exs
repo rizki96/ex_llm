@@ -215,7 +215,7 @@ defmodule ExLLM.Providers.Shared.Streaming.CompatibilityTest do
         "https://api.openai.com/v1/chat/completions",
         "https://api.anthropic.com/v1/messages",
         "https://api.groq.com/openai/v1/chat/completions",
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:streamGenerateContent"
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent"
       ]
 
       for url <- provider_urls do

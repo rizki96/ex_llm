@@ -17,6 +17,7 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
 
     request
     |> Request.assign(:llm_response, parsed_response)
+    |> Map.put(:result, parsed_response)
     |> Request.put_state(:completed)
   end
 
@@ -48,7 +49,9 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
           output_tokens: usage.output_tokens
         }
 
-        cost_info = ExLLM.Core.Cost.calculate(:gemini, model, cost_usage)
+        # Calculate cost (model needs provider prefix for pricing lookup)
+        full_model_name = "gemini/#{model}"
+        cost_info = ExLLM.Core.Cost.calculate(:gemini, full_model_name, cost_usage)
         cost_value = Map.get(cost_info, :total_cost)
 
         tool_calls = extract_tool_calls_from_candidate(candidate)

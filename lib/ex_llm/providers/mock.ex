@@ -588,7 +588,11 @@ defmodule ExLLM.Providers.Mock do
       id: get_field(response, :id, generate_id()),
       function_call: get_field(response, :function_call),
       tool_calls: get_field(response, :tool_calls),
-      cost: get_field(response, :cost)
+      cost: get_field(response, :cost),
+      metadata: %{
+        role: get_field(response, :role, "assistant"),
+        provider: :mock
+      }
     }
   end
 
@@ -600,7 +604,11 @@ defmodule ExLLM.Providers.Mock do
       finish_reason: "stop",
       id: generate_id(),
       function_call: nil,
-      tool_calls: nil
+      tool_calls: nil,
+      metadata: %{
+        role: "assistant",
+        provider: :mock
+      }
     }
   end
 
@@ -654,7 +662,11 @@ defmodule ExLLM.Providers.Mock do
       finish_reason: "stop",
       id: generate_id(),
       function_call: nil,
-      tool_calls: nil
+      tool_calls: nil,
+      metadata: %{
+        role: "assistant",
+        provider: :mock
+      }
     }
   end
 

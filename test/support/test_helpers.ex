@@ -118,11 +118,24 @@ defmodule ExLLM.Testing.TestHelpers do
 
   @doc """
   Assert that a response has expected structure.
+
+  This function handles both struct and map responses since the public API
+  returns maps while internal implementations use structs.
   """
   def assert_valid_response(response) do
-    assert %Types.LLMResponse{} = response
-    assert is_binary(response.content) or is_nil(response.content)
-    assert is_map(response.usage) or is_nil(response.usage)
+    case response do
+      %Types.LLMResponse{} ->
+        # Internal struct format
+        assert is_binary(response.content) or is_nil(response.content)
+        assert is_map(response.usage) or is_nil(response.usage)
+
+      response when is_map(response) ->
+        # Public API map format
+        assert_llm_response_map(response)
+
+      other ->
+        flunk("Expected LLMResponse struct or map, got: #{inspect(other)}")
+    end
 
     if response.usage do
       assert is_integer(response.usage.input_tokens) or is_nil(response.usage.input_tokens)
@@ -130,6 +143,59 @@ defmodule ExLLM.Testing.TestHelpers do
     end
 
     response
+  end
+
+  @doc """
+  Assert that a response is a valid LLM response map with required fields.
+
+  The ExLLM public API returns maps, not structs, so we check for map
+  structure and required fields rather than struct type.
+  """
+  def assert_llm_response_map(response) do
+    assert is_map(response), "Expected response to be a map, got: #{inspect(response)}"
+
+    # Required fields
+    assert Map.has_key?(response, :content), "Response missing :content field"
+
+    assert is_binary(response.content) || is_nil(response.content),
+           "Response content must be a string or nil, got: #{inspect(response.content)}"
+
+    # Optional but common fields
+    if Map.has_key?(response, :model) do
+      assert is_binary(response.model) || is_nil(response.model),
+             "Response model must be a string or nil, got: #{inspect(response.model)}"
+    end
+
+    if Map.has_key?(response, :usage) do
+      assert is_map(response.usage) || is_nil(response.usage),
+             "Response usage must be a map or nil, got: #{inspect(response.usage)}"
+    end
+
+    if Map.has_key?(response, :cost) do
+      assert is_float(response.cost) || is_integer(response.cost) || is_nil(response.cost),
+             "Response cost must be a number or nil, got: #{inspect(response.cost)}"
+    end
+
+    response
+  end
+
+  @doc """
+  Assert that a model is a valid model map with required fields.
+  """
+  def assert_model_map(model) do
+    assert is_map(model), "Expected model to be a map, got: #{inspect(model)}"
+
+    # Required fields
+    assert Map.has_key?(model, :id), "Model missing :id field"
+    assert is_binary(model.id), "Model id must be a string, got: #{inspect(model.id)}"
+
+    # Optional but common fields  
+    if Map.has_key?(model, :context_window) do
+      assert is_integer(model.context_window) && model.context_window > 0,
+             "Model context_window must be a positive integer, got: #{inspect(model.context_window)}"
+    end
+
+    model
   end
 
   @doc """

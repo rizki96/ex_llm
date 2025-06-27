@@ -19,10 +19,15 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
       assert ExLLM.configured?(:bumblebee) == false
     end
 
-    test "list_models returns error without ModelLoader" do
-      # Without ModelLoader running, list_models should return an error
-      assert {:error, message} = ExLLM.list_models(:bumblebee)
-      assert is_binary(message)
+    test "list_models returns static models without ModelLoader" do
+      # Bumblebee now returns static model list even without ModelLoader
+      assert {:ok, models} = ExLLM.list_models(:bumblebee)
+      assert is_list(models)
+      assert length(models) > 0
+      # Verify model structure
+      model = hd(models)
+      assert Map.has_key?(model, :id)
+      assert Map.has_key?(model, :name)
     end
 
     test "chat returns error without ModelLoader" do

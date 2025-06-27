@@ -18,7 +18,7 @@ defmodule ExLLM.Providers.LMStudioPublicAPITest do
       case ExLLM.chat(:lmstudio, messages, max_tokens: 10) do
         {:ok, response} ->
           assert response.content =~ ~r/4/
-          assert response.provider == :lmstudio
+          assert response.metadata.provider == :lmstudio
           # Local models have no cost
           assert response.cost == 0.0
 
@@ -118,7 +118,7 @@ defmodule ExLLM.Providers.LMStudioPublicAPITest do
       # Try to specify a model (LM Studio will use whatever is loaded)
       case ExLLM.chat(:lmstudio, messages, model: "local-model", max_tokens: 20) do
         {:ok, response} ->
-          assert response.provider == :lmstudio
+          assert response.metadata.provider == :lmstudio
           assert is_binary(response.content)
           # Model name depends on what's loaded in LM Studio
           assert is_binary(response.model)

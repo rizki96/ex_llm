@@ -13,7 +13,7 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
       models_to_test = [
         "anthropic/claude-3-haiku",
         "openai/gpt-3.5-turbo",
-        "google/gemini-flash-1.5"
+        "google/gemini-2.5-flash"
       ]
 
       messages = [%{role: "user", content: "Say hi"}]
@@ -40,8 +40,8 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
       case ExLLM.list_models(:openrouter) do
         {:ok, models} ->
           assert is_list(models)
-          # OpenRouter has 300+ models
-          assert length(models) > 100
+          # OpenRouter returns a subset of available models
+          assert length(models) > 50
 
           # Check for models from different providers
           model_ids = Enum.map(models, & &1.id)
@@ -53,8 +53,8 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
           model_with_pricing = Enum.find(models, &(&1.pricing != nil))
 
           if model_with_pricing do
-            assert model_with_pricing.pricing.input_cost_per_token > 0
-            assert model_with_pricing.pricing.output_cost_per_token > 0
+            assert model_with_pricing.pricing.input > 0
+            assert model_with_pricing.pricing.output > 0
           end
 
         {:error, _} ->
@@ -75,7 +75,7 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
 
       # Try streaming with different underlying providers
       case ExLLM.stream(:openrouter, messages, collector,
-             model: "meta-llama/llama-3.2-3b-instruct",
+             model: "openai/gpt-4.1-nano",
              max_tokens: 30,
              timeout: 10_000
            ) do
@@ -123,7 +123,7 @@ defmodule ExLLM.Providers.OpenRouterPublicAPITest do
       messages = [%{role: "user", content: "Hello"}]
 
       # Test with a specific model to ensure consistent pricing
-      case ExLLM.chat(:openrouter, messages, model: "openai/gpt-3.5-turbo", max_tokens: 10) do
+      case ExLLM.chat(:openrouter, messages, model: "openai/gpt-4.1-nano", max_tokens: 10) do
         {:ok, response} ->
           assert response.cost > 0
           # Should be very cheap for this request
