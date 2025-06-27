@@ -80,8 +80,8 @@ defmodule ExLLM.Plugs.FetchConfigurationTest do
       result = FetchConfiguration.call(request, [])
 
       assert result.halted == false
-      # No api_key assignment for providers that don't use API keys
-      refute Map.has_key?(result.assigns, :api_key)
+      # Providers that don't require API keys get a dummy key assigned
+      assert result.assigns.api_key == "no-api-key-required"
       # Config will be fetched, should contain base_url for ollama
       assert is_map(result.config)
     end
@@ -95,8 +95,8 @@ defmodule ExLLM.Plugs.FetchConfigurationTest do
       result = FetchConfiguration.call(request, [])
 
       assert result.halted == false
-      # No api_key assignment for providers that don't use API keys  
-      refute Map.has_key?(result.assigns, :api_key)
+      # Providers that don't require API keys get a dummy key assigned
+      assert result.assigns.api_key == "no-api-key-required"
 
       assert result.config == %{
                model: "llama3",

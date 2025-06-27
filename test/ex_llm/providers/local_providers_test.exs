@@ -87,7 +87,7 @@ defmodule ExLLM.Providers.LocalProvidersTest do
       result = BuildRequest.call(request, [])
 
       assert result.assigns.model == "llama3.2"
-      assert result.assigns.request_url == "http://localhost:11434/v1/chat/completions"
+      assert result.assigns.request_url == "http://localhost:11434/api/chat"
 
       body = result.assigns.request_body
       assert body.model == "llama3.2"
@@ -99,29 +99,24 @@ defmodule ExLLM.Providers.LocalProvidersTest do
       alias ExLLM.Providers.Ollama.ParseResponse
 
       raw_response = %{
-        "choices" => [
-          %{
-            "message" => %{"content" => "Hello there!", "role" => "assistant"},
-            "finish_reason" => "stop"
-          }
-        ],
-        "usage" => %{
-          "prompt_tokens" => 8,
-          "completion_tokens" => 3,
-          "total_tokens" => 11
-        }
+        "message" => %{"content" => "Hello there!", "role" => "assistant"},
+        "done" => true,
+        "done_reason" => "stop",
+        "prompt_eval_count" => 8,
+        "eval_count" => 3,
+        "model" => "llama3.2"
       }
 
       request =
         Request.new(:ollama, [], [])
-        |> Request.assign(:http_response, raw_response)
+        |> Map.put(:response, %{status: 200, body: raw_response})
         |> Request.assign(:model, "llama3.2")
 
       result = ParseResponse.call(request, [])
 
       assert result.state == :completed
 
-      llm_response = result.assigns.llm_response
+      llm_response = result.result
       assert llm_response.content == "Hello there!"
       assert llm_response.model == "llama3.2"
       assert llm_response.metadata.provider == :ollama

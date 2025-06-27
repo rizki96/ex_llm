@@ -43,10 +43,18 @@ defmodule ExLLM.Providers.Ollama.BuildRequest do
   end
 
   defp build_request_body(messages, model, config, options) do
+    # Handle system prompts if provided as option
+    formatted_messages = 
+      case Map.get(options, :system) do
+        nil -> messages
+        system_content ->
+          [%{role: "system", content: system_content} | messages]
+      end
+    
     # Use Ollama's native format
     %{
       model: model,
-      messages: MessageFormatter.stringify_message_keys(messages),
+      messages: MessageFormatter.stringify_message_keys(formatted_messages),
       temperature:
         Map.get(
           options,

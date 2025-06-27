@@ -29,13 +29,13 @@ defmodule ExLLM.Providers.Ollama.PipelinePlugsTest do
 
       # options override config
       assert result.assigns.model == "llama3:latest"
-      assert result.assigns.request_url == "http://localhost:11434/v1/chat/completions"
+      assert result.assigns.request_url == "http://localhost:11434/api/chat"
       assert result.assigns.timeout == 60_000
 
       body = result.assigns.request_body
       assert body.model == "llama3:latest"
       assert body.temperature == 0.5
-      assert body.max_tokens == 100
+      assert body.options.num_predict == 100
       assert body.messages == [%{"role" => "user", "content" => "Hello"}]
 
       headers = result.assigns.request_headers
@@ -46,38 +46,29 @@ defmodule ExLLM.Providers.Ollama.PipelinePlugsTest do
 
     test "ParseResponse plug correctly transforms Ollama response" do
       raw_response = %{
-        "choices" => [
-          %{
-            "message" => %{
-              "content" => "Hello there!",
-              "role" => "assistant"
-            },
-            "finish_reason" => "stop",
-            "logprobs" => nil
-          }
-        ],
-        "usage" => %{
-          "prompt_tokens" => 10,
-          "completion_tokens" => 5,
-          "total_tokens" => 15
-        }
+        "message" => %{"content" => "Hello there!", "role" => "assistant"},
+        "done" => true,
+        "done_reason" => "stop",
+        "prompt_eval_count" => 10,
+        "eval_count" => 5,
+        "model" => "llama3:latest"
       }
 
       request =
         Request.new(:ollama, [], [])
-        |> Request.assign(:http_response, raw_response)
+        |> Map.put(:response, %{status: 200, body: raw_response})
         |> Request.assign(:model, "llama3:latest")
 
       result = ParseResponse.call(request, [])
 
       assert result.state == :completed
 
-      llm_response = result.assigns.llm_response
+      llm_response = result.result
       assert llm_response.content == "Hello there!"
       assert llm_response.model == "llama3:latest"
       assert llm_response.finish_reason == "stop"
-      assert llm_response.usage.input_tokens == 10
-      assert llm_response.usage.output_tokens == 5
+      assert llm_response.usage.prompt_tokens == 10
+      assert llm_response.usage.completion_tokens == 5
       assert llm_response.usage.total_tokens == 15
       assert llm_response.metadata.provider == :ollama
     end
