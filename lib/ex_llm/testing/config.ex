@@ -172,7 +172,7 @@ defmodule ExLLM.Testing.Config do
   def tesla_config do
     cache_enabled = cache_enabled?()
     run_live = System.get_env("MIX_RUN_LIVE") == "true"
-    
+
     # Check if integration tests are explicitly included  
     include_integration = integration_tests_included?()
 
@@ -198,10 +198,10 @@ defmodule ExLLM.Testing.Config do
     config = ExUnit.configuration()
     include_tags = Keyword.get(config, :include, [])
     exclude_tags = Keyword.get(config, :exclude, [])
-    
+
     # If integration is explicitly included, use real HTTP
+    # If integration is NOT explicitly excluded, assume default behavior (real HTTP)
     Keyword.has_key?(include_tags, :integration) or
-      # If integration is NOT explicitly excluded, assume default behavior (real HTTP)
       (not Keyword.has_key?(exclude_tags, :integration) and not only_unit_tests_requested?())
   end
 
@@ -209,7 +209,7 @@ defmodule ExLLM.Testing.Config do
     # Check if only unit tests are being run (e.g., by excluding integration)
     config = ExUnit.configuration()
     exclude_tags = Keyword.get(config, :exclude, [])
-    
+
     # If integration/external/live_api are excluded, assume unit tests only
     Keyword.has_key?(exclude_tags, :integration) or
       Keyword.has_key?(exclude_tags, :external) or

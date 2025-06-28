@@ -50,7 +50,7 @@ defmodule ExLLM.IntegrationTest do
 
         # Track metrics during streaming
         start_time = System.monotonic_time(:millisecond)
-        
+
         # Collect chunks using the callback API
         collector = fn chunk ->
           send(self(), {:chunk, chunk})
@@ -61,18 +61,21 @@ defmodule ExLLM.IntegrationTest do
         case ExLLM.stream(provider, messages, collector, max_tokens: 20, timeout: 10_000) do
           :ok ->
             chunks = collect_stream_chunks_with_metrics([], 2000)
-            
+
             # Extract chunks and metrics
-            actual_chunks = Enum.filter(chunks, fn 
-              {:chunk, _} -> true
-              _ -> false
-            end) |> Enum.map(fn {:chunk, c} -> c end)
-            
-            metrics = Enum.filter(chunks, fn
-              {:metrics, _, _} -> true
-              _ -> false
-            end)
-            
+            actual_chunks =
+              Enum.filter(chunks, fn
+                {:chunk, _} -> true
+                _ -> false
+              end)
+              |> Enum.map(fn {:chunk, c} -> c end)
+
+            metrics =
+              Enum.filter(chunks, fn
+                {:metrics, _, _} -> true
+                _ -> false
+              end)
+
             # Basic streaming verification
             assert length(actual_chunks) > 0, "Did not receive any stream chunks from #{provider}"
 
@@ -89,27 +92,34 @@ defmodule ExLLM.IntegrationTest do
               |> Enum.join("")
 
             assert String.length(full_content) > 0, "No content received from #{provider}"
-            
+
             # Verify metrics were collected
             assert length(metrics) > 0, "No metrics collected during streaming"
-            
+
             # Calculate streaming metrics
             end_time = System.monotonic_time(:millisecond)
             duration_ms = end_time - start_time
             chunk_count = length(actual_chunks)
-            total_bytes = Enum.reduce(metrics, 0, fn {:metrics, :chunk_received, bytes}, acc -> acc + bytes end)
-            
+
+            total_bytes =
+              Enum.reduce(metrics, 0, fn {:metrics, :chunk_received, bytes}, acc ->
+                acc + bytes
+              end)
+
             # Verify reasonable metrics
             assert duration_ms > 0, "Streaming should take some time"
             assert chunk_count > 0, "Should receive multiple chunks"
             assert total_bytes > 0, "Should receive data"
-            
+
             # Log metrics for visibility
             IO.puts("Streaming metrics for #{provider}:")
             IO.puts("  Duration: #{duration_ms}ms")
             IO.puts("  Chunks: #{chunk_count}")
             IO.puts("  Bytes: #{total_bytes}")
-            IO.puts("  Throughput: #{Float.round(total_bytes / (duration_ms / 1000), 2)} bytes/sec")
+
+            IO.puts(
+              "  Throughput: #{Float.round(total_bytes / (duration_ms / 1000), 2)} bytes/sec"
+            )
 
           {:error, :not_configured} ->
             # Skip if provider not configured
@@ -222,11 +232,16 @@ defmodule ExLLM.IntegrationTest do
       end
 
       # Get the built request
-      builder = ExLLM.build(:anthropic, [%{role: "user", content: "Say hi"}])
-                |> ExLLM.with_max_tokens(10)
+      builder =
+        ExLLM.build(:anthropic, [%{role: "user", content: "Say hi"}])
+        |> ExLLM.with_max_tokens(10)
 
-      case ExLLM.stream(:anthropic, builder.request.messages, collector, 
-                        Map.to_list(builder.request.options) ++ [timeout: 10_000]) do
+      case ExLLM.stream(
+             :anthropic,
+             builder.request.messages,
+             collector,
+             Map.to_list(builder.request.options) ++ [timeout: 10_000]
+           ) do
         :ok ->
           chunks = collect_stream_chunks([], 2000)
           assert length(chunks) > 0, "Did not receive any stream chunks"
@@ -258,6 +273,7 @@ defmodule ExLLM.IntegrationTest do
     receive do
       {:chunk, chunk} ->
         collect_stream_chunks_with_metrics([{:chunk, chunk} | acc], timeout)
+
       {:metrics, type, data} ->
         collect_stream_chunks_with_metrics([{:metrics, type, data} | acc], timeout)
     after

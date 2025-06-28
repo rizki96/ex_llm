@@ -32,15 +32,15 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
 
     test "chat returns error without ModelLoader" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       # ModelLoader is not started in test environment
       # Bumblebee adapter should handle this gracefully
       case ExLLM.chat(:bumblebee, messages) do
         {:error, reason} ->
           # Expected error when ModelLoader not running
-          assert reason =~ "ModelLoader" or reason =~ "not running" or 
-                 reason =~ "not started" or is_atom(reason)
-          
+          assert reason =~ "ModelLoader" or reason =~ "not running" or
+                   reason =~ "not started" or is_atom(reason)
+
         other ->
           # If we get here, ModelLoader might be running (shouldn't happen in tests)
           flunk("Expected error without ModelLoader, got: #{inspect(other)}")
@@ -50,18 +50,18 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
     @tag :streaming
     test "stream returns error without ModelLoader" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       # Streaming should also handle missing ModelLoader gracefully
       case ExLLM.stream(:bumblebee, messages, fn _chunk -> :ok end) do
         {:error, reason} ->
           # Expected error when ModelLoader not running
-          assert reason =~ "ModelLoader" or reason =~ "not running" or 
-                 reason =~ "not started" or is_atom(reason)
-          
+          assert reason =~ "ModelLoader" or reason =~ "not running" or
+                   reason =~ "not started" or is_atom(reason)
+
         :ok ->
           # This would mean streaming started, which shouldn't happen
           flunk("Expected error without ModelLoader, but streaming started")
-          
+
         other ->
           flunk("Expected error without ModelLoader, got: #{inspect(other)}")
       end

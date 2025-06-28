@@ -40,7 +40,7 @@ end)
 
 # Load environment variables from .env file if available
 # Try loading from .env file
-env_result = 
+env_result =
   try do
     ExLLM.Testing.EnvHelper.load_env(warn_missing: false)
   rescue
@@ -54,12 +54,17 @@ env_result =
           case String.split(line, "=", parts: 2) do
             [key, value] ->
               key = String.trim(key)
-              value = String.trim(value) |> String.trim_leading("\"") |> String.trim_trailing("\"")
+
+              value =
+                String.trim(value) |> String.trim_leading("\"") |> String.trim_trailing("\"")
+
               System.put_env(key, value)
+
             _ ->
               :ok
           end
         end)
+
         :ok
       else
         {:error, :no_env_file}
@@ -70,8 +75,16 @@ case env_result do
   :ok ->
     # Check which API keys are available
     available_keys =
-      ["ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GROQ_API_KEY", 
-       "MISTRAL_API_KEY", "OPENROUTER_API_KEY", "PERPLEXITY_API_KEY", "XAI_API_KEY"]
+      [
+        "ANTHROPIC_API_KEY",
+        "OPENAI_API_KEY",
+        "GEMINI_API_KEY",
+        "GROQ_API_KEY",
+        "MISTRAL_API_KEY",
+        "OPENROUTER_API_KEY",
+        "PERPLEXITY_API_KEY",
+        "XAI_API_KEY"
+      ]
       |> Enum.filter(fn key -> System.get_env(key) != nil end)
 
     if length(available_keys) > 0 do

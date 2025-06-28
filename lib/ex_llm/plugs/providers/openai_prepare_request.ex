@@ -104,7 +104,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
 
       %{type: "image_url", image_url: %{url: url}} ->
         %{"type" => "image_url", "image_url" => %{"url" => url}}
-        
+
       %{type: "image_url", image_url: url} when is_binary(url) ->
         %{"type" => "image_url", "image_url" => %{"url" => url}}
 
@@ -200,9 +200,10 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
 
   defp transform_max_tokens_for_o1(body) do
     case Map.pop(body, :max_tokens) do
-      {nil, body} -> 
+      {nil, body} ->
         body
-      {max_tokens, body} -> 
+
+      {max_tokens, body} ->
         Map.put(body, :max_completion_tokens, max_tokens)
     end
   end

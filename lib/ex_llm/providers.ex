@@ -638,7 +638,7 @@ defmodule ExLLM.Providers do
       Plugs.Providers.MockListModelsHandler
     ]
   end
-  
+
   defp xai_list_models_pipeline do
     # XAI uses a static list from the provider implementation
     [

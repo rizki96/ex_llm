@@ -4,7 +4,6 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.MetricsPlugTest do
   alias ExLLM.Providers.Shared.Streaming.Middleware.{MetricsPlug, StreamCollector}
   alias ExLLM.Types.StreamChunk
 
-
   describe "integration with streaming engine" do
     test "metrics are collected during actual streaming" do
       test_pid = self()

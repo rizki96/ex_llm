@@ -1,6 +1,8 @@
 defmodule ExLLM.ContextIntegrationTest do
   use ExUnit.Case
 
+  @moduletag :integration
+
   describe "chat/3 with context management" do
     setup do
       # Create many messages to test truncation

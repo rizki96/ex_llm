@@ -1,6 +1,8 @@
 defmodule ExLLM.SessionIntegrationTest do
   use ExUnit.Case
 
+  @moduletag :integration
+
   describe "session integration with ExLLM" do
     test "creates session through ExLLM interface" do
       session = ExLLM.new_session(:anthropic, name: "Test Session")

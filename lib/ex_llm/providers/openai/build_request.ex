@@ -147,18 +147,20 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
       body
       |> maybe_add_param(:reasoning_effort, options)
       |> Map.delete(:temperature)
-      |> Map.delete(:stream)  # o1 doesn't support streaming
+      # o1 doesn't support streaming
+      |> Map.delete(:stream)
       |> transform_max_tokens_for_o1()
     else
       body
     end
   end
-  
+
   defp transform_max_tokens_for_o1(body) do
     case Map.pop(body, :max_tokens) do
-      {nil, body} -> 
+      {nil, body} ->
         body
-      {max_tokens, body} -> 
+
+      {max_tokens, body} ->
         Map.put(body, :max_completion_tokens, max_tokens)
     end
   end

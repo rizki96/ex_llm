@@ -133,14 +133,14 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
 
           if grok_model do
             assert grok_model.context_window > 0
-            
+
             # Handle both list and map formats for capabilities
             case grok_model.capabilities do
               capabilities when is_list(capabilities) ->
                 # Fallback YAML format
                 assert "streaming" in capabilities
                 assert "function_calling" in capabilities
-                
+
               %{features: features} = capabilities when is_map(capabilities) ->
                 # Provider implementation format
                 assert is_list(features)

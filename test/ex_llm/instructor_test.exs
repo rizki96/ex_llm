@@ -1,7 +1,6 @@
 defmodule ExLLM.InstructorTest do
   use ExUnit.Case, async: false
 
-
   # Test schema
   defmodule TestPerson do
     use Ecto.Schema

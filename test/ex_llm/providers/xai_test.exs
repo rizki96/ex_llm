@@ -79,10 +79,13 @@ defmodule ExLLM.Providers.XAITest do
           case model.capabilities do
             capabilities when is_list(capabilities) ->
               :vision in capabilities
+
             %{features: features} when is_list(features) ->
               :vision in features
+
             %{supports_vision: true} ->
               true
+
             _ ->
               false
           end
@@ -103,13 +106,13 @@ defmodule ExLLM.Providers.XAITest do
       # Find specific models and check their capabilities
       grok_beta = Enum.find(models, &(&1.id == "xai/grok-beta"))
       assert grok_beta
-      
+
       # Handle both list and map formats for capabilities
       case grok_beta.capabilities do
         capabilities when is_list(capabilities) ->
           assert :streaming in capabilities
           assert :function_calling in capabilities
-          
+
         %{features: features} = capabilities when is_map(capabilities) ->
           assert :streaming in features
           assert :function_calling in features
@@ -119,11 +122,11 @@ defmodule ExLLM.Providers.XAITest do
 
       grok_3_mini = Enum.find(models, &(&1.id == "xai/grok-3-mini-beta"))
       assert grok_3_mini
-      
+
       case grok_3_mini.capabilities do
         capabilities when is_list(capabilities) ->
           assert :reasoning in capabilities
-          
+
         %{features: features} when is_list(features) ->
           assert :reasoning in features
       end

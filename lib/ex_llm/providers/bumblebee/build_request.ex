@@ -212,7 +212,7 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
       seed: Map.get(options, :seed)
     }
   end
-  
+
   defp model_loader_running? do
     case Process.whereis(ExLLM.Providers.Bumblebee.ModelLoader) do
       nil -> false

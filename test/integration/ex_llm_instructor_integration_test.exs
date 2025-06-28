@@ -10,9 +10,9 @@ defmodule ExLLM.InstructorIntegrationTest do
 
     @primary_key false
     embedded_schema do
-      field :name, :string
-      field :age, :integer
-      field :occupation, :string
+      field(:name, :string)
+      field(:age, :integer)
+      field(:occupation, :string)
     end
   end
 
@@ -21,9 +21,9 @@ defmodule ExLLM.InstructorIntegrationTest do
 
     @primary_key false
     embedded_schema do
-      field :expression, :string
-      field :result, :float
-      field :explanation, :string
+      field(:expression, :string)
+      field(:result, :float)
+      field(:explanation, :string)
     end
   end
 
@@ -123,8 +123,8 @@ defmodule ExLLM.InstructorIntegrationTest do
 
         @primary_key false
         embedded_schema do
-          field :title, :string
-          field :items, {:array, :string}
+          field(:title, :string)
+          field(:items, {:array, :string})
         end
       end
 
@@ -174,15 +174,16 @@ defmodule ExLLM.InstructorIntegrationTest do
             {:ok, json} ->
               assert is_map(json)
               # Provider might return with different key casing
-              assert Map.get(json, "name") == "John Doe" or 
-                     Map.get(json, "Name") == "John Doe"
-              assert Map.get(json, "age") == 30 or 
-                     Map.get(json, "Age") == 30
+              assert Map.get(json, "name") == "John Doe" or
+                       Map.get(json, "Name") == "John Doe"
+
+              assert Map.get(json, "age") == 30 or
+                       Map.get(json, "Age") == 30
 
             {:error, _} ->
               # If not valid JSON, at least verify we got some response
               assert String.contains?(response.content, "John") or
-                     String.contains?(response.content, "30")
+                       String.contains?(response.content, "30")
           end
 
         {:error, :not_configured} ->
@@ -202,9 +203,9 @@ defmodule ExLLM.InstructorIntegrationTest do
 
         @primary_key false
         embedded_schema do
-          field :name, :string
-          field :founded, :integer
-          embeds_many :employees, Person
+          field(:name, :string)
+          field(:founded, :integer)
+          embeds_many(:employees, Person)
         end
       end
 
@@ -228,8 +229,8 @@ defmodule ExLLM.InstructorIntegrationTest do
           assert company.name == "TechCorp"
           assert company.founded == 2020
           assert length(company.employees) == 2
-          
-          jane = Enum.find(company.employees, & &1.name =~ "Jane")
+
+          jane = Enum.find(company.employees, &(&1.name =~ "Jane"))
           assert jane.age == 25
           assert jane.occupation == "engineer"
 

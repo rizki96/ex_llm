@@ -210,7 +210,7 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
                 {:error, :unauthorized} ->
                   # Another acceptable authentication error format
                   :ok
-                  
+
                 {:error, :http_error} ->
                   # XAI returns 400 for invalid API keys
                   # This is acceptable for XAI provider

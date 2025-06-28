@@ -131,7 +131,8 @@ defmodule ExLLM.Providers.Bumblebee do
 
       # Check if ModelLoader is running first
       if not model_loader_running?() do
-        {:error, "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
+        {:error,
+         "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
       else
         # Format messages for the model
         prompt = format_messages(messages, model)
