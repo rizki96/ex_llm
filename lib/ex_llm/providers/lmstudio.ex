@@ -71,8 +71,8 @@ defmodule ExLLM.Providers.LMStudio do
     base_url: "http://localhost:1234"
 
   alias ExLLM.Providers.Shared.EnhancedStreamingCoordinator
-  alias ExLLM.Providers.Shared.{MessageFormatter, Validation}
   alias ExLLM.Providers.Shared.HTTP.Core
+  alias ExLLM.Providers.Shared.{MessageFormatter, Validation}
   alias ExLLM.Types
 
   import ExLLM.Providers.OpenAICompatible, only: [default_model_transformer: 2]

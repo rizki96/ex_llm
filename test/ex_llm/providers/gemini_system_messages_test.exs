@@ -6,7 +6,7 @@ defmodule ExLLM.Providers.GeminiSystemMessagesTest do
   use ExUnit.Case
   import ExLLM.Testing.TestCacheHelpers
 
-  alias ExLLM.Providers.Gemini.Content.{GenerateContentRequest, Content, Part}
+  alias ExLLM.Providers.Gemini.Content.{Content, GenerateContentRequest, Part}
 
   @moduletag :unit
   @moduletag :system_messages

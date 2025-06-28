@@ -130,10 +130,7 @@ defmodule ExLLM.Providers.Bumblebee do
       temperature = Keyword.get(validated_opts, :temperature, 0.7)
 
       # Check if ModelLoader is running first
-      if not model_loader_running?() do
-        {:error,
-         "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
-      else
+      if model_loader_running?() do
         # Format messages for the model
         prompt = format_messages(messages, model)
 
@@ -150,6 +147,9 @@ defmodule ExLLM.Providers.Bumblebee do
           {:error, reason} ->
             {:error, "Failed to load model: #{inspect(reason)}"}
         end
+      else
+        {:error,
+         "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
       end
     end
   end

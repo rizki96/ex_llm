@@ -3,8 +3,8 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
 
   alias ExLLM.Infrastructure.ConfigProvider.Static
   alias ExLLM.Providers.OpenAICompatible
-  alias ExLLM.Types
   alias ExLLM.Testing.ConfigProviderHelper
+  alias ExLLM.Types
 
   # This module defines a shared test suite for any provider that implements
   # the OpenAICompatible behavior. It tests the common contract for chat,

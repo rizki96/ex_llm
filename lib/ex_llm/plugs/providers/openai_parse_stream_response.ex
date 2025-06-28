@@ -65,18 +65,16 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
     |> Enum.map(fn line ->
       data = String.trim_leading(line, "data: ")
 
-      cond do
-        data == "[DONE]" ->
-          %{finish_reason: "stop"}
+      if data == "[DONE]" do
+        %{finish_reason: "stop"}
+      else
+        case Jason.decode(data) do
+          {:ok, parsed} ->
+            extract_chunk_data(parsed, provider)
 
-        true ->
-          case Jason.decode(data) do
-            {:ok, parsed} ->
-              extract_chunk_data(parsed, provider)
-
-            {:error, _} ->
-              nil
-          end
+          {:error, _} ->
+            nil
+        end
       end
     end)
     |> Enum.reject(&is_nil/1)

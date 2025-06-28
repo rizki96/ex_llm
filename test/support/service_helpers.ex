@@ -109,7 +109,6 @@ defmodule ExLLM.Testing.ServiceHelpers do
              capability
            ),
          :ok <- skip_unless_service_available(provider) do
-      :ok
     end
   end
 end

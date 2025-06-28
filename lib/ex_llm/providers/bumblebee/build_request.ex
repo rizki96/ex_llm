@@ -64,9 +64,7 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
 
   defp load_model(model_name) do
     # Check if ModelLoader is running first
-    if not model_loader_running?() do
-      {:error, "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
-    else
+    if model_loader_running?() do
       # Use the ModelLoader GenServer to load or get cached model
       case ModelLoader.load_model(model_name) do
         {:ok, model_data} ->
@@ -79,6 +77,8 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
         {:error, reason} ->
           {:error, reason}
       end
+    else
+      {:error, "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
     end
   end
 
