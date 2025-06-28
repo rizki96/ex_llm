@@ -38,7 +38,7 @@ ExLLM supports **14 providers** with access to hundreds of models:
 - **Perplexity** - Search-enhanced language models
 - **Ollama** - Local model runner (any model in your installation)
 - **LM Studio** - Local model server with OpenAI-compatible API
-- **Bumblebee** - Local model inference with Elixir/Nx
+- **Bumblebee** - Local model inference with Elixir/Nx (optional dependency)
 - **Mock Adapter** - For testing and development
 
 ## Installation
@@ -49,6 +49,10 @@ Add `ex_llm` to your list of dependencies in `mix.exs`:
 def deps do
   [
     {:ex_llm, "~> 1.0.0-rc1"},
+    
+    # Optional: For local model inference via Bumblebee
+    {:bumblebee, "~> 0.6.2", optional: true},
+    {:nx, "~> 0.7", optional: true},
     
     # Optional hardware acceleration backends (choose one):
     {:exla, "~> 0.7", optional: true},

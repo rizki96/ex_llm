@@ -11,6 +11,8 @@ defmodule ExLLM.Providers.BumblebeePublicAPITest do
 
   @moduletag :requires_deps
   @moduletag :local_only
+  # Requires downloading large models
+  @moduletag :very_slow
 
   # Provider-specific tests only
   describe "bumblebee-specific features via public API" do

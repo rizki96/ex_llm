@@ -1,5 +1,5 @@
 defmodule ExLLM.Providers.OpenAICompatibleTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias ExLLM.Infrastructure.ConfigProvider.Static
   alias ExLLM.Providers.OpenAICompatible

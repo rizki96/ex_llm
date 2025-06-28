@@ -1,5 +1,5 @@
 defmodule ExLLM.Providers.OpenAIContractTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias ExLLM.Providers.OpenAI
 
@@ -13,12 +13,19 @@ defmodule ExLLM.Providers.OpenAIContractTest do
   # formatted result ({:ok, _} or {:error, _}) without relying on complex HTTP mocking.
 
   setup do
+    # Save original API key to restore it later
+    original_key = System.get_env("OPENAI_API_KEY")
+
     # Provide a dummy API key to pass the provider's validation checks.
     System.put_env("OPENAI_API_KEY", "test-key-dummy")
 
     on_exit(fn ->
-      # Clean up environment variables to not interfere with other tests.
-      System.delete_env("OPENAI_API_KEY")
+      # Restore original environment variable to not interfere with other tests.
+      if original_key do
+        System.put_env("OPENAI_API_KEY", original_key)
+      else
+        System.delete_env("OPENAI_API_KEY")
+      end
     end)
 
     :ok

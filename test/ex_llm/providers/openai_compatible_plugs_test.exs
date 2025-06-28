@@ -4,15 +4,35 @@ defmodule ExLLM.Providers.OpenAICompatiblePlugsTest do
   alias ExLLM.Pipeline.Request
 
   setup do
-    # Set API keys for various providers
+    # Save original API keys to restore them later
+    original_xai_key = System.get_env("XAI_API_KEY")
+    original_mistral_key = System.get_env("MISTRAL_API_KEY")
+    original_openrouter_key = System.get_env("OPENROUTER_API_KEY")
+
+    # Set dummy API keys for testing
     System.put_env("XAI_API_KEY", "test-key-12345")
     System.put_env("MISTRAL_API_KEY", "test-key-12345")
     System.put_env("OPENROUTER_API_KEY", "test-key-12345")
 
     on_exit(fn ->
-      System.delete_env("XAI_API_KEY")
-      System.delete_env("MISTRAL_API_KEY")
-      System.delete_env("OPENROUTER_API_KEY")
+      # Restore original environment variables to not interfere with other tests
+      if original_xai_key do
+        System.put_env("XAI_API_KEY", original_xai_key)
+      else
+        System.delete_env("XAI_API_KEY")
+      end
+
+      if original_mistral_key do
+        System.put_env("MISTRAL_API_KEY", original_mistral_key)
+      else
+        System.delete_env("MISTRAL_API_KEY")
+      end
+
+      if original_openrouter_key do
+        System.put_env("OPENROUTER_API_KEY", original_openrouter_key)
+      else
+        System.delete_env("OPENROUTER_API_KEY")
+      end
     end)
 
     :ok

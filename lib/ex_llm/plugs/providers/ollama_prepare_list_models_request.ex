@@ -13,6 +13,6 @@ defmodule ExLLM.Plugs.Providers.OllamaPrepareListModelsRequest do
     request
     |> Map.put(:provider_request, %{})
     |> ExLLM.Pipeline.Request.assign(:http_method, :get)
-    |> ExLLM.Pipeline.Request.assign(:http_path, "/tags")
+    |> ExLLM.Pipeline.Request.assign(:http_path, "/api/tags")
   end
 end

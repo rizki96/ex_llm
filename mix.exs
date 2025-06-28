@@ -53,18 +53,34 @@ defmodule ExLLM.MixProject do
 
   def application do
     [
-      extra_applications: [
-        :logger,
-        :telemetry,
-        :jason,
-        :req,
-        :tesla,
-        :hackney,
-        :gun,
-        :yaml_elixir
-      ],
+      extra_applications:
+        [
+          :logger,
+          :telemetry,
+          :jason,
+          :req,
+          :tesla,
+          :hackney,
+          :gun,
+          :yaml_elixir
+        ] ++ optional_applications(),
       mod: {ExLLM.Application, []}
     ]
+  end
+
+  # Include optional dependencies only if they are available
+  defp optional_applications do
+    []
+    |> maybe_add_application(:bumblebee)
+    |> maybe_add_application(:nx)
+  end
+
+  defp maybe_add_application(apps, app) do
+    # Check if the dependency is actually available and loaded
+    case Code.ensure_loaded?(app) do
+      true -> [app | apps]
+      false -> apps
+    end
   end
 
   defp package do
@@ -103,9 +119,9 @@ defmodule ExLLM.MixProject do
       # Structured outputs
       {:instructor, "~> 0.1.0"},
 
-      # Dependencies for local model support via Bumblebee
-      {:bumblebee, "~> 0.6.2"},
-      {:nx, "~> 0.7"},
+      # Dependencies for local model support via Bumblebee (optional)
+      {:bumblebee, "~> 0.6.2", optional: true},
+      {:nx, "~> 0.7", optional: true},
       # EXLA has compilation issues on newer macOS - uncomment if needed
       # {:exla, "~> 0.7", optional: true},
       # EMLX for Apple Silicon Metal acceleration
@@ -196,7 +212,12 @@ defmodule ExLLM.MixProject do
 
       # Local providers (for offline development)
       "test.local": [
-        "test --only provider:ollama --only provider:lmstudio --only provider:bumblebee"
+        "test --only provider:ollama --only provider:lmstudio"
+      ],
+
+      # Bumblebee tests (requires explicit opt-in due to large model downloads)
+      "test.bumblebee": [
+        "cmd EX_LLM_START_MODELLOADER=true mix test --only provider:bumblebee --include requires_deps"
       ],
 
       # === SPECIALIZED TESTING ===

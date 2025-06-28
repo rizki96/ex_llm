@@ -15,7 +15,7 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
         %{role: "user", content: "What makes you different from other AI assistants?"}
       ]
 
-      case ExLLM.chat(:xai, messages, model: "grok-2", max_tokens: 100) do
+      case ExLLM.chat(:xai, messages, model: "grok-3", max_tokens: 100) do
         {:ok, response} ->
           assert response.metadata.provider == :xai
           assert is_binary(response.content)
@@ -37,8 +37,8 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
       end
     end
 
-    test "supports both Grok-2 and Grok-3-mini" do
-      models = ["grok-2", "grok-3-mini"]
+    test "supports both Grok-3 and Grok-3-mini" do
+      models = ["grok-3", "grok-3-mini"]
       messages = [%{role: "user", content: "Hello"}]
 
       for model <- models do
@@ -79,7 +79,7 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
         }
       ]
 
-      case ExLLM.chat(:xai, messages, model: "grok-2-vision", max_tokens: 50) do
+      case ExLLM.chat(:xai, messages, model: "grok-vision-beta", max_tokens: 50) do
         {:ok, response} ->
           # Verify Grok can see the image (don't test specific color)
           assert String.length(response.content) > 0

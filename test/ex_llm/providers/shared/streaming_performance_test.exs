@@ -82,7 +82,6 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
     end
   end
 
-
   describe "Latency comparison" do
     @tag :performance
     test "Compare first chunk latency", %{
@@ -385,7 +384,6 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
         {:error, :invalid_format}
     end
   end
-
 
   defp measure_first_chunk_latency(bypass, base_url, api_key, benchmark_fn) do
     # Setup to measure time to first chunk

@@ -81,7 +81,7 @@ defmodule ExLLM.Testing.Config do
   """
   @spec always_excluded_tags() :: keyword()
   def always_excluded_tags do
-    [
+    base_exclusions = [
       slow: true,
       very_slow: true,
       quota_sensitive: true,
@@ -89,6 +89,13 @@ defmodule ExLLM.Testing.Config do
       wip: true,
       oauth2: true
     ]
+
+    # Exclude Bumblebee tests unless explicitly running them or Bumblebee is properly configured
+    if should_exclude_bumblebee?() do
+      base_exclusions ++ [requires_deps: true]
+    else
+      base_exclusions
+    end
   end
 
   @doc """
@@ -201,7 +208,7 @@ defmodule ExLLM.Testing.Config do
 
     # If integration is explicitly included, use real HTTP
     # If integration is NOT explicitly excluded, assume default behavior (real HTTP)
-    Keyword.has_key?(include_tags, :integration) or
+    :integration in include_tags or
       (not Keyword.has_key?(exclude_tags, :integration) and not only_unit_tests_requested?())
   end
 
@@ -361,5 +368,54 @@ defmodule ExLLM.Testing.Config do
     IO.puts("     - Run `MIX_RUN_LIVE=true mix test` to bypass cache and use live APIs")
     IO.puts("     - Disable cache with: unset EX_LLM_TEST_CACHE_ENABLED")
     IO.puts("   📊 Check cache status: `mix cache.status`")
+  end
+
+  # Check if Bumblebee tests should be excluded
+  defp should_exclude_bumblebee? do
+    # Always include if explicitly testing Bumblebee
+    if bumblebee_tests_explicitly_requested?() do
+      false
+    else
+      # Exclude if Bumblebee is not available or not properly configured
+      not bumblebee_available_and_configured?()
+    end
+  end
+
+  # Check if Bumblebee tests are explicitly requested
+  defp bumblebee_tests_explicitly_requested? do
+    config = ExUnit.configuration()
+    include_tags = Keyword.get(config, :include, [])
+
+    # Check for explicit Bumblebee test inclusion
+    # Check if running Bumblebee-specific test files
+    Enum.any?(include_tags, fn
+      {:provider, :bumblebee} -> true
+      :requires_deps -> true
+      :local_only -> true
+      _ -> false
+    end) or
+      System.argv() |> Enum.any?(&String.contains?(&1, "bumblebee"))
+  end
+
+  # Check if Bumblebee is available and properly configured
+  defp bumblebee_available_and_configured? do
+    # Check if Bumblebee module is available
+    bumblebee_loaded = Code.ensure_loaded?(Bumblebee)
+
+    # Check if ModelLoader is explicitly enabled for testing
+    modelloader_enabled = System.get_env("EX_LLM_START_MODELLOADER") == "true"
+
+    # Check if ModelLoader is already running (rare case)
+    modelloader_running =
+      try do
+        case Process.whereis(ExLLM.Providers.Bumblebee.ModelLoader) do
+          nil -> false
+          _pid -> true
+        end
+      rescue
+        _ -> false
+      end
+
+    bumblebee_loaded and (modelloader_enabled or modelloader_running)
   end
 end

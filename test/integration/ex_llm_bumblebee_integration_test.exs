@@ -2,6 +2,7 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
   use ExUnit.Case, async: false
 
   @moduletag :integration
+  @moduletag :requires_deps
 
   describe "bumblebee adapter integration" do
     test "bumblebee adapter is registered" do

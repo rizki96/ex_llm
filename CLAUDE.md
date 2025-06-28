@@ -80,7 +80,8 @@ mix test.all            # All tests including slow/comprehensive suites
 mix test.anthropic      # Anthropic Claude tests
 mix test.openai         # OpenAI GPT tests
 mix test.gemini         # Google Gemini tests  
-mix test.local          # Local providers (Ollama, LM Studio, Bumblebee)
+mix test.local          # Local providers (Ollama, LM Studio)
+mix test.bumblebee      # Bumblebee tests (requires opt-in due to large downloads)
 
 # === SPECIALIZED TESTING ===
 mix test.oauth2         # OAuth2 authentication tests

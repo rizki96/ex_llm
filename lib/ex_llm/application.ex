@@ -31,12 +31,14 @@ defmodule ExLLM.Application do
       ]
       |> Enum.filter(& &1)
 
-    # Only start ModelLoader if Bumblebee is available and not in test env
+    # Only start ModelLoader if Bumblebee is available and not in unit test env
     # Check if we're in test mode by looking for ExUnit
     in_test = Code.ensure_loaded?(ExUnit)
+    # Allow ModelLoader in integration tests
+    force_start_modelloader = System.get_env("EX_LLM_START_MODELLOADER") == "true"
 
     children =
-      if Code.ensure_loaded?(Bumblebee) and not in_test do
+      if Code.ensure_loaded?(Bumblebee) and (not in_test or force_start_modelloader) do
         children ++ [ExLLM.Providers.Bumblebee.ModelLoader]
       else
         children
