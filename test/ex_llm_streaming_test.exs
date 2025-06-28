@@ -41,12 +41,16 @@ defmodule ExLLM.StreamingTest do
       assert result == :ok
       # We should receive at least 4 chunks (may be more due to mock streaming behavior)
       assert length(chunks) >= 4
-      
+
       # Find chunks with specific content (they may not be in exact order)
-      content_chunks = Enum.filter(chunks, fn chunk -> chunk.content in ["Hello", ", ", "world!"] end)
-      done_chunks = Enum.filter(chunks, fn chunk -> Map.get(chunk, :done) == true end)
-      
-      assert length(content_chunks) >= 3, "Expected at least 3 content chunks, got: #{inspect(chunks)}"
+      content_chunks =
+        Enum.filter(chunks, fn chunk -> chunk.content in ["Hello", ", ", "world!"] end)
+
+      done_chunks = Enum.filter(chunks, fn chunk -> chunk.finish_reason == "stop" end)
+
+      assert length(content_chunks) >= 3,
+             "Expected at least 3 content chunks, got: #{inspect(chunks)}"
+
       assert length(done_chunks) >= 1, "Expected at least 1 done chunk, got: #{inspect(chunks)}"
     end
 

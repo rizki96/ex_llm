@@ -124,8 +124,11 @@ defmodule ExLLM.Providers.MistralPublicAPITest do
           # Check if function was called
           if response.tool_calls && length(response.tool_calls) > 0 do
             tool_call = hd(response.tool_calls)
-            assert tool_call.function.name == "get_weather"
-            args = Jason.decode!(tool_call.function.arguments)
+            # Handle both string and atom keys in tool call structure
+            function_data = tool_call["function"] || tool_call.function
+            assert function_data["name"] == "get_weather" || function_data.name == "get_weather"
+            arguments = function_data["arguments"] || function_data.arguments
+            args = Jason.decode!(arguments)
             assert args["city"] == "Paris"
           else
             # Function calling might not be supported

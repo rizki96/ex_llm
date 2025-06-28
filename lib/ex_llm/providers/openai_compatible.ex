@@ -25,7 +25,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
       defmodule ExLLM.Providers.MyProvider do
         use ExLLM.Providers.OpenAICompatible,
           provider: :my_provider,
-          base_url: "https://api.myprovider.com/v1",
+          base_url: "https://api.myprovider.com",
           models: ["model-1", "model-2"]
           
         # Override any functions as needed
@@ -171,7 +171,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
         request = transform_request(request, options)
 
         headers = get_headers(api_key, options)
-        url = "#{get_base_url(config)}/chat/completions"
+        url = "#{get_base_url(config)}/v1/chat/completions"
 
         case send_request_with_client(url, request, headers, :post, config, api_key) do
           {:ok, response} ->
@@ -191,7 +191,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
         request = transform_request(request, options)
 
         headers = get_headers(api_key, options)
-        url = "#{get_base_url(config)}/chat/completions"
+        url = "#{get_base_url(config)}/v1/chat/completions"
 
         provider_name = get_provider_name()
 
@@ -212,7 +212,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
                     base_url: get_base_url(config)
                   )
 
-                case Tesla.post(client, "/chat/completions", request, opts: [timeout: 60_000]) do
+                case Tesla.post(client, "/v1/chat/completions", request, opts: [timeout: 60_000]) do
                   {:ok, %Tesla.Env{status: 200, body: body}} ->
                     # Parse SSE data and send chunks to parent
                     body
@@ -617,7 +617,7 @@ defmodule ExLLM.Providers.OpenAICompatible do
           {:error, "No API key available"}
         else
           headers = get_headers(api_key, [])
-          url = "#{get_base_url(config)}/models"
+          url = "#{get_base_url(config)}/v1/models"
 
           case send_request_with_client(url, %{}, headers, :get, config, api_key) do
             {:ok, %{"data" => models}} when is_list(models) ->

@@ -227,17 +227,10 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     end
   end
 
-  defp get_provider_endpoint(:openai), do: "/chat/completions"
-  defp get_provider_endpoint(:anthropic), do: "/messages"
+  defp get_provider_endpoint(:anthropic), do: "/v1/messages"
   defp get_provider_endpoint(:gemini), do: "/models/gemini-2.0-flash:generateContent"
-  defp get_provider_endpoint(:groq), do: "/chat/completions"
-  defp get_provider_endpoint(:mistral), do: "/chat/completions"
-  defp get_provider_endpoint(:openrouter), do: "/chat/completions"
-  defp get_provider_endpoint(:perplexity), do: "/chat/completions"
-  defp get_provider_endpoint(:xai), do: "/chat/completions"
   defp get_provider_endpoint(:ollama), do: "/api/chat"
-  defp get_provider_endpoint(:lmstudio), do: "/chat/completions"
-  defp get_provider_endpoint(_), do: "/chat/completions"
+  defp get_provider_endpoint(_), do: "/v1/chat/completions"
 
   defp build_http_error(401, body, provider) do
     %{

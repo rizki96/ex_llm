@@ -10,7 +10,7 @@ defmodule ExLLM.Providers.Groq do
       config :ex_llm,
         groq: [
           api_key: System.get_env("GROQ_API_KEY"),
-          base_url: "https://api.groq.com/openai/v1"  # optional
+          base_url: "https://api.groq.com/openai"  # optional
         ]
 
   ## Supported Models
@@ -42,7 +42,7 @@ defmodule ExLLM.Providers.Groq do
 
   use ExLLM.Providers.OpenAICompatible,
     provider: :groq,
-    base_url: "https://api.groq.com/openai/v1",
+    base_url: "https://api.groq.com/openai",
     # Models are now loaded dynamically
     models: []
 

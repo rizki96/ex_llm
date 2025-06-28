@@ -29,7 +29,7 @@ defmodule ExLLM.Providers.OpenRouter do
           model: "openai/gpt-4o",
           app_name: "MyApp",
           app_url: "https://myapp.com",
-          base_url: "https://openrouter.ai/api/v1"  # optional
+          base_url: "https://openrouter.ai/api"  # optional
         }
       }
       {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
@@ -41,7 +41,7 @@ defmodule ExLLM.Providers.OpenRouter do
 
   use ExLLM.Providers.OpenAICompatible,
     provider: :openrouter,
-    base_url: "https://openrouter.ai/api/v1"
+    base_url: "https://openrouter.ai/api"
 
   alias ExLLM.Types
 

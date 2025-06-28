@@ -21,7 +21,7 @@ defmodule ExLLM.Providers.Anthropic do
         anthropic: %{
           api_key: "your-api-key",
           model: "claude-3-5-sonnet-20241022",
-          base_url: "https://api.anthropic.com/v1"  # optional
+          base_url: "https://api.anthropic.com"  # optional
         }
       }
       {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
@@ -63,7 +63,7 @@ defmodule ExLLM.Providers.Anthropic do
   import ExLLM.Providers.OpenAICompatible,
     only: [format_model_name: 1, default_model_transformer: 2]
 
-  @default_base_url "https://api.anthropic.com/v1"
+  @default_base_url "https://api.anthropic.com"
 
   @impl true
   def chat(messages, options \\ []) do

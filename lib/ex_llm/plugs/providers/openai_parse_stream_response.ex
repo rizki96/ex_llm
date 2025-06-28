@@ -81,8 +81,21 @@ defmodule ExLLM.Plugs.Providers.OpenAIParseStreamResponse do
   end
 
   defp extract_chunk_data(%{"choices" => [%{"delta" => delta} | _]} = chunk, _provider) do
+    # Handle both regular content and reasoning_content for reasoning models
+    content =
+      case {delta["content"], delta["reasoning_content"]} do
+        {content, _} when content != nil and content != "" ->
+          content
+
+        {_, reasoning_content} when reasoning_content != nil and reasoning_content != "" ->
+          reasoning_content
+
+        {content, _} ->
+          content
+      end
+
     %{
-      content: delta["content"],
+      content: content,
       finish_reason: chunk["choices"] |> List.first() |> Map.get("finish_reason")
     }
   end

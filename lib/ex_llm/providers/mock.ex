@@ -378,8 +378,21 @@ defmodule ExLLM.Providers.Mock do
   defp handle_chunk_list(chunks) do
     {:ok,
      Stream.map(chunks, fn
-       {:error, reason} -> raise "Stream error: #{inspect(reason)}"
-       chunk -> chunk
+       {:error, reason} ->
+         raise "Stream error: #{inspect(reason)}"
+
+       chunk when is_map(chunk) ->
+         # Convert raw map to StreamChunk struct
+         %ExLLM.Types.StreamChunk{
+           content: Map.get(chunk, :content, ""),
+           finish_reason: Map.get(chunk, :finish_reason),
+           model: Map.get(chunk, :model),
+           id: Map.get(chunk, :id),
+           metadata: Map.get(chunk, :metadata)
+         }
+
+       chunk ->
+         chunk
      end)}
   end
 

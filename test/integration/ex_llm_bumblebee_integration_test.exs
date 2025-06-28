@@ -36,16 +36,17 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
 
       # ModelLoader is not started in test environment
       # Bumblebee adapter should handle this gracefully
-      case ExLLM.chat(:bumblebee, messages) do
-        {:error, reason} ->
-          # Expected error when ModelLoader not running
-          assert reason =~ "ModelLoader" or reason =~ "not running" or
-                   reason =~ "not started" or is_atom(reason)
+      result = ExLLM.chat(:bumblebee, messages)
 
-        other ->
-          # If we get here, ModelLoader might be running (shouldn't happen in tests)
-          flunk("Expected error without ModelLoader, got: #{inspect(other)}")
-      end
+      assert match?({:error, _}, result),
+             "Expected error without ModelLoader, got: #{inspect(result)}"
+
+      {:error, error_data} = result
+      error_string = inspect(error_data)
+
+      assert error_string =~ "ModelLoader" or error_string =~ "not running" or
+               error_string =~ "not started",
+             "Expected ModelLoader error, got: #{error_string}"
     end
 
     @tag :streaming
@@ -53,11 +54,15 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
       messages = [%{role: "user", content: "Hello"}]
 
       # Streaming should also handle missing ModelLoader gracefully
-      case ExLLM.stream(:bumblebee, messages, fn _chunk -> :ok end) do
-        {:error, reason} ->
-          # Expected error when ModelLoader not running
-          assert reason =~ "ModelLoader" or reason =~ "not running" or
-                   reason =~ "not started" or is_atom(reason)
+      result = ExLLM.stream(:bumblebee, messages, fn _chunk -> :ok end)
+
+      case result do
+        {:error, error_data} ->
+          error_string = inspect(error_data)
+
+          assert error_string =~ "ModelLoader" or error_string =~ "not running" or
+                   error_string =~ "not started",
+                 "Expected ModelLoader error, got: #{error_string}"
 
         :ok ->
           # This would mean streaming started, which shouldn't happen

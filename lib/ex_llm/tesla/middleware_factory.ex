@@ -193,11 +193,11 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   # Private helper functions
 
   defp get_base_url(:openai, config) do
-    config[:base_url] || "https://api.openai.com/v1"
+    config[:base_url] || "https://api.openai.com"
   end
 
   defp get_base_url(:anthropic, config) do
-    config[:base_url] || "https://api.anthropic.com/v1"
+    config[:base_url] || "https://api.anthropic.com"
   end
 
   defp get_base_url(:gemini, config) do
@@ -205,15 +205,15 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   defp get_base_url(:groq, config) do
-    config[:base_url] || "https://api.groq.com/openai/v1"
+    config[:base_url] || "https://api.groq.com/openai"
   end
 
   defp get_base_url(:mistral, config) do
-    config[:base_url] || "https://api.mistral.ai/v1"
+    config[:base_url] || "https://api.mistral.ai"
   end
 
   defp get_base_url(:openrouter, config) do
-    config[:base_url] || "https://openrouter.ai/api/v1"
+    config[:base_url] || "https://openrouter.ai/api"
   end
 
   defp get_base_url(:perplexity, config) do
@@ -221,7 +221,7 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   defp get_base_url(:xai, config) do
-    config[:base_url] || "https://api.x.ai/v1"
+    config[:base_url] || "https://api.x.ai"
   end
 
   defp get_base_url(:ollama, config) do
@@ -229,7 +229,7 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   defp get_base_url(:lmstudio, config) do
-    config[:base_url] || config[:lmstudio_url] || "http://localhost:1234/v1"
+    config[:base_url] || config[:lmstudio_url] || "http://localhost:1234"
   end
 
   defp get_base_url(_provider, config) do

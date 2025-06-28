@@ -334,7 +334,17 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     cond do
       # OpenAI/Groq format
       choices = data["choices"] ->
-        get_in(choices, [Access.at(0), "message", "content"])
+        message = get_in(choices, [Access.at(0), "message"])
+        # Handle DeepSeek R1 models that use reasoning_content when content is empty
+        content = message["content"]
+        reasoning_content = message["reasoning_content"]
+
+        cond do
+          content && content != "" -> content
+          reasoning_content && reasoning_content != "" -> reasoning_content
+          # fallback to original even if empty
+          true -> content
+        end
 
       # Anthropic format
       content = data["content"] ->

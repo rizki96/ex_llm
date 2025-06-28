@@ -79,7 +79,7 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
   defp get_base_url(config) do
     Map.get(config, :base_url) ||
       System.get_env("OPENAI_API_BASE") ||
-      "https://api.openai.com/v1"
+      "https://api.openai.com"
   end
 
   defp maybe_add_system_prompt(body, options) do

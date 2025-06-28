@@ -95,12 +95,12 @@ defmodule ExLLM.Environment do
   }
 
   @provider_base_urls %{
-    anthropic: {"ANTHROPIC_BASE_URL", "https://api.anthropic.com/v1"},
-    openai: {"OPENAI_BASE_URL", "https://api.openai.com/v1"},
+    anthropic: {"ANTHROPIC_BASE_URL", "https://api.anthropic.com"},
+    openai: {"OPENAI_BASE_URL", "https://api.openai.com"},
     gemini: {"GEMINI_BASE_URL", nil},
     groq: {"GROQ_BASE_URL", nil},
     mistral: {"MISTRAL_BASE_URL", nil},
-    openrouter: {"OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1"},
+    openrouter: {"OPENROUTER_BASE_URL", "https://openrouter.ai/api"},
     perplexity: {"PERPLEXITY_BASE_URL", nil},
     xai: {"XAI_BASE_URL", nil},
     ollama: {"OLLAMA_BASE_URL", "http://localhost:11434"},
@@ -140,7 +140,7 @@ defmodule ExLLM.Environment do
   ## Examples
 
       iex> ExLLM.Environment.base_url_var(:openai)
-      {"OPENAI_BASE_URL", "https://api.openai.com/v1"}
+      {"OPENAI_BASE_URL", "https://api.openai.com"}
   """
   def base_url_var(provider) when is_atom(provider) do
     Map.get(@provider_base_urls, provider)

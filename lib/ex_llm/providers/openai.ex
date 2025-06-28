@@ -22,7 +22,7 @@ defmodule ExLLM.Providers.OpenAI do
         openai: %{
           api_key: "your-api-key",
           model: "gpt-4-turbo",
-          base_url: "https://api.openai.com/v1"  # optional
+          base_url: "https://api.openai.com"  # optional
         }
       }
       {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
@@ -61,7 +61,7 @@ defmodule ExLLM.Providers.OpenAI do
 
   alias ExLLM.Providers.Shared.HTTP.Core
 
-  @default_base_url "https://api.openai.com/v1"
+  @default_base_url "https://api.openai.com"
   @default_temperature 0.7
 
   @impl true

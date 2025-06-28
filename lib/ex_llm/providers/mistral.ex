@@ -29,7 +29,7 @@ defmodule ExLLM.Providers.Mistral do
         mistral: %{
           api_key: "your-api-key",
           model: "mistral/mistral-small-latest",
-          base_url: "https://api.mistral.ai/v1"  # optional
+          base_url: "https://api.mistral.ai"  # optional
         }
       }
       {:ok, provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
@@ -72,7 +72,7 @@ defmodule ExLLM.Providers.Mistral do
 
   use ExLLM.Providers.OpenAICompatible,
     provider: :mistral,
-    base_url: "https://api.mistral.ai/v1"
+    base_url: "https://api.mistral.ai"
 
   alias ExLLM.Infrastructure.Config.ModelConfig
   alias ExLLM.Types

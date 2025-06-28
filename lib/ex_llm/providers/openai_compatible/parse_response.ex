@@ -75,8 +75,21 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
         # Extract just the total cost float for backward compatibility
         cost_value = Map.get(cost_info, :total_cost)
 
+        # Extract content, handling reasoning models that use reasoning_content
+        content =
+          case {message["content"], message["reasoning_content"]} do
+            {content, _} when content != nil and content != "" ->
+              content
+
+            {_, reasoning_content} when reasoning_content != nil and reasoning_content != "" ->
+              reasoning_content
+
+            {content, _} ->
+              content || ""
+          end
+
         %Types.LLMResponse{
-          content: message["content"] || "",
+          content: content,
           function_call: message["function_call"],
           tool_calls: message["tool_calls"],
           refusal: message["refusal"],
