@@ -61,6 +61,17 @@ defmodule ExLLM.Providers.XAI do
     provider: :xai,
     base_url: "https://api.x.ai"
 
+  # Override to use pipeline instead of direct HTTP calls
+  @impl ExLLM.Provider
+  def chat(messages, options) do
+    ExLLM.Core.Chat.chat(:xai, messages, options)
+  end
+
+  @impl ExLLM.Provider
+  def stream_chat(messages, options) do
+    ExLLM.Core.Chat.stream_chat(:xai, messages, options)
+  end
+
   # Allow overriding list_models from the base implementation
   defoverridable list_models: 0
 

@@ -94,18 +94,18 @@ defmodule ExLLM.Providers.Perplexity do
   @impl ExLLM.Provider
   def default_model, do: "perplexity/sonar"
 
-  # Override chat and stream_chat to add Perplexity-specific validation
+  # Override chat and stream_chat to use pipeline and add Perplexity-specific validation
   @impl ExLLM.Provider
   def chat(messages, options) do
     with :ok <- validate_perplexity_parameters(options) do
-      super(messages, options)
+      ExLLM.Core.Chat.chat(:perplexity, messages, options)
     end
   end
 
   @impl ExLLM.Provider
   def stream_chat(messages, options) do
     with :ok <- validate_perplexity_parameters(options) do
-      super(messages, options)
+      ExLLM.Core.Chat.stream_chat(:perplexity, messages, options)
     end
   end
 

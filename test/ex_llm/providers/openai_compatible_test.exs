@@ -14,7 +14,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
   defmodule FakeMistral do
     use ExLLM.Providers.OpenAICompatible,
       provider: :fake_mistral,
-      base_url: "http://localhost/v1",
+      base_url: "http://localhost",
       models: ["mistral-model"]
 
     # Override to add special params not in the base OpenAI spec

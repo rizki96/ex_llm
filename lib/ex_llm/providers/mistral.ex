@@ -74,6 +74,17 @@ defmodule ExLLM.Providers.Mistral do
     provider: :mistral,
     base_url: "https://api.mistral.ai"
 
+  # Override to use pipeline instead of direct HTTP calls
+  @impl ExLLM.Provider
+  def chat(messages, options) do
+    ExLLM.Core.Chat.chat(:mistral, messages, options)
+  end
+
+  @impl ExLLM.Provider
+  def stream_chat(messages, options) do
+    ExLLM.Core.Chat.stream_chat(:mistral, messages, options)
+  end
+
   alias ExLLM.Infrastructure.Config.ModelConfig
   alias ExLLM.Types
   alias ExLLM.Providers.Shared.{ConfigHelper, ResponseBuilder, Validation}

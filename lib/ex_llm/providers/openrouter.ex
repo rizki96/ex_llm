@@ -43,6 +43,17 @@ defmodule ExLLM.Providers.OpenRouter do
     provider: :openrouter,
     base_url: "https://openrouter.ai/api"
 
+  # Override to use pipeline instead of direct HTTP calls
+  @impl ExLLM.Provider
+  def chat(messages, options) do
+    ExLLM.Core.Chat.chat(:openrouter, messages, options)
+  end
+
+  @impl ExLLM.Provider
+  def stream_chat(messages, options) do
+    ExLLM.Core.Chat.stream_chat(:openrouter, messages, options)
+  end
+
   alias ExLLM.Types
 
   # Add default_model to satisfy Provider behaviour

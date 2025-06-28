@@ -70,9 +70,7 @@ defmodule ExLLM.Providers.LMStudio do
     provider: :lmstudio,
     base_url: "http://localhost:1234"
 
-  alias ExLLM.Providers.Shared.EnhancedStreamingCoordinator
   alias ExLLM.Providers.Shared.HTTP.Core
-  alias ExLLM.Providers.Shared.{MessageFormatter, Validation}
   alias ExLLM.Types
 
   import ExLLM.Providers.OpenAICompatible, only: [default_model_transformer: 2]
@@ -82,75 +80,15 @@ defmodule ExLLM.Providers.LMStudio do
   @default_host "localhost"
   @default_port 1234
 
-  # Override chat to inject dynamic options into config
+  # Override chat and stream_chat to use pipeline instead of direct HTTP calls
   @impl ExLLM.Provider
   def chat(messages, options) do
-    with :ok <- MessageFormatter.validate_messages(messages) do
-      config = prepare_config(options)
-      api_key = get_api_key(config)
-
-      with {:ok, _} <- Validation.validate_api_key(api_key) do
-        # do_chat is private in the context of this module, so it can be called.
-        do_chat(messages, options, config, api_key)
-      end
-    end
+    ExLLM.Core.Chat.chat(:lmstudio, messages, options)
   end
 
   @impl ExLLM.Provider
-  def stream_chat(messages, opts) do
-    config = prepare_config(opts)
-    api_key = get_api_key(config)
-    model = Keyword.get(opts, :model) || get_default_model(config)
-
-    url = "#{get_base_url(config)}/v1/chat/completions"
-    headers = get_headers(api_key, opts)
-    body = build_chat_request(messages, model, opts) |> Map.put("stream", true)
-
-    # Create stream with enhanced features
-    chunks_ref = make_ref()
-    parent = self()
-
-    # Setup callback that sends chunks to parent
-    callback = fn chunk ->
-      send(parent, {chunks_ref, {:chunk, chunk}})
-    end
-
-    # Enhanced streaming options with LMStudio-specific features
-    stream_options = [
-      parse_chunk_fn: &parse_lmstudio_chunk/1,
-      provider: :lmstudio,
-      model: model,
-      stream_recovery: Keyword.get(opts, :stream_recovery, false),
-      track_metrics: Keyword.get(opts, :track_metrics, false),
-      on_metrics: Keyword.get(opts, :on_metrics),
-      transform_chunk: create_lmstudio_transformer(opts),
-      validate_chunk: create_lmstudio_validator(opts),
-      buffer_chunks: Keyword.get(opts, :buffer_chunks, 1),
-      timeout: Keyword.get(opts, :timeout, 300_000),
-      # Enable enhanced features if requested
-      enable_flow_control: Keyword.get(opts, :enable_flow_control, false),
-      enable_batching: Keyword.get(opts, :enable_batching, false),
-      track_detailed_metrics: Keyword.get(opts, :track_detailed_metrics, false)
-    ]
-
-    {:ok, stream_id} =
-      EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options)
-
-    # Create Elixir stream that receives chunks
-    stream =
-      Stream.resource(
-        fn -> {chunks_ref, stream_id} end,
-        fn {ref, _id} = state ->
-          receive do
-            {^ref, {:chunk, chunk}} -> {[chunk], state}
-          after
-            100 -> {[], state}
-          end
-        end,
-        fn _ -> :ok end
-      )
-
-    {:ok, stream}
+  def stream_chat(messages, options) do
+    ExLLM.Core.Chat.stream_chat(:lmstudio, messages, options)
   end
 
   @impl ExLLM.Providers.OpenAICompatible
@@ -230,69 +168,6 @@ defmodule ExLLM.Providers.LMStudio do
     Map.merge(base_config, runtime_config)
   end
 
-  # Parse function for StreamingCoordinator (returns Types.StreamChunk directly)
-  defp parse_lmstudio_chunk(data) do
-    case Jason.decode(data) do
-      {:ok, parsed} ->
-        choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
-        delta = choice["delta"] || %{}
-
-        # Handle both regular content and reasoning_content
-        content = delta["content"] || delta["reasoning_content"]
-        finish_reason = choice["finish_reason"]
-
-        if content || finish_reason do
-          %Types.StreamChunk{
-            content: content,
-            finish_reason: finish_reason
-          }
-        else
-          nil
-        end
-
-      {:error, _} ->
-        nil
-    end
-  end
-
-  # StreamingCoordinator enhancement functions
-
-  defp create_lmstudio_transformer(opts) do
-    # Example: Add model performance annotations
-    if Keyword.get(opts, :show_performance, false) do
-      fn chunk ->
-        if chunk.content && String.length(chunk.content) > 50 do
-          # Annotate longer responses
-          annotated_content = "[LM Studio] #{chunk.content}"
-          {:ok, %{chunk | content: annotated_content}}
-        else
-          {:ok, chunk}
-        end
-      end
-    end
-  end
-
-  defp create_lmstudio_validator(opts) do
-    if Keyword.get(opts, :validate_local, false) do
-      &validate_lmstudio_chunk/1
-    end
-  end
-
-  defp validate_lmstudio_chunk(chunk) do
-    if chunk.content do
-      validate_chunk_content(chunk.content)
-    else
-      :ok
-    end
-  end
-
-  defp validate_chunk_content(content) do
-    if String.length(String.trim(content)) > 0 do
-      :ok
-    else
-      {:error, "Empty content from local model"}
-    end
-  end
 
   defp list_models_enhanced(opts) do
     config = prepare_config(opts)

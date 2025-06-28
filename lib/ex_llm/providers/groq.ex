@@ -46,6 +46,17 @@ defmodule ExLLM.Providers.Groq do
     # Models are now loaded dynamically
     models: []
 
+  # Override to use pipeline instead of direct HTTP calls
+  @impl ExLLM.Provider
+  def chat(messages, options) do
+    ExLLM.Core.Chat.chat(:groq, messages, options)
+  end
+
+  @impl ExLLM.Provider
+  def stream_chat(messages, options) do
+    ExLLM.Core.Chat.stream_chat(:groq, messages, options)
+  end
+
   # Override list_models to use dynamic loading
   defoverridable list_models: 0
 
