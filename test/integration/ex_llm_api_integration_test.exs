@@ -30,7 +30,7 @@ defmodule ExLLM.APIIntegrationTest do
   test "can get default model for xai" do
     model = ExLLM.default_model(:xai)
     assert is_binary(model)
-    assert model == "grok-beta"
+    assert model == "grok-3"
   end
 
   test "configured? returns boolean for xai" do

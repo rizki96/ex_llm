@@ -32,18 +32,39 @@ defmodule ExLLM.BumblebeeTopLevelIntegrationTest do
 
     test "chat returns error without ModelLoader" do
       messages = [%{role: "user", content: "Hello"}]
-      # Should get an error because ModelLoader isn't running
-      # The actual error is an EXIT from GenServer.call when the process isn't running
-      assert catch_exit(ExLLM.chat(:bumblebee, messages))
+      
+      # ModelLoader is not started in test environment
+      # Bumblebee adapter should handle this gracefully
+      case ExLLM.chat(:bumblebee, messages) do
+        {:error, reason} ->
+          # Expected error when ModelLoader not running
+          assert reason =~ "ModelLoader" or reason =~ "not running" or 
+                 reason =~ "not started" or is_atom(reason)
+          
+        other ->
+          # If we get here, ModelLoader might be running (shouldn't happen in tests)
+          flunk("Expected error without ModelLoader, got: #{inspect(other)}")
+      end
     end
 
     @tag :streaming
     test "stream returns error without ModelLoader" do
       messages = [%{role: "user", content: "Hello"}]
-      # Use the new streaming API with build/execute pattern
-      builder = ExLLM.build(:bumblebee, messages)
-      # Should get an EXIT because ModelLoader isn't running
-      assert catch_exit(ExLLM.execute(builder))
+      
+      # Streaming should also handle missing ModelLoader gracefully
+      case ExLLM.stream(:bumblebee, messages, fn _chunk -> :ok end) do
+        {:error, reason} ->
+          # Expected error when ModelLoader not running
+          assert reason =~ "ModelLoader" or reason =~ "not running" or 
+                 reason =~ "not started" or is_atom(reason)
+          
+        :ok ->
+          # This would mean streaming started, which shouldn't happen
+          flunk("Expected error without ModelLoader, but streaming started")
+          
+        other ->
+          flunk("Expected error without ModelLoader, got: #{inspect(other)}")
+      end
     end
   end
 

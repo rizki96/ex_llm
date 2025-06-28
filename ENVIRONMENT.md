@@ -154,6 +154,29 @@ export TEST_TUNED_MODEL="tunedModels/my-model"
 export TEST_CORPUS_NAME="corpora/test-corpus"
 ```
 
+### Test Suite Setup
+
+For running the complete test suite with all providers:
+
+```bash
+# 1. Copy the test environment template
+cp .env.test.example .env.test
+
+# 2. Edit .env.test and add your API keys
+# Note: You don't need ALL keys - tests will skip providers without keys
+
+# 3. Source the environment and run tests
+source .env.test && mix test --include integration
+
+# Or use the helper script (if available)
+./scripts/run_with_env.sh mix test --include integration
+```
+
+**Quick Start for Testing**:
+- Minimum requirement: At least one provider API key
+- Recommended: OpenAI + Anthropic for core functionality testing
+- Optional: Local services (Ollama/LM Studio) for offline testing
+
 ### OAuth2 Setup
 
 ```bash

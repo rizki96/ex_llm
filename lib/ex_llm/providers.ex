@@ -108,6 +108,7 @@ defmodule ExLLM.Providers do
       :groq -> groq_list_models_pipeline()
       :openrouter -> openrouter_list_models_pipeline()
       :ollama -> ollama_list_models_pipeline()
+      :xai -> xai_list_models_pipeline()
       :mock -> mock_list_models_pipeline()
       _ -> default_list_models_pipeline()
     end
@@ -635,6 +636,16 @@ defmodule ExLLM.Providers do
       Plugs.FetchConfiguration,
       {Plugs.Cache, ttl: 300},
       Plugs.Providers.MockListModelsHandler
+    ]
+  end
+  
+  defp xai_list_models_pipeline do
+    # XAI uses a static list from the provider implementation
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfiguration,
+      {Plugs.Cache, ttl: 3600},
+      Plugs.Providers.XAIListModelsHandler
     ]
   end
 

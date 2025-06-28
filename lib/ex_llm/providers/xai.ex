@@ -59,7 +59,7 @@ defmodule ExLLM.Providers.XAI do
 
   use ExLLM.Providers.OpenAICompatible,
     provider: :xai,
-    base_url: "https://api.x.ai/v1"
+    base_url: "https://api.x.ai"
 
   # Allow overriding list_models from the base implementation
   defoverridable list_models: 0
@@ -68,7 +68,7 @@ defmodule ExLLM.Providers.XAI do
 
   @impl ExLLM.Providers.OpenAICompatible
   def get_base_url(config) do
-    Map.get(config, :base_url, "https://api.x.ai/v1")
+    Map.get(config, :base_url, "https://api.x.ai")
   end
 
   @impl ExLLM.Providers.OpenAICompatible
@@ -163,15 +163,20 @@ defmodule ExLLM.Providers.XAI do
         formatted_models =
           Enum.map(models, fn {id, model_data} ->
             # Convert string capabilities to atoms safely
-            capabilities = convert_capabilities(model_data)
+            capabilities_list = convert_capabilities(model_data)
 
             %Types.Model{
               id: to_string(id),
               name: "X.AI " <> format_model_name(to_string(id)),
               context_window: Map.get(model_data, :context_window, 131_072),
               max_output_tokens: Map.get(model_data, :max_output_tokens),
-              # Match old format for backward compatibility
-              capabilities: capabilities
+              # Convert to map format for consistency
+              capabilities: %{
+                supports_streaming: :streaming in capabilities_list,
+                supports_functions: :function_calling in capabilities_list,
+                supports_vision: :vision in capabilities_list,
+                features: capabilities_list
+              }
             }
           end)
 
@@ -212,6 +217,8 @@ defmodule ExLLM.Providers.XAI do
           "audio" -> :audio
           "embeddings" -> :embeddings
           "reasoning" -> :reasoning
+          "web_search" -> :web_search
+          "tool_choice" -> :tool_choice
           _ -> nil
         end
 

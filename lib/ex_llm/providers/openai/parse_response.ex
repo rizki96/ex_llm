@@ -18,7 +18,7 @@ defmodule ExLLM.Providers.OpenAI.ParseResponse do
       request
     else
       response = request.assigns.http_response
-      model = request.assigns.model
+      model = Map.get(request.assigns, :model) || request.assigns.config.model
 
       parsed_response = parse_response(response, model)
 

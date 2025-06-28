@@ -21,13 +21,6 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
       @moduletag provider: @provider
 
       setup_all do
-        # Initialize circuit breaker ETS table for provider tests
-        if :ets.info(:ex_llm_circuit_breakers) != :undefined do
-          :ets.delete(:ex_llm_circuit_breakers)
-        end
-
-        ExLLM.Infrastructure.CircuitBreaker.init()
-
         # Reset all circuit breakers to closed state for fresh testing
         providers = [
           :openai,
@@ -217,6 +210,14 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
                 {:error, :unauthorized} ->
                   # Another acceptable authentication error format
                   :ok
+                  
+                {:error, :http_error} ->
+                  # XAI returns 400 for invalid API keys
+                  # This is acceptable for XAI provider
+                  case @provider do
+                    :xai -> :ok
+                    _ -> flunk("Unexpected :http_error for provider #{@provider}")
+                  end
 
                 {:ok, _response} ->
                   # This could happen if we hit a cached response

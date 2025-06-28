@@ -172,9 +172,15 @@ defmodule ExLLM.Testing.Config do
   def tesla_config do
     cache_enabled = cache_enabled?()
     run_live = System.get_env("MIX_RUN_LIVE") == "true"
+    
+    # Check if integration tests are explicitly included  
+    include_integration = integration_tests_included?()
 
-    # Use real HTTP adapter for integration tests, mock for unit tests
-    if cache_enabled or run_live or integration_tests_enabled?() do
+    # Use real HTTP adapter when:
+    # 1. Cache is enabled OR
+    # 2. MIX_RUN_LIVE=true OR 
+    # 3. Integration tests are explicitly included
+    if cache_enabled or run_live or include_integration do
       [
         adapter: Tesla.Adapter.Hackney,
         use_tesla_mock: false
@@ -185,6 +191,29 @@ defmodule ExLLM.Testing.Config do
         use_tesla_mock: true
       ]
     end
+  end
+
+  defp integration_tests_included? do
+    # Check ExUnit configuration for included/excluded tags
+    config = ExUnit.configuration()
+    include_tags = Keyword.get(config, :include, [])
+    exclude_tags = Keyword.get(config, :exclude, [])
+    
+    # If integration is explicitly included, use real HTTP
+    Keyword.has_key?(include_tags, :integration) or
+      # If integration is NOT explicitly excluded, assume default behavior (real HTTP)
+      (not Keyword.has_key?(exclude_tags, :integration) and not only_unit_tests_requested?())
+  end
+
+  defp only_unit_tests_requested? do
+    # Check if only unit tests are being run (e.g., by excluding integration)
+    config = ExUnit.configuration()
+    exclude_tags = Keyword.get(config, :exclude, [])
+    
+    # If integration/external/live_api are excluded, assume unit tests only
+    Keyword.has_key?(exclude_tags, :integration) or
+      Keyword.has_key?(exclude_tags, :external) or
+      Keyword.has_key?(exclude_tags, :live_api)
   end
 
   @doc """
@@ -262,12 +291,13 @@ defmodule ExLLM.Testing.Config do
   @doc """
   Check if integration tests should use real HTTP adapter.
 
-  Always return true - integration tests should use real HTTP by default
-  as per the new design where cache is disabled by default.
+  Returns false to prefer Tesla.Mock for unit tests, allowing individual tests
+  to override for integration testing when needed.
   """
   @spec integration_tests_enabled?() :: boolean()
   def integration_tests_enabled? do
-    true
+    # Prefer mocks by default - integration tests can use override mechanisms
+    false
   end
 
   # Private functions

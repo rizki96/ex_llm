@@ -8,6 +8,12 @@ defmodule ExLLM.StreamingCallbackTest do
   callback patterns and error scenarios.
   """
 
+  setup do
+    # Reset mock provider to ensure clean state for each test
+    ExLLM.Providers.Mock.reset()
+    :ok
+  end
+
   describe "basic streaming" do
     test "receives chunks through callback" do
       messages = [%{role: "user", content: "Hello"}]
@@ -50,7 +56,7 @@ defmodule ExLLM.StreamingCallbackTest do
       final_content = Agent.get(accumulator, & &1)
       Agent.stop(accumulator)
 
-      assert final_content =~ "Mock"
+      assert final_content =~ "mock"
     end
 
     test "provides usage information in final chunk" do

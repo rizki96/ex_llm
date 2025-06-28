@@ -210,4 +210,4 @@ models:
     - streaming
     - reasoning
     - web_search
-default_model: perplexity/codellama-34b-instruct
+default_model: perplexity/sonar

@@ -220,4 +220,4 @@ models:
     - function_calling
     - web_search
     - tool_choice
-default_model: grok-beta
+default_model: grok-3

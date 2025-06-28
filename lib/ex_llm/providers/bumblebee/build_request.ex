@@ -63,17 +63,22 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
   end
 
   defp load_model(model_name) do
-    # Use the ModelLoader GenServer to load or get cached model
-    case ModelLoader.load_model(model_name) do
-      {:ok, model_data} ->
-        {:ok, model_data}
+    # Check if ModelLoader is running first
+    if not model_loader_running?() do
+      {:error, "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
+    else
+      # Use the ModelLoader GenServer to load or get cached model
+      case ModelLoader.load_model(model_name) do
+        {:ok, model_data} ->
+          {:ok, model_data}
 
-      {:error, :not_running} ->
-        # ModelLoader not started
-        {:error, "ModelLoader not running. Ensure ExLLM application is started."}
+        {:error, :not_running} ->
+          # ModelLoader not started
+          {:error, "ModelLoader not running. Ensure ExLLM application is started."}
 
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -206,5 +211,12 @@ defmodule ExLLM.Providers.Bumblebee.BuildRequest do
       stream: Map.get(options, :stream, false),
       seed: Map.get(options, :seed)
     }
+  end
+  
+  defp model_loader_running? do
+    case Process.whereis(ExLLM.Providers.Bumblebee.ModelLoader) do
+      nil -> false
+      _pid -> true
+    end
   end
 end

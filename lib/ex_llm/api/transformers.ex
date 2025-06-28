@@ -393,7 +393,7 @@ defmodule ExLLM.API.Transformers do
       {:metadata, meta}, acc -> Map.put(acc, :metadata, meta)
       _other, acc -> acc
     end)
-    |> Map.put_new(:model, "gpt-4-turbo-preview")
+    |> Map.put_new(:model, "gpt-4.1-nano")
   end
 
   defp build_thread_params(opts) do

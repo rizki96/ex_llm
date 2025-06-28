@@ -1,71 +1,175 @@
 defmodule ExLLM.Core.ChatPipelineIntegrationTest do
-  use ExUnit.Case, async: false
+  use ExUnit.Case
+  import ExLLM.Testing.CapabilityHelpers
 
-  # Test that Core.Chat correctly uses pipeline system for supported providers
-  # and falls back to adapter system for unsupported ones
+  @moduletag :integration
 
-  setup do
-    # Set API keys for both providers
-    System.put_env("OPENAI_API_KEY", "test-key-12345")
-    System.put_env("ANTHROPIC_API_KEY", "test-key-12345")
-    System.put_env("GROQ_API_KEY", "test-key-12345")
+  describe "chat pipeline integration via public API" do
+    test "provider routing works correctly" do
+      # Test that different providers can be called through the public API
+      # This tests the internal pipeline routing without accessing internal APIs
+      
+      providers = [:anthropic, :openai, :groq]
+      
+      for provider <- providers do
+        skip_unless_configured_and_supports(provider, :chat)
+        
+        messages = [%{role: "user", content: "Hello"}]
+        
+        case ExLLM.chat(provider, messages, max_tokens: 10) do
+          {:ok, response} ->
+            # Verify the provider routing worked correctly
+            assert response.metadata.provider == provider
+            assert is_binary(response.content)
+            assert response.content != ""
+            
+          {:error, :not_configured} ->
+            # Skip if provider not configured
+            :ok
+            
+          {:error, reason} ->
+            flunk("Provider #{provider} failed: #{inspect(reason)}")
+        end
+      end
+    end
 
-    on_exit(fn ->
-      System.delete_env("OPENAI_API_KEY")
-      System.delete_env("ANTHROPIC_API_KEY")
-      System.delete_env("GROQ_API_KEY")
-    end)
+    test "different models work through public API" do
+      skip_unless_configured_and_supports(:openai, :chat)
+      
+      models = ["gpt-4o-mini", "gpt-3.5-turbo"]
+      messages = [%{role: "user", content: "Hi"}]
+      
+      for model <- models do
+        case ExLLM.chat(:openai, messages, model: model, max_tokens: 10) do
+          {:ok, response} ->
+            # Verify model selection worked
+            assert response.model =~ model or String.contains?(response.model, model)
+            assert response.metadata.provider == :openai
+            
+          {:error, :not_configured} ->
+            :ok
+            
+          {:error, {:api_error, %{status: 404}}} ->
+            # Model not available, skip
+            :ok
+            
+          {:error, reason} ->
+            flunk("Model #{model} failed: #{inspect(reason)}")
+        end
+      end
+    end
 
-    :ok
+    test "provider-specific features work through public API" do
+      # Test Anthropic vision capability
+      skip_unless_configured_and_supports(:anthropic, [:chat, :vision])
+      
+      # Small 1x1 red pixel PNG
+      red_pixel = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+      
+      messages = [
+        %{
+          role: "user",
+          content: [
+            %{type: "text", text: "What color is this?"},
+            %{
+              type: "image",
+              image: %{
+                data: red_pixel,
+                media_type: "image/png"
+              }
+            }
+          ]
+        }
+      ]
+      
+      case ExLLM.chat(:anthropic, messages, model: "claude-3-5-sonnet-20241022", max_tokens: 20) do
+        {:ok, response} ->
+          # Vision worked through the pipeline
+          assert String.length(response.content) > 0
+          assert response.metadata.provider == :anthropic
+          
+        {:error, :not_configured} ->
+          :ok
+          
+        {:error, {:api_error, %{status: 400}}} ->
+          # Vision not supported, acceptable
+          :ok
+          
+        {:error, reason} ->
+          flunk("Vision test failed: #{inspect(reason)}")
+      end
+    end
+
+    test "streaming pipeline integration" do
+      skip_unless_configured_and_supports(:openai, [:streaming])
+      
+      messages = [%{role: "user", content: "Count to 3"}]
+      
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
+      end
+      
+      case ExLLM.stream(:openai, messages, collector, max_tokens: 20, timeout: 10_000) do
+        :ok ->
+          chunks = collect_stream_chunks([], 2000)
+          assert length(chunks) > 0, "No streaming chunks received"
+          
+          # Verify streaming worked correctly
+          if length(chunks) > 0 do
+            last_chunk = List.last(chunks)
+            assert last_chunk.finish_reason in ["stop", "length", "tool_calls"]
+          end
+          
+        {:error, :not_configured} ->
+          :ok
+          
+        {:error, reason} ->
+          flunk("Streaming failed: #{inspect(reason)}")
+      end
+    end
+
+    test "error handling through pipeline" do
+      # Test that errors are properly handled through the public API
+      # This indirectly tests pipeline error handling without accessing internals
+      
+      skip_unless_configured_and_supports(:anthropic, :chat)
+      
+      # Create a message that's too long
+      long_content = String.duplicate("This is a test. ", 50_000)
+      messages = [%{role: "user", content: long_content}]
+      
+      case ExLLM.chat(:anthropic, messages, max_tokens: 10) do
+        {:error, {:api_error, %{status: 400}}} ->
+          # Expected error for content too long
+          :ok
+          
+        {:error, :invalid_messages} ->
+          # Also acceptable - validation caught it before API
+          :ok
+          
+        {:ok, _response} ->
+          # Some models handle long content gracefully
+          :ok
+          
+        {:error, :not_configured} ->
+          :ok
+          
+        other ->
+          flunk("Unexpected result for long content: #{inspect(other)}")
+      end
+    end
   end
 
-  describe "pipeline integration" do
-    @tag :skip
-    test "OpenAI provider uses pipeline system" do
-      # This is a smoke test to verify the integration works
-      # We can't actually test without mocking the HTTP client
-      messages = [%{role: "user", content: "Hello"}]
+  # Helper function to collect stream chunks
+  defp collect_stream_chunks(chunks, timeout)
 
-      # The function should use pipeline system internally
-      # but we can't test the full flow without HTTP mocking
-      assert ExLLM.Core.Chat.chat(:openai, messages, model: "gpt-4")
-    end
-
-    @tag :skip
-    test "Anthropic provider uses pipeline system" do
-      messages = [%{role: "user", content: "Hello"}]
-
-      # The function should use pipeline system internally
-      assert ExLLM.Core.Chat.chat(:anthropic, messages, model: "claude-3-haiku-20240307")
-    end
-
-    @tag :skip
-    test "Groq provider falls back to adapter system" do
-      messages = [%{role: "user", content: "Hello"}]
-
-      # Groq should use the old adapter system since no pipeline plugs exist yet
-      assert ExLLM.Core.Chat.chat(:groq, messages, model: "llama3-8b-8192")
-    end
-
-    test "pipeline system is properly set up for supported providers" do
-      # Test internal logic by trying a basic provider detection
-      # We can't access the private function directly, but we can verify
-      # the providers are configured by testing the public interface
-
-      # These providers should be supported by pipeline system
-      # (We'll just verify they don't throw errors when configured)
-      alias ExLLM.Pipelines.StandardProvider
-      alias ExLLM.Providers.OpenAI.{BuildRequest, ParseResponse}
-
-      openai_plugs = [
-        build_request: {BuildRequest, []},
-        parse_response: {ParseResponse, []}
-      ]
-
-      # Should successfully build pipeline
-      pipeline = StandardProvider.build(openai_plugs)
-      assert is_list(pipeline)
-      assert length(pipeline) == 1
+  defp collect_stream_chunks(chunks, timeout) do
+    receive do
+      {:chunk, chunk} ->
+        collect_stream_chunks([chunk | chunks], timeout)
+    after
+      timeout -> Enum.reverse(chunks)
     end
   end
 end

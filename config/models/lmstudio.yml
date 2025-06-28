@@ -1,8 +1,27 @@
-default_model: 'debug-model'
+default_model: 'deepseek-r1-0528-qwen3-8b-dwq'
 metadata:
   source: manual_config
   updated_at: '2025-01-25T22:37:00.000000Z'
 models:
+  # Example models - any model loaded in LM Studio will work with defaults
+  gemma-3n-e2b-it:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 8192
+    max_output_tokens: 8192
+    pricing:
+      input: 0.0
+      output: 0.0
+  local-model:
+    capabilities:
+    - streaming
+    - chat
+    context_window: 4096
+    max_output_tokens: 4096
+    pricing:
+      input: 0.0
+      output: 0.0
   debug-model:
     capabilities:
     - streaming

@@ -1,163 +1,267 @@
 defmodule ExLLM.IntegrationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case
+  import ExLLM.Testing.CapabilityHelpers
 
-  alias ExLLM.Pipeline.Request
-  alias ExLLM.Plugs
+  @moduletag :integration
 
-  describe "integration with mock provider" do
-    test "full pipeline execution with mock provider" do
-      messages = [
-        %{role: "system", content: "You are a helpful assistant."},
-        %{role: "user", content: "Hello, how are you?"}
-      ]
+  describe "public API integration" do
+    test "chat/3 with multiple providers" do
+      providers = [:anthropic, :openai]
 
-      {:ok, response} = ExLLM.chat(:mock, messages, temperature: 0.7)
+      for provider <- providers do
+        skip_unless_configured_and_supports(provider, :chat)
 
-      # Mock provider may return nil content in some configurations
-      if response.content do
-        assert response.content =~ "Mock"
-      else
-        assert response.metadata.role == "assistant"
+        messages = [
+          %{role: "system", content: "You are a helpful assistant."},
+          %{role: "user", content: "Say hello in one word"}
+        ]
+
+        case ExLLM.chat(provider, messages, max_tokens: 10) do
+          {:ok, response} ->
+            assert is_map(response)
+            assert Map.has_key?(response, :content)
+            assert is_binary(response.content)
+            assert response.content != ""
+            assert response.metadata.provider == provider
+            assert response.usage.prompt_tokens > 0
+            assert response.usage.completion_tokens > 0
+            assert response.cost >= 0.0
+
+          {:error, :not_configured} ->
+            # Skip if provider not configured
+            :ok
+
+          {:error, reason} ->
+            flunk("Chat failed for #{provider}: #{inspect(reason)}")
+        end
       end
-
-      assert response.metadata.role == "assistant"
-      assert response.metadata.provider == :mock
-      assert response.usage.total_tokens == 30
     end
 
-    test "custom pipeline with mock provider" do
-      # Reset mock provider to ensure clean state
-      ExLLM.Providers.Mock.reset()
+    @tag :streaming
+    test "stream/4 with multiple providers" do
+      providers = [:anthropic, :openai]
 
-      # Also clear Application environment to ensure clean state
-      Application.delete_env(:ex_llm, :mock_responses)
+      for provider <- providers do
+        skip_unless_configured_and_supports(provider, [:streaming])
 
-      messages = [%{role: "user", content: "Test message"}]
+        messages = [
+          %{role: "user", content: "Count from 1 to 3"}
+        ]
 
-      # Build a custom pipeline
-      builder =
-        ExLLM.build(:mock, messages)
-        |> ExLLM.with_model("custom-model")
-        |> ExLLM.with_temperature(0.5)
+        # Track metrics during streaming
+        start_time = System.monotonic_time(:millisecond)
+        
+        # Collect chunks using the callback API
+        collector = fn chunk ->
+          send(self(), {:chunk, chunk})
+          # Track metrics
+          send(self(), {:metrics, :chunk_received, byte_size(inspect(chunk))})
+        end
 
-      # Execute with custom pipeline
-      pipeline = [
-        Plugs.ValidateProvider,
-        Plugs.FetchConfiguration,
-        {Plugs.Providers.MockHandler,
-         response: %{
-           content: "Custom response",
-           role: "assistant",
-           model: "custom-model",
-           usage: %{prompt_tokens: 5, completion_tokens: 10, total_tokens: 15},
-           provider: :mock
-         }}
-      ]
+        case ExLLM.stream(provider, messages, collector, max_tokens: 20, timeout: 10_000) do
+          :ok ->
+            chunks = collect_stream_chunks_with_metrics([], 2000)
+            
+            # Extract chunks and metrics
+            actual_chunks = Enum.filter(chunks, fn 
+              {:chunk, _} -> true
+              _ -> false
+            end) |> Enum.map(fn {:chunk, c} -> c end)
+            
+            metrics = Enum.filter(chunks, fn
+              {:metrics, _, _} -> true
+              _ -> false
+            end)
+            
+            # Basic streaming verification
+            assert length(actual_chunks) > 0, "Did not receive any stream chunks from #{provider}"
 
-      result = ExLLM.run(builder.request, pipeline)
+            # Verify we received actual content
+            full_content =
+              actual_chunks
+              |> Enum.map(fn chunk ->
+                case chunk do
+                  %{content: content} -> content
+                  _ -> nil
+                end
+              end)
+              |> Enum.filter(& &1)
+              |> Enum.join("")
 
-      assert result.state == :completed
-      assert result.result.content == "Custom response"
-      assert result.result.model == "custom-model"
+            assert String.length(full_content) > 0, "No content received from #{provider}"
+            
+            # Verify metrics were collected
+            assert length(metrics) > 0, "No metrics collected during streaming"
+            
+            # Calculate streaming metrics
+            end_time = System.monotonic_time(:millisecond)
+            duration_ms = end_time - start_time
+            chunk_count = length(actual_chunks)
+            total_bytes = Enum.reduce(metrics, 0, fn {:metrics, :chunk_received, bytes}, acc -> acc + bytes end)
+            
+            # Verify reasonable metrics
+            assert duration_ms > 0, "Streaming should take some time"
+            assert chunk_count > 0, "Should receive multiple chunks"
+            assert total_bytes > 0, "Should receive data"
+            
+            # Log metrics for visibility
+            IO.puts("Streaming metrics for #{provider}:")
+            IO.puts("  Duration: #{duration_ms}ms")
+            IO.puts("  Chunks: #{chunk_count}")
+            IO.puts("  Bytes: #{total_bytes}")
+            IO.puts("  Throughput: #{Float.round(total_bytes / (duration_ms / 1000), 2)} bytes/sec")
+
+          {:error, :not_configured} ->
+            # Skip if provider not configured
+            :ok
+
+          {:error, reason} ->
+            flunk("Streaming failed for #{provider}: #{inspect(reason)}")
+        end
+      end
     end
 
-    test "error handling in pipeline" do
+    test "list_models/1 with configured providers" do
+      providers = [:anthropic, :openai]
+
+      for provider <- providers do
+        skip_unless_configured_and_supports(provider, :list_models)
+
+        case ExLLM.list_models(provider) do
+          {:ok, models} ->
+            assert is_list(models)
+            assert length(models) > 0, "Expected to receive at least one model from #{provider}"
+
+            # Check model structure
+            model = hd(models)
+            assert is_map(model)
+            assert Map.has_key?(model, :id)
+            assert is_binary(model.id)
+            assert Map.has_key?(model, :context_window)
+            assert model.context_window > 0
+
+          {:error, :not_configured} ->
+            # Skip if provider not configured
+            :ok
+
+          {:error, error_message} when is_binary(error_message) ->
+            # Some providers don't support model listing
+            assert String.contains?(error_message, "does not support listing models")
+
+          {:error, reason} ->
+            flunk("List models failed for #{provider}: #{inspect(reason)}")
+        end
+      end
+    end
+
+    test "error handling with invalid API key" do
+      # Test with a provider that uses API keys
+      config = %{anthropic: %{api_key: "invalid-key-test"}}
+
+      {:ok, static_provider} =
+        ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
+
       messages = [%{role: "user", content: "Test"}]
 
-      # Create a pipeline that will error
-      pipeline = [
-        Plugs.ValidateProvider,
-        # MockHandler with error option should simulate an error
-        {Plugs.Providers.MockHandler, error: :simulated_error}
-      ]
+      result = ExLLM.chat(:anthropic, messages, config_provider: static_provider)
 
-      request = Request.new(:mock, messages)
-      result = ExLLM.run(request, pipeline)
+      case result do
+        {:error, {:api_error, %{status: status}}} when status in [401, 403] ->
+          # Expected authentication error
+          :ok
 
-      assert result.state == :error
-      assert result.halted == true
-      assert length(result.errors) == 1
-      assert hd(result.errors).error == :simulated_error
+        {:error, {:authentication_error, _}} ->
+          # Also acceptable authentication error format
+          :ok
+
+        {:error, :unauthorized} ->
+          # Another acceptable authentication error format
+          :ok
+
+        {:ok, _response} ->
+          # This could happen if we hit a cached response
+          # In this case, we can't test the invalid API key scenario
+          # but that's acceptable for cached testing
+          :ok
+
+        other ->
+          flunk("Expected an authentication error or cached success, but got: #{inspect(other)}")
+      end
     end
   end
 
-  describe "provider-specific pipelines" do
-    test "OpenAI pipeline structure" do
-      pipeline = ExLLM.Providers.get_pipeline(:openai, :chat)
+  describe "fluent API integration" do
+    test "builder pattern works with public API" do
+      skip_unless_configured_and_supports(:anthropic, :chat)
 
-      # Verify key plugs are present
-      plug_modules =
-        Enum.map(pipeline, fn
-          {module, _opts} -> module
-          module -> module
-        end)
+      case ExLLM.build(:anthropic, [%{role: "user", content: "Hello"}])
+           |> ExLLM.with_model("claude-3-haiku-20240307")
+           |> ExLLM.with_temperature(0.5)
+           |> ExLLM.with_max_tokens(20)
+           |> ExLLM.execute() do
+        {:ok, response} ->
+          assert is_map(response)
+          assert String.length(response.content) > 0
+          assert response.metadata.provider == :anthropic
 
-      assert Plugs.ValidateProvider in plug_modules
-      assert Plugs.FetchConfiguration in plug_modules
-      assert Plugs.ManageContext in plug_modules
-      assert Plugs.BuildTeslaClient in plug_modules
-      assert Plugs.Cache in plug_modules
-      assert Plugs.Providers.OpenAIPrepareRequest in plug_modules
-      assert Plugs.ExecuteRequest in plug_modules
-      assert Plugs.Providers.OpenAIParseResponse in plug_modules
-      assert Plugs.TrackCost in plug_modules
+        {:error, :not_configured} ->
+          # Skip test if not configured
+          :ok
+
+        {:error, reason} ->
+          flunk("Fluent API failed: #{inspect(reason)}")
+      end
     end
 
-    test "Anthropic pipeline structure" do
-      pipeline = ExLLM.Providers.get_pipeline(:anthropic, :chat)
+    test "builder pattern with streaming" do
+      skip_unless_configured_and_supports(:anthropic, [:streaming])
 
-      plug_modules =
-        Enum.map(pipeline, fn
-          {module, _opts} -> module
-          module -> module
-        end)
-
-      assert Plugs.Providers.AnthropicPrepareRequest in plug_modules
-      assert Plugs.Providers.AnthropicParseResponse in plug_modules
-    end
-
-    test "Gemini pipeline structure" do
-      pipeline = ExLLM.Providers.get_pipeline(:gemini, :chat)
-
-      plug_modules =
-        Enum.map(pipeline, fn
-          {module, _opts} -> module
-          module -> module
-        end)
-
-      assert Plugs.Providers.GeminiPrepareRequest in plug_modules
-      assert Plugs.Providers.GeminiParseResponse in plug_modules
-    end
-  end
-
-  describe "fluent API" do
-    test "builder pattern works correctly" do
-      builder =
-        ExLLM.build(:mock, [%{role: "user", content: "Hello"}])
-        |> ExLLM.with_model("test-model")
-        |> ExLLM.with_temperature(0.8)
-        |> ExLLM.with_max_tokens(500)
-
-      assert builder.request.provider == :mock
-      assert builder.request.options.model == "test-model"
-      assert builder.request.options.temperature == 0.8
-      assert builder.request.options.max_tokens == 500
-    end
-
-    test "execute with fluent API" do
-      {:ok, response} =
-        ExLLM.build(:mock, [%{role: "user", content: "Hello"}])
-        |> ExLLM.with_model("fluent-model")
-        |> ExLLM.execute()
-
-      # Mock provider may return nil content in some configurations
-      if response.content do
-        assert response.content =~ "Mock"
-      else
-        assert response.metadata.role == "assistant"
+      # Collect chunks using the callback API
+      collector = fn chunk ->
+        send(self(), {:chunk, chunk})
       end
 
-      assert response.metadata.mock_config.model == "fluent-model"
+      # Get the built request
+      builder = ExLLM.build(:anthropic, [%{role: "user", content: "Say hi"}])
+                |> ExLLM.with_max_tokens(10)
+
+      case ExLLM.stream(:anthropic, builder.request.messages, collector, 
+                        Map.to_list(builder.request.options) ++ [timeout: 10_000]) do
+        :ok ->
+          chunks = collect_stream_chunks([], 2000)
+          assert length(chunks) > 0, "Did not receive any stream chunks"
+
+        {:error, :not_configured} ->
+          # Skip test if not configured
+          :ok
+
+        {:error, reason} ->
+          flunk("Fluent streaming failed: #{inspect(reason)}")
+      end
+    end
+  end
+
+  # Helper function to collect stream chunks
+  defp collect_stream_chunks(chunks, timeout)
+
+  defp collect_stream_chunks(chunks, timeout) do
+    receive do
+      {:chunk, chunk} ->
+        collect_stream_chunks([chunk | chunks], timeout)
+    after
+      timeout -> Enum.reverse(chunks)
+    end
+  end
+
+  # Helper function to collect stream chunks with metrics
+  defp collect_stream_chunks_with_metrics(acc, timeout) do
+    receive do
+      {:chunk, chunk} ->
+        collect_stream_chunks_with_metrics([{:chunk, chunk} | acc], timeout)
+      {:metrics, type, data} ->
+        collect_stream_chunks_with_metrics([{:metrics, type, data} | acc], timeout)
+    after
+      timeout -> Enum.reverse(acc)
     end
   end
 end

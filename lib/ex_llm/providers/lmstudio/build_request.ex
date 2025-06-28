@@ -8,6 +8,6 @@ defmodule ExLLM.Providers.LMStudio.BuildRequest do
   use ExLLM.Providers.OpenAICompatible.BuildRequest,
     provider: :lmstudio,
     base_url_env: "LMSTUDIO_API_BASE",
-    default_base_url: "http://localhost:1234/v1",
+    default_base_url: "http://localhost:1234",
     api_key_env: "LMSTUDIO_API_KEY"
 end

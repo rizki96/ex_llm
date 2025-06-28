@@ -8,6 +8,6 @@ defmodule ExLLM.Providers.Mistral.BuildRequest do
   use ExLLM.Providers.OpenAICompatible.BuildRequest,
     provider: :mistral,
     base_url_env: "MISTRAL_API_BASE",
-    default_base_url: "https://api.mistral.ai/v1",
+    default_base_url: "https://api.mistral.ai",
     api_key_env: "MISTRAL_API_KEY"
 end

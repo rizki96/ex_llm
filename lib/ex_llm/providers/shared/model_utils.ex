@@ -120,7 +120,7 @@ defmodule ExLLM.Providers.Shared.ModelUtils do
 
   ## Examples
 
-      iex> ModelUtils.get_model_family("gpt-4-turbo-preview")
+      iex> ModelUtils.get_model_family("gpt-4.1-nano")
       "gpt-4"
       
       iex> ModelUtils.get_model_family("claude-3-5-sonnet")

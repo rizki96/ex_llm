@@ -146,7 +146,7 @@ defmodule ExLLM.SessionStreamingCostTest do
             # - Cost information
             Agent.update(session_state, fn current_session ->
               # Simulate adding the streaming response to session
-              content = final[:content] || "Mock streaming response"
+              content = final.content || "Mock streaming response"
               Session.add_message(current_session, "assistant", content)
             end)
 

@@ -129,21 +129,26 @@ defmodule ExLLM.Providers.Bumblebee do
       max_tokens = Keyword.get(validated_opts, :max_tokens, 2048)
       temperature = Keyword.get(validated_opts, :temperature, 0.7)
 
-      # Format messages for the model
-      prompt = format_messages(messages, model)
+      # Check if ModelLoader is running first
+      if not model_loader_running?() do
+        {:error, "ModelLoader is not running. Bumblebee models require ModelLoader to be started."}
+      else
+        # Format messages for the model
+        prompt = format_messages(messages, model)
 
-      # Get or load the model
-      case ModelLoader.load_model(model) do
-        {:ok, model_data} ->
-          generate_response(prompt, model_data, %{
-            model: model,
-            stream: stream,
-            max_tokens: max_tokens,
-            temperature: temperature
-          })
+        # Get or load the model
+        case ModelLoader.load_model(model) do
+          {:ok, model_data} ->
+            generate_response(prompt, model_data, %{
+              model: model,
+              stream: stream,
+              max_tokens: max_tokens,
+              temperature: temperature
+            })
 
-        {:error, reason} ->
-          {:error, "Failed to load model: #{inspect(reason)}"}
+          {:error, reason} ->
+            {:error, "Failed to load model: #{inspect(reason)}"}
+        end
       end
     end
   end

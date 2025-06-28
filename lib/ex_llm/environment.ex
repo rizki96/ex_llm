@@ -31,7 +31,7 @@ defmodule ExLLM.Environment do
 
   ### Provider Models
   - `ANTHROPIC_MODEL` - Default model for Anthropic (default: claude-sonnet-4-20250514)
-  - `OPENAI_MODEL` - Default model for OpenAI (default: gpt-4-turbo-preview)
+  - `OPENAI_MODEL` - Default model for OpenAI (default: gpt-4.1-nano)
   - `GEMINI_MODEL` - Default model for Gemini
   - `GROQ_MODEL` - Default model for Groq
   - `MISTRAL_MODEL` - Default model for Mistral
@@ -109,7 +109,7 @@ defmodule ExLLM.Environment do
 
   @provider_models %{
     anthropic: {"ANTHROPIC_MODEL", "claude-sonnet-4-20250514"},
-    openai: {"OPENAI_MODEL", "gpt-4-turbo-preview"},
+    openai: {"OPENAI_MODEL", "gpt-4.1-nano"},
     gemini: {"GEMINI_MODEL", nil},
     groq: {"GROQ_MODEL", nil},
     mistral: {"MISTRAL_MODEL", nil},
@@ -212,7 +212,7 @@ defmodule ExLLM.Environment do
       %{
         api_key: "sk-...",
         base_url: "https://api.openai.com/v1",
-        model: "gpt-4-turbo-preview"
+        model: "gpt-4.1-nano"
       }
   """
   def provider_config(provider) when is_atom(provider) do

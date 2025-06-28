@@ -70,7 +70,7 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
         # Build request body and headers
         body = build_request_body(messages, model, config, options)
         headers = build_headers(api_key, config)
-        url = "#{get_base_url(config)}/chat/completions"
+        url = "#{get_base_url(config)}/v1/chat/completions"
 
         request
         |> Map.put(:provider_request, body)

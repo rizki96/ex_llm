@@ -27,7 +27,7 @@ defmodule ExLLM.Providers.XAITest do
     end
 
     test "default_model/1 returns the default model" do
-      assert XAI.default_model([]) == "grok-beta"
+      assert XAI.default_model([]) == "grok-3"
     end
 
     test "list_models/1 returns available models" do
@@ -76,7 +76,16 @@ defmodule ExLLM.Providers.XAITest do
 
       vision_models =
         Enum.filter(models, fn model ->
-          model.capabilities && :vision in model.capabilities
+          case model.capabilities do
+            capabilities when is_list(capabilities) ->
+              :vision in capabilities
+            %{features: features} when is_list(features) ->
+              :vision in features
+            %{supports_vision: true} ->
+              true
+            _ ->
+              false
+          end
         end)
 
       vision_model_ids = Enum.map(vision_models, & &1.id)
@@ -94,12 +103,30 @@ defmodule ExLLM.Providers.XAITest do
       # Find specific models and check their capabilities
       grok_beta = Enum.find(models, &(&1.id == "xai/grok-beta"))
       assert grok_beta
-      assert :streaming in grok_beta.capabilities
-      assert :function_calling in grok_beta.capabilities
+      
+      # Handle both list and map formats for capabilities
+      case grok_beta.capabilities do
+        capabilities when is_list(capabilities) ->
+          assert :streaming in capabilities
+          assert :function_calling in capabilities
+          
+        %{features: features} = capabilities when is_map(capabilities) ->
+          assert :streaming in features
+          assert :function_calling in features
+          assert capabilities.supports_streaming == true
+          assert capabilities.supports_functions == true
+      end
 
       grok_3_mini = Enum.find(models, &(&1.id == "xai/grok-3-mini-beta"))
       assert grok_3_mini
-      assert :reasoning in grok_3_mini.capabilities
+      
+      case grok_3_mini.capabilities do
+        capabilities when is_list(capabilities) ->
+          assert :reasoning in capabilities
+          
+        %{features: features} when is_list(features) ->
+          assert :reasoning in features
+      end
     end
   end
 end

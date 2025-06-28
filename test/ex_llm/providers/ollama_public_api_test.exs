@@ -5,8 +5,13 @@ defmodule ExLLM.Providers.OllamaPublicAPITest do
   """
 
   use ExLLM.Shared.ProviderIntegrationTest, provider: :ollama
+  import ExLLM.Testing.ServiceHelpers
 
   @moduletag :requires_service
+
+  setup do
+    skip_unless_service_available(:ollama)
+  end
 
   # Provider-specific tests only
   describe "ollama-specific features via public API" do

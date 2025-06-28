@@ -43,9 +43,10 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
   defp build_request_body(messages, config, provider) do
     # Get the provider's default model from ModelConfig
     default_model = ModelConfig.get_default_model!(provider)
+    model = config[:model] || default_model
 
     %{
-      model: config[:model] || default_model,
+      model: model,
       messages: format_messages(messages),
       temperature: config[:temperature],
       max_tokens: config[:max_tokens],
@@ -61,6 +62,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
     |> maybe_add_tools(config)
     |> maybe_add_response_format(config)
     |> maybe_add_seed(config)
+    |> maybe_add_o1_options(model)
     |> compact()
   end
 
@@ -100,7 +102,10 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
       %{type: "image", image: image_data} ->
         format_image_content(image_data)
 
-      %{type: "image_url", image_url: url} ->
+      %{type: "image_url", image_url: %{url: url}} ->
+        %{"type" => "image_url", "image_url" => %{"url" => url}}
+        
+      %{type: "image_url", image_url: url} when is_binary(url) ->
         %{"type" => "image_url", "image_url" => %{"url" => url}}
 
       # Handle string keys too
@@ -181,6 +186,26 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
   end
 
   defp maybe_add_seed(body, _), do: body
+
+  defp maybe_add_o1_options(body, model) do
+    if String.starts_with?(model, "o1") do
+      body
+      |> Map.delete(:temperature)
+      |> Map.delete(:stream)
+      |> transform_max_tokens_for_o1()
+    else
+      body
+    end
+  end
+
+  defp transform_max_tokens_for_o1(body) do
+    case Map.pop(body, :max_tokens) do
+      {nil, body} -> 
+        body
+      {max_tokens, body} -> 
+        Map.put(body, :max_completion_tokens, max_tokens)
+    end
+  end
 
   defp compact(map) do
     map

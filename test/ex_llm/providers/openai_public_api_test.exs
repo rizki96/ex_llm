@@ -103,7 +103,12 @@ defmodule ExLLM.Providers.OpenAIPublicAPITest do
       # Check if function was called
       tool_calls =
         chunks
-        |> Enum.flat_map(&(&1[:tool_calls] || []))
+        |> Enum.flat_map(fn chunk ->
+          case chunk do
+            %{tool_calls: calls} when is_list(calls) -> calls
+            _ -> []
+          end
+        end)
         |> Enum.filter(& &1)
 
       if length(tool_calls) > 0 do
@@ -143,7 +148,7 @@ defmodule ExLLM.Providers.OpenAIPublicAPITest do
         %{role: "user", content: "What is 2+2?"}
       ]
 
-      assert {:ok, response} = ExLLM.chat(:openai, messages, model: "o1-mini", max_tokens: 100)
+      assert {:ok, response} = ExLLM.chat(:openai, messages, model: "o1-mini", max_tokens: 500)
 
       # Verify we got content (don't test specific answer)
       assert String.length(response.content) > 0

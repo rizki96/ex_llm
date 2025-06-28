@@ -1,186 +1,244 @@
-defmodule ExLLM.Core.StructuredOutputsIntegrationTest do
-  use ExUnit.Case, async: false
+defmodule ExLLM.InstructorIntegrationTest do
+  use ExUnit.Case
+  import ExLLM.Testing.CapabilityHelpers
 
   @moduletag :integration
 
-  # Test schema
-  defmodule TestPerson do
+  # Test schema for structured outputs
+  defmodule Person do
     use Ecto.Schema
 
     @primary_key false
     embedded_schema do
-      field(:name, :string)
-      field(:age, :integer)
-      field(:occupation, :string)
-    end
-
-    def changeset(struct, params) do
-      struct
-      |> Ecto.Changeset.cast(params, [:name, :age, :occupation])
-      |> Ecto.Changeset.validate_required([:name])
-      |> Ecto.Changeset.validate_number(:age, greater_than: 0, less_than: 150)
+      field :name, :string
+      field :age, :integer
+      field :occupation, :string
     end
   end
 
-  setup do
-    # Since these are integration tests, we'll use the mock adapter
-    # to test the Instructor functionality without requiring API keys
-    case ExLLM.Providers.Mock.start_link() do
-      {:ok, _pid} ->
-        :ok
+  defmodule MathResult do
+    use Ecto.Schema
 
-      {:error, {:already_started, _pid}} ->
-        # Reset if already started
-        ExLLM.Providers.Mock.reset()
-        :ok
+    @primary_key false
+    embedded_schema do
+      field :expression, :string
+      field :result, :float
+      field :explanation, :string
+    end
+  end
+
+  describe "instructor with real providers" do
+    test "extracts structured data using response_model with Anthropic" do
+      skip_unless_configured_and_supports(:anthropic, :chat)
+
+      messages = [
+        %{
+          role: "user",
+          content: "Extract person info: Alice Johnson is a 28-year-old data scientist."
+        }
+      ]
+
+      case ExLLM.chat(:anthropic, messages,
+             response_model: Person,
+             temperature: 0.1,
+             max_tokens: 100
+           ) do
+        {:ok, person} ->
+          assert person.name == "Alice Johnson"
+          assert person.age == 28
+          assert person.occupation == "data scientist"
+
+        {:error, :not_configured} ->
+          :ok
+
+        {:error, reason} ->
+          flunk("Instructor extraction failed: #{inspect(reason)}")
+      end
     end
 
-    # Set up a mock response handler that returns structured JSON
-    ExLLM.Providers.Mock.set_response_handler(fn messages, _options ->
-      last_message = List.last(messages)
-      content = last_message.content || last_message[:content] || last_message["content"]
+    test "extracts structured data using response_model with OpenAI" do
+      skip_unless_configured_and_supports(:openai, :chat)
 
-      response =
-        cond do
-          String.contains?(content, "John Doe") ->
-            ~s({"name": "John Doe", "age": 30, "occupation": "software engineer"})
+      messages = [
+        %{
+          role: "user",
+          content: "Extract person info: Bob Smith is a 35-year-old teacher."
+        }
+      ]
 
-          String.contains?(content, "Jane Smith") ->
-            ~s({"name": "Jane Smith", "age": 25, "occupation": "doctor"})
+      case ExLLM.chat(:openai, messages,
+             response_model: Person,
+             temperature: 0.1,
+             max_tokens: 100
+           ) do
+        {:ok, person} ->
+          assert person.name == "Bob Smith"
+          assert person.age == 35
+          assert person.occupation == "teacher"
 
-          String.contains?(content, "Implement instructor support") ->
-            ~s({"title": "Implement instructor support", "completed": true, "priority": 3, "tags": ["elixir", "llm", "structured-output"]})
+        {:error, :not_configured} ->
+          :ok
 
-          String.contains?(content, "count to") ->
-            "[1, 2, 3, 4, 5]"
+        {:error, reason} ->
+          flunk("Instructor extraction failed: #{inspect(reason)}")
+      end
+    end
 
-          String.contains?(content, "Extract the person") ->
-            ~s({"name": "Alice Johnson", "age": 28})
+    test "handles validation and retries with real provider" do
+      skip_unless_configured_and_supports(:anthropic, :chat)
 
-          String.contains?(content, "Return JSON") and String.contains?(content, "Alice Brown") ->
-            ~s({"name": "Alice Brown", "age": 28, "occupation": "designer"})
+      messages = [
+        %{
+          role: "user",
+          content: "Calculate: What is 15 + 27? Show your work."
+        }
+      ]
 
-          true ->
-            ~s({"data": "test"})
+      case ExLLM.chat(:anthropic, messages,
+             response_model: MathResult,
+             temperature: 0.1,
+             max_tokens: 200,
+             max_retries: 2
+           ) do
+        {:ok, result} ->
+          assert result.expression =~ "15" or result.expression =~ "27"
+          assert result.result == 42.0
+          assert is_binary(result.explanation)
+          assert String.length(result.explanation) > 0
+
+        {:error, :not_configured} ->
+          :ok
+
+        {:error, reason} ->
+          flunk("Math calculation failed: #{inspect(reason)}")
+      end
+    end
+
+    test "handles lists and arrays with real provider" do
+      skip_unless_configured_and_supports(:openai, :chat)
+
+      # Define a schema with a list
+      defmodule TodoList do
+        use Ecto.Schema
+
+        @primary_key false
+        embedded_schema do
+          field :title, :string
+          field :items, {:array, :string}
         end
+      end
 
-      %{
-        content: response,
-        model: "mock-model",
-        usage: %{input_tokens: 10, output_tokens: 20}
-      }
-    end)
-
-    :ok
-  end
-
-  describe "structured output integration" do
-    @tag :integration
-    test "extracts structured data using response_model in main module" do
       messages = [
         %{
           role: "user",
-          content: "Extract person info: John Doe is a 30-year-old software engineer."
+          content: "Create a todo list for grocery shopping: milk, bread, eggs, cheese"
         }
       ]
 
-      assert {:ok, person} =
-               ExLLM.chat(:mock, messages,
-                 response_model: TestPerson,
-                 temperature: 0.1
-               )
+      case ExLLM.chat(:openai, messages,
+             response_model: TodoList,
+             temperature: 0.1,
+             max_tokens: 100
+           ) do
+        {:ok, todo_list} ->
+          assert todo_list.title =~ "grocery" or todo_list.title =~ "shopping"
+          assert is_list(todo_list.items)
+          assert length(todo_list.items) >= 3
+          # Check for at least some of the items
+          items_text = Enum.join(todo_list.items, " ")
+          assert items_text =~ "milk" or items_text =~ "bread" or items_text =~ "eggs"
 
-      assert person.name == "John Doe"
-      assert person.age == 30
-      assert person.occupation == "software engineer"
+        {:error, :not_configured} ->
+          :ok
+
+        {:error, reason} ->
+          flunk("List extraction failed: #{inspect(reason)}")
+      end
     end
 
-    @tag :integration
-    test "validates and retries on validation errors" do
+    test "falls back to JSON mode when needed with real provider" do
+      skip_unless_configured_and_supports(:anthropic, :chat)
+
       messages = [
         %{
           role: "user",
-          content: "Extract person info but make age negative: Jane Smith, -25 years old, doctor."
+          content: "Return a JSON object with name and age for John Doe, 30 years old"
         }
       ]
 
-      # With retries, it should correct the invalid age
-      assert {:ok, person} =
-               ExLLM.chat(:mock, messages,
-                 response_model: TestPerson,
-                 max_retries: 2,
-                 temperature: 0.1
-               )
+      # When response_model is not provided, should get raw JSON
+      case ExLLM.chat(:anthropic, messages, temperature: 0, max_tokens: 100) do
+        {:ok, response} ->
+          # Try to parse the response as JSON
+          case Jason.decode(response.content) do
+            {:ok, json} ->
+              assert is_map(json)
+              # Provider might return with different key casing
+              assert Map.get(json, "name") == "John Doe" or 
+                     Map.get(json, "Name") == "John Doe"
+              assert Map.get(json, "age") == 30 or 
+                     Map.get(json, "Age") == 30
 
-      assert person.name == "Jane Smith"
-      # Should be corrected
-      assert person.age > 0
-      assert person.occupation == "doctor"
+            {:error, _} ->
+              # If not valid JSON, at least verify we got some response
+              assert String.contains?(response.content, "John") or
+                     String.contains?(response.content, "30")
+          end
+
+        {:error, :not_configured} ->
+          :ok
+
+        {:error, reason} ->
+          flunk("JSON response failed: #{inspect(reason)}")
+      end
     end
 
-    @tag :integration
-    test "works with simple type specifications" do
-      type_spec = %{
-        title: :string,
-        completed: :boolean,
-        priority: :integer,
-        tags: {:array, :string}
-      }
+    test "handles complex nested structures with real provider" do
+      skip_unless_configured_and_supports(:openai, :chat)
+
+      # Define a nested structure
+      defmodule Company do
+        use Ecto.Schema
+
+        @primary_key false
+        embedded_schema do
+          field :name, :string
+          field :founded, :integer
+          embeds_many :employees, Person
+        end
+      end
 
       messages = [
         %{
           role: "user",
           content: """
-          Extract task info:
-          Title: Implement instructor support
-          Status: Done
-          Priority: High (score 3)
-          Tags: elixir, llm, structured-output
+          Extract company info:
+          TechCorp was founded in 2020. 
+          Employees: Jane Doe (25, engineer) and Bob Lee (30, manager)
           """
         }
       ]
 
-      assert {:ok, task} =
-               ExLLM.chat(:mock, messages,
-                 response_model: type_spec,
-                 temperature: 0.1
-               )
+      case ExLLM.chat(:openai, messages,
+             response_model: Company,
+             temperature: 0.1,
+             max_tokens: 300
+           ) do
+        {:ok, company} ->
+          assert company.name == "TechCorp"
+          assert company.founded == 2020
+          assert length(company.employees) == 2
+          
+          jane = Enum.find(company.employees, & &1.name =~ "Jane")
+          assert jane.age == 25
+          assert jane.occupation == "engineer"
 
-      assert task.title == "Implement instructor support"
-      assert task.completed == true
-      assert task.priority == 3
-      assert "elixir" in task.tags
-      assert "llm" in task.tags
-      assert "structured-output" in task.tags
-    end
+        {:error, :not_configured} ->
+          :ok
 
-    @tag :integration
-    test "parse_response works with existing LLM response" do
-      # First get a regular response
-      messages = [
-        %{
-          role: "user",
-          content:
-            "Return JSON: {\"name\": \"Alice Brown\", \"age\": 28, \"occupation\": \"designer\"}"
-        }
-      ]
-
-      assert {:ok, response} = ExLLM.chat(:mock, messages, temperature: 0)
-
-      # Then parse it into a structure
-      assert {:ok, person} = ExLLM.Core.StructuredOutputs.parse_response(response, TestPerson)
-
-      assert person.name == "Alice Brown"
-      assert person.age == 28
-      assert person.occupation == "designer"
-    end
-
-    @tag :integration
-    test "returns appropriate error for unsupported provider" do
-      messages = [%{role: "user", content: "Test"}]
-
-      assert {:error, :unsupported_provider_for_instructor} =
-               ExLLM.chat(:bumblebee, messages, response_model: TestPerson)
+        {:error, reason} ->
+          flunk("Complex structure extraction failed: #{inspect(reason)}")
+      end
     end
   end
 end

@@ -37,8 +37,8 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
       end
     end
 
-    test "supports both Grok-2 and Grok-2-mini" do
-      models = ["grok-2", "grok-2-mini"]
+    test "supports both Grok-2 and Grok-3-mini" do
+      models = ["grok-2", "grok-3-mini"]
       messages = [%{role: "user", content: "Hello"}]
 
       for model <- models do
@@ -133,7 +133,22 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
 
           if grok_model do
             assert grok_model.context_window > 0
-            assert is_map(grok_model.capabilities)
+            
+            # Handle both list and map formats for capabilities
+            case grok_model.capabilities do
+              capabilities when is_list(capabilities) ->
+                # Fallback YAML format
+                assert "streaming" in capabilities
+                assert "function_calling" in capabilities
+                
+              %{features: features} = capabilities when is_map(capabilities) ->
+                # Provider implementation format
+                assert is_list(features)
+                assert :streaming in features
+                assert :function_calling in features
+                assert capabilities.supports_streaming == true
+                assert capabilities.supports_functions == true
+            end
           end
 
         {:error, _} ->

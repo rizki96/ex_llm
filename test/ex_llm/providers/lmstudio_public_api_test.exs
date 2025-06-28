@@ -5,8 +5,13 @@ defmodule ExLLM.Providers.LMStudioPublicAPITest do
   """
 
   use ExLLM.Shared.ProviderIntegrationTest, provider: :lmstudio
+  import ExLLM.Testing.ServiceHelpers
 
   @moduletag :requires_service
+
+  setup do
+    skip_unless_service_available(:lmstudio)
+  end
 
   # Provider-specific tests only
   describe "lmstudio-specific features via public API" do

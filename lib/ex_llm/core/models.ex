@@ -56,6 +56,28 @@ defmodule ExLLM.Core.Models do
   """
   @spec list_for_provider(atom()) :: {:ok, [map()]} | {:error, term()}
   def list_for_provider(provider) do
+    # Try to use the provider's pipeline implementation first
+    pipeline = ExLLM.Providers.get_pipeline(provider, :list_models)
+    
+    # Create a request for list_models operation
+    request = ExLLM.Pipeline.Request.new(provider, [], %{operation: :list_models})
+    
+    # Run the pipeline
+    case ExLLM.Pipeline.run(request, pipeline) do
+      %ExLLM.Pipeline.Request{state: :completed, result: {:ok, models}} ->
+        {:ok, models}
+        
+      %ExLLM.Pipeline.Request{state: :error, errors: errors} ->
+        # Fall back to static YAML configuration if pipeline fails
+        fallback_to_yaml_config(provider, errors)
+        
+      _ ->
+        # Fall back to static YAML configuration for unsupported providers
+        fallback_to_yaml_config(provider, :pipeline_not_supported)
+    end
+  end
+  
+  defp fallback_to_yaml_config(provider, _reason) do
     models_map = ModelConfig.get_all_models(provider)
 
     if map_size(models_map) == 0 do

@@ -89,6 +89,8 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
 
   Returns a map with `:input` and `:output` pricing per 1M tokens,
   or `nil` if the model is not found.
+  
+  For local providers (ollama, lmstudio, bumblebee), always returns free pricing.
 
   ## Examples
 
@@ -97,14 +99,22 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_pricing(:anthropic, "claude-3-5-sonnet-20241022")
       %{input: 3.00, output: 15.00}
+      
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_pricing(:ollama, "any-model")
+      %{input: 0.0, output: 0.0}
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_pricing(:unknown_provider, "model")
       nil
   """
   def get_pricing(provider, model) when is_atom(provider) and is_binary(model) do
-    case get_model_config(provider, model) do
-      nil -> nil
-      model_config -> Map.get(model_config, :pricing)
+    # Local providers always have free pricing
+    if provider in [:ollama, :lmstudio, :bumblebee] do
+      %{input: 0.0, output: 0.0}
+    else
+      case get_model_config(provider, model) do
+        nil -> nil
+        model_config -> Map.get(model_config, :pricing)
+      end
     end
   end
 
@@ -112,6 +122,9 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
   Gets the context window size for a specific provider and model.
 
   Returns the context window size in tokens, or `nil` if not found.
+  
+  For local providers (ollama, lmstudio, bumblebee), returns a conservative
+  default of 4096 tokens if the model is not in the configuration.
 
   ## Examples
 
@@ -120,11 +133,21 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_context_window(:anthropic, "claude-3-5-sonnet-20241022")
       200000
+      
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_context_window(:ollama, "unknown-model")
+      4096
   """
   def get_context_window(provider, model) when is_atom(provider) and is_binary(model) do
     case get_model_config(provider, model) do
-      nil -> nil
-      model_config -> Map.get(model_config, :context_window)
+      nil ->
+        # Provide sane defaults for local providers
+        if provider in [:ollama, :lmstudio, :bumblebee] do
+          4096  # Conservative default for unknown local models
+        else
+          nil
+        end
+      model_config -> 
+        Map.get(model_config, :context_window)
     end
   end
 
@@ -132,16 +155,59 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
   Gets the capabilities for a specific provider and model.
 
   Returns a list of capability atoms, or `nil` if not found.
+  
+  For local providers (ollama, lmstudio, bumblebee), returns basic
+  capabilities [:chat, :streaming] if the model is not in the configuration.
 
   ## Examples
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_capabilities(:openai, "gpt-4o")
       [:text, :vision, :function_calling, :streaming]
+      
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_capabilities(:ollama, "unknown-model")
+      [:chat, :streaming]
   """
   def get_capabilities(provider, model) when is_atom(provider) and is_binary(model) do
     case get_model_config(provider, model) do
-      nil -> nil
-      model_config -> Map.get(model_config, :capabilities, [])
+      nil ->
+        # Provide sane defaults for local providers
+        if provider in [:ollama, :lmstudio, :bumblebee] do
+          [:chat, :streaming]  # Basic capabilities for unknown local models
+        else
+          nil
+        end
+      model_config -> 
+        Map.get(model_config, :capabilities, [])
+    end
+  end
+
+  @doc """
+  Gets the max output tokens for a specific provider and model.
+
+  Returns the max output tokens, or `nil` if not found.
+  
+  For local providers (ollama, lmstudio, bumblebee), returns a conservative
+  default of 4096 tokens if the model is not in the configuration.
+
+  ## Examples
+
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_max_output_tokens(:openai, "gpt-4o")
+      16384
+      
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_max_output_tokens(:ollama, "unknown-model")
+      4096
+  """
+  def get_max_output_tokens(provider, model) when is_atom(provider) and is_binary(model) do
+    case get_model_config(provider, model) do
+      nil ->
+        # Provide sane defaults for local providers
+        if provider in [:ollama, :lmstudio, :bumblebee] do
+          4096  # Conservative default for unknown local models
+        else
+          nil
+        end
+      model_config -> 
+        Map.get(model_config, :max_output_tokens)
     end
   end
 
@@ -348,6 +414,41 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
     Enum.each(@providers, &get_provider_config/1)
 
     :ok
+  end
+
+  @doc """
+  Gets model configuration with sane defaults for local providers.
+  
+  For local providers (ollama, lmstudio, bumblebee), returns default
+  configuration if the model is not found.
+  
+  ## Examples
+  
+      iex> ExLLM.Infrastructure.Config.ModelConfig.get_model_config_with_defaults(:ollama, "unknown-model")
+      %{
+        context_window: 4096,
+        max_output_tokens: 4096,
+        capabilities: [:chat, :streaming],
+        pricing: %{input: 0.0, output: 0.0}
+      }
+  """
+  def get_model_config_with_defaults(provider, model) when is_atom(provider) and is_binary(model) do
+    case get_model_config(provider, model) do
+      nil ->
+        if provider in [:ollama, :lmstudio, :bumblebee] do
+          # Return sane defaults for unknown local models
+          %{
+            context_window: 4096,
+            max_output_tokens: 4096,
+            capabilities: [:chat, :streaming],
+            pricing: %{input: 0.0, output: 0.0}
+          }
+        else
+          nil
+        end
+      config ->
+        config
+    end
   end
 
   # Private functions
