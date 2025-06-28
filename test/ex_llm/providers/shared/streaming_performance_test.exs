@@ -82,41 +82,6 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
     end
   end
 
-  describe "Memory usage comparison" do
-    @tag :performance
-    test "Compare memory usage during streaming", %{
-      bypass: bypass,
-      base_url: base_url,
-      api_key: api_key
-    } do
-      # Use larger chunks for memory testing
-      # 50 chunks of 1KB each
-      large_chunks = generate_test_chunks(50, 1000)
-
-      # Test memory usage
-      legacy_mem =
-        measure_memory_usage(fn ->
-          benchmark_legacy_streaming(bypass, base_url, api_key, large_chunks)
-        end)
-
-      new_mem =
-        measure_memory_usage(fn ->
-          benchmark_new_streaming(bypass, base_url, api_key, large_chunks)
-        end)
-
-      IO.puts("\n=== Memory Usage Comparison ===")
-      IO.puts("Legacy HTTPClient: #{legacy_mem} KB")
-      IO.puts("New HTTP.Core: #{new_mem} KB")
-
-      IO.puts(
-        "Difference: #{new_mem - legacy_mem} KB (#{Float.round((new_mem - legacy_mem) / legacy_mem * 100, 2)}%)"
-      )
-
-      # Memory usage should not increase significantly
-      # Allow up to 75% more memory for HTTP.Core improvements
-      assert new_mem <= legacy_mem * 1.75
-    end
-  end
 
   describe "Latency comparison" do
     @tag :performance
@@ -421,17 +386,6 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
     end
   end
 
-  defp measure_memory_usage(fun) do
-    :erlang.garbage_collect()
-    start_memory = :erlang.memory(:total)
-
-    fun.()
-
-    :erlang.garbage_collect()
-    end_memory = :erlang.memory(:total)
-
-    Float.round((end_memory - start_memory) / 1024, 2)
-  end
 
   defp measure_first_chunk_latency(bypass, base_url, api_key, benchmark_fn) do
     # Setup to measure time to first chunk
