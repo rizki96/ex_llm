@@ -66,12 +66,12 @@ if Mix.env() == :dev do
       pre_commit: [
         tasks: [
           {:cmd, "mix format"},
-          {:cmd, "mix format --check-formatted"},
           {:cmd, "mix compile --warnings-as-errors"}
         ]
       ],
       pre_push: [
         tasks: [
+          {:cmd, "mix format --check-formatted"},
           {:cmd, "mix credo --config-file .credo.exs --only warning"},
           # {:cmd, "mix dialyzer"}, # Temporarily disabled - PLT issues
           {:cmd, "mix test --exclude integration"},
