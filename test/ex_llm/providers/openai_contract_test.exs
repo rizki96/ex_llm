@@ -13,22 +13,12 @@ defmodule ExLLM.Providers.OpenAIContractTest do
   # formatted result ({:ok, _} or {:error, _}) without relying on complex HTTP mocking.
 
   setup do
-    # Save original API key to restore it later
-    original_key = System.get_env("OPENAI_API_KEY")
+    # Create a static config provider with dummy API key
+    # This avoids modifying global environment variables
+    config = %{openai: %{api_key: "test-key-dummy"}}
+    {:ok, config_provider} = ExLLM.Infrastructure.ConfigProvider.Static.start_link(config)
 
-    # Provide a dummy API key to pass the provider's validation checks.
-    System.put_env("OPENAI_API_KEY", "test-key-dummy")
-
-    on_exit(fn ->
-      # Restore original environment variable to not interfere with other tests.
-      if original_key do
-        System.put_env("OPENAI_API_KEY", original_key)
-      else
-        System.delete_env("OPENAI_API_KEY")
-      end
-    end)
-
-    :ok
+    {:ok, config_provider: config_provider}
   end
 
   # Helper to create and clean up a dummy file for tests that require file uploads.
@@ -44,9 +34,11 @@ defmodule ExLLM.Providers.OpenAIContractTest do
   end
 
   describe "OpenAI Provider Public API Contract" do
-    test "chat/2 function exists and accepts correct parameters" do
+    test "chat/2 function exists and accepts correct parameters", %{
+      config_provider: config_provider
+    } do
       messages = [%{role: "user", content: "Hello"}]
-      options = [model: "gpt-4"]
+      options = [model: "gpt-4", config_provider: config_provider]
 
       # The function should exist and return either {:ok, _} or {:error, _}
       # We expect an error due to invalid API key, but that proves the function signature works
@@ -54,101 +46,117 @@ defmodule ExLLM.Providers.OpenAIContractTest do
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "stream_chat/2 signature" do
+    test "stream_chat/2 signature", %{config_provider: config_provider} do
       messages = [%{role: "user", content: "Hello"}]
-      options = [model: "gpt-4"]
+      options = [model: "gpt-4", config_provider: config_provider]
 
       result = OpenAI.stream_chat(messages, options)
       # Stream.resource/3 returns a function, not a %Stream{} struct
       assert match?({:ok, stream} when is_function(stream), result) or match?({:error, _}, result)
     end
 
-    test "embeddings/2 signature" do
+    test "embeddings/2 signature", %{config_provider: config_provider} do
       inputs = ["some text"]
-      options = [model: "text-embedding-ada-002"]
+      options = [model: "text-embedding-ada-002", config_provider: config_provider]
 
       result = OpenAI.embeddings(inputs, options)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "list_models/1 signature" do
-      result = OpenAI.list_models()
+    test "list_models/1 signature", %{config_provider: config_provider} do
+      result = OpenAI.list_models(config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "moderate_content/2 signature" do
+    test "moderate_content/2 signature", %{config_provider: config_provider} do
       input = "some content"
 
-      result = OpenAI.moderate_content(input)
+      result = OpenAI.moderate_content(input, config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "generate_image/2 signature" do
+    test "generate_image/2 signature", %{config_provider: config_provider} do
       prompt = "a cat"
 
-      result = OpenAI.generate_image(prompt)
+      result = OpenAI.generate_image(prompt, config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "create_assistant/2 signature" do
+    test "create_assistant/2 signature", %{config_provider: config_provider} do
       params = %{model: "gpt-4"}
 
-      result = OpenAI.create_assistant(params)
+      result = OpenAI.create_assistant(params, config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "create_thread/1 signature" do
-      result = OpenAI.create_thread()
+    test "create_thread/1 signature", %{config_provider: config_provider} do
+      result = OpenAI.create_thread(config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "create_message/3 signature" do
+    test "create_message/3 signature", %{config_provider: config_provider} do
       thread_id = "thread_123"
       params = %{role: "user", content: "hello"}
 
-      result = OpenAI.create_message(thread_id, params)
+      result = OpenAI.create_message(thread_id, params, config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "create_run/3 signature" do
+    test "create_run/3 signature", %{config_provider: config_provider} do
       thread_id = "thread_123"
       params = %{assistant_id: "asst_123"}
 
-      result = OpenAI.create_run(thread_id, params)
+      result = OpenAI.create_run(thread_id, params, config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "text_to_speech/2 signature" do
+    test "text_to_speech/2 signature", %{config_provider: config_provider} do
       text = "hello world"
 
-      result = OpenAI.text_to_speech(text)
+      result = OpenAI.text_to_speech(text, config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "transcribe_audio/2 signature" do
+    test "transcribe_audio/2 signature", %{config_provider: config_provider} do
       with_dummy_file(fn file_path ->
-        result = OpenAI.transcribe_audio(file_path)
+        result = OpenAI.transcribe_audio(file_path, config_provider: config_provider)
         assert match?({:ok, _}, result) or match?({:error, _}, result)
       end)
     end
 
-    test "create_vector_store/2 signature" do
+    test "create_vector_store/2 signature", %{config_provider: config_provider} do
       params = %{name: "My Store"}
 
-      result = OpenAI.create_vector_store(params)
+      result = OpenAI.create_vector_store(params, config_provider: config_provider)
       assert match?({:ok, _}, result) or match?({:error, _}, result)
     end
 
-    test "configured?/1 signature" do
-      System.put_env("OPENAI_API_KEY", "test-key")
-      assert OpenAI.configured?()
-      assert OpenAI.configured?([])
+    test "configured?/1 signature", %{config_provider: config_provider} do
+      # Save current env var value
+      original_key = System.get_env("OPENAI_API_KEY")
 
-      System.put_env("OPENAI_API_KEY", "")
-      refute OpenAI.configured?()
+      try do
+        # Test with config provider that has API key
+        assert OpenAI.configured?(config_provider: config_provider)
 
-      System.delete_env("OPENAI_API_KEY")
-      refute OpenAI.configured?()
+        # Temporarily clear the environment variable
+        System.delete_env("OPENAI_API_KEY")
+
+        # Test with empty config provider
+        {:ok, empty_config} =
+          ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{openai: %{}})
+
+        refute OpenAI.configured?(config_provider: empty_config)
+
+        # Test with config provider that has empty API key
+        {:ok, empty_key_config} =
+          ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{openai: %{api_key: ""}})
+
+        refute OpenAI.configured?(config_provider: empty_key_config)
+      after
+        # Restore the environment variable if it existed
+        if original_key, do: System.put_env("OPENAI_API_KEY", original_key)
+      end
     end
 
     test "default_model/0 signature" do

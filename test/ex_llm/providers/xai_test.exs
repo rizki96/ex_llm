@@ -1,5 +1,5 @@
 defmodule ExLLM.Providers.XAITest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   alias ExLLM.Providers.XAI
   alias ExLLM.Types
 

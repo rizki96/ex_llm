@@ -6,7 +6,7 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
   any provider that implements the OpenAI-compatible base.
   """
 
-  use ExUnit.Case
+  use ExUnit.Case, async: false
 
   defmacro run_standard_tests(provider_module, provider_atom) do
     quote do
@@ -216,7 +216,7 @@ end
 
 # Now create individual test modules for each provider
 defmodule ExLLM.Providers.XAICompatibilityTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   import ExLLM.Providers.SharedOpenAICompatibleTest
 
   run_standard_tests(ExLLM.Providers.XAI, :xai)
@@ -225,7 +225,7 @@ defmodule ExLLM.Providers.XAICompatibilityTest do
 end
 
 defmodule ExLLM.Providers.GroqCompatibilityTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   import ExLLM.Providers.SharedOpenAICompatibleTest
 
   run_standard_tests(ExLLM.Providers.Groq, :groq)
@@ -234,7 +234,7 @@ defmodule ExLLM.Providers.GroqCompatibilityTest do
 end
 
 defmodule ExLLM.Providers.MistralCompatibilityTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   import ExLLM.Providers.SharedOpenAICompatibleTest
 
   run_standard_tests(ExLLM.Providers.Mistral, :mistral)

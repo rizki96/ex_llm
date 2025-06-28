@@ -351,7 +351,19 @@ defmodule ExLLM.Core.StructuredOutputs do
 
   defp build_provider_config(provider, config_provider)
        when provider in [:anthropic, :openai, :gemini, :groq, :xai] do
-    [model: get_model_config(provider, config_provider)]
+    model = get_model_config(provider, config_provider)
+
+    # Get API key for Instructor
+    api_key = get_api_key_for_provider(provider, config_provider)
+
+    config = [model: model]
+
+    # Add API key if available
+    if api_key do
+      Keyword.put(config, :api_key, api_key)
+    else
+      config
+    end
   end
 
   defp build_provider_config(_provider, _config_provider) do
@@ -364,6 +376,29 @@ defmodule ExLLM.Core.StructuredOutputs do
         {:ok, model} -> model
         {:error, _} -> nil
       end
+  end
+
+  defp get_api_key_for_provider(provider, config_provider) do
+    # Map provider atoms to their environment variable names
+    env_var =
+      case provider do
+        :anthropic -> "ANTHROPIC_API_KEY"
+        :openai -> "OPENAI_API_KEY"
+        :gemini -> "GEMINI_API_KEY"
+        :groq -> "GROQ_API_KEY"
+        :xai -> "XAI_API_KEY"
+        _ -> nil
+      end
+
+    # Try to get API key from config provider
+    api_key = config_provider.get(provider, :api_key)
+
+    # Fall back to environment variable if not in config
+    if api_key do
+      api_key
+    else
+      env_var && System.get_env(env_var)
+    end
   end
 
   defp strip_ollama_prefix(model) do

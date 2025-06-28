@@ -90,7 +90,8 @@ defmodule ExLLM.Providers.AnthropicPublicAPITest do
 
           last_chunk = List.last(stream_chunks)
           assert last_chunk != nil, "Last chunk is nil"
-          assert last_chunk.finish_reason in ["end_turn", "stop_sequence", "max_tokens"]
+          # Streaming coordinators normalize finish reasons to "stop"
+          assert last_chunk.finish_reason in ["end_turn", "stop_sequence", "max_tokens", "stop"]
 
         {:error, _} ->
           :ok
