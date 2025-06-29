@@ -108,10 +108,13 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   # Adds CircuitBreaker middleware unless disabled.
-  defp add_circuit_breaker(middleware, provider, _config, opts) do
+  defp add_circuit_breaker(middleware, provider, config, opts) do
     if Keyword.get(opts, :include_circuit_breaker, true) do
+      circuit_name = "#{provider}_circuit"
+
       [
-        {ExLLM.Tesla.Middleware.CircuitBreaker, name: "#{provider}_circuit", provider: provider}
+        {ExLLM.Tesla.Middleware.CircuitBreaker,
+         name: circuit_name, provider: provider, timeout: config[:circuit_breaker_timeout]}
         | middleware
       ]
     else
@@ -146,7 +149,10 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   # Adds Telemetry middleware unless disabled.
   defp add_telemetry(middleware, provider, _config, opts) do
     if Keyword.get(opts, :include_telemetry, true) do
-      [{ExLLM.Tesla.Middleware.Telemetry, metadata: %{provider: provider}} | middleware]
+      [
+        {ExLLM.Tesla.Middleware.Telemetry, metadata: %{provider: provider}}
+        | middleware
+      ]
     else
       middleware
     end
@@ -168,6 +174,9 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
     if is_streaming do
       [{Tesla.Middleware.JSON, decode: false} | middleware]
     else
+      # Use default JSON middleware configuration for non-streaming requests
+      # The engine_opts parameter should be passed to the JSON engine (Jason),
+      # not directly to Tesla.Middleware.JSON
       [Tesla.Middleware.JSON | middleware]
     end
   end

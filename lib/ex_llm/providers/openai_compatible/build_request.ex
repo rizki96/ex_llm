@@ -54,14 +54,14 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
       @impl true
       def call(request, _opts) do
         # Extract configuration and API key from request
-        config = request.assigns.config
+        config = request.assigns.config || %{}
         api_key = request.assigns.api_key
         messages = request.messages
         options = request.options
 
-        # Determine model
+        # Determine model (options might be keyword list or map)
         model =
-          Map.get(
+          get_option(
             options,
             :model,
             Map.get(config, :model) || ConfigHelper.ensure_default_model(@provider)
@@ -87,7 +87,7 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
           model: model,
           messages: MessageFormatter.stringify_message_keys(messages),
           temperature:
-            Map.get(
+            get_option(
               options,
               :temperature,
               Map.get(config, :temperature, @default_temperature)
@@ -119,14 +119,14 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
       end
 
       defp maybe_add_system_prompt(body, options) do
-        case Map.get(options, :system) do
+        case get_option(options, :system) do
           nil -> body
           system -> Map.update!(body, :messages, &MessageFormatter.add_system_message(&1, system))
         end
       end
 
       defp maybe_add_max_tokens(body, options, config) do
-        case Map.get(options, :max_tokens) || Map.get(config, :max_tokens) do
+        case get_option(options, :max_tokens) || Map.get(config, :max_tokens) do
           nil -> body
           max_tokens -> Map.put(body, :max_tokens, max_tokens)
         end
@@ -145,16 +145,25 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
       end
 
       defp maybe_add_streaming_options(body, options) do
-        case Map.get(options, :stream) do
+        case get_option(options, :stream) do
           true -> Map.put(body, :stream, true)
           _ -> body
         end
       end
 
       defp maybe_add_param(body, key, options) do
-        case Map.get(options, key) do
+        case get_option(options, key) do
           nil -> body
           value -> Map.put(body, key, value)
+        end
+      end
+
+      # Helper to safely get values from keyword list or map
+      defp get_option(options, key, default \\ nil) do
+        cond do
+          is_map(options) -> Map.get(options, key, default)
+          Keyword.keyword?(options) -> Keyword.get(options, key, default)
+          true -> default
         end
       end
 

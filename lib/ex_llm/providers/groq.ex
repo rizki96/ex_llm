@@ -99,14 +99,13 @@ defmodule ExLLM.Providers.Groq do
   end
 
   @impl ExLLM.Providers.OpenAICompatible
-  def get_headers(api_key, options) do
-    base_headers = super(api_key, options)
-
-    # Add Groq-specific headers if needed
-    base_headers ++
-      [
-        {"x-groq-version", "v1"}
-      ]
+  def get_headers(api_key, _options) do
+    # Base headers without calling super() to avoid Tesla middleware conflicts
+    [
+      {"authorization", "Bearer #{api_key}"},
+      {"content-type", "application/json"},
+      {"x-groq-version", "v1"}
+    ]
   end
 
   @impl ExLLM.Providers.OpenAICompatible
@@ -132,12 +131,15 @@ defmodule ExLLM.Providers.Groq do
 
   defp handle_groq_stop_sequences(request) do
     # Groq supports max 4 stop sequences
-    case Map.get(request, "stop") do
+    # Handle both atom and string keys
+    stop_key = if Map.has_key?(request, :stop), do: :stop, else: "stop"
+
+    case Map.get(request, stop_key) do
       nil ->
         request
 
       stops when is_list(stops) and length(stops) > 4 ->
-        Map.put(request, "stop", Enum.take(stops, 4))
+        Map.put(request, stop_key, Enum.take(stops, 4))
 
       _ ->
         request
@@ -146,10 +148,13 @@ defmodule ExLLM.Providers.Groq do
 
   defp handle_groq_temperature(request) do
     # Groq recommends temperature between 0 and 2
-    case Map.get(request, "temperature") do
+    # Handle both atom and string keys
+    temp_key = if Map.has_key?(request, :temperature), do: :temperature, else: "temperature"
+
+    case Map.get(request, temp_key) do
       nil -> request
-      temp when temp > 2 -> Map.put(request, "temperature", 2)
-      temp when temp < 0 -> Map.put(request, "temperature", 0)
+      temp when temp > 2 -> Map.put(request, temp_key, 2)
+      temp when temp < 0 -> Map.put(request, temp_key, 0)
       _ -> request
     end
   end

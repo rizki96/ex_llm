@@ -403,7 +403,11 @@ defmodule ExLLM.Providers.OpenAI do
       _ ->
         case Jason.decode(data) do
           {:ok, parsed} ->
-            choice = get_in(parsed, ["choices", Access.at(0)]) || %{}
+            choices = parsed["choices"] || []
+
+            choice =
+              if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
+
             delta = choice["delta"] || %{}
 
             chunk =
@@ -480,7 +484,9 @@ defmodule ExLLM.Providers.OpenAI do
   end
 
   def parse_response(response, model) do
-    choice = get_in(response, ["choices", Access.at(0)]) || %{}
+    # Handle cases where choices might not be a list
+    choices = response["choices"] || []
+    choice = if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
     message = choice["message"] || %{}
     usage = response["usage"] || %{}
 

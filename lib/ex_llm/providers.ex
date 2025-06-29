@@ -190,13 +190,11 @@ defmodule ExLLM.Providers do
       Plugs.ValidateProvider,
       Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
+      ExLLM.Providers.Groq.BuildRequest,
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
-      # Reuse OpenAI format
-      Plugs.Providers.OpenAIPrepareRequest,
       Plugs.ExecuteRequest,
-      # Reuse OpenAI parser
-      Plugs.Providers.OpenAIParseResponse,
+      ExLLM.Providers.Groq.ParseResponse,
       Plugs.TrackCost
     ]
   end
@@ -265,9 +263,9 @@ defmodule ExLLM.Providers do
       Plugs.ValidateProvider,
       Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
+      ExLLM.Providers.Groq.BuildRequest,
       Plugs.BuildTeslaClient,
-      Plugs.Providers.OpenAIPrepareRequest,
-      Plugs.Providers.OpenAIParseStreamResponse,
+      Plugs.Providers.GroqParseStreamResponse,
       Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest
     ]

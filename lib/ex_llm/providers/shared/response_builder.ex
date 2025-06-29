@@ -334,7 +334,11 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     cond do
       # OpenAI/Groq format
       choices = data["choices"] ->
-        message = get_in(choices, [Access.at(0), "message"])
+        message =
+          if is_list(choices) and length(choices) > 0,
+            do: Enum.at(choices, 0)["message"],
+            else: %{}
+
         # Handle DeepSeek R1 models that use reasoning_content when content is empty
         content = message["content"]
         reasoning_content = message["reasoning_content"]
@@ -356,7 +360,14 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
 
       # Gemini format
       candidates = data["candidates"] ->
-        get_in(candidates, [Access.at(0), "content", "parts", Access.at(0), "text"])
+        case {is_list(candidates) and length(candidates) > 0, candidates} do
+          {true, [first_candidate | _]} ->
+            parts = get_in(first_candidate, ["content", "parts"])
+            if is_list(parts) and length(parts) > 0, do: Enum.at(parts, 0)["text"], else: nil
+
+          _ ->
+            nil
+        end
 
       true ->
         nil
@@ -367,7 +378,9 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     cond do
       # OpenAI format
       choices = data["choices"] ->
-        get_in(choices, [Access.at(0), "finish_reason"])
+        if is_list(choices) and length(choices) > 0,
+          do: Enum.at(choices, 0)["finish_reason"],
+          else: nil
 
       # Anthropic format
       stop_reason = data["stop_reason"] ->
@@ -375,7 +388,9 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
 
       # Gemini format
       candidates = data["candidates"] ->
-        get_in(candidates, [Access.at(0), "finishReason"])
+        if is_list(candidates) and length(candidates) > 0,
+          do: Enum.at(candidates, 0)["finishReason"],
+          else: nil
 
       true ->
         nil
@@ -386,8 +401,11 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     cond do
       # OpenAI stream format
       choices = data["choices"] ->
-        delta = get_in(choices, [Access.at(0), "delta"])
-        finish = get_in(choices, [Access.at(0), "finish_reason"])
+        first_choice =
+          if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
+
+        delta = first_choice["delta"]
+        finish = first_choice["finish_reason"]
         {delta["content"], finish}
 
       # Anthropic stream format
@@ -437,7 +455,11 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     cond do
       # OpenAI format
       choices = data["choices"] ->
-        message = get_in(choices, [Access.at(0), "message"])
+        message =
+          if is_list(choices) and length(choices) > 0,
+            do: Enum.at(choices, 0)["message"],
+            else: %{}
+
         message["tool_calls"] || []
 
       # Anthropic format
@@ -516,7 +538,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     cond do
       # OpenAI completion format
       choices = data["choices"] ->
-        get_in(choices, [Access.at(0), "text"])
+        if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0)["text"], else: nil
 
       # Direct text field
       text = data["text"] ->

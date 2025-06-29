@@ -561,10 +561,13 @@ defmodule ExLLM.Testing.MockResponseRecorder do
   end
 
   defp convert_openai_response(response) do
+    # Safely extract first choice
+    choices = response["choices"] || response[:choices] || []
+    first_choice = if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
+    message = first_choice["message"] || first_choice[:message] || %{}
+
     %{
-      content:
-        get_in(response, ["choices", Access.at(0), "message", "content"]) ||
-          get_in(response, [:choices, Access.at(0), :message, :content]) || "",
+      content: message["content"] || message[:content] || "",
       model: response["model"] || response[:model] || "gpt-3.5-turbo",
       usage: %{
         input_tokens:
@@ -574,18 +577,22 @@ defmodule ExLLM.Testing.MockResponseRecorder do
           get_in(response, ["usage", "completion_tokens"]) ||
             get_in(response, [:usage, :completion_tokens]) || 0
       },
-      finish_reason:
-        get_in(response, ["choices", Access.at(0), "finish_reason"]) ||
-          get_in(response, [:choices, Access.at(0), :finish_reason]),
+      finish_reason: first_choice["finish_reason"] || first_choice[:finish_reason],
       id: response["id"] || response[:id]
     }
   end
 
   defp convert_anthropic_response(response) do
+    # Safely extract first content item
+    content_items = response["content"] || response[:content] || []
+
+    first_content =
+      if is_list(content_items) and length(content_items) > 0,
+        do: Enum.at(content_items, 0),
+        else: %{}
+
     %{
-      content:
-        get_in(response, ["content", Access.at(0), "text"]) ||
-          get_in(response, [:content, Access.at(0), :text]) || "",
+      content: first_content["text"] || first_content[:text] || "",
       model: response["model"] || response[:model] || "claude-3-5-sonnet",
       usage: %{
         input_tokens:

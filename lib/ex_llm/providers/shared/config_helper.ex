@@ -32,9 +32,9 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
         """
 
       provider when is_pid(provider) ->
-        # Static provider instance
-        adapter_config =
-          ExLLM.Infrastructure.ConfigProvider.Static.get(provider, adapter_name) || %{}
+        # Static provider instance - get all config and extract adapter-specific part
+        all_config = ExLLM.Infrastructure.ConfigProvider.Static.get_all(provider) || %{}
+        adapter_config = Map.get(all_config, adapter_name, %{})
 
         normalize_config(adapter_config)
 

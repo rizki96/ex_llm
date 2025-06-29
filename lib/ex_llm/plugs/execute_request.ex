@@ -200,9 +200,17 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     case response do
       # Handle successful Tesla responses
       %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
+        # Parse JSON response body
+        parsed_body =
+          case Jason.decode(env.body) do
+            {:ok, parsed} -> parsed
+            # Keep raw body if not JSON
+            {:error, _} -> env.body
+          end
+
         request
         |> Map.put(:response, env)
-        |> Request.assign(:http_response, env.body)
+        |> Request.assign(:http_response, parsed_body)
         |> Request.put_state(:completed)
         |> Request.put_metadata(:http_status, status)
         |> Request.put_metadata(:response_headers, headers)

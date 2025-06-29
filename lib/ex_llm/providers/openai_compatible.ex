@@ -433,13 +433,18 @@ defmodule ExLLM.Providers.OpenAICompatible do
       end
 
       def parse_stream_chunk(data) when is_map(data) do
-        case get_in(data, ["choices", Access.at(0), "delta"]) do
+        choices = data["choices"] || []
+
+        first_choice =
+          if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
+
+        case first_choice["delta"] do
           nil ->
             {:ok, StreamingBehavior.create_text_chunk("")}
 
           delta ->
             content = Map.get(delta, "content", "")
-            finish_reason = get_in(data, ["choices", Access.at(0), "finish_reason"])
+            finish_reason = first_choice["finish_reason"]
 
             chunk = StreamingBehavior.create_text_chunk(content, finish_reason: finish_reason)
             {:ok, chunk}

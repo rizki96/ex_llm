@@ -46,7 +46,9 @@ defmodule ExLLM.Providers.Shared.MessageFormatter do
   """
   @spec stringify_message_keys(list(map())) :: list(map())
   def stringify_message_keys(messages) do
-    Enum.map(messages, &stringify_keys/1)
+    messages
+    |> Enum.reject(&is_nil/1)
+    |> Enum.map(&stringify_keys/1)
   end
 
   @doc """

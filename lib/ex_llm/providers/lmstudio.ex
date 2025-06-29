@@ -168,7 +168,6 @@ defmodule ExLLM.Providers.LMStudio do
     Map.merge(base_config, runtime_config)
   end
 
-
   defp list_models_enhanced(opts) do
     config = prepare_config(opts)
     timeout = Keyword.get(opts, :timeout, @timeout)

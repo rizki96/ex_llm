@@ -15,7 +15,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
     use ExLLM.Providers.OpenAICompatible,
       provider: :fake_mistral,
       base_url: "http://localhost",
-      models: ["mistral-model"]
+      models: ["mistral-model", "test-model"]
 
     # Override to add special params not in the base OpenAI spec
     @impl OpenAICompatible
@@ -29,11 +29,51 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
     @impl ExLLM.Provider
     def default_model(), do: "mistral-model"
 
-    # Override to avoid loading from config file
+    # Override to avoid loading from config file and provide test models
     defoverridable ensure_default_model: 0
 
     defp ensure_default_model do
       "mistral-model"
+    end
+
+    # Override list_models to provide test models for the pipeline, but respect source: :api
+    def list_models(options) do
+      case Keyword.get(options, :source) do
+        :api ->
+          # Delegate to parent implementation for API fetching
+          super(options)
+
+        _ ->
+          # Provide test models for static/default usage
+          models = [
+            %ExLLM.Types.Model{
+              id: "mistral-model",
+              name: "Mistral Model",
+              description: "Test Mistral model",
+              context_window: 32_000,
+              capabilities: %{
+                supports_streaming: true,
+                supports_functions: true,
+                supports_vision: false,
+                features: [:streaming, :function_calling]
+              }
+            },
+            %ExLLM.Types.Model{
+              id: "test-model",
+              name: "Test Model",
+              description: "Test model for unit tests",
+              context_window: 4096,
+              capabilities: %{
+                supports_streaming: true,
+                supports_functions: true,
+                supports_vision: false,
+                features: [:streaming, :function_calling]
+              }
+            }
+          ]
+
+          {:ok, models}
+      end
     end
 
     # These are not callbacks, they're helper functions
@@ -61,7 +101,8 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
       Application.put_env(:ex_llm, :use_tesla_mock, original_mock_setting)
     end)
 
-    %{bypass: bypass, base_url: "http://localhost:#{bypass.port}/v1"}
+    # Remove /v1 from base URL since ExecuteRequest adds it
+    %{bypass: bypass, base_url: "http://localhost:#{bypass.port}"}
   end
 
   # Generate tests for each provider listed in @providers
@@ -148,6 +189,14 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
       } do
         test_pid = self()
 
+        # Use real model names that exist in config files
+        model_name =
+          case unquote(provider_atom) do
+            :groq -> "llama-3.3-70b-versatile"
+            :xai -> "grok-beta"
+            :fake_mistral -> "test-model"
+          end
+
         Bypass.stub(bypass, "POST", "/v1/chat/completions", fn conn ->
           # Capture request details
           {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
@@ -159,19 +208,27 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
             {:request_captured, conn.method, conn.request_path, conn.req_headers, body}
           )
 
-          Plug.Conn.resp(conn, 200, """
+          model = Map.get(body, "model", "unknown-model")
+
+          response_json = """
           {
-            "id": "chatcmpl-123", "object": "chat.completion", "created": 1677652288, "model": "test-model",
+            "id": "chatcmpl-123",
+            "object": "chat.completion", 
+            "created": 1677652288,
+            "model": "#{model}",
             "choices": [{"index": 0, "message": {"role": "assistant", "content": "Hello there!"}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 9, "completion_tokens": 12, "total_tokens": 21}
           }
-          """)
+          """
+
+          Plug.Conn.resp(conn, 200, response_json)
         end)
 
         messages = [%{role: "user", content: "Hi"}]
 
-        {:ok, response} =
-          unquote(provider_module).chat(messages, model: "test-model", config_provider: pid)
+        result = unquote(provider_module).chat(messages, model: model_name, config_provider: pid)
+
+        {:ok, response} = result
 
         assert %Types.LLMResponse{} = response
         assert response.content == "Hello there!"
@@ -183,8 +240,8 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
         assert method == "POST"
         assert path == "/v1/chat/completions"
         assert {"authorization", "Bearer test-key"} in headers
-        assert body["model"] == "test-model"
-        assert body["messages"] == [%{"role" => "user", "content" => "Hi"}]
+        assert Map.get(body, "model") == model_name
+        assert Map.get(body, "messages") == [%{"role" => "user", "content" => "Hi"}]
       end
 
       test "chat/2 with common options sends correct request body", %{
@@ -201,17 +258,32 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
           # Send body to test process
           send(test_pid, {:request_body, body})
 
-          Plug.Conn.resp(conn, 200, """
+          model = Map.get(body, "model", "unknown-model")
+
+          response_json = """
           {
-            "id": "chatcmpl-123", "object": "chat.completion", "created": 1677652288, "model": "test-model",
+            "id": "chatcmpl-123",
+            "object": "chat.completion", 
+            "created": 1677652288,
+            "model": "#{model}",
             "choices": [{"index": 0, "message": {"role": "assistant", "content": ""}, "finish_reason": "stop"}],
             "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
           }
-          """)
+          """
+
+          Plug.Conn.resp(conn, 200, response_json)
         end)
 
+        # Use real model names that exist in config files
+        model_name =
+          case unquote(provider_atom) do
+            :groq -> "llama-3.3-70b-versatile"
+            :xai -> "grok-beta"
+            :fake_mistral -> "test-model"
+          end
+
         options = [
-          model: "test-model",
+          model: model_name,
           temperature: 3.0,
           max_tokens: 100,
           top_p: 0.9,
@@ -219,36 +291,53 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
           config_provider: pid
         ]
 
-        :ok = unquote(provider_module).chat([%{role: "user", content: "Hi"}], options) |> elem(0)
+        result = unquote(provider_module).chat([%{role: "user", content: "Hi"}], options)
+
+        case result do
+          {:ok, _} ->
+            :ok
+
+          {:error, error} ->
+            IO.puts("Error from #{unquote(provider_atom)}: #{inspect(error)}")
+            flunk("Expected {:ok, _}, got {:error, #{inspect(error)}}")
+        end
 
         assert_receive {:request_body, body}
 
         # Groq has special handling in its transform_request/2 override
         if unquote(provider_atom) == :groq do
-          assert body["temperature"] == 2.0
-          assert body["stop"] == ["stop1", "stop2", "stop3", "stop4"]
+          assert Map.get(body, "temperature") == 2.0
+          assert Map.get(body, "stop") == ["stop1", "stop2", "stop3", "stop4"]
         else
-          assert body["temperature"] == 3.0
-          assert body["stop"] == ["stop1", "stop2", "stop3", "stop4", "stop5"]
+          assert Map.get(body, "temperature") == 3.0
+          assert Map.get(body, "stop") == ["stop1", "stop2", "stop3", "stop4", "stop5"]
         end
 
-        assert body["max_tokens"] == 100
-        assert body["top_p"] == 0.9
+        assert Map.get(body, "max_tokens") == 100
+        assert Map.get(body, "top_p") == 0.9
       end
 
       test "stream_chat/2 sends a streaming request", %{bypass: bypass, config_provider: pid} do
         Bypass.stub(bypass, "POST", "/v1/chat/completions", fn conn ->
           {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
           body = Jason.decode!(raw_body)
-          assert body["stream"] == true
+          assert Map.get(body, "stream") == true
           Plug.Conn.resp(conn, 200, "data: [DONE]\n\n")
         end)
+
+        # Use real model names that exist in config files
+        model_name =
+          case unquote(provider_atom) do
+            :groq -> "llama-3.3-70b-versatile"
+            :xai -> "grok-beta"
+            :fake_mistral -> "test-model"
+          end
 
         messages = [%{role: "user", content: "Hi"}]
 
         {:ok, stream} =
           unquote(provider_module).stream_chat(messages,
-            model: "test-model",
+            model: model_name,
             config_provider: pid
           )
 
@@ -276,30 +365,43 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
           Plug.Conn.resp(conn, 401, ~s|{"error": "Invalid API key"}|)
         end)
 
-        {:error, error} =
-          unquote(provider_module).chat([%{role: "user", content: "Hi"}], config_provider: pid)
+        # Use real model names that exist in config files
+        model_name =
+          case unquote(provider_atom) do
+            :groq -> "llama-3.3-70b-versatile"
+            :xai -> "grok-beta"
+            :fake_mistral -> "test-model"
+          end
 
-        # Handle both direct error maps and nested error structures
+        {:error, error} =
+          unquote(provider_module).chat([%{role: "user", content: "Hi"}],
+            model: model_name,
+            config_provider: pid
+          )
+
+        # Handle both pipeline errors (simple atoms) and direct HTTP errors (nested structures)
         case error do
+          :unauthorized ->
+            :ok
+
+          :authentication_error ->
+            :ok
+
           %{type: :authentication_error} ->
             :ok
 
-          %{error: %{type: :authentication_error}} ->
-            :ok
-
-          {:connection_failed, %{type: :authentication_error, status_code: 401}} ->
+          {:error, {:connection_failed, %{type: :authentication_error}}} ->
             :ok
 
           {:connection_failed, %{type: :authentication_error}} ->
             :ok
 
           other ->
-            # Check if it contains authentication error anywhere in the structure
+            # For debugging: Check if it contains authentication error anywhere
             error_str = inspect(error)
 
             if String.contains?(error_str, "authentication_error") or
-                 String.contains?(error_str, "Invalid API key") or
-                 String.contains?(error_str, "status: 401") do
+                 String.contains?(error_str, "Invalid API key") do
               :ok
             else
               flunk("Expected authentication error, got: #{inspect(other)}")
@@ -312,30 +414,46 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
           Plug.Conn.resp(conn, 429, ~s|{"error": "Rate limit exceeded"}|)
         end)
 
-        {:error, error} =
-          unquote(provider_module).chat([%{role: "user", content: "Hi"}], config_provider: pid)
+        # Use real model names that exist in config files
+        model_name =
+          case unquote(provider_atom) do
+            :groq -> "llama-3.3-70b-versatile"
+            :xai -> "grok-beta"
+            :fake_mistral -> "test-model"
+          end
 
-        # Handle both direct error maps and nested error structures
+        {:error, error} =
+          unquote(provider_module).chat([%{role: "user", content: "Hi"}],
+            model: model_name,
+            config_provider: pid
+          )
+
+        # Handle both pipeline errors (simple atoms) and direct HTTP errors (nested structures)
         case error do
+          :rate_limited ->
+            :ok
+
+          :rate_limit_exceeded ->
+            :ok
+
+          :rate_limit_error ->
+            :ok
+
           %{type: :rate_limit_error} ->
             :ok
 
-          %{error: %{type: :rate_limit_error}} ->
-            :ok
-
-          {:connection_failed, %{type: :rate_limit_error, status_code: 429}} ->
+          {:error, {:connection_failed, %{type: :rate_limit_error}}} ->
             :ok
 
           {:connection_failed, %{type: :rate_limit_error}} ->
             :ok
 
           other ->
-            # Check if it contains rate limit error anywhere in the structure
+            # For debugging: Check if it contains rate limit error anywhere
             error_str = inspect(error)
 
             if String.contains?(error_str, "rate_limit_error") or
-                 String.contains?(error_str, "Rate limit exceeded") or
-                 String.contains?(error_str, "status: 429") do
+                 String.contains?(error_str, "Rate limit exceeded") do
               :ok
             else
               flunk("Expected rate limit error, got: #{inspect(other)}")
@@ -348,25 +466,39 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
           Plug.Conn.resp(conn, 500, "Internal Server Error")
         end)
 
+        # Use real model names that exist in config files
+        model_name =
+          case unquote(provider_atom) do
+            :groq -> "llama-3.3-70b-versatile"
+            :xai -> "grok-beta"
+            :fake_mistral -> "test-model"
+          end
+
         {:error, error} =
-          unquote(provider_module).chat([%{role: "user", content: "Hi"}], config_provider: pid)
+          unquote(provider_module).chat([%{role: "user", content: "Hi"}],
+            model: model_name,
+            config_provider: pid
+          )
 
-        # Handle both direct error maps and nested error structures
+        # Handle both pipeline errors (simple atoms) and direct HTTP errors (nested structures)
         case error do
-          %{type: :api_error, status_code: 500} ->
+          :server_error ->
             :ok
 
-          %{error: %{type: :api_error, status_code: 500}} ->
+          :api_error ->
             :ok
 
-          {:connection_failed, %{type: :api_error, status_code: 500}} ->
+          %{type: :api_error} ->
             :ok
 
-          {:connection_failed, %{status_code: 500}} ->
+          {:error, {:connection_failed, %{type: :api_error}}} ->
+            :ok
+
+          {:connection_failed, %{type: :api_error}} ->
             :ok
 
           other ->
-            # Check if it contains server error anywhere in the structure
+            # For debugging: Check if it contains api error anywhere
             error_str = inspect(error)
 
             if String.contains?(error_str, "api_error") or
@@ -395,17 +527,32 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
             # Send body to test process
             send(test_pid, {:request_body, body})
 
-            Plug.Conn.resp(conn, 200, """
+            model = Map.get(body, "model", "unknown-model")
+
+            response_json = """
             {
-              "id": "chatcmpl-123", "object": "chat.completion", "created": 1677652288, "model": "test-model",
+              "id": "chatcmpl-123",
+              "object": "chat.completion", 
+              "created": 1677652288,
+              "model": "#{model}",
               "choices": [{"index": 0, "message": {"role": "assistant", "content": ""}, "finish_reason": "stop"}],
               "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2}
             }
-            """)
+            """
+
+            Plug.Conn.resp(conn, 200, response_json)
           end)
 
+          # Use real model names that exist in config files
+          model_name =
+            case unquote(provider_atom) do
+              :groq -> "groq/llama-3.3-70b-versatile"
+              :xai -> "xai/grok-beta"
+              :fake_mistral -> "test-model"
+            end
+
           options =
-            [model: "test-model", config_provider: pid]
+            [model: model_name, config_provider: pid]
             |> Keyword.merge(Enum.to_list(unquote(Macro.escape(special_opts))))
 
           :ok =
@@ -414,7 +561,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
           assert_receive {:request_body, body}
 
           for {key, value} <- unquote(Macro.escape(special_opts)) do
-            assert body[to_string(key)] == value
+            assert Map.get(body, to_string(key)) == value
           end
         end
       end

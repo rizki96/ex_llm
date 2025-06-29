@@ -284,8 +284,14 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   defp default_parse_chunk(data) do
     case Jason.decode(data) do
       {:ok, parsed} ->
-        content = get_in(parsed, ["choices", Access.at(0), "delta", "content"]) || ""
-        finish_reason = get_in(parsed, ["choices", Access.at(0), "finish_reason"])
+        choices = parsed["choices"] || []
+
+        first_choice =
+          if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
+
+        delta = first_choice["delta"] || %{}
+        content = delta["content"] || ""
+        finish_reason = first_choice["finish_reason"]
 
         chunk = %ExLLM.Types.StreamChunk{
           content: content,

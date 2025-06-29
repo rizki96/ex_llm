@@ -93,14 +93,27 @@ defmodule ExLLM.Providers.OpenRouter do
   # Override transform_response to normalize legacy function_call into tool_calls.
   @impl ExLLM.Providers.OpenAICompatible
   def transform_response(response, _options) do
-    message = get_in(response, ["choices", Access.at(0), "message"])
+    # Handle cases where choices might not be a list
+    choices = response["choices"] || []
 
-    if message && (message["function_call"] || message["tool_calls"]) do
-      tool_calls = parse_function_calls(message)
-      message = Map.put(message, "tool_calls", tool_calls)
-      # Ensure legacy function_call is removed for consistency
-      message = Map.delete(message, "function_call")
-      put_in(response, ["choices", Access.at(0), "message"], message)
+    if is_list(choices) and length(choices) > 0 do
+      first_choice = Enum.at(choices, 0)
+      message = first_choice["message"] || %{}
+
+      if message && (message["function_call"] || message["tool_calls"]) do
+        tool_calls = parse_function_calls(message)
+
+        updated_message =
+          message
+          |> Map.put("tool_calls", tool_calls)
+          |> Map.delete("function_call")
+
+        updated_choice = Map.put(first_choice, "message", updated_message)
+        updated_choices = List.replace_at(choices, 0, updated_choice)
+        Map.put(response, "choices", updated_choices)
+      else
+        response
+      end
     else
       response
     end
