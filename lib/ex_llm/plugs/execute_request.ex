@@ -200,12 +200,17 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     case response do
       # Handle successful Tesla responses
       %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
-        # Parse JSON response body
+        # Handle response body (may already be parsed by Tesla middleware)
         parsed_body =
-          case Jason.decode(env.body) do
-            {:ok, parsed} -> parsed
-            # Keep raw body if not JSON
-            {:error, _} -> env.body
+          case env.body do
+            body when is_binary(body) ->
+              case Jason.decode(body) do
+                {:ok, parsed} -> parsed
+                {:error, _} -> body
+              end
+            body ->
+              # Already parsed (e.g., by Tesla JSON middleware)
+              body
           end
 
         request
