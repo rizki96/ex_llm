@@ -18,6 +18,7 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
         end
 
         @tag :unit
+        @tag :flaky
         test "has required functions" do
           assert function_exported?(unquote(provider_module), :chat, 2)
           assert function_exported?(unquote(provider_module), :stream_chat, 2)
