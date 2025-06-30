@@ -98,7 +98,7 @@ IO.puts("Tokens used: #{response.usage.total_tokens}")
 
 ```elixir
 # Stream responses in real-time
-ExLLM.chat_stream(:openai, [
+ExLLM.stream(:openai, [
   %{role: "user", content: "Write a short story about a robot"}
 ], fn chunk ->
   IO.write(chunk.delta)
@@ -109,19 +109,18 @@ end)
 
 ```elixir
 # Maintain conversation context
-{:ok, session} = ExLLM.Session.new(:anthropic)
+session = ExLLM.new_session(:anthropic)
 
 # First message
-{:ok, session, response1} = ExLLM.Session.chat(session, "Hi, I'm learning Elixir")
+{:ok, {response1, session}} = ExLLM.chat(session, "Hi, I'm learning Elixir")
 IO.puts(response1.content)
 
 # Continue the conversation
-{:ok, session, response2} = ExLLM.Session.chat(session, "What are GenServers?")
+{:ok, {response2, session}} = ExLLM.chat(session, "What are GenServers?")
 IO.puts(response2.content)
 
 # Session automatically tracks conversation history
 IO.puts("Messages in session: #{length(session.messages)}")
-IO.puts("Total cost: $#{session.total_cost}")
 ```
 
 ## Advanced Features
@@ -200,7 +199,7 @@ Enum.each(models, fn model ->
 end)
 
 # Get specific model info
-{:ok, model} = ExLLM.get_model(:openai, "gpt-4o")
+{:ok, model} = ExLLM.get_model_info(:openai, "gpt-4o")
 IO.puts("Supports streaming: #{model.capabilities.supports_streaming}")
 IO.puts("Supports vision: #{model.capabilities.supports_vision}")
 ```
