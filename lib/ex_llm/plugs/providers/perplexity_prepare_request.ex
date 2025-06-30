@@ -11,7 +11,7 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
   @impl true
   def call(%ExLLM.Pipeline.Request{} = request, _opts) do
     messages = request.messages
-    config = request.config
+    config = request.assigns[:config] || %{}
     options = request.options
 
     # Build request body similar to OpenAI format
@@ -38,17 +38,25 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
   end
 
   defp add_optional_param(request, options, option_key, param_name) do
-    case Keyword.get(options, option_key) do
-      nil -> request
-      value -> Map.put(request, param_name, value)
+    value = get_option(options, option_key)
+    if value do
+      Map.put(request, param_name, value)
+    else
+      request
     end
   end
+  
+  defp get_option(options, key) when is_map(options), do: Map.get(options, key)
+  defp get_option(options, key) when is_list(options), do: Keyword.get(options, key)
+  defp get_option(_, _), do: nil
 
   defp build_request_body(messages, config, options) do
     # Build base request body
+    model = get_option(options, :model) || config[:model] || "sonar"
+    
     body = %{
       "messages" => messages,
-      "model" => Keyword.get(options, :model, config[:model] || "sonar")
+      "model" => model
     }
 
     # Add optional parameters

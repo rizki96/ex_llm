@@ -235,9 +235,8 @@ defmodule ExLLM.Core.Chat do
             cost_value =
               case cost_info do
                 %{total_cost: total} -> total
-                nil -> nil
                 cost when is_float(cost) -> cost
-                _ -> 0.0
+                _ -> nil
               end
 
             response_with_cost = Map.put(response, :cost, cost_value)

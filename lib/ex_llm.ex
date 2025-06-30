@@ -1,6 +1,6 @@
 defmodule ExLLM do
   alias ExLLM.Types
-  
+
   @moduledoc """
   ExLLM - A unified Elixir client for Large Language Models.
 

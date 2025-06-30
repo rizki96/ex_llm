@@ -3492,16 +3492,6 @@ defmodule ExLLM.Providers.OpenAI do
         :post_multipart ->
           # For multipart, we'll need special handling
           Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
-
-        :stream ->
-          # For streaming requests, use the provided callback
-          callback = Keyword.get(opts, :callback)
-
-          if callback do
-            Core.stream(client, path, body, callback, timeout: timeout)
-          else
-            {:error, "Callback required for streaming requests"}
-          end
       end
 
     # Convert Tesla response to the expected format
