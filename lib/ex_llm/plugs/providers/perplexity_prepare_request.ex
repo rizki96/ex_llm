@@ -39,13 +39,14 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
 
   defp add_optional_param(request, options, option_key, param_name) do
     value = get_option(options, option_key)
+
     if value do
       Map.put(request, param_name, value)
     else
       request
     end
   end
-  
+
   defp get_option(options, key) when is_map(options), do: Map.get(options, key)
   defp get_option(options, key) when is_list(options), do: Keyword.get(options, key)
   defp get_option(_, _), do: nil
@@ -53,7 +54,7 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
   defp build_request_body(messages, config, options) do
     # Build base request body
     model = get_option(options, :model) || config[:model] || "sonar"
-    
+
     body = %{
       "messages" => messages,
       "model" => model
