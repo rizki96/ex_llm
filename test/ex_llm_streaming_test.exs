@@ -5,6 +5,7 @@ defmodule ExLLM.StreamingTest do
 
   describe "streaming functionality" do
     @tag :streaming
+    @tag :wip
     # @tag :skip
     test "stream/4 API with mock provider" do
       messages = [%{role: "user", content: "Hello, stream!"}]

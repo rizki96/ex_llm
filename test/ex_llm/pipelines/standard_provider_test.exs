@@ -41,22 +41,25 @@ defmodule ExLLM.Pipelines.StandardProviderTest do
       inner_pipeline = telemetry_opts[:pipeline]
 
       # Extract just the plug modules for easier assertion, ignoring conditional plug details
-      actual_plugs = Enum.map(inner_pipeline, fn
-        {plug_module, _opts} -> plug_module
-        plug_module when is_atom(plug_module) -> plug_module
-      end)
-      
+      actual_plugs =
+        Enum.map(inner_pipeline, fn
+          {plug_module, _opts} -> plug_module
+          plug_module when is_atom(plug_module) -> plug_module
+        end)
+
       expected_plugs = [
         Plugs.ValidateProvider,
         Plugs.ValidateMessages,
         Plugs.FetchConfiguration,
-        Plugs.ConditionalPlug,  # PrepareStreaming conditional
+        # PrepareStreaming conditional
+        Plugs.ConditionalPlug,
         DummyBuildRequest,
         Plugs.BuildTeslaClient,
-        Plugs.ConditionalPlug,  # ExecuteRequest conditional
+        # ExecuteRequest conditional
+        Plugs.ConditionalPlug,
         DummyParseResponse
       ]
-      
+
       assert actual_plugs == expected_plugs
     end
 

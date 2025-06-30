@@ -317,6 +317,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
         assert Map.get(body, "top_p") == 0.9
       end
 
+      @tag :wip
       test "stream_chat/2 sends a streaming request", %{bypass: bypass, config_provider: pid} do
         Bypass.stub(bypass, "POST", "/v1/chat/completions", fn conn ->
           {:ok, raw_body, conn} = Plug.Conn.read_body(conn)
