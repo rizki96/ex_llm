@@ -249,6 +249,8 @@ defmodule ExLLM.Core.Chat do
         :error ->
           case result.errors do
             [%{error: error} | _] -> {:error, error}
+            [%{reason: reason} | _] -> {:error, reason}
+            [%{message: message} | _] -> {:error, message}
             [] -> {:error, :pipeline_failed}
           end
 
