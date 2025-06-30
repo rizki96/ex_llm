@@ -41,6 +41,19 @@ defmodule ExLLM.Environment do
   - `OLLAMA_MODEL` - Default model for Ollama
   - `BUMBLEBEE_MODEL_PATH` - Path to local Bumblebee model
 
+  ### Provider Streaming Timeouts
+  - `ANTHROPIC_STREAMING_TIMEOUT` - Streaming timeout for Anthropic (default: 300000ms / 5 minutes)
+  - `OPENAI_STREAMING_TIMEOUT` - Streaming timeout for OpenAI (default: 300000ms / 5 minutes)
+  - `GEMINI_STREAMING_TIMEOUT` - Streaming timeout for Gemini (default: 600000ms / 10 minutes)
+  - `GROQ_STREAMING_TIMEOUT` - Streaming timeout for Groq (default: 120000ms / 2 minutes)
+  - `MISTRAL_STREAMING_TIMEOUT` - Streaming timeout for Mistral (default: 300000ms / 5 minutes)
+  - `OPENROUTER_STREAMING_TIMEOUT` - Streaming timeout for OpenRouter (default: 300000ms / 5 minutes)
+  - `PERPLEXITY_STREAMING_TIMEOUT` - Streaming timeout for Perplexity (default: 300000ms / 5 minutes)
+  - `XAI_STREAMING_TIMEOUT` - Streaming timeout for X.AI (default: 300000ms / 5 minutes)
+  - `OLLAMA_STREAMING_TIMEOUT` - Streaming timeout for Ollama (default: 600000ms / 10 minutes)
+  - `LMSTUDIO_STREAMING_TIMEOUT` - Streaming timeout for LM Studio (default: 600000ms / 10 minutes)
+  - `BUMBLEBEE_STREAMING_TIMEOUT` - Streaming timeout for Bumblebee (default: 1200000ms / 20 minutes)
+
   ### Provider-Specific
   - `OPENAI_ORGANIZATION` - OpenAI organization ID
   - `OPENROUTER_APP_NAME` - Application name for OpenRouter requests
@@ -119,6 +132,20 @@ defmodule ExLLM.Environment do
     ollama: {"OLLAMA_MODEL", nil}
   }
 
+  @provider_streaming_timeouts %{
+    anthropic: {"ANTHROPIC_STREAMING_TIMEOUT", 300_000},
+    openai: {"OPENAI_STREAMING_TIMEOUT", 300_000},
+    gemini: {"GEMINI_STREAMING_TIMEOUT", 600_000},
+    groq: {"GROQ_STREAMING_TIMEOUT", 120_000},
+    mistral: {"MISTRAL_STREAMING_TIMEOUT", 300_000},
+    openrouter: {"OPENROUTER_STREAMING_TIMEOUT", 300_000},
+    perplexity: {"PERPLEXITY_STREAMING_TIMEOUT", 300_000},
+    xai: {"XAI_STREAMING_TIMEOUT", 300_000},
+    ollama: {"OLLAMA_STREAMING_TIMEOUT", 600_000},
+    lmstudio: {"LMSTUDIO_STREAMING_TIMEOUT", 600_000},
+    bumblebee: {"BUMBLEBEE_STREAMING_TIMEOUT", 1_200_000}
+  }
+
   @doc """
   Get the API key environment variable name for a provider.
 
@@ -156,6 +183,21 @@ defmodule ExLLM.Environment do
   """
   def model_var(provider) when is_atom(provider) do
     Map.get(@provider_models, provider)
+  end
+
+  @doc """
+  Get the streaming timeout environment variable and default for a provider.
+
+  ## Examples
+
+      iex> ExLLM.Environment.streaming_timeout_var(:anthropic)
+      {"ANTHROPIC_STREAMING_TIMEOUT", 300_000}
+
+      iex> ExLLM.Environment.streaming_timeout_var(:groq)
+      {"GROQ_STREAMING_TIMEOUT", 120_000}
+  """
+  def streaming_timeout_var(provider) when is_atom(provider) do
+    Map.get(@provider_streaming_timeouts, provider)
   end
 
   @doc """
@@ -247,6 +289,22 @@ defmodule ExLLM.Environment do
       case model_var(provider) do
         {var, default} ->
           Map.put(config, :model, System.get_env(var, default))
+
+        _ ->
+          config
+      end
+
+    # Add streaming timeout
+    config =
+      case streaming_timeout_var(provider) do
+        {var, default} ->
+          timeout_value =
+            case System.get_env(var) do
+              nil -> default
+              timeout_str -> String.to_integer(timeout_str)
+            end
+
+          Map.put(config, :streaming_timeout, timeout_value)
 
         _ ->
           config

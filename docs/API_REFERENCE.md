@@ -173,22 +173,24 @@ token_count = ExLLM.estimate_tokens("This is my prompt")
 
 ## Context Management
 
-### Handle Context Windows
+> 🚧 **Under Development**: Context management APIs are currently being refactored.
+
+### Manual Context Management (Current)
 ```elixir
-# Prepare messages to fit context window
-{:ok, messages} = ExLLM.prepare_messages(messages, :openai,
-  model: "gpt-4",
-  strategy: :sliding_window
-)
+# Manual message limiting
+max_messages = 20
+messages = Enum.take(conversation, -max_messages)
 
-# Validate context size
-{:ok, :valid} = ExLLM.validate_context(messages, :anthropic,
-  model: "claude-3-opus"
-)
-
-# Get context window size
-{:ok, 100000} = ExLLM.context_window_size(:anthropic, "claude-3-opus")
+{:ok, response} = ExLLM.chat(:openai, messages, model: "gpt-4")
 ```
+
+### Future APIs (Planned)
+The following APIs are under development:
+- `ExLLM.prepare_messages/3` - Automatic message truncation
+- `ExLLM.validate_context/3` - Context validation  
+- `ExLLM.context_window_size/2` - Model context windows
+
+See [FEATURE_STATUS.md](../FEATURE_STATUS.md) for current status.
 
 ## Function Calling
 

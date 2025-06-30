@@ -151,6 +151,19 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
             _ -> nil
           end
 
+        # Streaming Timeouts
+        {prov, :streaming_timeout} ->
+          case ExLLM.Environment.streaming_timeout_var(prov) do
+            {var, default} ->
+              case System.get_env(var) do
+                nil -> default
+                timeout_str -> String.to_integer(timeout_str)
+              end
+
+            _ ->
+              nil
+          end
+
         # Special cases
         {:openai, :organization} ->
           System.get_env("OPENAI_ORGANIZATION")

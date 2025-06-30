@@ -98,8 +98,22 @@ defmodule ExLLM.Pipelines.StandardProvider do
     build_request_plug = Keyword.fetch!(provider_plugs, :build_request)
     parse_response_plug = Keyword.fetch!(provider_plugs, :parse_response)
 
+    # Use ConditionalPlug to switch between stream and non-stream execution
     execute_request_plug =
-      Keyword.get(provider_plugs, :execute_request, {Plugs.ExecuteRequest, []})
+      case Keyword.get(provider_plugs, :execute_request) do
+        nil ->
+          # Default: use conditional plug to switch between stream/non-stream
+          {Plugs.ConditionalPlug,
+           [
+             condition: fn request -> request.config[:stream] == true end,
+             if_true: {Plugs.ExecuteStreamRequest, []},
+             if_false: {Plugs.ExecuteRequest, []}
+           ]}
+
+        custom_plug ->
+          # If a custom execute plug is provided, use it
+          custom_plug
+      end
 
     stream_parse_response_plug = Keyword.get(provider_plugs, :stream_parse_response)
 
@@ -110,8 +124,19 @@ defmodule ExLLM.Pipelines.StandardProvider do
     tesla_client_plug =
       case execute_request_plug do
         {Plugs.ExecuteRequest, _} -> {Plugs.BuildTeslaClient, []}
+        # Also need client for conditional
+        {Plugs.ConditionalPlug, _} -> {Plugs.BuildTeslaClient, []}
         _ -> nil
       end
+
+    # Add a plug to prepare streaming config
+    prepare_streaming_plug =
+      {Plugs.ConditionalPlug,
+       [
+         condition: fn request -> request.config[:stream] == true end,
+         if_true: {__MODULE__.PrepareStreaming, []},
+         if_false: {__MODULE__.PassThrough, []}
+       ]}
 
     # The main pipeline that will be wrapped by Telemetry
     inner_pipeline =
@@ -119,6 +144,7 @@ defmodule ExLLM.Pipelines.StandardProvider do
         {Plugs.ValidateProvider, []},
         {Plugs.ValidateMessages, []},
         {Plugs.FetchConfiguration, []},
+        prepare_streaming_plug,
         build_request_plug,
         # Build Tesla client for HTTP requests (only when using ExecuteRequest)
         tesla_client_plug,
@@ -141,5 +167,36 @@ defmodule ExLLM.Pipelines.StandardProvider do
          pipeline: inner_pipeline
        }}
     ]
+  end
+
+  # Helper plug to prepare streaming configuration
+  defmodule PrepareStreaming do
+    use ExLLM.Plug
+    alias ExLLM.Infrastructure.Logger
+
+    @impl true
+    def call(request, _opts) do
+      Logger.debug("PrepareStreaming called, config: #{inspect(request.config)}")
+
+      # Move on_chunk callback to stream_callback in config
+      config =
+        if callback = request.config[:on_chunk] do
+          Logger.debug("Found on_chunk callback, moving to stream_callback")
+          Map.put(request.config, :stream_callback, callback)
+        else
+          Logger.debug("No on_chunk callback found")
+          request.config
+        end
+
+      %{request | config: config}
+    end
+  end
+
+  # Pass-through plug for non-streaming requests
+  defmodule PassThrough do
+    use ExLLM.Plug
+
+    @impl true
+    def call(request, _opts), do: request
   end
 end

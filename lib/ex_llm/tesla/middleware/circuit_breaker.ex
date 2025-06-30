@@ -33,6 +33,10 @@ defmodule ExLLM.Tesla.Middleware.CircuitBreaker do
     cb_opts = []
     cb_opts = if timeout, do: [{:timeout, timeout} | cb_opts], else: cb_opts
 
+    Logger.debug(
+      "CircuitBreaker middleware: circuit_name=#{circuit_name}, timeout=#{inspect(timeout)}, cb_opts=#{inspect(cb_opts)}"
+    )
+
     # Execute the request through the circuit breaker
     case CircuitBreaker.call(circuit_name, fn -> Tesla.run(env, next) end, cb_opts) do
       {:ok, result} ->

@@ -589,62 +589,51 @@ session = ExLLM.new_session(:openai,
 
 ## Context Management
 
-Automatically manage conversation context to fit within model limits.
+> 🚧 **Under Development**: The automatic context management APIs are currently being refactored and are not functional in the current release. Manual message management is required for now.
 
-### Context Window Validation
+### Manual Context Management (Current Approach)
+
+Until the automatic context management is complete, you'll need to manually manage conversation length:
 
 ```elixir
-# Check if messages fit in context window
-case ExLLM.validate_context(messages, provider: :openai, model: "gpt-4") do
-  {:ok, token_count} ->
-    IO.puts("Messages use #{token_count} tokens")
-    
-  {:error, reason} ->
-    IO.puts("Messages too large: #{reason}")
+# Manually keep conversation within limits
+max_messages = 20  # Adjust based on your needs
+
+messages = if length(conversation) > max_messages do
+  # Keep system message + most recent messages
+  [system_message | Enum.take(conversation, -max_messages)]
+else
+  conversation
 end
 
-# Get context window size for a model
-window_size = ExLLM.context_window_size(:anthropic, "claude-3-opus-20240229")
-# => 200000
+{:ok, response} = ExLLM.chat(:openai, messages, model: "gpt-4")
 ```
 
-### Automatic Message Truncation
+### Token Estimation
 
 ```elixir
-# Prepare messages to fit in context window
-truncated = ExLLM.prepare_messages(long_conversation,
-  provider: :openai,
-  model: "gpt-4",
-  max_tokens: 4000,           # Reserve tokens for response
-  strategy: :sliding_window,   # or :smart
-  preserve_messages: 5         # Always keep last 5 messages
-)
+# Simple token estimation (rough approximation)
+estimate_tokens = fn text ->
+  div(String.length(text), 4)  # ~4 characters per token
+end
+
+total_tokens = messages
+|> Enum.map(fn msg -> estimate_tokens.(msg.content) end)
+|> Enum.sum()
+
+IO.puts("Estimated tokens: #{total_tokens}")
 ```
 
-### Truncation Strategies
+### Future Context Management APIs
 
-1. **:sliding_window** - Keep most recent messages
-2. **:smart** - Preserve system messages and recent context
+The following APIs are planned for future releases:
 
-```elixir
-# Smart truncation preserves important context
-{:ok, response} = ExLLM.chat(:openai, very_long_conversation,
-  strategy: :smart,
-  preserve_messages: 10
-)
-```
+- `ExLLM.validate_context/2` - Context window validation
+- `ExLLM.prepare_messages/2` - Automatic message truncation  
+- `ExLLM.context_stats/1` - Context statistics
+- `ExLLM.context_window_size/2` - Model context window information
 
-### Context Statistics
-
-```elixir
-stats = ExLLM.context_stats(messages)
-# => %{
-#   message_count: 20,
-#   total_tokens: 1500,
-#   by_role: %{"user" => 10, "assistant" => 9, "system" => 1},
-#   avg_tokens_per_message: 75
-# }
-```
+For updates on these features, see [FEATURE_STATUS.md](../FEATURE_STATUS.md).
 
 ## Function Calling
 

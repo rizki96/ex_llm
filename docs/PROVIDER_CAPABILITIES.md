@@ -47,7 +47,8 @@ Some providers offer API endpoints to discover capabilities:
 {:ok, models} = ExLLM.list_models(:openai)
 
 # Check if a model supports specific features
-{:ok, model_info} = ExLLM.ModelCapabilities.get_capabilities(:openai, "gpt-4o")
+# Note: Programmatic capability checking is under development
+# For now, refer to config/models/ directory
 ```
 
 ### 3. Feature Mapping
@@ -126,9 +127,9 @@ ExLLM.ProviderCapabilities.supports?(:openai, :image_generation)
 ExLLM.ProviderCapabilities.find_providers_with_features([:embeddings])
 # => [:openai, :gemini, :bedrock, :ollama]
 
-# Get full capability info
-{:ok, caps} = ExLLM.ProviderCapabilities.get_capabilities(:openai)
-IO.inspect(caps.features)
+# Get full capability info  
+# Note: Programmatic capabilities API under development
+# For now, check config/models/ YAML files for provider capabilities
 ```
 
 ## Common Gotchas

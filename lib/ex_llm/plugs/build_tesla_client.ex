@@ -39,14 +39,16 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
     # Use the middleware factory to build the middleware stack
     middleware = MiddlewareFactory.build_middleware(provider, config, is_streaming: is_streaming)
 
+    # Get configurable timeout from config, with defaults based on streaming
+    timeout = config[:timeout] || if is_streaming, do: 300_000, else: 60_000
+
     # Configure adapter based on whether this is a streaming request
     adapter_opts =
       if is_streaming do
-        # For streaming, we need to delay setting stream_to until the actual request
-        # So we'll handle this in ExecuteStreamRequest
-        [recv_timeout: 60_000]
+        # For streaming, use the configurable timeout
+        [recv_timeout: timeout]
       else
-        [recv_timeout: 60_000]
+        [recv_timeout: timeout]
       end
 
     # Use Tesla.Mock only in certain test scenarios

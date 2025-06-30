@@ -100,7 +100,8 @@ defmodule ExLLM.Plugs.FetchConfigurationTest do
 
       assert result.config == %{
                model: "llama3",
-               base_url: "http://localhost:11434"
+               base_url: "http://localhost:11434",
+               streaming_timeout: 600_000
              }
     end
   end

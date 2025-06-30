@@ -1,6 +1,6 @@
 provider: openrouter
 models:
-  openrouter/deepseek/deepseek-r1-0528:
+  deepseek/deepseek-r1-0528:
     context_window: 65336
     max_output_tokens: 8192
     pricing:
@@ -12,7 +12,7 @@ models:
     - prompt_caching
     - reasoning
     - tool_choice
-  openrouter/deepseek/deepseek-r1:
+  deepseek/deepseek-r1:
     context_window: 65336
     max_output_tokens: 8192
     pricing:
@@ -24,7 +24,7 @@ models:
     - prompt_caching
     - reasoning
     - tool_choice
-  openrouter/deepseek/deepseek-chat:
+  deepseek/deepseek-chat:
     context_window: 65536
     max_output_tokens: 8192
     pricing:
@@ -34,7 +34,7 @@ models:
     - streaming
     - prompt_caching
     - tool_choice
-  openrouter/deepseek/deepseek-coder:
+  deepseek/deepseek-coder:
     context_window: 66000
     max_output_tokens: 4096
     pricing:
@@ -44,7 +44,7 @@ models:
     - streaming
     - prompt_caching
     - tool_choice
-  openrouter/microsoft/wizardlm-2-8x22b:nitro:
+  microsoft/wizardlm-2-8x22b:nitro:
     context_window: 65536
     pricing:
       input: 1.0
@@ -52,7 +52,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/google/gemini-2.5-pro:
+  google/gemini-2.5-pro:
     context_window: 1048576
     max_output_tokens: 8192
     pricing:
@@ -66,7 +66,7 @@ models:
     - structured_output
     - system_messages
     - tool_choice
-  openrouter/google/gemini-pro-1.5:
+  google/gemini-pro-1.5:
     context_window: 1000000
     max_output_tokens: 8192
     pricing:
@@ -77,7 +77,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/google/gemini-2.0-flash-001:
+  google/gemini-2.0-flash-001:
     context_window: 1048576
     max_output_tokens: 8192
     pricing:
@@ -91,7 +91,7 @@ models:
     - structured_output
     - system_messages
     - tool_choice
-  openrouter/google/gemini-2.5-flash:
+  google/gemini-2.5-flash:
     context_window: 1048576
     max_output_tokens: 8192
     pricing:
@@ -105,7 +105,7 @@ models:
     - structured_output
     - system_messages
     - tool_choice
-  openrouter/mistralai/mixtral-8x22b-instruct:
+  mistralai/mixtral-8x22b-instruct:
     context_window: 65536
     pricing:
       input: 0.65
@@ -113,7 +113,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/cohere/command-r-plus:
+  cohere/command-r-plus:
     context_window: 128000
     pricing:
       input: 3.0
@@ -121,7 +121,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/databricks/dbrx-instruct:
+  databricks/dbrx-instruct:
     context_window: 32768
     pricing:
       input: 0.6
@@ -129,7 +129,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/anthropic/claude-3-haiku:
+  anthropic/claude-3-haiku:
     context_window: 200000
     pricing:
       input: 0.25
@@ -139,7 +139,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/anthropic/claude-3-5-haiku:
+  anthropic/claude-3-5-haiku:
     context_window: 200000
     pricing:
       input: 1.0
@@ -148,7 +148,7 @@ models:
     - streaming
     - function_calling
     - tool_choice
-  openrouter/anthropic/claude-3-haiku-20240307:
+  anthropic/claude-3-haiku-20240307:
     context_window: 200000
     max_output_tokens: 4096
     pricing:
@@ -159,7 +159,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/anthropic/claude-3-5-haiku-20241022:
+  anthropic/claude-3-5-haiku-20241022:
     context_window: 200000
     max_output_tokens: 8192
     pricing:
@@ -169,7 +169,7 @@ models:
     - streaming
     - function_calling
     - tool_choice
-  openrouter/anthropic/claude-3.5-sonnet:
+  anthropic/claude-3.5-sonnet:
     context_window: 200000
     max_output_tokens: 8192
     pricing:
@@ -180,7 +180,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/anthropic/claude-3.5-sonnet:beta:
+  anthropic/claude-3.5-sonnet:beta:
     context_window: 200000
     max_output_tokens: 8192
     pricing:
@@ -191,19 +191,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/anthropic/claude-3.7-sonnet:
-    context_window: 200000
-    max_output_tokens: 8192
-    pricing:
-      input: 3.0
-      output: 15.0
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - reasoning
-    - tool_choice
-  openrouter/anthropic/claude-3.7-sonnet:beta:
+  anthropic/claude-3.7-sonnet:
     context_window: 200000
     max_output_tokens: 8192
     pricing:
@@ -215,17 +203,7 @@ models:
     - vision
     - reasoning
     - tool_choice
-  openrouter/anthropic/claude-3-sonnet:
-    context_window: 200000
-    pricing:
-      input: 3.0
-      output: 15.0
-    capabilities:
-    - streaming
-    - function_calling
-    - vision
-    - tool_choice
-  openrouter/anthropic/claude-sonnet-4:
+  anthropic/claude-3.7-sonnet:beta:
     context_window: 200000
     max_output_tokens: 8192
     pricing:
@@ -237,7 +215,29 @@ models:
     - vision
     - reasoning
     - tool_choice
-  openrouter/mistralai/mistral-large:
+  anthropic/claude-3-sonnet:
+    context_window: 200000
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - tool_choice
+  anthropic/claude-sonnet-4:
+    context_window: 200000
+    max_output_tokens: 8192
+    pricing:
+      input: 3.0
+      output: 15.0
+    capabilities:
+    - streaming
+    - function_calling
+    - vision
+    - reasoning
+    - tool_choice
+  mistralai/mistral-large:
     context_window: 32000
     pricing:
       input: 8.0
@@ -245,7 +245,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/mistralai/mistral-small-3.1-24b-instruct:
+  mistralai/mistral-small-3.1-24b-instruct:
     context_window: 32000
     pricing:
       input: 0.1
@@ -253,7 +253,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/mistralai/mistral-small-3.2-24b-instruct:
+  mistralai/mistral-small-3.2-24b-instruct:
     context_window: 32000
     pricing:
       input: 0.1
@@ -261,7 +261,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/cognitivecomputations/dolphin-mixtral-8x7b:
+  cognitivecomputations/dolphin-mixtral-8x7b:
     context_window: 32769
     pricing:
       input: 0.5
@@ -269,7 +269,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/google/gemini-pro-vision:
+  google/gemini-pro-vision:
     context_window: 45875
     pricing:
       input: 0.125
@@ -279,7 +279,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/fireworks/firellava-13b:
+  fireworks/firellava-13b:
     context_window: 4096
     pricing:
       input: 0.2
@@ -287,12 +287,12 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/meta-llama/llama-3-8b-instruct:free:
+  meta-llama/llama-3-8b-instruct:free:
     context_window: 8192
     capabilities:
     - streaming
     - tool_choice
-  openrouter/meta-llama/llama-3-8b-instruct:extended:
+  meta-llama/llama-3-8b-instruct:extended:
     context_window: 16384
     pricing:
       input: 0.225
@@ -300,7 +300,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/meta-llama/llama-3-70b-instruct:nitro:
+  meta-llama/llama-3-70b-instruct:nitro:
     context_window: 8192
     pricing:
       input: 0.9
@@ -308,7 +308,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/meta-llama/llama-3-70b-instruct:
+  meta-llama/llama-3-70b-instruct:
     context_window: 8192
     pricing:
       input: 0.59
@@ -316,7 +316,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/openai/o1:
+  openai/o1:
     context_window: 200000
     max_output_tokens: 100000
     pricing:
@@ -331,7 +331,7 @@ models:
     - system_messages
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/o1-mini:
+  openai/o1-mini:
     context_window: 128000
     max_output_tokens: 65536
     pricing:
@@ -342,7 +342,7 @@ models:
     - function_calling
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/o1-mini-2024-09-12:
+  openai/o1-mini-2024-09-12:
     context_window: 128000
     max_output_tokens: 65536
     pricing:
@@ -353,7 +353,7 @@ models:
     - function_calling
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/o1-preview:
+  openai/o1-preview:
     context_window: 128000
     max_output_tokens: 32768
     pricing:
@@ -364,7 +364,7 @@ models:
     - function_calling
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/o1-preview-2024-09-12:
+  openai/o1-preview-2024-09-12:
     context_window: 128000
     max_output_tokens: 32768
     pricing:
@@ -375,7 +375,7 @@ models:
     - function_calling
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/o3-mini:
+  openai/o3-mini:
     context_window: 128000
     max_output_tokens: 65536
     pricing:
@@ -387,7 +387,7 @@ models:
     - reasoning
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/o3-mini-high:
+  openai/o3-mini-high:
     context_window: 128000
     max_output_tokens: 65536
     pricing:
@@ -411,7 +411,7 @@ models:
     - vision
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/gpt-4o:
+  openai/gpt-4o:
     context_window: 128000
     max_output_tokens: 4096
     pricing:
@@ -423,7 +423,7 @@ models:
     - vision
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/gpt-4o-2024-05-13:
+  openai/gpt-4o-2024-05-13:
     context_window: 128000
     max_output_tokens: 4096
     pricing:
@@ -435,7 +435,7 @@ models:
     - vision
     - parallel_function_calling
     - tool_choice
-  openrouter/openai/gpt-4-vision-preview:
+  openai/gpt-4-vision-preview:
     context_window: 130000
     pricing:
       input: 10.0
@@ -445,7 +445,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/openai/gpt-3.5-turbo:
+  openai/gpt-3.5-turbo:
     context_window: 4095
     pricing:
       input: 1.5
@@ -453,7 +453,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/openai/gpt-3.5-turbo-16k:
+  openai/gpt-3.5-turbo-16k:
     context_window: 16383
     pricing:
       input: 3.0
@@ -461,7 +461,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/openai/gpt-4:
+  openai/gpt-4:
     context_window: 8192
     pricing:
       input: 30.0
@@ -469,7 +469,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/anthropic/claude-instant-v1:
+  anthropic/claude-instant-v1:
     context_window: 100000
     max_output_tokens: 8191
     pricing:
@@ -478,7 +478,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/anthropic/claude-2:
+  anthropic/claude-2:
     context_window: 100000
     max_output_tokens: 8191
     pricing:
@@ -487,7 +487,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/anthropic/claude-3-opus:
+  anthropic/claude-3-opus:
     context_window: 200000
     max_output_tokens: 4096
     pricing:
@@ -498,7 +498,7 @@ models:
     - function_calling
     - vision
     - tool_choice
-  openrouter/google/palm-2-chat-bison:
+  google/palm-2-chat-bison:
     context_window: 25804
     pricing:
       input: 0.5
@@ -506,7 +506,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/google/palm-2-codechat-bison:
+  google/palm-2-codechat-bison:
     context_window: 20070
     pricing:
       input: 0.5
@@ -514,7 +514,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/meta-llama/llama-2-13b-chat:
+  meta-llama/llama-2-13b-chat:
     context_window: 4096
     pricing:
       input: 0.2
@@ -522,7 +522,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/meta-llama/llama-2-70b-chat:
+  meta-llama/llama-2-70b-chat:
     context_window: 4096
     pricing:
       input: 1.5
@@ -530,7 +530,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/meta-llama/codellama-34b-instruct:
+  meta-llama/codellama-34b-instruct:
     context_window: 8192
     pricing:
       input: 0.5
@@ -538,7 +538,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/nousresearch/nous-hermes-llama2-13b:
+  nousresearch/nous-hermes-llama2-13b:
     context_window: 4096
     pricing:
       input: 0.2
@@ -546,7 +546,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/mancer/weaver:
+  mancer/weaver:
     context_window: 8000
     pricing:
       input: 5.625
@@ -554,7 +554,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/gryphe/mythomax-l2-13b:
+  gryphe/mythomax-l2-13b:
     context_window: 8192
     pricing:
       input: 1.875
@@ -562,7 +562,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/jondurbin/airoboros-l2-70b-2.1:
+  jondurbin/airoboros-l2-70b-2.1:
     context_window: 4096
     pricing:
       input: 13.875
@@ -570,7 +570,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/undi95/remm-slerp-l2-13b:
+  undi95/remm-slerp-l2-13b:
     context_window: 6144
     pricing:
       input: 1.875
@@ -578,7 +578,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/pygmalionai/mythalion-13b:
+  pygmalionai/mythalion-13b:
     context_window: 4096
     pricing:
       input: 1.875
@@ -586,7 +586,7 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/mistralai/mistral-7b-instruct:
+  mistralai/mistral-7b-instruct:
     context_window: 8192
     pricing:
       input: 0.13
@@ -594,12 +594,12 @@ models:
     capabilities:
     - streaming
     - tool_choice
-  openrouter/mistralai/mistral-7b-instruct:free:
+  mistralai/mistral-7b-instruct:free:
     context_window: 8192
     capabilities:
     - streaming
     - tool_choice
-  openrouter/qwen/qwen-2.5-coder-32b-instruct:
+  qwen/qwen-2.5-coder-32b-instruct:
     context_window: 33792
     max_output_tokens: 33792
     pricing:
@@ -608,4 +608,4 @@ models:
     capabilities:
     - streaming
     - tool_choice
-default_model: openrouter/deepseek/deepseek-r1-0528
+default_model: deepseek/deepseek-r1-0528

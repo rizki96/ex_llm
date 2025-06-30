@@ -29,6 +29,8 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   alias ExLLM.Infrastructure.Streaming.SSEParser
   alias ExLLM.Providers.Shared.HTTP
 
+  require Logger
+
   @doc """
   Create a Tesla client with the appropriate middleware stack for a provider.
 
@@ -106,13 +108,24 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
       end
     else
       # Production mode: Use direct streaming without blocking tasks
+      Logger.debug("HTTP.Core starting streaming POST to path: #{path}")
+      Logger.debug("Client: #{inspect(client)}")
+      Logger.debug("Headers: #{inspect(headers)}")
+      Logger.debug("Body keys: #{inspect(Map.keys(streaming_body))}")
+
+      # Get configurable timeout from opts
+      stream_timeout = Keyword.get(opts, :timeout, 300_000)
+      Logger.debug("HTTP.Core using stream timeout: #{stream_timeout}ms")
+
       case Tesla.post(client, path, streaming_body,
              headers: headers,
-             opts: [adapter: [recv_timeout: 300_000, stream_to: self(), async: :once]]
+             opts: [adapter: [recv_timeout: stream_timeout, stream_to: self(), async: true]]
            ) do
         {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
-          # Handle streaming chunks
-          handle_stream_chunks(callback, parse_chunk_fn)
+          Logger.debug("HTTP.Core got initial response, status: #{status}")
+          # Handle streaming chunks with configurable timeout
+          result = handle_stream_chunks(callback, parse_chunk_fn, stream_timeout)
+          Logger.debug("HTTP.Core streaming result: #{inspect(result)}")
           {:ok, env}
 
         {:ok, response} ->
@@ -185,18 +198,21 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
     end)
   end
 
-  defp handle_stream_chunks(callback, parse_chunk_fn) do
+  defp handle_stream_chunks(callback, parse_chunk_fn, timeout) do
     receive do
-      {:hackney_response, _ref, {:status, _code, _reason}} ->
+      {:hackney_response, _ref, {:status, code, reason}} ->
         # Status received, continue
-        handle_stream_chunks(callback, parse_chunk_fn)
+        Logger.debug("HTTP.Core received status: #{code} #{reason}")
+        handle_stream_chunks(callback, parse_chunk_fn, timeout)
 
-      {:hackney_response, _ref, {:headers, _headers}} ->
+      {:hackney_response, _ref, {:headers, headers}} ->
         # Headers received, continue
-        handle_stream_chunks(callback, parse_chunk_fn)
+        Logger.debug("HTTP.Core received headers: #{inspect(headers)}")
+        handle_stream_chunks(callback, parse_chunk_fn, timeout)
 
       {:hackney_response, _ref, chunk} when is_binary(chunk) ->
         # Process the chunk through SSE parser
+        Logger.debug("HTTP.Core received chunk: #{byte_size(chunk)} bytes")
         parser = SSEParser.new()
         {events, _parser} = SSEParser.parse_data_events(parser, chunk)
 
@@ -215,17 +231,24 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
         end)
 
         # Continue receiving chunks
-        handle_stream_chunks(callback, parse_chunk_fn)
+        handle_stream_chunks(callback, parse_chunk_fn, timeout)
 
       {:hackney_response, _ref, :done} ->
         # Stream completed
+        Logger.debug("HTTP.Core stream completed")
         :ok
 
       {:hackney_response, _ref, {:error, reason}} ->
         # Error occurred
+        Logger.debug("HTTP.Core stream error: #{inspect(reason)}")
         {:error, reason}
+
+      other ->
+        Logger.debug("HTTP.Core received unexpected message: #{inspect(other)}")
+        handle_stream_chunks(callback, parse_chunk_fn, timeout)
     after
-      60_000 ->
+      timeout ->
+        Logger.debug("HTTP.Core stream timeout after #{timeout}ms")
         {:error, :timeout}
     end
   end

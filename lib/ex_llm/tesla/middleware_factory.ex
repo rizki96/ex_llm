@@ -107,9 +107,11 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
     [{Tesla.Middleware.Headers, build_headers(provider, config)} | middleware]
   end
 
-  # Adds CircuitBreaker middleware unless disabled.
+  # Adds CircuitBreaker middleware unless disabled or for streaming.
   defp add_circuit_breaker(middleware, provider, config, opts) do
-    if Keyword.get(opts, :include_circuit_breaker, true) do
+    is_streaming = Keyword.get(opts, :is_streaming, false)
+
+    if Keyword.get(opts, :include_circuit_breaker, true) && !is_streaming do
       circuit_name = "#{provider}_circuit"
 
       [

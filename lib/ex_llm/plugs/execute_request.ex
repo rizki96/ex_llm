@@ -54,7 +54,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
   def call(%Request{} = request, opts) do
     endpoint =
-      opts[:endpoint] || request.assigns[:http_path] || get_provider_endpoint(request.provider)
+      opts[:endpoint] || request.assigns[:http_path] || get_provider_endpoint(request)
 
     method = opts[:method] || request.assigns[:http_method] || :post
 
@@ -244,11 +244,18 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     end
   end
 
-  defp get_provider_endpoint(:anthropic), do: "/v1/messages"
-  defp get_provider_endpoint(:gemini), do: "/models/gemini-2.0-flash:generateContent"
-  defp get_provider_endpoint(:ollama), do: "/api/chat"
-  defp get_provider_endpoint(:perplexity), do: "/chat/completions"
-  defp get_provider_endpoint(_), do: "/v1/chat/completions"
+  defp get_provider_endpoint(%Request{provider: :anthropic}), do: "/v1/messages"
+
+  defp get_provider_endpoint(%Request{provider: :gemini, config: config}) do
+    model = config[:model] || "gemini-2.0-flash"
+    is_streaming = config[:stream] == true
+    endpoint = if is_streaming, do: "streamGenerateContent", else: "generateContent"
+    "/models/#{model}:#{endpoint}"
+  end
+
+  defp get_provider_endpoint(%Request{provider: :ollama}), do: "/api/chat"
+  defp get_provider_endpoint(%Request{provider: :perplexity}), do: "/chat/completions"
+  defp get_provider_endpoint(%Request{}), do: "/v1/chat/completions"
 
   defp build_http_error(401, body, provider) do
     %{

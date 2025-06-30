@@ -190,19 +190,18 @@ end
 
 ### Model Discovery
 
+> 🚧 **Note**: Programmatic model discovery APIs are under development.
+
+For now, refer to the model configuration files or provider documentation:
+
 ```elixir
-# List available models
-{:ok, models} = ExLLM.list_models(:anthropic)
-
-Enum.each(models, fn model ->
-  IO.puts("#{model.id} - Context: #{model.context_window} tokens")
-end)
-
-# Get specific model info
-{:ok, model} = ExLLM.get_model_info(:openai, "gpt-4o")
-IO.puts("Supports streaming: #{model.capabilities.supports_streaming}")
-IO.puts("Supports vision: #{model.capabilities.supports_vision}")
+# Use specific model names directly
+{:ok, response} = ExLLM.chat(:anthropic, messages, model: "claude-3-5-haiku-latest")
+{:ok, response} = ExLLM.chat(:openai, messages, model: "gpt-4o")
+{:ok, response} = ExLLM.chat(:ollama, messages, model: "llama3.2:1b")
 ```
+
+**Available Models**: See `config/models/` directory for complete model configurations and capabilities.
 
 ## Testing
 
@@ -364,8 +363,9 @@ export ANTHROPIC_API_KEY="your-key"
 
 ### "Model not found"
 ```elixir
-# Check available models
-{:ok, models} = ExLLM.list_models(:anthropic)
+# Check model configurations in config/models/ directory
+# Or use known working models:
+{:ok, response} = ExLLM.chat(:anthropic, messages, model: "claude-3-5-haiku-latest")
 ```
 
 ### "Rate limited"

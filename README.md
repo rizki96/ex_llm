@@ -23,6 +23,13 @@
 - **Minimal Overhead:** Designed as a thin, efficient client layer with focus on performance
 - **Extensible Architecture:** Adding new providers is straightforward through clean delegation patterns
 
+## Feature Status
+
+✅ **Production Ready:** Core chat, streaming, sessions, providers, function calling, cost tracking  
+🚧 **Under Development:** Context management, model capabilities API, configuration validation  
+
+See [FEATURE_STATUS.md](FEATURE_STATUS.md) for detailed testing results and API status.
+
 ## Supported Providers
 
 ExLLM supports **14 providers** with access to hundreds of models:

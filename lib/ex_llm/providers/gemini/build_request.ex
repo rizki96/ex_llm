@@ -33,7 +33,8 @@ defmodule ExLLM.Providers.Gemini.BuildRequest do
 
     body = build_content_request(messages, options)
     headers = build_headers()
-    url = build_url(model, api_key, config)
+    streaming = Map.get(options, :stream, false)
+    url = build_url(model, api_key, config, streaming)
 
     request
     |> Map.put(:provider_request, body)
@@ -44,13 +45,14 @@ defmodule ExLLM.Providers.Gemini.BuildRequest do
     |> Request.assign(:timeout, 60_000)
   end
 
-  defp build_url(model, api_key, config) do
+  defp build_url(model, api_key, config, streaming) do
     base_url =
       Map.get(config, :base_url) ||
         System.get_env("GEMINI_API_BASE") ||
         "https://generativelanguage.googleapis.com/v1beta"
 
-    "#{base_url}/models/#{model}:generateContent?key=#{api_key}"
+    endpoint = if streaming, do: "streamGenerateContent", else: "generateContent"
+    "#{base_url}/models/#{model}:#{endpoint}?key=#{api_key}"
   end
 
   defp build_headers() do

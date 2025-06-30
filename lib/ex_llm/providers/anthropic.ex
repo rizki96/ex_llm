@@ -156,7 +156,7 @@ defmodule ExLLM.Providers.Anthropic do
             receive do
               {^ref, {:chunk, chunk}} -> {[chunk], state}
             after
-              100 -> {[], state}
+              5000 -> {[], state}
             end
           end,
           fn _ -> :ok end

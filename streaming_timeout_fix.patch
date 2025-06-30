@@ -1,0 +1,29 @@
+--- a/lib/ex_llm/plugs/execute_stream_request.ex
++++ b/lib/ex_llm/plugs/execute_stream_request.ex
+@@ -90,7 +90,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
+         # Get configurable timeout from request options, config, or default
+         stream_timeout =
+           request.options[:timeout] ||
+-            request.config[:timeout] ||
++            request.config[:streaming_timeout] ||
+             opts[:timeout] ||
+             @default_timeout
+ 
+@@ -116,7 +116,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
+     # Get configurable timeout
+     stream_timeout =
+       request.options[:timeout] ||
+-        request.config[:timeout] ||
++        request.config[:streaming_timeout] ||
+         opts[:timeout] ||
+         @default_timeout
+ 
+@@ -204,7 +204,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
+     # Get configurable timeout
+     stream_timeout =
+       request.options[:timeout] ||
+-        request.config[:timeout] ||
++        request.config[:streaming_timeout] ||
+         opts[:timeout] ||
+         @default_timeout
+ 

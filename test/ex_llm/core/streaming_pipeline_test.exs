@@ -4,8 +4,21 @@ defmodule ExLLM.Core.StreamingPipelineTest do
   alias ExLLM.Core.Chat
   alias ExLLM.Types
 
+  setup do
+    # Force Tesla.Mock for this test
+    original_adapter = Application.get_env(:tesla, :adapter)
+    Application.put_env(:tesla, :adapter, Tesla.Mock)
+
+    on_exit(fn ->
+      Application.put_env(:tesla, :adapter, original_adapter)
+    end)
+
+    :ok
+  end
+
   describe "streaming with pipeline system" do
     @tag :streaming
+    @tag integration: false
     test "OpenAI provider streams through pipeline" do
       messages = [%{role: "user", content: "Count to 3"}]
 
@@ -30,6 +43,7 @@ defmodule ExLLM.Core.StreamingPipelineTest do
     end
 
     @tag :streaming
+    @tag integration: false
     test "Anthropic provider streams through pipeline" do
       messages = [%{role: "user", content: "Say hello"}]
 
@@ -47,7 +61,7 @@ defmodule ExLLM.Core.StreamingPipelineTest do
   end
 
   defp mock_stream_request do
-    Tesla.Mock.mock(fn
+    Tesla.Mock.mock_global(fn
       %{method: :post, url: url} ->
         if String.contains?(url, "chat/completions") do
           %Tesla.Env{
@@ -73,7 +87,7 @@ defmodule ExLLM.Core.StreamingPipelineTest do
   end
 
   defp mock_anthropic_stream_request do
-    Tesla.Mock.mock(fn
+    Tesla.Mock.mock_global(fn
       %{method: :post, url: url} ->
         if String.contains?(url, "messages") do
           %Tesla.Env{

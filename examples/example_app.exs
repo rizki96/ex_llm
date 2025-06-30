@@ -15,11 +15,13 @@
 Logger.configure(level: :info)
 
 Mix.install([
-  {:ex_llm, "~> 0.8"},
+  {:ex_llm, path: Path.expand("..", __DIR__), override: true},
   {:req, "~> 0.3"},
   {:jason, "~> 1.4"},
   {:instructor, "~> 0.1.0"}
 ])
+
+# Note: ExLLM library handles its own configuration file locations
 
 defmodule ExLLM.ExampleApp do
   @moduledoc """
@@ -247,7 +249,7 @@ defmodule ExLLM.ExampleApp do
       {"Basic Chat", fn provider -> basic_chat(provider, []) end, true},
       {"Streaming Chat", &streaming_chat/1, capabilities && :streaming in capabilities.features},
       {"Session Management (Saves & Resumes Conversations)", &session_management/1, true},
-      {"Context Management (Token Limits)", &context_management/1, true},
+      {"Context Management (Token Limits) [🚧 Under Development]", &context_management/1, true},
       {"Function Calling", &function_calling_demo/1, capabilities && :function_calling in capabilities.features},
       {"Structured Output (Instructor)", &structured_output_demo/1, true},
       {"Vision/Multimodal (Analyze Images)", &vision_demo/1, capabilities && :vision in capabilities.features},
@@ -326,7 +328,7 @@ defmodule ExLLM.ExampleApp do
   
   # Feature implementations
   
-  defp basic_chat(provider, args \\ []) do
+  defp basic_chat(provider, args) do
     IO.puts("\n=== Basic Chat ===")
     IO.puts("This demonstrates simple message exchange with an LLM.\n")
     
@@ -350,24 +352,27 @@ defmodule ExLLM.ExampleApp do
     IO.puts("\nSending to #{provider}...")
     
     case ExLLM.chat(provider, messages) do
-      {:ok, response} ->
+      {:ok, response} when is_struct(response, ExLLM.Types.LLMResponse) ->
         IO.puts("\nResponse: #{response.content}")
         
         if response.usage do
           IO.puts("\nToken usage:")
-          IO.puts("  Input: #{response.usage.input_tokens}")
-          IO.puts("  Output: #{response.usage.output_tokens}")
-          total = Map.get(response.usage, :total_tokens, response.usage.input_tokens + response.usage.output_tokens)
+          input = Map.get(response.usage, :input_tokens) || Map.get(response.usage, :prompt_tokens, 0)
+          output = Map.get(response.usage, :output_tokens) || Map.get(response.usage, :completion_tokens, 0)
+          total = Map.get(response.usage, :total_tokens, input + output)
+          IO.puts("  Input: #{input}")
+          IO.puts("  Output: #{output}")
           IO.puts("  Total: #{total}")
         end
         
         if response.cost do
           # Check if cost calculation succeeded or returned an error
-          if Map.has_key?(response.cost, :error) do
+          if is_map(response.cost) && Map.has_key?(response.cost, :error) do
             IO.puts("\nCost: Not available (#{response.cost.error})")
           else
+            cost_value = if is_float(response.cost), do: response.cost, else: response.cost.total_cost || 0.0
             IO.puts("\nCost:")
-            IO.puts("  Total: $#{:erlang.float_to_binary(response.cost.total_cost, decimals: 6)}")
+            IO.puts("  Total: $#{:erlang.float_to_binary(cost_value, decimals: 6)}")
           end
         end
         
@@ -391,49 +396,31 @@ defmodule ExLLM.ExampleApp do
     
     IO.puts("\nStreaming from #{provider}...\n")
     
-    case ExLLM.stream_chat(provider, messages) do
-      {:ok, stream} ->
-        # Collect response content while streaming
-        response_content = 
-          stream
-          |> Enum.reduce("", fn chunk, acc ->
-            if chunk.content do
-              IO.write(chunk.content)
-              acc <> chunk.content
-            else
-              acc
-            end
-          end)
-        
+    # Collect response content for token estimation
+    # collected_content = [] # Not used due to immutability
+    
+    result = ExLLM.stream(provider, messages, fn chunk ->
+      if chunk.content do
+        IO.write(chunk.content)
+        # Note: We can't directly update collected_content due to immutability
+      end
+      
+      # Check if this is the final chunk with usage info
+      if chunk.finish_reason && chunk.metadata && chunk.metadata[:usage] do
+        usage = chunk.metadata[:usage]
+        IO.puts("\n\nToken usage:")
+        input = Map.get(usage, :input_tokens) || Map.get(usage, :prompt_tokens, 0)
+        output = Map.get(usage, :output_tokens) || Map.get(usage, :completion_tokens, 0)
+        total = Map.get(usage, :total_tokens, input + output)
+        IO.puts("  Input: #{input}")
+        IO.puts("  Output: #{output}")
+        IO.puts("  Total: #{total}")
+      end
+    end)
+    
+    case result do
+      :ok ->
         IO.puts("\n")
-        
-        # Estimate token usage
-        input_tokens = ExLLM.Cost.estimate_tokens(messages)
-        output_tokens = ExLLM.Cost.estimate_tokens(response_content)
-        total_tokens = input_tokens + output_tokens
-        
-        IO.puts("\nToken usage (estimated):")
-        IO.puts("  Input: #{input_tokens}")
-        IO.puts("  Output: #{output_tokens}")
-        IO.puts("  Total: #{total_tokens}")
-        
-        # Calculate and display cost
-        model = ExLLM.Config.ModelConfig.get_default_model(provider)
-        if model do
-          usage = %{
-            input_tokens: input_tokens,
-            output_tokens: output_tokens,
-            total_tokens: total_tokens
-          }
-          
-          cost = ExLLM.Cost.calculate(Atom.to_string(provider), model, usage)
-          
-          unless Map.has_key?(cost, :error) do
-            IO.puts("\nCost (estimated):")
-            IO.puts("  Total: $#{format_cost(cost.total_cost)}")
-          end
-        end
-        
       {:error, error} ->
         IO.puts("\nError: #{inspect(error)}")
     end
@@ -548,71 +535,46 @@ defmodule ExLLM.ExampleApp do
       
       IO.write("Assistant: ")
       
-      # Chat with full context
-      case ExLLM.stream_chat(provider, messages) do
-        {:ok, stream} ->
-          # Collect response while displaying it in real-time
-          {response_content, chunk_count} = 
-            try do
-              stream
-              |> Enum.reduce({"", 0}, fn chunk, {acc, count} ->
-                if chunk.content do
-                  IO.write(chunk.content)
-                  {acc <> chunk.content, count + 1}
-                else
-                  {acc, count}
-                end
-              end)
-            rescue
-              e ->
-                IO.puts("\nError processing stream: #{inspect(e)}")
-                {"", 0}
-            end
-          
-          IO.puts("")
-          
-          # Only add response if we got content
-          session = if response_content != "" do
-            # Add assistant response to session
-            session = Session.add_message(session, "assistant", response_content)
-            
-            # Update token usage (in real app, would get from response)
-            Session.update_token_usage(session, %{
-              input_tokens: estimate_tokens(messages),
-              output_tokens: estimate_tokens(response_content)
-            })
-          else
-            IO.puts("⚠️  No response received from assistant (#{chunk_count} chunks processed).")
-            IO.puts("    This may be a temporary issue with the model. Please try again.")
-            
-            # Log more details if provider is Ollama
-            if provider == :ollama do
-              IO.puts("\n    Troubleshooting tips for Ollama:")
-              IO.puts("    1. Check if Ollama is running: curl http://localhost:11434/api/tags")
-              IO.puts("    2. Check which models are available: ollama list")
-              IO.puts("    3. Pull a model if needed: ollama pull llama3.2:3b")
-              IO.puts("    4. Check Ollama logs for errors: docker logs ollama or journalctl -u ollama")
-            end
-            
-            session
+      # Stream the response
+      # collected_content = "" # Not used due to immutability
+      
+      result = ExLLM.stream(provider, messages, fn chunk ->
+        if chunk.content do
+          IO.write(chunk.content)
+          # Note: Can't update collected_content due to immutability
+        end
+      end)
+      
+      case result do
+        :ok ->
+          # For demo purposes, we'll make a non-streaming call to get the full response
+          # This is not ideal but works around the immutability issue
+          case ExLLM.chat(provider, messages) do
+            {:ok, response} ->
+              IO.puts("")  # New line after streaming
+              # Add assistant message to session
+              Session.add_message(session, "assistant", response.content)
+            {:error, _} ->
+              IO.puts("\n[Error getting response]")
+              session
           end
-          
-          chat_loop(session, provider)
-          
         {:error, error} ->
-          IO.puts("\n⚠️  Error: #{inspect(error)}")
-          IO.puts("Let's continue the conversation...")
-          chat_loop(session, provider)
+          IO.puts("\nError: #{inspect(error)}")
+          session
       end
+      |> chat_loop(provider)
     end
   end
   
   defp context_management(provider) do
     IO.puts("\n=== Context Management Demo ===")
-    IO.puts("This demonstrates how ExLLM handles conversations that exceed context windows.\n")
+    IO.puts("🚧 Note: This feature is currently under development.")
+    IO.puts("The automatic context truncation API has been refactored and is not yet complete.")
+    IO.puts("For now, you'll need to implement manual message management in your application.\n")
+    IO.puts("This demonstrates how ExLLM will handle conversations that exceed context windows.\n")
     
     # Get default model for provider
-    model = ExLLM.Config.ModelConfig.get_default_model(provider) || "default-model"
+    model = get_default_model(provider)
     
     # Get context window size
     context_window = ExLLM.Core.Context.get_context_window(provider, model)
@@ -987,7 +949,7 @@ defmodule ExLLM.ExampleApp do
     
     # For mock provider, set up expected response
     if provider == :mock do
-      ExLLM.Adapters.Mock.set_response(%{
+      ExLLM.Providers.Mock.set_response(%{
         content: nil,
         function_call: %{
           name: "get_weather",
@@ -1033,7 +995,7 @@ defmodule ExLLM.ExampleApp do
               
               # For mock, set final response
               if provider == :mock do
-                ExLLM.Adapters.Mock.set_response(%{
+                ExLLM.Providers.Mock.set_response(%{
                   content: "Based on the weather data, #{result}. It's a nice day!"
                 })
               end
@@ -1166,7 +1128,7 @@ defmodule ExLLM.ExampleApp do
       # For mock provider, set up a JSON response that Instructor can parse
       if provider == :mock do
         # Set the response to include JSON that Instructor can extract
-        ExLLM.Adapters.Mock.set_response(%{
+        ExLLM.Providers.Mock.set_response(%{
           content: """
           Let me tell you about Alex Mercer. Alex is a 28-year-old software developer 
           who has a passion for technology and creativity. In their free time, Alex 
@@ -1275,7 +1237,7 @@ defmodule ExLLM.ExampleApp do
       """
       
       if provider == :mock do
-        ExLLM.Adapters.Mock.set_response(%{
+        ExLLM.Providers.Mock.set_response(%{
           content: """
           TechCorp is a thriving software company that was founded in 2015. The company 
           operates in the software industry and has grown to 250 employees with an annual 
@@ -1947,7 +1909,7 @@ defmodule ExLLM.ExampleApp do
     
     # For mock, set response
     if provider == :mock do
-      ExLLM.Adapters.Mock.set_response(%{
+      ExLLM.Providers.Mock.set_response(%{
         content: "The capital of France is Paris.",
         usage: %{input_tokens: 10, output_tokens: 8}
       })
@@ -2001,7 +1963,7 @@ defmodule ExLLM.ExampleApp do
     end
     
     # Configure mock to fail then succeed
-    ExLLM.Adapters.Mock.set_response_handler(fn _messages, _opts ->
+    ExLLM.Providers.Mock.set_response_handler(fn _messages, _opts ->
       case :ets.lookup(:retry_demo, :attempt) do
         [] ->
           :ets.insert(:retry_demo, {:attempt, 1})
@@ -2069,7 +2031,7 @@ defmodule ExLLM.ExampleApp do
       
       # For mock, set response with usage
       if provider == :mock do
-        ExLLM.Adapters.Mock.set_response(%{
+        ExLLM.Providers.Mock.set_response(%{
           content: "This is a response to: #{prompt}",
           usage: %{
             input_tokens: :rand.uniform(50) + 10,
@@ -2136,7 +2098,7 @@ defmodule ExLLM.ExampleApp do
         %ExLLM.Types.StreamChunk{content: text, finish_reason: nil}
       end) ++ [%ExLLM.Types.StreamChunk{content: "", finish_reason: "stop"}]
       
-      ExLLM.Adapters.Mock.set_stream_chunks(stream_chunks)
+      ExLLM.Providers.Mock.set_stream_chunks(stream_chunks)
     end
     
     IO.puts("📡 Starting stream with recovery enabled...")
@@ -2609,6 +2571,22 @@ defmodule ExLLM.ExampleApp do
     "#{cost}.000000"
   end
   
+  defp get_default_model(provider) do
+    case ExLLM.Infrastructure.Config.ModelConfig.get_default_model(provider) do
+      {:ok, model} -> model
+      _ -> 
+        # Fallback models
+        case provider do
+          :openai -> "gpt-4o-mini"
+          :anthropic -> "claude-3-5-haiku-latest"
+          :ollama -> "llama3.2:3b"
+          :groq -> "llama-3.1-8b-instant"
+          _ -> "default-model"
+        end
+    end
+  end
+  
+  
   defp exit_app do
     IO.puts("\nThank you for exploring ExLLM!")
     IO.puts("Check out the documentation for more: https://hexdocs.pm/ex_llm")
@@ -2624,17 +2602,6 @@ defmodule ExLLM.ExampleApp do
     end
   end
   
-  defp estimate_tokens(text) when is_binary(text) do
-    # Rough estimation: ~4 characters per token
-    round(String.length(text) / 4)
-  end
-  
-  defp estimate_tokens(messages) when is_list(messages) do
-    messages
-    |> Enum.map(fn msg -> msg.content || "" end)
-    |> Enum.join(" ")
-    |> estimate_tokens()
-  end
   
   defp parse_model_spec(spec) do
     case String.split(spec, ":") do

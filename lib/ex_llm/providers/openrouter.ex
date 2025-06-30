@@ -58,7 +58,7 @@ defmodule ExLLM.Providers.OpenRouter do
 
   # Add default_model to satisfy Provider behaviour
   @impl ExLLM.Provider
-  def default_model, do: "openai/gpt-4o"
+  def default_model, do: "deepseek/deepseek-r1-0528"
 
   # Override get_headers to add custom OpenRouter headers without modifying base module.
   @impl ExLLM.Providers.OpenAICompatible

@@ -668,7 +668,7 @@ defmodule ExLLM.Providers.Gemini.Content do
                 # Skip unexpected messages
                 {[], ref}
             after
-              100 -> {[], ref}
+              5000 -> {[], ref}
             end
           end,
           fn _ -> :ok end

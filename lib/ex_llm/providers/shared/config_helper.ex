@@ -105,6 +105,7 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
       api_key: ConfigProvider.Env.get(:anthropic, :api_key),
       base_url: ConfigProvider.Env.get(:anthropic, :base_url),
       model: ConfigProvider.Env.get(:anthropic, :model),
+      streaming_timeout: ConfigProvider.Env.get(:anthropic, :streaming_timeout),
       max_tokens: nil
     }
   end
@@ -114,6 +115,7 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
       api_key: ConfigProvider.Env.get(:openai, :api_key),
       base_url: ConfigProvider.Env.get(:openai, :base_url),
       model: ConfigProvider.Env.get(:openai, :model),
+      streaming_timeout: ConfigProvider.Env.get(:openai, :streaming_timeout),
       organization: ConfigProvider.Env.get(:openai, :organization)
     }
   end
@@ -122,7 +124,8 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     %{
       api_key: ConfigProvider.Env.get(:groq, :api_key),
       base_url: ConfigProvider.Env.get(:groq, :base_url),
-      model: ConfigProvider.Env.get(:groq, :model)
+      model: ConfigProvider.Env.get(:groq, :model),
+      streaming_timeout: ConfigProvider.Env.get(:groq, :streaming_timeout)
     }
   end
 
@@ -130,7 +133,8 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     %{
       api_key: ConfigProvider.Env.get(:gemini, :api_key),
       base_url: ConfigProvider.Env.get(:gemini, :base_url),
-      model: ConfigProvider.Env.get(:gemini, :model)
+      model: ConfigProvider.Env.get(:gemini, :model),
+      streaming_timeout: ConfigProvider.Env.get(:gemini, :streaming_timeout)
     }
   end
 
@@ -139,6 +143,7 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
       api_key: ConfigProvider.Env.get(:openrouter, :api_key),
       base_url: ConfigProvider.Env.get(:openrouter, :base_url),
       model: ConfigProvider.Env.get(:openrouter, :model),
+      streaming_timeout: ConfigProvider.Env.get(:openrouter, :streaming_timeout),
       app_name: ConfigProvider.Env.get(:openrouter, :app_name),
       app_url: ConfigProvider.Env.get(:openrouter, :app_url)
     }
@@ -147,7 +152,8 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
   defp build_env_config(:ollama) do
     %{
       base_url: ConfigProvider.Env.get(:ollama, :base_url) || "http://localhost:11434",
-      model: ConfigProvider.Env.get(:ollama, :model)
+      model: ConfigProvider.Env.get(:ollama, :model),
+      streaming_timeout: ConfigProvider.Env.get(:ollama, :streaming_timeout)
     }
   end
 
@@ -170,7 +176,8 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
   defp build_env_config(:bumblebee) do
     %{
       model_path: ConfigProvider.Env.get(:bumblebee, :model_path),
-      device: ConfigProvider.Env.get(:bumblebee, :device) || :cpu
+      device: ConfigProvider.Env.get(:bumblebee, :device) || :cpu,
+      streaming_timeout: ConfigProvider.Env.get(:bumblebee, :streaming_timeout)
     }
   end
 
@@ -178,7 +185,8 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     %{
       api_key: ConfigProvider.Env.get(:perplexity, :api_key),
       base_url: ConfigProvider.Env.get(:perplexity, :base_url),
-      model: ConfigProvider.Env.get(:perplexity, :model)
+      model: ConfigProvider.Env.get(:perplexity, :model),
+      streaming_timeout: ConfigProvider.Env.get(:perplexity, :streaming_timeout)
     }
   end
 
@@ -186,7 +194,8 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     %{
       api_key: ConfigProvider.Env.get(:mistral, :api_key),
       base_url: ConfigProvider.Env.get(:mistral, :base_url),
-      model: ConfigProvider.Env.get(:mistral, :model)
+      model: ConfigProvider.Env.get(:mistral, :model),
+      streaming_timeout: ConfigProvider.Env.get(:mistral, :streaming_timeout)
     }
   end
 
@@ -204,6 +213,7 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
       api_key: ConfigProvider.Env.get(:lmstudio, :api_key) || "lm-studio",
       base_url: ConfigProvider.Env.get(:lmstudio, :base_url) || "http://localhost:1234",
       model: ConfigProvider.Env.get(:lmstudio, :model),
+      streaming_timeout: ConfigProvider.Env.get(:lmstudio, :streaming_timeout),
       host: ConfigProvider.Env.get(:lmstudio, :host),
       port: ConfigProvider.Env.get(:lmstudio, :port)
     }
@@ -213,7 +223,8 @@ defmodule ExLLM.Providers.Shared.ConfigHelper do
     %{
       api_key: ConfigProvider.Env.get(:xai, :api_key),
       base_url: ConfigProvider.Env.get(:xai, :base_url),
-      model: ConfigProvider.Env.get(:xai, :model)
+      model: ConfigProvider.Env.get(:xai, :model),
+      streaming_timeout: ConfigProvider.Env.get(:xai, :streaming_timeout)
     }
   end
 

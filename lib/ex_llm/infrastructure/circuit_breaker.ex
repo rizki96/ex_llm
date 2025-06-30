@@ -8,6 +8,8 @@ defmodule ExLLM.Infrastructure.CircuitBreaker do
   - :half_open - Testing service recovery with limited requests
   """
 
+  alias ExLLM.Infrastructure.Logger
+
   @table_name :ex_llm_circuit_breakers
 
   # Circuit breaker state structure
@@ -64,6 +66,7 @@ defmodule ExLLM.Infrastructure.CircuitBreaker do
       {:error, :circuit_open}
   """
   def call(circuit_name, fun, opts \\ []) when is_function(fun, 0) do
+    Logger.debug("CircuitBreaker.call: circuit_name=#{circuit_name}, opts=#{inspect(opts)}")
     config = build_config(opts)
     state = get_or_create_circuit(circuit_name, config)
 

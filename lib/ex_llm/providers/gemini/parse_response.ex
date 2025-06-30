@@ -10,15 +10,20 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
 
   @impl true
   def call(request, _opts) do
-    response = request.assigns.http_response
-    model = request.assigns.model
+    # Skip if this is a streaming request
+    if request.state == :streaming or request.config[:stream] == true do
+      request
+    else
+      response = request.assigns.http_response
+      model = request.assigns.model
 
-    parsed_response = parse_response(response, model)
+      parsed_response = parse_response(response, model)
 
-    request
-    |> Request.assign(:llm_response, parsed_response)
-    |> Map.put(:result, parsed_response)
-    |> Request.put_state(:completed)
+      request
+      |> Request.assign(:llm_response, parsed_response)
+      |> Map.put(:result, parsed_response)
+      |> Request.put_state(:completed)
+    end
   end
 
   defp parse_response(response, model) do

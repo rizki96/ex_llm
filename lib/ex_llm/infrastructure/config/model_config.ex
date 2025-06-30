@@ -54,16 +54,34 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
   and dependency scenarios.
   """
   def config_dir do
-    # Try to find the config directory relative to the current file
-    case File.exists?("config/models") do
-      true ->
-        Path.expand("config/models")
+    # Strategy 1: Try current working directory
+    cwd_path = Path.expand("config/models")
 
-      false ->
-        # Fallback: look for it relative to the compiled beam file
-        :code.priv_dir(:ex_llm)
-        |> Path.join("../../config/models")
-        |> Path.expand()
+    if File.exists?(cwd_path) do
+      cwd_path
+    else
+      # Strategy 2: Try relative to this source file (for development)
+      source_relative = Path.join([__DIR__, "../../../config/models"]) |> Path.expand()
+
+      if File.exists?(source_relative) do
+        source_relative
+      else
+        # Strategy 3: Try walking up the directory tree to find project root
+        # Strategy 4: Fallback to compiled beam file location
+        find_project_config_dir(File.cwd!()) ||
+          :code.priv_dir(:ex_llm) |> Path.join("../../config/models") |> Path.expand()
+      end
+    end
+  end
+
+  # Walk up the directory tree looking for a config/models directory
+  defp find_project_config_dir(current_dir) do
+    config_path = Path.join(current_dir, "config/models")
+
+    cond do
+      File.exists?(config_path) -> config_path
+      current_dir == "/" -> nil
+      true -> find_project_config_dir(Path.dirname(current_dir))
     end
   end
 
