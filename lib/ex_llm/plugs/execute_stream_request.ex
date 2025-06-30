@@ -87,7 +87,18 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       Logger.debug("Taking direct stream path, callback: #{inspect(callback)}")
 
       if is_function(callback, 1) do
-        execute_direct_stream(request, client, endpoint, body, callback, opts)
+        # Get configurable timeout from request options, config, or default
+        stream_timeout =
+          request.options[:timeout] ||
+            request.config[:streaming_timeout] ||
+            opts[:timeout] ||
+            @default_timeout
+
+        Logger.debug("ExecuteStreamRequest using timeout: #{stream_timeout}ms")
+
+        # Pass timeout in opts to execute_direct_stream
+        stream_opts = Keyword.put(opts, :timeout, stream_timeout)
+        execute_direct_stream(request, client, endpoint, body, callback, stream_opts)
       else
         Request.halt_with_error(request, %{
           plug: __MODULE__,
@@ -101,6 +112,15 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   defp execute_coordinated_stream(request, client, endpoint, body, coordinator, opts) do
     # Use the existing stream_ref from the request that the coordinator is expecting
     stream_ref = request.stream_ref
+
+    # Get configurable timeout from request options, config, or default
+    stream_timeout =
+      request.options[:timeout] ||
+        request.config[:streaming_timeout] ||
+        opts[:timeout] ||
+        @default_timeout
+
+    Logger.debug("ExecuteStreamRequest coordinated stream using timeout: #{stream_timeout}ms")
 
     if stream_ref == nil do
       Logger.error("No stream_ref found in request for coordinated streaming")
@@ -120,7 +140,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
             body,
             coordinator,
             stream_ref,
-            opts ++ [provider: request.provider]
+            opts ++ [provider: request.provider, timeout: stream_timeout]
           )
         end)
 
@@ -135,6 +155,15 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     parent = self()
     stream_ref = make_ref()
 
+    # Get configurable timeout from request options, config, or default
+    stream_timeout =
+      request.options[:timeout] ||
+        request.config[:streaming_timeout] ||
+        opts[:timeout] ||
+        @default_timeout
+
+    Logger.debug("ExecuteStreamRequest direct stream using timeout: #{stream_timeout}ms")
+
     {:ok, stream_pid} =
       Task.start(fn ->
         stream_response(
@@ -144,7 +173,7 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
           callback,
           parent,
           stream_ref,
-          opts ++ [provider: request.provider]
+          opts ++ [provider: request.provider, timeout: stream_timeout]
         )
       end)
 
