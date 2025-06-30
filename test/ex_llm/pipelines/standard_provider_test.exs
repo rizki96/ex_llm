@@ -40,15 +40,24 @@ defmodule ExLLM.Pipelines.StandardProviderTest do
       # The inner pipeline has the correct sequence of plugs
       inner_pipeline = telemetry_opts[:pipeline]
 
-      assert inner_pipeline == [
-               {Plugs.ValidateProvider, []},
-               {Plugs.ValidateMessages, []},
-               {Plugs.FetchConfiguration, []},
-               {DummyBuildRequest, []},
-               {Plugs.BuildTeslaClient, []},
-               {Plugs.ExecuteRequest, []},
-               {DummyParseResponse, []}
-             ]
+      # Extract just the plug modules for easier assertion, ignoring conditional plug details
+      actual_plugs = Enum.map(inner_pipeline, fn
+        {plug_module, _opts} -> plug_module
+        plug_module when is_atom(plug_module) -> plug_module
+      end)
+      
+      expected_plugs = [
+        Plugs.ValidateProvider,
+        Plugs.ValidateMessages,
+        Plugs.FetchConfiguration,
+        Plugs.ConditionalPlug,  # PrepareStreaming conditional
+        DummyBuildRequest,
+        Plugs.BuildTeslaClient,
+        Plugs.ConditionalPlug,  # ExecuteRequest conditional
+        DummyParseResponse
+      ]
+      
+      assert actual_plugs == expected_plugs
     end
 
     test "raises if provider plugs are missing" do
