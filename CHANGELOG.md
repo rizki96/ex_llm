@@ -7,6 +7,49 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0] - 2025-06-30
+
+### 🎉 **MAJOR RELEASE - Production Ready**
+
+ExLLM reaches version 1.0.0, representing a mature, production-ready unified client for Large Language Models in Elixir. This release includes final bug fixes, performance optimizations, and comprehensive testing across all 14+ supported providers.
+
+### Fixed
+- **URL Construction** - Fixed provider-specific URL path handling
+  - OpenRouter now correctly uses `/api` prefix via middleware configuration
+  - Groq provider URL construction fixed to append `/v1` dynamically
+  - Anthropic now uses configurable base URL instead of hardcoded values
+  - All providers tested and verified to construct proper API endpoints
+
+- **Error Handling** - Enhanced error resilience across the codebase
+  - Fixed CaseClauseError in Chat module for Bumblebee provider errors
+  - Added support for multiple error formats (error, reason, message fields)
+  - Integration tests now handle ModelLoader errors gracefully
+  - Improved error messages for better debugging
+
+- **Dialyzer Warnings** - Resolved all type-related warnings
+  - Fixed unreachable code patterns in multiple modules
+  - Resolved guard clause issues in StructuredOutputs
+  - Fixed Tesla.Env pattern matching in ExecuteRequest
+  - Added missing type aliases to prevent unknown type warnings
+
+- **CI/CD Pipeline** - Fixed GitHub Actions workflow issues
+  - Dialyzer now runs in :dev environment where dialyxir is available
+  - All CI checks passing including tests, format, credo, and dialyzer
+
+### Changed
+- **Code Quality** - Final polish for production release
+  - All compilation warnings resolved
+  - Comprehensive test coverage with 923+ unit tests passing
+  - Integration tests verified across all major providers
+  - Clean dialyzer output with no warnings
+
+### Verified
+- ✅ All 14+ providers working correctly (OpenAI, Anthropic, Gemini, Groq, Mistral, etc.)
+- ✅ Streaming functionality operational across all supporting providers
+- ✅ Cost tracking accurate for all metered providers
+- ✅ Session management and context handling working as designed
+- ✅ All examples and documentation up to date
+
 ## [1.0.0-rc1] - 2025-06-21
 
 ### 🎉 **MAJOR RELEASE CANDIDATE - Architecture Transformation**
