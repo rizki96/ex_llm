@@ -167,7 +167,7 @@ defmodule ExLLM.Providers.Groq do
     else
       client = Core.client(provider: :groq, api_key: api_key)
 
-      case Tesla.get(client, "/models") do
+      case Tesla.get(client, "/v1/models") do
         {:ok, %Tesla.Env{status: 200, body: %{"data" => models}}} ->
           # Return a list of transformed models directly
           parsed_models =

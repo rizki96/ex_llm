@@ -538,9 +538,11 @@ defmodule ExLLM.Providers.OpenAICompatible do
       defp get_config(config_provider) do
         case config_provider do
           provider when is_atom(provider) ->
+            # For module-based providers, call get_all with the provider atom
             provider.get_all(@provider)
 
           provider when is_pid(provider) ->
+            # For PID-based providers (like Static), get the full config and extract our provider
             Agent.get(provider, & &1)
             |> Map.get(@provider, %{})
         end

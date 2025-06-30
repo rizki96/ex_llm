@@ -115,7 +115,7 @@ defmodule ExLLM.Providers.Mistral do
       }
 
       headers = get_headers(api_key, options)
-      url = "#{get_base_url(config)}/embeddings"
+      url = "#{get_base_url(config)}/v1/embeddings"
 
       case send_request(url, body, headers) do
         {:ok, response} ->
@@ -136,7 +136,7 @@ defmodule ExLLM.Providers.Mistral do
          api_key <- get_api_key(config),
          {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = get_headers(api_key, options)
-      url = "#{get_base_url(config)}/models"
+      url = "#{get_base_url(config)}/v1/models"
 
       case send_request(url, %{}, headers, :get) do
         {:ok, %{"data" => models}} when is_list(models) ->

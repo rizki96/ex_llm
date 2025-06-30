@@ -140,7 +140,11 @@ defmodule ExLLM.Shared.ProviderIntegrationTest do
 
             {:error, %ExLLM.Pipeline.Request{errors: errors}} ->
               # Check if it's a streaming not supported error
-              if Enum.any?(errors, &(&1.reason == :no_stream_started)) and @provider == :gemini do
+              if Enum.any?(
+                   errors,
+                   &(Map.get(&1, :reason) == :no_stream_started ||
+                       Map.get(&1, :error) == :no_stream_started)
+                 ) and @provider == :gemini do
                 # Gemini might not support streaming for certain requests
                 # This is acceptable for now - just log it
                 IO.puts(

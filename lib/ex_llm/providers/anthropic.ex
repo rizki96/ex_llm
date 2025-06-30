@@ -81,7 +81,7 @@ defmodule ExLLM.Providers.Anthropic do
 
       body = build_request_body(messages, model, config, options)
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages"
+      url = "#{get_base_url(config)}/v1/messages"
 
       case anthropic_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response_body} ->
@@ -116,7 +116,7 @@ defmodule ExLLM.Providers.Anthropic do
         |> Map.put(:stream, true)
 
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages"
+      url = "#{get_base_url(config)}/v1/messages"
 
       # Create stream with enhanced features
       chunks_ref = make_ref()
@@ -204,7 +204,9 @@ defmodule ExLLM.Providers.Anthropic do
       {:ok, _} ->
         headers = build_headers(api_key)
 
-        case anthropic_request(:get, "https://api.anthropic.com/v1/models", %{}, headers, api_key) do
+        url = "#{get_base_url(config)}/v1/models"
+
+        case anthropic_request(:get, url, %{}, headers, api_key) do
           {:ok, %{"data" => models}} ->
             parsed_models =
               models
@@ -551,7 +553,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_files_headers(api_key)
-      url = "#{get_base_url(config)}/files"
+      url = "#{get_base_url(config)}/v1/files"
 
       # Create multipart form data
       multipart = [
@@ -582,7 +584,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_files_headers(api_key)
-      url = "#{get_base_url(config)}/files"
+      url = "#{get_base_url(config)}/v1/files"
 
       case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
@@ -604,7 +606,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_files_headers(api_key)
-      url = "#{get_base_url(config)}/files/#{file_id}"
+      url = "#{get_base_url(config)}/v1/files/#{file_id}"
 
       case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
@@ -626,7 +628,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_files_headers(api_key)
-      url = "#{get_base_url(config)}/files/#{file_id}/content"
+      url = "#{get_base_url(config)}/v1/files/#{file_id}/content"
 
       case anthropic_request(:get_binary, url, %{}, headers, api_key) do
         {:ok, content} when is_binary(content) ->
@@ -651,7 +653,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_files_headers(api_key)
-      url = "#{get_base_url(config)}/files/#{file_id}"
+      url = "#{get_base_url(config)}/v1/files/#{file_id}"
 
       case anthropic_request(:delete, url, %{}, headers, api_key) do
         {:ok, response} ->
@@ -676,7 +678,7 @@ defmodule ExLLM.Providers.Anthropic do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, validated_requests} <- validate_batch_requests(requests) do
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages/batches"
+      url = "#{get_base_url(config)}/v1/messages/batches"
 
       body = %{
         requests: validated_requests
@@ -705,7 +707,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages/batches"
+      url = "#{get_base_url(config)}/v1/messages/batches"
 
       case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
@@ -727,7 +729,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
+      url = "#{get_base_url(config)}/v1/messages/batches/#{batch_id}"
 
       case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
@@ -749,7 +751,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages/batches/#{batch_id}/results"
+      url = "#{get_base_url(config)}/v1/messages/batches/#{batch_id}/results"
 
       case anthropic_request(:get, url, %{}, headers, api_key) do
         {:ok, response} ->
@@ -771,7 +773,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages/batches/#{batch_id}/cancel"
+      url = "#{get_base_url(config)}/v1/messages/batches/#{batch_id}/cancel"
 
       case anthropic_request(:post, url, %{}, headers, api_key, timeout: 60_000) do
         {:ok, response_body} ->
@@ -796,7 +798,7 @@ defmodule ExLLM.Providers.Anthropic do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages/batches/#{batch_id}"
+      url = "#{get_base_url(config)}/v1/messages/batches/#{batch_id}"
 
       case anthropic_request(:delete, url, %{}, headers, api_key) do
         {:ok, response} ->
@@ -821,7 +823,7 @@ defmodule ExLLM.Providers.Anthropic do
     with :ok <- MessageFormatter.validate_messages(messages),
          {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key)
-      url = "#{get_base_url(config)}/messages/count_tokens"
+      url = "#{get_base_url(config)}/v1/messages/count_tokens"
 
       # Extract system message if present
       {system_content, other_messages} = MessageFormatter.extract_system_message(messages)

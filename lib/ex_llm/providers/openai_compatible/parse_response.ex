@@ -75,7 +75,13 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
           })
 
         # Extract just the total cost float for backward compatibility
-        cost_value = Map.get(cost_info, :total_cost)
+        # Handle case where cost_info is an error map
+        cost_value =
+          case cost_info do
+            %{total_cost: cost} -> cost
+            %{error: _} -> nil
+            _ -> nil
+          end
 
         # Extract content, handling reasoning models that use reasoning_content
         content =

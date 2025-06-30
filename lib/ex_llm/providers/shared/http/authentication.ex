@@ -28,19 +28,39 @@ defmodule ExLLM.Providers.Shared.HTTP.Authentication do
   def call(env, next, opts) do
     provider = Keyword.get(opts, :provider, :openai)
     api_key = Keyword.get(opts, :api_key)
+    oauth_token = Keyword.get(opts, :oauth_token)
 
-    if api_key do
-      env
-      |> add_authentication_headers(provider, api_key, opts)
-      |> add_version_headers(provider, opts)
-      |> Tesla.run(next)
-    else
-      Logger.warning("No API key provided for #{provider}")
-      Tesla.run(env, next)
+    cond do
+      api_key ->
+        env
+        |> add_authentication_headers(provider, api_key, opts)
+        |> add_version_headers(provider, opts)
+        |> Tesla.run(next)
+
+      oauth_token ->
+        env
+        |> add_oauth_headers(provider, oauth_token, opts)
+        |> add_version_headers(provider, opts)
+        |> Tesla.run(next)
+
+      true ->
+        Logger.warning("No API key or OAuth token provided for #{provider}")
+        Tesla.run(env, next)
     end
   end
 
   # Provider-specific authentication
+
+  # OAuth token authentication
+  defp add_oauth_headers(env, :gemini, oauth_token, _opts) when is_binary(oauth_token) do
+    Tesla.put_header(env, "authorization", "Bearer #{oauth_token}")
+  end
+
+  defp add_oauth_headers(env, _provider, oauth_token, _opts) do
+    require Logger
+    Logger.warning("OAuth not supported for provider, token: #{inspect(oauth_token)}")
+    env
+  end
 
   defp add_authentication_headers(env, :openai, api_key, _opts) when is_binary(api_key) do
     Tesla.put_header(env, "authorization", "Bearer #{api_key}")

@@ -20,7 +20,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   ## Usage
 
       client = HTTP.Core.client(provider: :openai, api_key: "sk-...")
-      {:ok, response} = Tesla.get(client, "/models")
+      {:ok, response} = Tesla.get(client, "/v1/models")
       
       # Streaming
       {:ok, response} = HTTP.Core.stream(client, "/chat/completions", body, callback)
@@ -72,8 +72,6 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   @spec stream(Tesla.Client.t(), String.t(), term(), function(), keyword()) ::
           {:ok, Tesla.Env.t()} | {:error, term()}
   def stream(client, path, body, callback, opts \\ []) do
-    # Extract configuration from the original client if needed
-    _timeout = Keyword.get(opts, :timeout, 300_000)
     parse_chunk_fn = Keyword.get(opts, :parse_chunk, &default_parse_chunk/1)
     user_headers = Keyword.get(opts, :headers, [])
     normalized_headers = normalize_headers(user_headers)
@@ -91,19 +89,38 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
         {"cache-control", "no-cache"}
       ] ++ normalized_headers
 
-    # Execute the streaming request using the existing client
-    # For test environments, Tesla.post may return the full response immediately
-    case Tesla.post(client, path, streaming_body, headers: headers) do
-      {:ok, response} ->
-        # Check if response contains SSE data and simulate streaming
-        if is_binary(response.body) && String.contains?(response.body, "data:") do
-          simulate_streaming_from_body(response.body, callback, parse_chunk_fn)
-        end
+    # Check if we're in test mode
+    if Application.get_env(:ex_llm, :use_tesla_mock, false) do
+      # Test mode: Use regular post and simulate streaming
+      case Tesla.post(client, path, streaming_body, headers: headers) do
+        {:ok, response} ->
+          # Check if response contains SSE data and simulate streaming
+          if is_binary(response.body) && String.contains?(response.body, "data:") do
+            simulate_streaming_from_body(response.body, callback, parse_chunk_fn)
+          end
 
-        {:ok, response}
+          {:ok, response}
 
-      {:error, reason} ->
-        {:error, reason}
+        {:error, reason} ->
+          {:error, reason}
+      end
+    else
+      # Production mode: Use direct streaming without blocking tasks
+      case Tesla.post(client, path, streaming_body,
+             headers: headers,
+             opts: [adapter: [recv_timeout: 300_000, stream_to: self(), async: :once]]
+           ) do
+        {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
+          # Handle streaming chunks
+          handle_stream_chunks(callback, parse_chunk_fn)
+          {:ok, env}
+
+        {:ok, response} ->
+          {:error, {:api_error, response.status}}
+
+        {:error, reason} ->
+          {:error, reason}
+      end
     end
   end
 
@@ -168,6 +185,51 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
     end)
   end
 
+  defp handle_stream_chunks(callback, parse_chunk_fn) do
+    receive do
+      {:hackney_response, _ref, {:status, _code, _reason}} ->
+        # Status received, continue
+        handle_stream_chunks(callback, parse_chunk_fn)
+
+      {:hackney_response, _ref, {:headers, _headers}} ->
+        # Headers received, continue
+        handle_stream_chunks(callback, parse_chunk_fn)
+
+      {:hackney_response, _ref, chunk} when is_binary(chunk) ->
+        # Process the chunk through SSE parser
+        parser = SSEParser.new()
+        {events, _parser} = SSEParser.parse_data_events(parser, chunk)
+
+        Enum.each(events, fn
+          :done ->
+            :ok
+
+          event_data ->
+            case parse_chunk_fn.(event_data) do
+              {:ok, parsed_chunk} when not is_nil(parsed_chunk) ->
+                callback.(parsed_chunk)
+
+              _ ->
+                :skip
+            end
+        end)
+
+        # Continue receiving chunks
+        handle_stream_chunks(callback, parse_chunk_fn)
+
+      {:hackney_response, _ref, :done} ->
+        # Stream completed
+        :ok
+
+      {:hackney_response, _ref, {:error, reason}} ->
+        # Error occurred
+        {:error, reason}
+    after
+      60_000 ->
+        {:error, :timeout}
+    end
+  end
+
   defp build_middleware_stack(provider, opts) do
     json_middleware =
       if Keyword.get(opts, :json_enabled, true) do
@@ -183,7 +245,25 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
 
     auth_middleware =
       if Keyword.get(opts, :auth_enabled, true) do
-        [{HTTP.Authentication, provider: provider, api_key: Keyword.get(opts, :api_key)}]
+        auth_opts = [provider: provider]
+
+        # Add API key if present
+        auth_opts =
+          if api_key = Keyword.get(opts, :api_key) do
+            Keyword.put(auth_opts, :api_key, api_key)
+          else
+            auth_opts
+          end
+
+        # Add OAuth token if present
+        auth_opts =
+          if oauth_token = Keyword.get(opts, :oauth_token) do
+            Keyword.put(auth_opts, :oauth_token, oauth_token)
+          else
+            auth_opts
+          end
+
+        [{HTTP.Authentication, auth_opts}]
       else
         []
       end
@@ -250,16 +330,16 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
 
   defp get_default_base_url(provider) do
     case provider do
-      :openai -> "https://api.openai.com/v1"
+      :openai -> "https://api.openai.com"
       :anthropic -> "https://api.anthropic.com"
-      :groq -> "https://api.groq.com/openai/v1"
+      :groq -> "https://api.groq.com/openai"
       :gemini -> "https://generativelanguage.googleapis.com/v1beta"
-      :ollama -> "http://localhost:11434/api"
-      :lmstudio -> "http://localhost:1234/v1"
-      :mistral -> "https://api.mistral.ai/v1"
-      :openrouter -> "https://openrouter.ai/api/v1"
+      :ollama -> "http://localhost:11434"
+      :lmstudio -> "http://localhost:1234"
+      :mistral -> "https://api.mistral.ai"
+      :openrouter -> "https://openrouter.ai"
       :perplexity -> "https://api.perplexity.ai"
-      :xai -> "https://api.x.ai/v1"
+      :xai -> "https://api.x.ai"
       _ -> raise ArgumentError, "Unknown provider: #{provider}"
     end
   end

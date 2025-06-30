@@ -89,8 +89,8 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
     end
 
     @impl true
-    def get_all(provider) do
-      Agent.get(provider, & &1)
+    def get_all(provider_pid) do
+      Agent.get(provider_pid, & &1)
     end
   end
 

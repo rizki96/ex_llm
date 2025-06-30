@@ -68,6 +68,7 @@ defmodule ExLLM.Providers do
   defp get_chat_pipeline(:groq), do: groq_chat_pipeline()
   defp get_chat_pipeline(:mistral), do: mistral_chat_pipeline()
   defp get_chat_pipeline(:openrouter), do: openrouter_chat_pipeline()
+  defp get_chat_pipeline(:perplexity), do: perplexity_chat_pipeline()
   defp get_chat_pipeline(:xai), do: xai_chat_pipeline()
   defp get_chat_pipeline(:ollama), do: ollama_chat_pipeline()
   defp get_chat_pipeline(:bedrock), do: bedrock_chat_pipeline()
@@ -107,6 +108,7 @@ defmodule ExLLM.Providers do
       :gemini -> gemini_list_models_pipeline()
       :groq -> groq_list_models_pipeline()
       :openrouter -> openrouter_list_models_pipeline()
+      :perplexity -> perplexity_list_models_pipeline()
       :ollama -> ollama_list_models_pipeline()
       :xai -> xai_list_models_pipeline()
       :mock -> mock_list_models_pipeline()
@@ -315,14 +317,14 @@ defmodule ExLLM.Providers do
   end
 
   defp openrouter_chat_pipeline do
-    # OpenRouter uses OpenAI-compatible API
+    # OpenRouter uses OpenAI-compatible API with /api prefix
     [
       Plugs.ValidateProvider,
       Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
       {Plugs.Cache, ttl: 300},
-      Plugs.Providers.OpenAIPrepareRequest,
+      ExLLM.Providers.OpenRouter.BuildRequest,
       Plugs.ExecuteRequest,
       Plugs.Providers.OpenAIParseResponse,
       Plugs.TrackCost
@@ -330,13 +332,13 @@ defmodule ExLLM.Providers do
   end
 
   defp openrouter_stream_pipeline do
-    # OpenRouter uses OpenAI-compatible streaming
+    # OpenRouter uses OpenAI-compatible streaming with /api prefix
     [
       Plugs.ValidateProvider,
       Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.Providers.OpenAIPrepareRequest,
+      ExLLM.Providers.OpenRouter.BuildRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
       Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest,
@@ -344,14 +346,29 @@ defmodule ExLLM.Providers do
     ]
   end
 
-  defp perplexity_stream_pipeline do
-    # Perplexity uses OpenAI-compatible streaming
+  defp perplexity_chat_pipeline do
+    # Perplexity uses OpenAI-compatible API but without /v1 prefix
     [
       Plugs.ValidateProvider,
       Plugs.FetchConfiguration,
       {Plugs.ManageContext, strategy: :truncate},
       Plugs.BuildTeslaClient,
-      Plugs.Providers.OpenAIPrepareRequest,
+      {Plugs.Cache, ttl: 300},
+      Plugs.Providers.PerplexityPrepareRequest,
+      Plugs.ExecuteRequest,
+      Plugs.Providers.OpenAIParseResponse,
+      Plugs.TrackCost
+    ]
+  end
+
+  defp perplexity_stream_pipeline do
+    # Perplexity uses OpenAI-compatible streaming but without /v1 prefix
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfiguration,
+      {Plugs.ManageContext, strategy: :truncate},
+      Plugs.BuildTeslaClient,
+      Plugs.Providers.PerplexityPrepareRequest,
       Plugs.Providers.OpenAIParseStreamResponse,
       Plugs.StreamCoordinator,
       Plugs.ExecuteStreamRequest,
@@ -613,6 +630,15 @@ defmodule ExLLM.Providers do
       Plugs.Providers.OpenRouterPrepareListModelsRequest,
       Plugs.ExecuteRequest,
       Plugs.Providers.OpenRouterParseListModelsResponse
+    ]
+  end
+
+  defp perplexity_list_models_pipeline do
+    [
+      Plugs.ValidateProvider,
+      Plugs.FetchConfiguration,
+      # Perplexity doesn't have a models API, return static list
+      Plugs.Providers.PerplexityStaticModelsList
     ]
   end
 

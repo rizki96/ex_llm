@@ -79,7 +79,7 @@ defmodule ExLLM.Providers.XAIPublicAPITest do
         }
       ]
 
-      case ExLLM.chat(:xai, messages, model: "grok-vision-beta", max_tokens: 50) do
+      case ExLLM.chat(:xai, messages, model: "grok-2-vision-1212", max_tokens: 50) do
         {:ok, response} ->
           # Verify Grok can see the image (don't test specific color)
           assert String.length(response.content) > 0

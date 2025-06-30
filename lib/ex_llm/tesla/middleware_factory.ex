@@ -222,7 +222,9 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   defp get_base_url(:openrouter, config) do
-    config[:base_url] || "https://openrouter.ai/api"
+    base_url = config[:base_url] || "https://openrouter.ai"
+    # OpenRouter needs /api prefix for its API endpoints
+    "#{base_url}/api"
   end
 
   defp get_base_url(:perplexity, config) do

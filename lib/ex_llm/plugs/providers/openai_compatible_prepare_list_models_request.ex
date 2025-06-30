@@ -25,6 +25,6 @@ defmodule ExLLM.Plugs.Providers.OpenAICompatiblePrepareListModelsRequest do
     request
     |> Map.put(:provider_request, %{})
     |> ExLLM.Pipeline.Request.assign(:http_method, :get)
-    |> ExLLM.Pipeline.Request.assign(:http_path, "/models")
+    |> ExLLM.Pipeline.Request.assign(:http_path, "/v1/models")
   end
 end

@@ -204,7 +204,7 @@ defmodule ExLLM.Providers.XAI do
     case ModelConfig.get_default_model(:xai) do
       {:ok, model} -> model
       # Fallback default
-      _ -> "grok-beta"
+      _ -> "grok-3"
     end
   end
 

@@ -473,18 +473,18 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
 
   defp get_default_base_url(provider) do
     case provider do
-      :openai -> "https://api.openai.com/v1"
+      :openai -> "https://api.openai.com"
       :anthropic -> "https://api.anthropic.com"
-      :groq -> "https://api.groq.com/openai/v1"
+      :groq -> "https://api.groq.com/openai"
       :gemini -> "https://generativelanguage.googleapis.com/v1beta"
       :ollama -> "http://localhost:11434/api"
-      :lmstudio -> "http://localhost:1234/v1"
-      :mistral -> "https://api.mistral.ai/v1"
-      :openrouter -> "https://openrouter.ai/api/v1"
+      :lmstudio -> "http://localhost:1234"
+      :mistral -> "https://api.mistral.ai"
+      :openrouter -> "https://openrouter.ai"
       :perplexity -> "https://api.perplexity.ai"
-      :xai -> "https://api.x.ai/v1"
+      :xai -> "https://api.x.ai"
       # Default fallback
-      _ -> "https://api.openai.com/v1"
+      _ -> "https://api.openai.com"
     end
   end
 

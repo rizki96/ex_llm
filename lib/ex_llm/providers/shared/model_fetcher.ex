@@ -97,7 +97,7 @@ defmodule ExLLM.Providers.Shared.ModelFetcher do
     # Additional headers if needed
     extra_headers = Keyword.get(options, :extra_headers, [])
 
-    case Tesla.get(client, "/models", headers: extra_headers) do
+    case Tesla.get(client, "/v1/models", headers: extra_headers) do
       {:ok, %Tesla.Env{status: 200, body: %{"data" => models}}} when is_list(models) ->
         {:ok, models}
 

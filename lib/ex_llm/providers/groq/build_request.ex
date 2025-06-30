@@ -34,7 +34,7 @@ defmodule ExLLM.Providers.Groq.BuildRequest do
     transformed_body = ExLLM.Providers.Groq.transform_request(body, options)
 
     headers = build_headers(api_key)
-    url = "#{get_base_url(config)}/chat/completions"
+    url = "#{get_base_url(config)}/v1/chat/completions"
 
     request
     |> Map.put(:provider_request, transformed_body)
@@ -67,7 +67,7 @@ defmodule ExLLM.Providers.Groq.BuildRequest do
   defp get_base_url(config) do
     Map.get(config, :base_url) ||
       System.get_env("GROQ_API_BASE") ||
-      "https://api.groq.com/openai/v1"
+      "https://api.groq.com/openai"
   end
 
   defp maybe_add_system_prompt(body, options) do

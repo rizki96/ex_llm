@@ -104,7 +104,7 @@ defmodule ExLLM.Providers.OpenAICompatiblePlugsTest do
 
       result = BuildRequest.call(request, [])
 
-      assert result.assigns.request_url == "https://openrouter.ai/api/v1/chat/completions"
+      assert result.assigns.request_url == "https://openrouter.ai/v1/chat/completions"
     end
   end
 end

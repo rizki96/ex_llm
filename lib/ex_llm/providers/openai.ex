@@ -56,7 +56,8 @@ defmodule ExLLM.Providers.OpenAI do
     MessageFormatter,
     ModelUtils,
     StreamingBehavior,
-    Validation
+    Validation,
+    EnhancedStreamingCoordinator
   }
 
   alias ExLLM.Providers.Shared.HTTP.Core
@@ -92,7 +93,7 @@ defmodule ExLLM.Providers.OpenAI do
       ExLLM.Infrastructure.Telemetry.span([:ex_llm, :provider, :request], metadata, fn ->
         body = build_request_body(messages, model, config, options)
         headers = build_headers(api_key, config)
-        url = "#{get_base_url(config)}/chat/completions"
+        url = "#{get_base_url(config)}/v1/chat/completions"
 
         case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
           {:ok, response} ->
@@ -133,93 +134,52 @@ defmodule ExLLM.Providers.OpenAI do
         |> Map.put(:stream, true)
 
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/chat/completions"
+      url = "#{get_base_url(config)}/v1/chat/completions"
 
       # Create stream with standard behavior
 
       Logger.with_context([provider: :openai, model: model], fn ->
-        # Create a stream using HTTP.Core streaming capabilities
+        # Use EnhancedStreamingCoordinator for OpenAI
+        chunks_ref = make_ref()
+        parent = self()
+
+        callback = fn chunk ->
+          send(parent, {chunks_ref, {:chunk, chunk}})
+        end
+
+        stream_options = [
+          parse_chunk_fn: &parse_openai_chunk/1,
+          provider: :openai,
+          model: model,
+          stream_recovery: Keyword.get(options, :stream_recovery, false),
+          track_metrics: Keyword.get(options, :track_metrics, false),
+          on_metrics: Keyword.get(options, :on_metrics),
+          buffer_chunks: Keyword.get(options, :buffer_chunks, 1),
+          timeout: Keyword.get(options, :timeout, 300_000),
+          enable_flow_control: Keyword.get(options, :enable_flow_control, false),
+          enable_batching: Keyword.get(options, :enable_batching, false),
+          track_detailed_metrics: Keyword.get(options, :track_detailed_metrics, false)
+        ]
+
+        {:ok, stream_id} =
+          EnhancedStreamingCoordinator.start_stream(url, body, headers, callback, stream_options)
+
         stream =
           Stream.resource(
-            # Start function - initiates the HTTP request
-            fn ->
-              ref = make_ref()
-              parent = self()
-
-              # Spawn a process to handle the streaming request
-              {:ok, pid} = start_streaming_task(parent, ref, url, body, headers)
-
-              # Return ref, pid, and empty buffer
-              {ref, pid, ""}
-            end,
-
-            # Next function - receives chunks and processes them
-            fn {ref, pid, buffer} ->
+            fn -> {chunks_ref, stream_id} end,
+            fn {ref, _id} = state ->
               receive do
-                {^ref, {:chunk, chunk}} ->
-                  process_stream_chunk(chunk, buffer, ref, pid)
-
-                {^ref, :done} ->
-                  process_stream_completion(buffer)
+                {^ref, {:chunk, chunk}} -> {[chunk], state}
               after
-                60_000 ->
-                  {:halt, {ref, pid, buffer}}
+                100 -> {[], state}
               end
             end,
-
-            # Cleanup function
-            fn
-              :done -> :ok
-              {_ref, pid, _buffer} -> Process.exit(pid, :normal)
-            end
+            fn _ -> :ok end
           )
 
         {:ok, stream}
       end)
     end
-  end
-
-  defp start_streaming_task(parent, ref, url, body, headers) do
-    Task.start_link(fn ->
-      openai_request(:stream, url, body, headers, nil,
-        callback: fn chunk ->
-          send(parent, {ref, {:chunk, chunk}})
-        end
-      )
-
-      send(parent, {ref, :done})
-    end)
-  end
-
-  defp process_stream_chunk(chunk, buffer, ref, pid) do
-    # Accumulate chunks and parse SSE events
-    full_buffer = buffer <> chunk
-    {events, remaining} = parse_sse_events(full_buffer)
-
-    # Convert events to StreamChunks
-    chunks = convert_events_to_chunks(events)
-
-    {chunks, {ref, pid, remaining}}
-  end
-
-  defp process_stream_completion(buffer) do
-    # Process any remaining buffer
-    if buffer != "" do
-      {events, _} = parse_sse_events(buffer <> "\n\n")
-      chunks = convert_events_to_chunks(events)
-      {chunks, :done}
-    else
-      {:halt, :done}
-    end
-  end
-
-  defp convert_events_to_chunks(events) do
-    Enum.flat_map(events, fn event ->
-      case parse_openai_chunk(event) do
-        nil -> []
-        parsed -> [parsed]
-      end
-    end)
   end
 
   @impl true
@@ -246,7 +206,7 @@ defmodule ExLLM.Providers.OpenAI do
 
       {:ok, _} ->
         headers = build_headers(api_key, config)
-        url = "#{get_base_url(config)}/models"
+        url = "#{get_base_url(config)}/v1/models"
 
         case openai_request(:get, url, %{}, headers, api_key, []) do
           {:ok, %{"data" => data}} ->
@@ -848,7 +808,7 @@ defmodule ExLLM.Providers.OpenAI do
   # Private embedding functions
 
   defp build_embeddings_url(config) do
-    {:ok, "#{get_base_url(config)}/embeddings"}
+    {:ok, "#{get_base_url(config)}/v1/embeddings"}
   end
 
   defp build_embeddings_request(inputs, _config, options) do
@@ -934,7 +894,7 @@ defmodule ExLLM.Providers.OpenAI do
       }
 
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/moderations"
+      url = "#{get_base_url(config)}/v1/moderations"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -968,7 +928,7 @@ defmodule ExLLM.Providers.OpenAI do
       }
 
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/images/generations"
+      url = "#{get_base_url(config)}/v1/images/generations"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
@@ -1013,7 +973,7 @@ defmodule ExLLM.Providers.OpenAI do
          {:ok, _file_data} <- File.read(image_path),
          {:ok, form_data} <- build_image_edit_form(image_path, prompt, options) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/images/edits"
+      url = "#{get_base_url(config)}/v1/images/edits"
 
       case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
@@ -1056,7 +1016,7 @@ defmodule ExLLM.Providers.OpenAI do
          {:ok, _file_data} <- File.read(image_path),
          {:ok, form_data} <- build_image_variation_form(image_path, options) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/images/variations"
+      url = "#{get_base_url(config)}/v1/images/variations"
 
       case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
@@ -1104,7 +1064,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, body} <- validate_assistant_params(assistant_params) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/assistants"
+      url = "#{get_base_url(config)}/v1/assistants"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1140,7 +1100,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/assistants"
+      url = "#{get_base_url(config)}/v1/assistants"
 
       # Build query parameters
       query_params = build_list_query_params(options)
@@ -1178,7 +1138,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/assistants/#{assistant_id}"
+      url = "#{get_base_url(config)}/v1/assistants/#{assistant_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1214,7 +1174,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/assistants/#{assistant_id}"
+      url = "#{get_base_url(config)}/v1/assistants/#{assistant_id}"
 
       case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1247,7 +1207,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/assistants/#{assistant_id}"
+      url = "#{get_base_url(config)}/v1/assistants/#{assistant_id}"
 
       case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1293,7 +1253,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads"
+      url = "#{get_base_url(config)}/v1/threads"
 
       case openai_request(:post, url, thread_params, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1326,7 +1286,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1364,7 +1324,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}"
 
       case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1397,7 +1357,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}"
 
       case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1441,7 +1401,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, body} <- validate_message_params(message_params) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/messages"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/messages"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1480,7 +1440,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/messages"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/messages"
 
       # Build query parameters
       query_params = build_list_query_params(options)
@@ -1522,7 +1482,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/messages/#{message_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/messages/#{message_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1560,7 +1520,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/messages/#{message_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/messages/#{message_id}"
 
       case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1608,7 +1568,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, body} <- validate_run_params(run_params) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
@@ -1659,7 +1619,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, body} <- validate_run_params(create_and_run_params) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/runs"
+      url = "#{get_base_url(config)}/v1/threads/runs"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
@@ -1696,7 +1656,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs"
 
       # Build query parameters
       query_params = build_list_query_params(options)
@@ -1735,7 +1695,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs/#{run_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1773,7 +1733,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs/#{run_id}"
 
       case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1807,7 +1767,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/cancel"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs/#{run_id}/cancel"
 
       case openai_request(:post, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -1850,7 +1810,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/submit_tool_outputs"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs/#{run_id}/submit_tool_outputs"
 
       body = %{
         tool_outputs: tool_outputs
@@ -1898,7 +1858,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/steps"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs/#{run_id}/steps"
 
       # Build query parameters
       query_params = build_list_query_params(options)
@@ -1942,7 +1902,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/threads/#{thread_id}/runs/#{run_id}/steps/#{step_id}"
+      url = "#{get_base_url(config)}/v1/threads/#{thread_id}/runs/#{run_id}/steps/#{step_id}"
 
       # Add include parameter if provided
       query_params = []
@@ -1991,7 +1951,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores"
+      url = "#{get_base_url(config)}/v1/vector_stores"
 
       case openai_request(:post, url, vector_store_params, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
@@ -2026,7 +1986,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores"
+      url = "#{get_base_url(config)}/v1/vector_stores"
 
       # Build query parameters
       query_params = build_list_query_params(options)
@@ -2064,7 +2024,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2103,7 +2063,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}"
 
       case openai_request(:post, url, updates, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2136,7 +2096,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}"
 
       case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2177,7 +2137,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, body} <- validate_vector_store_file_params(file_params) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}/files"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
@@ -2215,7 +2175,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}/files"
 
       # Build query parameters
       query_params = build_list_query_params(options)
@@ -2257,7 +2217,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files/#{file_id}"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}/files/#{file_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2291,7 +2251,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/files/#{file_id}"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}/files/#{file_id}"
 
       case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2332,7 +2292,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, body} <- validate_search_params(search_params) do
       headers = build_headers(api_key, config) ++ [{"OpenAI-Beta", "assistants=v2"}]
-      url = "#{get_base_url(config)}/vector_stores/#{vector_store_id}/search"
+      url = "#{get_base_url(config)}/v1/vector_stores/#{vector_store_id}/search"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2371,7 +2331,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, body} <- build_tts_request(text, options) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/audio/speech"
+      url = "#{get_base_url(config)}/v1/audio/speech"
 
       case openai_request(:post, url, body, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
@@ -2420,7 +2380,7 @@ defmodule ExLLM.Providers.OpenAI do
          {:ok, _file_data} <- File.read(file_path),
          {:ok, form_data} <- build_transcription_form(file_path, options) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/audio/transcriptions"
+      url = "#{get_base_url(config)}/v1/audio/transcriptions"
 
       case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
@@ -2462,7 +2422,7 @@ defmodule ExLLM.Providers.OpenAI do
          {:ok, _file_data} <- File.read(file_path),
          {:ok, form_data} <- build_translation_form(file_path, options) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/audio/translations"
+      url = "#{get_base_url(config)}/v1/audio/translations"
 
       case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 120_000) do
         {:ok, response} ->
@@ -2521,7 +2481,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, _} <- validate_file_purpose(purpose) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/files"
+      url = "#{get_base_url(config)}/v1/files"
 
       form_data = [
         purpose: purpose,
@@ -2568,7 +2528,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/files"
+      url = "#{get_base_url(config)}/v1/files"
 
       # Build query parameters according to API spec
       query_params = []
@@ -2640,7 +2600,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/files/#{file_id}"
+      url = "#{get_base_url(config)}/v1/files/#{file_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2665,7 +2625,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/files/#{file_id}"
+      url = "#{get_base_url(config)}/v1/files/#{file_id}"
 
       case openai_request(:delete, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2690,15 +2650,15 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/files/#{file_id}/content"
+      url = "#{get_base_url(config)}/v1/files/#{file_id}/content"
 
       # Remove content-type header for file download
       headers = List.keydelete(headers, "Content-Type", 0)
 
-      case openai_request(:get, url, %{}, headers, api_key, timeout: 60_000) do
+      case openai_request(:get, url, %{}, headers, api_key, timeout: 60_000, expect_binary: true) do
         {:ok, response} ->
-          # Convert response to string
-          {:ok, Jason.encode!(response)}
+          # Return raw binary content without JSON encoding
+          {:ok, response}
 
         {:error, {:api_error, %{status: status, body: body}}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
@@ -2766,7 +2726,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, _} <- validate_upload_params(params) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/uploads"
+      url = "#{get_base_url(config)}/v1/uploads"
 
       body = %{
         bytes: params[:bytes],
@@ -2811,7 +2771,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, _} <- validate_part_size(data) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/uploads/#{upload_id}/parts"
+      url = "#{get_base_url(config)}/v1/uploads/#{upload_id}/parts"
 
       # Use multipart form for the data chunk
       form_data = [
@@ -2856,7 +2816,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/uploads/#{upload_id}/complete"
+      url = "#{get_base_url(config)}/v1/uploads/#{upload_id}/complete"
 
       body = %{
         part_ids: part_ids
@@ -2904,7 +2864,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/uploads/#{upload_id}/cancel"
+      url = "#{get_base_url(config)}/v1/uploads/#{upload_id}/cancel"
 
       case openai_request(:post, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -2981,7 +2941,7 @@ defmodule ExLLM.Providers.OpenAI do
       # For now, return a simple implementation that works with the test
       # Real implementation would need file upload and JSONL processing
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/batches"
+      url = "#{get_base_url(config)}/v1/batches"
 
       # Simple batch creation without file upload for now
       body = %{
@@ -3045,47 +3005,6 @@ defmodule ExLLM.Providers.OpenAI do
 
       _ ->
         nil
-    end
-  end
-
-  # Parse SSE events from buffer
-  defp parse_sse_events(buffer) do
-    lines = String.split(buffer, "\n")
-
-    {events, remaining_lines} = parse_lines(lines, [], [])
-
-    remaining_buffer = Enum.join(remaining_lines, "\n")
-    {events, remaining_buffer}
-  end
-
-  defp parse_lines([], current_event, events) do
-    # No more lines, return what we have
-    events = if current_event != [], do: events ++ [Enum.join(current_event, "\n")], else: events
-    {events, []}
-  end
-
-  defp parse_lines(["" | rest], current_event, events) when current_event != [] do
-    # Empty line marks end of event
-    event = Enum.join(current_event, "\n")
-    parse_lines(rest, [], events ++ [event])
-  end
-
-  defp parse_lines(["data: " <> data | rest], current_event, events) do
-    # Data line - add to current event
-    parse_lines(rest, current_event ++ [data], events)
-  end
-
-  defp parse_lines([line | rest], current_event, events) do
-    # Other lines - check if it's a partial line at the end
-    if rest == [] and not String.ends_with?(line, "\n") do
-      # Last line might be incomplete, return it as remaining
-      events =
-        if current_event != [], do: events ++ [Enum.join(current_event, "\n")], else: events
-
-      {events, [line]}
-    else
-      # Skip non-data lines
-      parse_lines(rest, current_event, events)
     end
   end
 
@@ -3235,7 +3154,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key),
          {:ok, validated_params} <- validate_fine_tuning_job_params(fine_tuning_params) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/fine_tuning/jobs"
+      url = "#{get_base_url(config)}/v1/fine_tuning/jobs"
 
       case openai_request(:post, url, validated_params, headers, api_key, timeout: 60_000) do
         {:ok, response} ->
@@ -3276,7 +3195,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       query_params = build_list_query_params(options)
-      url = "#{get_base_url(config)}/fine_tuning/jobs"
+      url = "#{get_base_url(config)}/v1/fine_tuning/jobs"
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
@@ -3315,7 +3234,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}"
+      url = "#{get_base_url(config)}/v1/fine_tuning/jobs/#{fine_tuning_job_id}"
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -3351,7 +3270,7 @@ defmodule ExLLM.Providers.OpenAI do
 
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/cancel"
+      url = "#{get_base_url(config)}/v1/fine_tuning/jobs/#{fine_tuning_job_id}/cancel"
 
       case openai_request(:post, url, %{}, headers, api_key, timeout: 30_000) do
         {:ok, response} ->
@@ -3392,7 +3311,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       query_params = build_list_query_params(options)
-      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/events"
+      url = "#{get_base_url(config)}/v1/fine_tuning/jobs/#{fine_tuning_job_id}/events"
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
@@ -3434,7 +3353,7 @@ defmodule ExLLM.Providers.OpenAI do
     with {:ok, _} <- Validation.validate_api_key(api_key) do
       headers = build_headers(api_key, config)
       query_params = build_list_query_params(options)
-      url = "#{get_base_url(config)}/fine_tuning/jobs/#{fine_tuning_job_id}/checkpoints"
+      url = "#{get_base_url(config)}/v1/fine_tuning/jobs/#{fine_tuning_job_id}/checkpoints"
       url = if query_params != [], do: url <> "?" <> URI.encode_query(query_params), else: url
 
       case openai_request(:get, url, %{}, headers, api_key, timeout: 30_000) do
@@ -3587,18 +3506,31 @@ defmodule ExLLM.Providers.OpenAI do
 
     # Convert Tesla response to the expected format
     case result do
-      {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
-        # For JSON responses, try to decode if it's a string
+      {:ok, %Tesla.Env{status: status, body: body, headers: response_headers}}
+      when status in 200..299 ->
+        # Check if binary response is expected
+        expect_binary = Keyword.get(opts, :expect_binary, false)
+
+        # For JSON responses, try to decode if it's a string and not binary content
         parsed_body =
-          case body do
-            body when is_binary(body) ->
+          if is_binary(body) && !expect_binary do
+            # Check content-type header
+            content_type =
+              case List.keyfind(response_headers, "content-type", 0) do
+                {"content-type", ct} -> ct
+                _ -> "application/json"
+              end
+
+            if String.starts_with?(content_type, "application/json") do
               case Jason.decode(body) do
                 {:ok, parsed} -> parsed
                 {:error, _} -> body
               end
-
-            body ->
+            else
               body
+            end
+          else
+            body
           end
 
         {:ok, parsed_body}

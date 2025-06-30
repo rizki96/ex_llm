@@ -23,7 +23,7 @@ defmodule ExLLM.Environment do
   - `GEMINI_BASE_URL` - Override Gemini API endpoint
   - `GROQ_BASE_URL` - Override Groq API endpoint
   - `MISTRAL_BASE_URL` - Override Mistral API endpoint
-  - `OPENROUTER_BASE_URL` - Override OpenRouter endpoint (default: https://openrouter.ai/api/v1)
+  - `OPENROUTER_BASE_URL` - Override OpenRouter endpoint (default: https://openrouter.ai)
   - `PERPLEXITY_BASE_URL` - Override Perplexity endpoint
   - `XAI_BASE_URL` - Override X.AI endpoint
   - `OLLAMA_HOST` / `OLLAMA_BASE_URL` - Ollama server URL (default: http://localhost:11434)
@@ -100,7 +100,7 @@ defmodule ExLLM.Environment do
     gemini: {"GEMINI_BASE_URL", nil},
     groq: {"GROQ_BASE_URL", nil},
     mistral: {"MISTRAL_BASE_URL", nil},
-    openrouter: {"OPENROUTER_BASE_URL", "https://openrouter.ai/api"},
+    openrouter: {"OPENROUTER_BASE_URL", "https://openrouter.ai"},
     perplexity: {"PERPLEXITY_BASE_URL", nil},
     xai: {"XAI_BASE_URL", nil},
     ollama: {"OLLAMA_BASE_URL", "http://localhost:11434"},

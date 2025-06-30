@@ -32,7 +32,7 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
     # Build request body and headers
     body = build_request_body(messages, model, config, options)
     headers = build_headers(api_key, config)
-    url = "#{get_base_url(config)}/chat/completions"
+    url = "#{get_base_url(config)}/v1/chat/completions"
 
     request
     |> Map.put(:provider_request, body)
@@ -56,9 +56,9 @@ defmodule ExLLM.Providers.OpenAI.BuildRequest do
     |> maybe_add_tools(options)
     |> maybe_add_audio_options(options)
     |> maybe_add_web_search(options)
-    |> maybe_add_o_series_options(options, model)
     |> maybe_add_prediction(options)
     |> maybe_add_streaming_options(options)
+    |> maybe_add_o_series_options(options, model)
     |> maybe_add_system_prompt(options)
     # Keep for backward compatibility
     |> maybe_add_functions(options)
