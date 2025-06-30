@@ -387,12 +387,6 @@ defmodule ExLLM.Core.StructuredOutputs do
         :gemini -> "GEMINI_API_KEY"
         :groq -> "GROQ_API_KEY"
         :xai -> "XAI_API_KEY"
-        :ollama -> nil
-        :lmstudio -> nil
-        :mistral -> "MISTRAL_API_KEY"
-        :openrouter -> "OPENROUTER_API_KEY"
-        :perplexity -> "PERPLEXITY_API_KEY"
-        _ -> nil
       end
 
     # Try to get API key from config provider
@@ -402,11 +396,7 @@ defmodule ExLLM.Core.StructuredOutputs do
     if api_key do
       api_key
     else
-      if env_var do
-        System.get_env(env_var)
-      else
-        nil
-      end
+      System.get_env(env_var)
     end
   end
 

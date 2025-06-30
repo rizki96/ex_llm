@@ -79,12 +79,14 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
       {:proceed, request_to_execute} ->
         # Cache miss or caching disabled, make the real request.
-        case make_request(
-               request_to_execute.tesla_client,
-               method,
-               endpoint,
-               request_to_execute.provider_request
-             ) do
+        result = make_request(
+          request_to_execute.tesla_client,
+          method,
+          endpoint,
+          request_to_execute.provider_request
+        )
+        
+        case result do
           {:ok, response} ->
             maybe_save_response(request_to_execute, response)
             handle_tesla_response(request_to_execute, response)
@@ -95,6 +97,11 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
             request_to_execute
             |> Request.halt_with_error(error)
+            
+          %Tesla.Env{} = response ->
+            # Direct Tesla.Env response (e.g., when Tesla.JSON middleware has decode: false)
+            maybe_save_response(request_to_execute, response)
+            handle_tesla_response(request_to_execute, response)
         end
     end
   end
