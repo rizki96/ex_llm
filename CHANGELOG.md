@@ -7,11 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [1.0.0] - 2025-06-30
+### 🎯 **Preparing for 1.0.0 Release**
 
-### 🎉 **MAJOR RELEASE - Production Ready**
-
-ExLLM reaches version 1.0.0, representing a mature, production-ready unified client for Large Language Models in Elixir. This release includes final bug fixes, performance optimizations, and comprehensive testing across all 14+ supported providers.
+This section tracks changes being prepared for the upcoming v1.0.0 stable release.
 
 ### Fixed
 - **URL Construction** - Fixed provider-specific URL path handling

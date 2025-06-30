@@ -1,7 +1,7 @@
 defmodule ExLLM.MixProject do
   use Mix.Project
 
-  @version "1.0.0"
+  @version "1.0.0-rc1"
   @description "Unified Elixir client library for Large Language Models (LLMs)"
 
   def project do

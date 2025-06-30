@@ -9,7 +9,7 @@
 
 `ExLLM` provides a single, consistent API to interact with a growing list of LLM providers. It abstracts away the complexities of provider-specific request formats, authentication, and error handling, allowing you to focus on building features.
 
-> ✅ **Version 1.0.0**: This library has reached stable release. The API is finalized and ready for production use.
+> 🚀 **Release Candidate**: This library is approaching its 1.0.0 stable release. The API is stabilized and ready for production use.
 
 ## Key Features
 
@@ -48,7 +48,7 @@ Add `ex_llm` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:ex_llm, "~> 1.0.0"},
+    {:ex_llm, "~> 1.0.0-rc1"},
     
     # Optional: For local model inference via Bumblebee
     {:bumblebee, "~> 0.6.2", optional: true},
