@@ -23,15 +23,6 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   alias ExLLM.Infrastructure.Logger
   alias ExLLM.Pipeline.Request
 
-  # Default endpoints for each provider
-  @default_endpoints %{
-    openai: "https://api.openai.com/v1/chat/completions",
-    anthropic: "https://api.anthropic.com/v1/messages",
-    groq: "https://api.groq.com/openai/v1/chat/completions",
-    mistral: "https://api.mistral.ai/v1/chat/completions",
-    ollama: "http://localhost:11434/api/chat",
-    lmstudio: "chat/completions"
-  }
 
   @default_timeout 30_000
   @default_receive_timeout 60_000
@@ -340,9 +331,20 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   defp get_endpoint(%Request{provider: provider, config: config}) do
     case provider do
       :gemini -> build_gemini_endpoint(config)
-      _ -> config[:base_url] || config[:endpoint] || Map.get(@default_endpoints, provider, "/")
+      _ -> 
+        # For streaming, we need just the path, not the full URL
+        # The Tesla client already has BaseUrl middleware configured
+        config[:endpoint] || get_provider_path(provider)
     end
   end
+
+  defp get_provider_path(:ollama), do: "/api/chat"
+  defp get_provider_path(:openai), do: "/v1/chat/completions"
+  defp get_provider_path(:anthropic), do: "/v1/messages"
+  defp get_provider_path(:groq), do: "/openai/v1/chat/completions"
+  defp get_provider_path(:mistral), do: "/v1/chat/completions"
+  defp get_provider_path(:lmstudio), do: "/chat/completions"
+  defp get_provider_path(_), do: "/"
 
   defp build_gemini_endpoint(config) do
     model = config[:model] || "gemini-2.0-flash"
