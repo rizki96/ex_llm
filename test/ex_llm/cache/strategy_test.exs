@@ -20,6 +20,9 @@ defmodule ExLLM.Cache.StrategyTest do
 
   describe "cache strategy pattern" do
     test "production strategy uses ETS cache when caching is enabled" do
+      # Clear cache to ensure clean test state
+      Cache.clear()
+      
       cache_key = "test_key_#{System.unique_integer()}"
 
       # Function that returns a unique value each time
