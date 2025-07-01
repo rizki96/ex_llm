@@ -172,23 +172,43 @@ defmodule ExLLM.Plugs.ExecuteRequest do
   defp maybe_save_response(_request, _response), do: :ok
 
   defp make_request(client, :post, endpoint, body) do
-    Tesla.post(client, endpoint, body)
+    case Tesla.post(client, endpoint, body) do
+      {:ok, response} -> {:ok, response}
+      {:error, reason} -> {:error, reason}
+      %Tesla.Env{} = response -> {:ok, response}
+    end
   end
 
   defp make_request(client, :get, endpoint, _body) do
-    Tesla.get(client, endpoint)
+    case Tesla.get(client, endpoint) do
+      {:ok, response} -> {:ok, response}
+      {:error, reason} -> {:error, reason}
+      %Tesla.Env{} = response -> {:ok, response}
+    end
   end
 
   defp make_request(client, :put, endpoint, body) do
-    Tesla.put(client, endpoint, body)
+    case Tesla.put(client, endpoint, body) do
+      {:ok, response} -> {:ok, response}
+      {:error, reason} -> {:error, reason}
+      %Tesla.Env{} = response -> {:ok, response}
+    end
   end
 
   defp make_request(client, :patch, endpoint, body) do
-    Tesla.patch(client, endpoint, body)
+    case Tesla.patch(client, endpoint, body) do
+      {:ok, response} -> {:ok, response}
+      {:error, reason} -> {:error, reason}
+      %Tesla.Env{} = response -> {:ok, response}
+    end
   end
 
   defp make_request(client, :delete, endpoint, _body) do
-    Tesla.delete(client, endpoint)
+    case Tesla.delete(client, endpoint) do
+      {:ok, response} -> {:ok, response}
+      {:error, reason} -> {:error, reason}
+      %Tesla.Env{} = response -> {:ok, response}
+    end
   end
 
   defp handle_tesla_response(%Request{} = request, %Tesla.Env{} = response) do
