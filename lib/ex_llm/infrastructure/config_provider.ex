@@ -128,58 +128,63 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
     end
 
     defp get_known_config(provider, key) do
-      case {provider, key} do
-        # API Keys
-        {prov, :api_key} ->
-          case ExLLM.Environment.api_key_var(prov) do
-            vars when is_list(vars) -> Enum.find_value(vars, &System.get_env/1)
-            var when is_binary(var) -> System.get_env(var)
-            _ -> nil
-          end
+      case key do
+        :api_key -> get_api_key_config(provider)
+        :base_url -> get_base_url_config(provider)
+        :model -> get_model_config(provider)
+        :streaming_timeout -> get_streaming_timeout_config(provider)
+        _ -> get_special_config(provider, key)
+      end
+    end
 
-        # Base URLs
-        {prov, :base_url} ->
-          case ExLLM.Environment.base_url_var(prov) do
-            {var, default} -> System.get_env(var, default)
-            _ -> nil
-          end
+    defp get_api_key_config(provider) do
+      case ExLLM.Environment.api_key_var(provider) do
+        vars when is_list(vars) -> Enum.find_value(vars, &System.get_env/1)
+        var when is_binary(var) -> System.get_env(var)
+        _ -> nil
+      end
+    end
 
-        # Models
-        {prov, :model} ->
-          case ExLLM.Environment.model_var(prov) do
-            {var, default} -> System.get_env(var, default)
-            _ -> nil
-          end
-
-        # Streaming Timeouts
-        {prov, :streaming_timeout} ->
-          case ExLLM.Environment.streaming_timeout_var(prov) do
-            {var, default} ->
-              case System.get_env(var) do
-                nil -> default
-                timeout_str -> String.to_integer(timeout_str)
-              end
-
-            _ ->
-              nil
-          end
-
-        # Special cases
-        {:openai, :organization} ->
-          System.get_env("OPENAI_ORGANIZATION")
-
-        {:openrouter, :app_name} ->
-          System.get_env("OPENROUTER_APP_NAME")
-
-        {:openrouter, :app_url} ->
-          System.get_env("OPENROUTER_APP_URL")
-
-        {:ollama, :base_url} ->
+    defp get_base_url_config(provider) do
+      case provider do
+        :ollama ->
           System.get_env("OLLAMA_BASE_URL") || System.get_env("OLLAMA_HOST") ||
             "http://localhost:11434"
+        
+        _ ->
+          case ExLLM.Environment.base_url_var(provider) do
+            {var, default} -> System.get_env(var, default)
+            _ -> nil
+          end
+      end
+    end
+
+    defp get_model_config(provider) do
+      case ExLLM.Environment.model_var(provider) do
+        {var, default} -> System.get_env(var, default)
+        _ -> nil
+      end
+    end
+
+    defp get_streaming_timeout_config(provider) do
+      case ExLLM.Environment.streaming_timeout_var(provider) do
+        {var, default} ->
+          case System.get_env(var) do
+            nil -> default
+            timeout_str -> String.to_integer(timeout_str)
+          end
 
         _ ->
           nil
+      end
+    end
+
+    defp get_special_config(provider, key) do
+      case {provider, key} do
+        {:openai, :organization} -> System.get_env("OPENAI_ORGANIZATION")
+        {:openrouter, :app_name} -> System.get_env("OPENROUTER_APP_NAME")
+        {:openrouter, :app_url} -> System.get_env("OPENROUTER_APP_URL")
+        _ -> nil
       end
     end
 

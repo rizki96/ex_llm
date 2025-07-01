@@ -198,75 +198,86 @@ defmodule ExLLM.Providers.OpenAICompatible do
         # Create a proper Stream using Stream.resource like other providers
         stream =
           Stream.resource(
-            # Start function - creates initial state
-            fn ->
-              ref = make_ref()
-              parent = self()
-
-              # Spawn a process to handle the streaming request
-              spawn_link(fn ->
-                client =
-                  Core.client(
-                    provider: provider_name,
-                    api_key: api_key,
-                    base_url: get_base_url(config)
-                  )
-
-                case Tesla.post(client, "/v1/chat/completions", request, opts: [timeout: 60_000]) do
-                  {:ok, %Tesla.Env{status: 200, body: body}} ->
-                    # Parse SSE data and send chunks to parent
-                    body
-                    |> String.split("\n")
-                    |> Enum.each(fn line ->
-                      case parse_sse_line(line) do
-                        {:ok, data} ->
-                          case parse_stream_chunk(data) do
-                            {:ok, chunk} -> send(parent, {ref, {:chunk, chunk}})
-                            _ -> :ok
-                          end
-
-                        :done ->
-                          send(parent, {ref, :done})
-
-                        _ ->
-                          :ok
-                      end
-                    end)
-
-                    send(parent, {ref, :done})
-
-                  {:error, error} ->
-                    send(parent, {ref, {:error, error}})
-                end
-              end)
-
-              {ref, :streaming}
-            end,
-            # Next function - receives chunks
-            fn
-              {ref, :streaming} = state ->
-                receive do
-                  {^ref, {:chunk, chunk}} ->
-                    {[chunk], state}
-
-                  {^ref, :done} ->
-                    {:halt, state}
-
-                  {^ref, {:error, error}} ->
-                    throw({:error, error})
-                after
-                  100 ->
-                    {[], state}
-                end
-
-              {ref, :done} = state ->
-                {:halt, state}
-            end,
-            # Stop function - cleanup
+            fn -> start_streaming(config, api_key, provider_name, request) end,
+            &next_stream_chunk/1,
             fn _ -> :ok end
           )
 
         {:ok, stream}
+      end
+
+      defp start_streaming(config, api_key, provider_name, request) do
+        ref = make_ref()
+        parent = self()
+
+        # Spawn a process to handle the streaming request
+        spawn_link(fn ->
+          client =
+            Core.client(
+              provider: provider_name,
+              api_key: api_key,
+              base_url: get_base_url(config)
+            )
+
+          handle_streaming_response(client, request, ref, parent)
+        end)
+
+        {ref, :streaming}
+      end
+
+      defp handle_streaming_response(client, request, ref, parent) do
+        case Tesla.post(client, "/v1/chat/completions", request, opts: [timeout: 60_000]) do
+          {:ok, %Tesla.Env{status: 200, body: body}} ->
+            process_sse_body(body, ref, parent)
+            send(parent, {ref, :done})
+
+          {:error, error} ->
+            send(parent, {ref, {:error, error}})
+        end
+      end
+
+      defp process_sse_body(body, ref, parent) do
+        body
+        |> String.split("\n")
+        |> Enum.each(fn line ->
+          process_sse_line(line, ref, parent)
+        end)
+      end
+
+      defp process_sse_line(line, ref, parent) do
+        case parse_sse_line(line) do
+          {:ok, data} ->
+            case parse_stream_chunk(data) do
+              {:ok, chunk} -> send(parent, {ref, {:chunk, chunk}})
+              _ -> :ok
+            end
+
+          :done ->
+            send(parent, {ref, :done})
+
+          _ ->
+            :ok
+        end
+      end
+
+      defp next_stream_chunk({ref, :streaming} = state) do
+        receive do
+          {^ref, {:chunk, chunk}} ->
+            {[chunk], state}
+
+          {^ref, :done} ->
+            {:halt, state}
+
+          {^ref, {:error, error}} ->
+            throw({:error, error})
+        after
+          100 ->
+            {[], state}
+        end
+      end
+
+      defp next_stream_chunk({_ref, :done} = state) do
+        {:halt, state}
       end
 
       defp build_chat_request(messages, model, options) do
@@ -332,65 +343,82 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       defp send_request_with_client(url, body, headers, method, config, api_key) do
         provider_name = get_provider_name()
+        {base_url, path} = parse_url_and_path(url, config)
+        
+        client = create_http_client(provider_name, api_key, base_url)
+        result = execute_http_request(client, method, path, body)
+        
+        format_http_response(result)
+      end
 
-        # Extract path and base URL appropriately
-        {base_url, path} =
-          if String.starts_with?(url, "http") do
-            # Full URL - extract base and path separately
-            uri = URI.parse(url)
+      defp parse_url_and_path(url, config) do
+        if String.starts_with?(url, "http") do
+          extract_base_and_path_from_url(url)
+        else
+          extract_base_from_config(url, config)
+        end
+      end
 
-            base =
-              "#{uri.scheme}://#{uri.host}#{if uri.port && uri.port not in [80, 443], do: ":#{uri.port}", else: ""}"
+      defp extract_base_and_path_from_url(url) do
+        uri = URI.parse(url)
+        base = build_base_url(uri)
+        path = build_path_with_query(uri)
+        {base, path}
+      end
 
-            path_with_query = uri.path || "/"
-
-            path_with_query =
-              if uri.query, do: "#{path_with_query}?#{uri.query}", else: path_with_query
-
-            {base, path_with_query}
+      defp build_base_url(uri) do
+        port_suffix = 
+          if uri.port && uri.port not in [80, 443] do
+            ":#{uri.port}"
           else
-            # Just a path - use config base URL
-            base = if config, do: get_base_url(config), else: nil
-            {base, url}
+            ""
           end
+        
+        "#{uri.scheme}://#{uri.host}#{port_suffix}"
+      end
 
-        # Create client
+      defp build_path_with_query(uri) do
+        path_with_query = uri.path || "/"
+        
+        if uri.query do
+          "#{path_with_query}?#{uri.query}"
+        else
+          path_with_query
+        end
+      end
+
+      defp extract_base_from_config(url, config) do
+        base = if config, do: get_base_url(config), else: nil
+        {base, url}
+      end
+
+      defp create_http_client(provider_name, api_key, base_url) do
         client_opts = [provider: provider_name]
+        
+        client_opts = maybe_add_api_key(client_opts, api_key)
+        client_opts = maybe_add_base_url(client_opts, base_url)
+        
+        Core.client(client_opts)
+      end
 
-        client_opts =
-          if api_key, do: Keyword.put(client_opts, :api_key, api_key), else: client_opts
+      defp maybe_add_api_key(client_opts, nil), do: client_opts
+      defp maybe_add_api_key(client_opts, api_key), do: Keyword.put(client_opts, :api_key, api_key)
 
-        client_opts =
-          if base_url, do: Keyword.put(client_opts, :base_url, base_url), else: client_opts
+      defp maybe_add_base_url(client_opts, nil), do: client_opts
+      defp maybe_add_base_url(client_opts, base_url), do: Keyword.put(client_opts, :base_url, base_url)
 
-        client = Core.client(client_opts)
+      defp execute_http_request(client, method, path, body) do
+        case method do
+          :get -> Tesla.get(client, path, opts: [timeout: 60_000])
+          :post -> Tesla.post(client, path, body, opts: [timeout: 60_000])
+          other_method -> {:error, {:unsupported_method, other_method}}
+        end
+      end
 
-        result =
-          case method do
-            :get ->
-              Tesla.get(client, path, opts: [timeout: 60_000])
-
-            :post ->
-              Tesla.post(client, path, body, opts: [timeout: 60_000])
-          end
-
-        # Convert Tesla.Env response to the expected format
+      defp format_http_response(result) do
         case result do
           {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
-            # Handle case where body might still be a JSON string
-            parsed_body =
-              case body do
-                body when is_binary(body) ->
-                  case Jason.decode(body) do
-                    {:ok, parsed} -> parsed
-                    {:error, _} -> body
-                  end
-
-                body ->
-                  body
-              end
-
-            {:ok, parsed_body}
+            {:ok, parse_response_body(body)}
 
           {:ok, %Tesla.Env{status: status, body: body}} ->
             {:error, %{status: status, body: body}}
@@ -399,6 +427,15 @@ defmodule ExLLM.Providers.OpenAICompatible do
             {:error, %{network_error: reason}}
         end
       end
+
+      defp parse_response_body(body) when is_binary(body) do
+        case Jason.decode(body) do
+          {:ok, parsed} -> parsed
+          {:error, _} -> body
+        end
+      end
+
+      defp parse_response_body(body), do: body
 
       defp parse_sse_line(line) do
         line = String.trim(line)

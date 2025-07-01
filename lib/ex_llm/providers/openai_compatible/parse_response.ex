@@ -46,7 +46,7 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
           response = request.assigns.http_response
           model = request.assigns.model
 
-          parsed_response = parse_response(response, model)
+          parsed_response = __MODULE__.parse_response(response, model, @provider, @cost_provider)
 
           request
           |> Request.assign(:llm_response, parsed_response)
@@ -55,46 +55,15 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
         end
       end
 
-      defp parse_response(response, model) do
-        # Handle cases where choices might not be a list
-        choices = response["choices"] || []
-        choice = if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
-        message = choice["message"] || %{}
+      def parse_response(response, model, provider, cost_provider) do
+        choice = extract_first_choice_from_response(response)
+        message = extract_message_from_choice(choice)
         usage = response["usage"] || %{}
 
-        # Parse usage in OpenAI format
         enhanced_usage = parse_usage(usage)
-
-        # Calculate cost for provider (model needs provider prefix for pricing lookup)
-        full_model_name = "#{@cost_provider}/#{model}"
-
-        cost_info =
-          ExLLM.Core.Cost.calculate(@cost_provider, full_model_name, %{
-            input_tokens: enhanced_usage.input_tokens,
-            output_tokens: enhanced_usage.output_tokens
-          })
-
-        # Extract just the total cost float for backward compatibility
-        # Handle case where cost_info is an error map
-        cost_value =
-          case cost_info do
-            %{total_cost: cost} -> cost
-            %{error: _} -> nil
-            _ -> nil
-          end
-
-        # Extract content, handling reasoning models that use reasoning_content
-        content =
-          case {message["content"], message["reasoning_content"]} do
-            {content, _} when content != nil and content != "" ->
-              content
-
-            {_, reasoning_content} when reasoning_content != nil and reasoning_content != "" ->
-              reasoning_content
-
-            {content, _} ->
-              content || ""
-          end
+        cost_info = calculate_response_cost(cost_provider, model, enhanced_usage)
+        cost_value = extract_cost_value(cost_info)
+        content = extract_response_content(message)
 
         %Types.LLMResponse{
           content: content,
@@ -106,14 +75,61 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
           model: model,
           finish_reason: choice["finish_reason"],
           cost: cost_value,
-          metadata:
-            Map.merge(response["metadata"] || %{}, %{
-              cost_details: cost_info,
-              role: "assistant",
-              provider: @provider,
-              raw_response: response
-            })
+          metadata: build_response_metadata(response, cost_info, provider)
         }
+      end
+
+      defp extract_first_choice_from_response(response) do
+        choices = response["choices"] || []
+        
+        if is_list(choices) and length(choices) > 0 do
+          Enum.at(choices, 0)
+        else
+          %{}
+        end
+      end
+
+      defp extract_message_from_choice(choice) do
+        choice["message"] || %{}
+      end
+
+      defp calculate_response_cost(cost_provider, model, enhanced_usage) do
+        full_model_name = "#{cost_provider}/#{model}"
+        
+        ExLLM.Core.Cost.calculate(cost_provider, full_model_name, %{
+          input_tokens: enhanced_usage.input_tokens,
+          output_tokens: enhanced_usage.output_tokens
+        })
+      end
+
+      defp extract_cost_value(cost_info) do
+        case cost_info do
+          %{total_cost: cost} -> cost
+          %{error: _} -> nil
+          _ -> nil
+        end
+      end
+
+      defp extract_response_content(message) do
+        case {message["content"], message["reasoning_content"]} do
+          {content, _} when content != nil and content != "" ->
+            content
+
+          {_, reasoning_content} when reasoning_content != nil and reasoning_content != "" ->
+            reasoning_content
+
+          {content, _} ->
+            content || ""
+        end
+      end
+
+      defp build_response_metadata(response, cost_info, provider) do
+        Map.merge(response["metadata"] || %{}, %{
+          cost_details: cost_info,
+          role: "assistant",
+          provider: provider,
+          raw_response: response
+        })
       end
 
       defp parse_usage(usage) do
@@ -138,7 +154,7 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
       end
 
       # Allow overriding
-      defoverridable parse_response: 2, parse_usage: 1
+      defoverridable parse_response: 4, parse_usage: 1
     end
   end
 end

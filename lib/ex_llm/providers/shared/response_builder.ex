@@ -334,43 +334,66 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
     cond do
       # OpenAI/Groq format
       choices = data["choices"] ->
-        message =
-          if is_list(choices) and length(choices) > 0,
-            do: Enum.at(choices, 0)["message"],
-            else: %{}
-
-        # Handle DeepSeek R1 models that use reasoning_content when content is empty
-        content = message["content"]
-        reasoning_content = message["reasoning_content"]
-
-        cond do
-          content && content != "" -> content
-          reasoning_content && reasoning_content != "" -> reasoning_content
-          # fallback to original even if empty
-          true -> content
-        end
+        extract_openai_content(choices)
 
       # Anthropic format
       content = data["content"] ->
-        case content do
-          [%{"text" => text} | _] -> text
-          text when is_binary(text) -> text
-          _ -> nil
-        end
+        extract_anthropic_content(content)
 
       # Gemini format
       candidates = data["candidates"] ->
-        case {is_list(candidates) and length(candidates) > 0, candidates} do
-          {true, [first_candidate | _]} ->
-            parts = get_in(first_candidate, ["content", "parts"])
-            if is_list(parts) and length(parts) > 0, do: Enum.at(parts, 0)["text"], else: nil
-
-          _ ->
-            nil
-        end
+        extract_gemini_content(candidates)
 
       true ->
         nil
+    end
+  end
+
+  defp extract_openai_content(choices) do
+    message = get_openai_message(choices)
+    extract_message_content(message)
+  end
+
+  defp get_openai_message(choices) do
+    if is_list(choices) and length(choices) > 0,
+      do: Enum.at(choices, 0)["message"],
+      else: %{}
+  end
+
+  defp extract_message_content(message) do
+    content = message["content"]
+    reasoning_content = message["reasoning_content"]
+
+    cond do
+      content && content != "" -> content
+      reasoning_content && reasoning_content != "" -> reasoning_content
+      true -> content
+    end
+  end
+
+  defp extract_anthropic_content(content) do
+    case content do
+      [%{"text" => text} | _] -> text
+      text when is_binary(text) -> text
+      _ -> nil
+    end
+  end
+
+  defp extract_gemini_content(candidates) do
+    if is_list(candidates) and length(candidates) > 0 do
+      extract_gemini_candidate_content(Enum.at(candidates, 0))
+    else
+      nil
+    end
+  end
+
+  defp extract_gemini_candidate_content(candidate) do
+    parts = get_in(candidate, ["content", "parts"])
+    
+    if is_list(parts) and length(parts) > 0 do
+      Enum.at(parts, 0)["text"]
+    else
+      nil
     end
   end
 

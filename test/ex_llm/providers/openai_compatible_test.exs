@@ -84,8 +84,8 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
   # List of providers to test.
   # Format: {Module, :atom, %{special_options}, [:special_features_to_test]}
   @providers [
-    {ExLLM.Providers.Groq, :groq, %{}, []},
-    {ExLLM.Providers.XAI, :xai, %{}, []},
+    # Groq and XAI have been migrated to use the pipeline system
+    # and have their own dedicated tests (groq_test.exs, xai_test.exs)
     {FakeMistral, :fake_mistral, %{safe_prompt: true, random_seed: 123},
      [:safe_prompt, :random_seed]}
   ]

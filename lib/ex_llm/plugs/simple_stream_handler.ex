@@ -28,70 +28,77 @@ defmodule ExLLM.Plugs.SimpleStreamHandler do
 
   defp create_http_stream(request, endpoint) do
     Stream.resource(
-      # Start function
-      fn ->
-        # Initialize state
-        %{
-          buffer: "",
-          parser_config: request.private[:stream_parser],
-          done: false
-        }
-      end,
-
-      # Next function
-      fn state ->
-        if state.done do
-          {:halt, state}
-        else
-          # Make the HTTP request in a separate process
-          task =
-            Task.async(fn ->
-              chunks = []
-              chunk_ref = make_ref()
-
-              callback = fn chunk_data ->
-                send(self(), {chunk_ref, chunk_data})
-              end
-
-              # Start the HTTP stream
-              case Core.stream(
-                     request.tesla_client,
-                     endpoint,
-                     request.provider_request,
-                     callback,
-                     timeout: 30_000
-                   ) do
-                {:ok, _} ->
-                  # Collect all chunks
-                  collect_chunks(chunk_ref, chunks, state.parser_config)
-
-                {:error, error} ->
-                  {:error, error}
-              end
-            end)
-
-          # Wait for task to complete
-          case Task.await(task, 35_000) do
-            {:ok, chunks} ->
-              # Return all chunks and mark as done
-              {chunks, %{state | done: true}}
-
-            {:error, error} ->
-              # Return error chunk
-              error_chunk = %StreamChunk{
-                content: nil,
-                finish_reason: "error",
-                metadata: %{error: error}
-              }
-
-              {[error_chunk], %{state | done: true}}
-          end
-        end
-      end,
-
-      # Cleanup function
+      fn -> initialize_stream_state(request, endpoint) end,
+      &process_stream_state/1,
       fn _state -> :ok end
     )
+  end
+
+  defp initialize_stream_state(request, endpoint) do
+    %{
+      buffer: "",
+      parser_config: request.private[:stream_parser],
+      done: false,
+      request: request,
+      endpoint: endpoint
+    }
+  end
+
+  defp process_stream_state(%{done: true} = state) do
+    {:halt, state}
+  end
+
+  defp process_stream_state(state) do
+    task = create_streaming_task(state)
+    handle_task_result(Task.await(task, 35_000), state)
+  end
+
+  defp create_streaming_task(state) do
+    Task.async(fn ->
+      execute_http_stream(state)
+    end)
+  end
+
+  defp execute_http_stream(state) do
+    chunks = []
+    chunk_ref = make_ref()
+    callback = create_chunk_callback(chunk_ref)
+
+    case start_http_stream(callback, state) do
+      {:ok, _} -> collect_chunks(chunk_ref, chunks, state.parser_config)
+      {:error, error} -> {:error, error}
+    end
+  end
+
+  defp create_chunk_callback(chunk_ref) do
+    fn chunk_data -> send(self(), {chunk_ref, chunk_data}) end
+  end
+
+  defp start_http_stream(callback, state) do
+    Core.stream(
+      state.request.tesla_client,
+      state.endpoint,
+      state.request.provider_request,
+      callback,
+      timeout: 30_000
+    )
+  end
+
+  defp handle_task_result({:ok, chunks}, state) do
+    {chunks, %{state | done: true}}
+  end
+
+  defp handle_task_result({:error, error}, state) do
+    error_chunk = create_error_chunk(error)
+    {[error_chunk], %{state | done: true}}
+  end
+
+  defp create_error_chunk(error) do
+    %StreamChunk{
+      content: nil,
+      finish_reason: "error",
+      metadata: %{error: error}
+    }
   end
 
   defp collect_chunks(ref, chunks, parser_config, timeout \\ 30_000) do

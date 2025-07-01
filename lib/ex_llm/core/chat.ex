@@ -402,56 +402,63 @@ defmodule ExLLM.Core.Chat do
     end
   end
 
+  defp track_response_cost(_provider, nil, _options), do: nil
+
   defp track_response_cost(provider, response, options) do
-    # Guard against nil response
-    case response do
-      nil ->
+    case Map.get(response, :usage) do
+      usage when is_map(usage) ->
+        process_usage_cost(provider, usage, options)
+
+      _ ->
         nil
-
-      response ->
-        # Extract usage info if available
-        case Map.get(response, :usage) do
-          usage when is_map(usage) ->
-            # Normalize usage keys - different providers use different naming
-            normalized_usage = %{
-              input_tokens: usage[:input_tokens] || usage[:prompt_tokens] || 0,
-              output_tokens: usage[:output_tokens] || usage[:completion_tokens] || 0
-            }
-
-            model = Keyword.get(options, :model) || ExLLM.default_model(provider)
-            cost_info = Cost.calculate(to_string(provider), model, normalized_usage)
-
-            # Log cost info if logger is available and cost calculation succeeded
-            case cost_info do
-              %{total_cost: total_cost} ->
-                if function_exported?(Logger, :info, 1) do
-                  Logger.info("LLM cost: #{Cost.format(total_cost)} for #{provider}/#{model}")
-                end
-
-                # Emit cost telemetry
-                ExLLM.Infrastructure.Telemetry.emit_cost_calculated(
-                  provider,
-                  model,
-                  # Convert to cents
-                  round(total_cost * 100)
-                )
-
-                # Return the full cost info map
-                cost_info
-
-              %{error: error_msg} ->
-                # Log error but don't fail - return 0 cost
-                if function_exported?(Logger, :warning, 1) do
-                  Logger.warning("Cost calculation failed: #{error_msg}")
-                end
-
-                0.0
-            end
-
-          _ ->
-            nil
-        end
     end
+  end
+
+  defp process_usage_cost(provider, usage, options) do
+    normalized_usage = normalize_usage(usage)
+    model = Keyword.get(options, :model) || ExLLM.default_model(provider)
+    cost_info = Cost.calculate(to_string(provider), model, normalized_usage)
+
+    handle_cost_result(cost_info, provider, model)
+  end
+
+  defp normalize_usage(usage) do
+    %{
+      input_tokens: usage[:input_tokens] || usage[:prompt_tokens] || 0,
+      output_tokens: usage[:output_tokens] || usage[:completion_tokens] || 0
+    }
+  end
+
+  defp handle_cost_result(%{total_cost: total_cost} = cost_info, provider, model) do
+    log_cost(total_cost, provider, model)
+    emit_cost_telemetry(provider, model, total_cost)
+    cost_info
+  end
+
+  defp handle_cost_result(%{error: error_msg}, _provider, _model) do
+    log_cost_error(error_msg)
+    0.0
+  end
+
+  defp log_cost(total_cost, provider, model) do
+    if function_exported?(Logger, :info, 1) do
+      Logger.info("LLM cost: #{Cost.format(total_cost)} for #{provider}/#{model}")
+    end
+  end
+
+  defp log_cost_error(error_msg) do
+    if function_exported?(Logger, :warning, 1) do
+      Logger.warning("Cost calculation failed: #{error_msg}")
+    end
+  end
+
+  defp emit_cost_telemetry(provider, model, total_cost) do
+    ExLLM.Infrastructure.Telemetry.emit_cost_calculated(
+      provider,
+      model,
+      # Convert to cents
+      round(total_cost * 100)
+    )
   end
 
   defp execute_stream_with_pipeline(pipeline, provider, messages, options) do

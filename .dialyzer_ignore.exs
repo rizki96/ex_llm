@@ -65,4 +65,19 @@
   # Streaming compatibility defensive pattern match - false positive
   # start_stream function returns {:ok, id} but dialyzer can't trace through defensive code
   {"lib/ex_llm/providers/shared/streaming/compatibility.ex", :pattern_match},
+  
+  # === OPENAI-COMPATIBLE MACRO EXPANSIONS (False Positives) ===
+  # The OpenAICompatible macro generates code that dialyzer can't properly analyze
+  # These warnings occur because dialyzer can't see through the macro expansion
+  {"lib/ex_llm/providers/lmstudio.ex", :guard_fail},
+  {"lib/ex_llm/providers/lmstudio.ex", :pattern_match},
+  {"lib/ex_llm/providers/lmstudio.ex", :pattern_match_cov},
+  {"lib/ex_llm/providers/mistral.ex", :call},
+  {"lib/ex_llm/providers/mistral.ex", :pattern_match_cov},
+  {"lib/ex_llm/providers/openrouter.ex", :guard_fail},
+  {"lib/ex_llm/providers/openrouter.ex", :pattern_match},
+  {"lib/ex_llm/providers/openrouter.ex", :pattern_match_cov},
+  {"lib/ex_llm/providers/perplexity.ex", :guard_fail},
+  {"lib/ex_llm/providers/perplexity.ex", :pattern_match},
+  {"lib/ex_llm/providers/perplexity.ex", :pattern_match_cov},
 ]

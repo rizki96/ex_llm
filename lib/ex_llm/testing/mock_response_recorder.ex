@@ -562,49 +562,106 @@ defmodule ExLLM.Testing.MockResponseRecorder do
 
   defp convert_openai_response(response) do
     # Safely extract first choice
-    choices = response["choices"] || response[:choices] || []
-    first_choice = if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
-    message = first_choice["message"] || first_choice[:message] || %{}
+    first_choice = extract_first_choice(response)
+    message = extract_message(first_choice)
 
     %{
-      content: message["content"] || message[:content] || "",
-      model: response["model"] || response[:model] || "gpt-3.5-turbo",
-      usage: %{
-        input_tokens:
-          get_in(response, ["usage", "prompt_tokens"]) ||
-            get_in(response, [:usage, :prompt_tokens]) || 0,
-        output_tokens:
-          get_in(response, ["usage", "completion_tokens"]) ||
-            get_in(response, [:usage, :completion_tokens]) || 0
-      },
-      finish_reason: first_choice["finish_reason"] || first_choice[:finish_reason],
+      content: extract_content_from_message(message),
+      model: extract_response_model(response, "gpt-3.5-turbo"),
+      usage: extract_openai_usage(response),
+      finish_reason: extract_finish_reason_from_choice(first_choice),
       id: response["id"] || response[:id]
     }
   end
 
-  defp convert_anthropic_response(response) do
-    # Safely extract first content item
-    content_items = response["content"] || response[:content] || []
+  defp extract_first_choice(response) do
+    choices = response["choices"] || response[:choices] || []
+    
+    if is_list(choices) and length(choices) > 0 do
+      Enum.at(choices, 0)
+    else
+      %{}
+    end
+  end
 
-    first_content =
-      if is_list(content_items) and length(content_items) > 0,
-        do: Enum.at(content_items, 0),
-        else: %{}
+  defp extract_message(first_choice) do
+    first_choice["message"] || first_choice[:message] || %{}
+  end
+
+  defp extract_content_from_message(message) do
+    message["content"] || message[:content] || ""
+  end
+
+  defp extract_response_model(response, default) do
+    response["model"] || response[:model] || default
+  end
+
+  defp extract_openai_usage(response) do
+    %{
+      input_tokens: extract_prompt_tokens(response),
+      output_tokens: extract_completion_tokens(response)
+    }
+  end
+
+  defp extract_prompt_tokens(response) do
+    get_in(response, ["usage", "prompt_tokens"]) ||
+      get_in(response, [:usage, :prompt_tokens]) || 0
+  end
+
+  defp extract_completion_tokens(response) do
+    get_in(response, ["usage", "completion_tokens"]) ||
+      get_in(response, [:usage, :completion_tokens]) || 0
+  end
+
+  defp extract_finish_reason_from_choice(first_choice) do
+    first_choice["finish_reason"] || first_choice[:finish_reason]
+  end
+
+  defp convert_anthropic_response(response) do
+    first_content = extract_first_anthropic_content(response)
 
     %{
-      content: first_content["text"] || first_content[:text] || "",
-      model: response["model"] || response[:model] || "claude-3-5-sonnet",
-      usage: %{
-        input_tokens:
-          get_in(response, ["usage", "input_tokens"]) ||
-            get_in(response, [:usage, :input_tokens]) || 0,
-        output_tokens:
-          get_in(response, ["usage", "output_tokens"]) ||
-            get_in(response, [:usage, :output_tokens]) || 0
-      },
-      finish_reason: response["stop_reason"] || response[:stop_reason],
+      content: extract_anthropic_text(first_content),
+      model: extract_response_model(response, "claude-3-5-sonnet"),
+      usage: extract_anthropic_usage(response),
+      finish_reason: extract_anthropic_stop_reason(response),
       id: response["id"] || response[:id]
     }
+  end
+
+  defp extract_first_anthropic_content(response) do
+    content_items = response["content"] || response[:content] || []
+
+    if is_list(content_items) and length(content_items) > 0 do
+      Enum.at(content_items, 0)
+    else
+      %{}
+    end
+  end
+
+  defp extract_anthropic_text(first_content) do
+    first_content["text"] || first_content[:text] || ""
+  end
+
+  defp extract_anthropic_usage(response) do
+    %{
+      input_tokens: extract_anthropic_input_tokens(response),
+      output_tokens: extract_anthropic_output_tokens(response)
+    }
+  end
+
+  defp extract_anthropic_input_tokens(response) do
+    get_in(response, ["usage", "input_tokens"]) ||
+      get_in(response, [:usage, :input_tokens]) || 0
+  end
+
+  defp extract_anthropic_output_tokens(response) do
+    get_in(response, ["usage", "output_tokens"]) ||
+      get_in(response, [:usage, :output_tokens]) || 0
+  end
+
+  defp extract_anthropic_stop_reason(response) do
+    response["stop_reason"] || response[:stop_reason]
   end
 
   defp convert_openrouter_response(response) do

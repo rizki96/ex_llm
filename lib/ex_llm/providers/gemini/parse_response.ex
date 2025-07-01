@@ -19,12 +19,12 @@ defmodule ExLLM.Providers.Gemini.ParseResponse do
 
       parsed_response = parse_response(response, model)
 
-      result = 
+      result =
         request
         |> Request.assign(:llm_response, parsed_response)
         |> Map.put(:result, parsed_response)
         |> Request.put_state(:completed)
-      
+
       result
     end
   end

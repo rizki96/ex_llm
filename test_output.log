@@ -1,0 +1,775 @@
+
+✅ Loaded API keys from .env for: anthropic, openai, gemini, groq, mistral, openrouter, perplexity, xai
+
+🚀 Running with integration tests enabled
+   Mode: Live API calls (default - cache disabled)
+   💡 Enable caching with: export EX_LLM_TEST_CACHE_ENABLED=true
+Running ExUnit with seed: 154113, max_cases: 32
+Excluding tags: [slow: true, very_slow: true, quota_sensitive: true, flaky: true, wip: true, oauth2: true, requires_deps: true]
+Including tags: [:integration]
+
+*****************************...........................................................................*****..........................................................................********************.............................................................*..........********************...................*****************.................**********.......................................................................................................................
+19:49:04.828 [error] POST https://api.openai.com -> 400 (249.677 ms)
+
+
+  1) test streaming with pipeline system OpenAI provider streams through pipeline (ExLLM.Core.StreamingPipelineTest)
+     test/ex_llm/core/streaming_pipeline_test.exs:22
+     Assertion with > failed, both sides are exactly equal
+     code: assert length(content_chunks) > 0
+     left: 0
+     stacktrace:
+       test/ex_llm/core/streaming_pipeline_test.exs:38: (test)
+
+.
+19:49:04.901 [error] POST https://api.openai.com -> 400 (127.562 ms)
+.
+19:49:04.904 [error] POST https://api.openai.com/v1/chat/completions -> 401 (440.971 ms)
+....
+19:49:05.027 [error] POST https://api.anthropic.com -> 404 (197.091 ms)
+..
+19:49:05.032 [error] POST https://api.openai.com/v1/chat/completions -> 401 (119.523 ms)
+......
+19:49:05.131 [error] POST https://api.anthropic.com -> 404 (229.236 ms)
+.
+19:49:05.152 [error] POST https://api.openai.com/v1/chat/completions -> 401 (111.055 ms)
+..........
+19:49:05.245 [error] POST https://api.openai.com/v1/chat/completions -> 401 (66.812 ms)
+.......................................................................*..Test cache debug logging enabled
+..
+19:49:17.237 [error] POST http://localhost:11434 -> 405 (0.280 ms)
+
+
+  2) test stream/4 via public API streams chat responses (ExLLM.Providers.OllamaPublicAPITest)
+     test/ex_llm/providers/ollama_public_api_test.exs:7
+     No content received in streaming chunks
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :ollama
+     stacktrace:
+       test/ex_llm/providers/ollama_public_api_test.exs:7: (test)
+
+........
+19:49:21.663 [error] POST https://api.anthropic.com/v1/messages -> 401 (403.272 ms)
+..
+
+  3) test public API integration chat/3 with multiple providers (ExLLM.IntegrationTest)
+     test/ex_llm_integration_test.exs:8
+     Chat failed for anthropic: :unauthorized
+     code: for provider <- providers do
+     stacktrace:
+       (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+       test/ex_llm_integration_test.exs:11: (test)
+
+
+
+  4) test fluent API integration builder pattern works with public API (ExLLM.IntegrationTest)
+     test/ex_llm_integration_test.exs:204
+     Fluent API failed: "Authentication failed for anthropic. Check your API key."
+     code: flunk("Fluent API failed: #{inspect(reason)}")
+     stacktrace:
+       test/ex_llm_integration_test.exs:222: (test)
+
+
+
+  5) test public API integration stream/4 with multiple providers (ExLLM.IntegrationTest)
+     test/ex_llm_integration_test.exs:41
+     Streaming failed for anthropic: %ExLLM.Pipeline.Request{id: "8eefdbb0cf6f880a8a517292c9d70da0", provider: :anthropic, messages: [%{content: "Count from 1 to 3", role: "user"}], options: %{timeout: 10000, stream: true, max_tokens: 20, on_chunk: #Function<4.110821991/1 in ExLLM.IntegrationTest."test public API integration stream/4 with multiple providers"/1>}, config: %{}, halted: true, state: :error, tesla_client: nil, provider_request: nil, response: nil, result: nil, assigns: %{provider_validated: true}, private: %{}, metadata: %{provider: :anthropic, cost: nil, duration_ms: 0, end_time: -576460733922475250, start_time: -576460733922507291, tokens_used: %{}}, errors: [%{error: :unauthorized, message: "Authentication failed for anthropic. Check your API key.", status: 401, body: nil, provider: :anthropic}], stream_pid: nil, stream_ref: nil}
+     code: for provider <- providers do
+     stacktrace:
+       (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+       test/ex_llm_integration_test.exs:44: (test)
+
+
+
+  6) test fluent API integration builder pattern with streaming (ExLLM.IntegrationTest)
+     test/ex_llm_integration_test.exs:226
+     Fluent streaming failed: %ExLLM.Pipeline.Request{id: "75f9932b14a4f6709b32eeb2960e16d8", provider: :anthropic, messages: [%{content: "Say hi", role: "user"}], options: %{timeout: 10000, stream: true, max_tokens: 10, on_chunk: #Function<0.110821991/1 in ExLLM.IntegrationTest."test fluent API integration builder pattern with streaming"/1>}, config: %{}, halted: true, state: :error, tesla_client: nil, provider_request: nil, response: nil, result: nil, assigns: %{provider_validated: true}, private: %{}, metadata: %{provider: :anthropic, cost: nil, duration_ms: 0, end_time: -576460733918049500, start_time: -576460733918066375, tokens_used: %{}}, errors: [%{error: :unauthorized, message: "Authentication failed for anthropic. Check your API key.", status: 401, body: nil, provider: :anthropic}], stream_pid: nil, stream_ref: nil}
+     code: flunk("Fluent streaming failed: #{inspect(reason)}")
+     stacktrace:
+       test/ex_llm_integration_test.exs:254: (test)
+
+...........
+=== Streaming Performance Results ===
+Chunks: 100, Size: 50 chars each
+Total data: 5000 characters
+
+legacy:
+  Duration: 73ms
+  Chunks/sec: 1369.86
+  Throughput: 66.89 KB/s
+  Memory: 1013.42 KB
+
+new:
+  Duration: 52ms
+  Chunks/sec: 1923.08
+  Throughput: 93.9 KB/s
+  Memory: -122.9 KB
+
+enhanced:
+  Duration: 101ms
+  Chunks/sec: 1.0e3
+  Throughput: 48.83 KB/s
+  Memory: -33.29 KB
+
+coordinator:
+  Duration: 101ms
+  Chunks/sec: 1.0e3
+  Throughput: 48.83 KB/s
+  Memory: 8.99 KB
+.
+=== First Chunk Latency ===
+Legacy HTTPClient: 0ms
+New HTTP.Core: 0ms
+StreamingCoordinator: 0ms
+.Test cache debug logging enabled
+..
+19:49:24.253 [error] POST https://api.x.ai/ -> 400 (24.419 ms)
+
+
+  7) test stream/4 via public API streams chat responses (ExLLM.Providers.XAIPublicAPITest)
+     test/ex_llm/providers/xai_public_api_test.exs:9
+     No content received in streaming chunks
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :xai
+     stacktrace:
+       test/ex_llm/providers/xai_public_api_test.exs:9: (test)
+
+...
+19:49:27.704 [error] POST https://api.x.ai/v1/chat/completions -> 400 (89.052 ms)
+......Test cache debug logging enabled
+.
+
+  8) test cost calculation via public API calculates costs accurately (ExLLM.Providers.AnthropicPublicAPITest)
+     test/ex_llm/providers/anthropic_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :anthropic
+     stacktrace:
+       test/ex_llm/providers/anthropic_public_api_test.exs:7: (test)
+
+
+
+  9) test stream/4 via public API streams chat responses (ExLLM.Providers.AnthropicPublicAPITest)
+     test/ex_llm/providers/anthropic_public_api_test.exs:7
+     Stream failed with error: [%{error: :unauthorized, message: "Authentication failed for anthropic. Check your API key.", status: 401, body: nil, provider: :anthropic}]
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :anthropic
+     stacktrace:
+       test/ex_llm/providers/anthropic_public_api_test.exs:7: (test)
+
+
+
+ 10) test chat/3 via public API sends chat completion request (ExLLM.Providers.AnthropicPublicAPITest)
+     test/ex_llm/providers/anthropic_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :anthropic
+     stacktrace:
+       test/ex_llm/providers/anthropic_public_api_test.exs:7: (test)
+
+.
+19:49:34.434 [error] POST https://api.anthropic.com/v1/messages -> 401 (129.313 ms)
+..
+
+ 11) test chat/3 via public API handles system messages (ExLLM.Providers.AnthropicPublicAPITest)
+     test/ex_llm/providers/anthropic_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :anthropic
+     stacktrace:
+       test/ex_llm/providers/anthropic_public_api_test.exs:7: (test)
+
+Vision test failed: :unauthorized
+..
+19:49:35.595 [error] GET https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions/invalid?key=AIzaSyAMO0wQUd0TlxK4q53opn41jIBzVTwXBbU -> 401 (25.789 ms)
+..
+19:49:35.618 [error] POST https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions? -> 401 (22.805 ms)
+.
+19:49:35.640 [error] GET https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions?key=AIzaSyAMO0wQUd0TlxK4q53opn41jIBzVTwXBbU -> 401 (22.098 ms)
+.
+19:49:35.663 [error] POST https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions?key=AIzaSyAMO0wQUd0TlxK4q53opn41jIBzVTwXBbU -> 401 (22.164 ms)
+.
+19:49:35.687 [error] POST https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions?key=AIzaSyAMO0wQUd0TlxK4q53opn41jIBzVTwXBbU -> 401 (23.814 ms)
+...
+19:49:35.709 [error] PATCH https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions/invalid?key=AIzaSyAMO0wQUd0TlxK4q53opn41jIBzVTwXBbU&updateMask=role -> 401 (21.295 ms)
+....
+19:49:35.730 [error] POST https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions?key=AIzaSyAMO0wQUd0TlxK4q53opn41jIBzVTwXBbU -> 401 (20.684 ms)
+..
+19:49:35.750 [error] DELETE https://generativelanguage.googleapis.com/v1beta/corpora/test-corpus/permissions/invalid?key=AIzaSyAMO0wQUd0TlxK4q53opn41jIBzVTwXBbU -> 401 (20.150 ms)
+.Test cache debug logging enabled
+.
+
+ 12) test cost calculation via public API calculates costs accurately (ExLLM.Providers.GroqPublicAPITest)
+     test/ex_llm/providers/groq_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :groq
+     stacktrace:
+       test/ex_llm/providers/groq_public_api_test.exs:7: (test)
+
+
+
+ 13) test stream/4 via public API streams chat responses (ExLLM.Providers.GroqPublicAPITest)
+     test/ex_llm/providers/groq_public_api_test.exs:7
+     Stream failed with error: [%{error: :unauthorized, message: "Authentication failed for groq. Check your API key.", status: 401, body: nil, provider: :groq}]
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :groq
+     stacktrace:
+       test/ex_llm/providers/groq_public_api_test.exs:7: (test)
+
+
+
+ 14) test chat/3 via public API sends chat completion request (ExLLM.Providers.GroqPublicAPITest)
+     test/ex_llm/providers/groq_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :groq
+     stacktrace:
+       test/ex_llm/providers/groq_public_api_test.exs:7: (test)
+
+.
+19:49:35.829 [error] POST https://api.groq.com/openai/v1/chat/completions -> 401 (59.425 ms)
+...
+
+ 15) test chat/3 via public API handles system messages (ExLLM.Providers.GroqPublicAPITest)
+     test/ex_llm/providers/groq_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :groq
+     stacktrace:
+       test/ex_llm/providers/groq_public_api_test.exs:7: (test)
+
+........
+19:49:37.135 [error] GET https://generativelanguage.googleapis.com/v1beta/tunedModels/test/permissions? -> 401 (45.829 ms)
+..
+19:49:37.237 [error] GET https://generativelanguage.googleapis.com/v1beta/tunedModels/test-model-4803/permissions? -> 404 (101.032 ms)
+.
+19:49:37.260 [error] GET https://generativelanguage.googleapis.com/v1beta/tunedModels/test/permissions?key=some-api-key -> 401 (22.387 ms)
+.
+19:49:37.333 [error] GET https://generativelanguage.googleapis.com/v1beta/tunedModels/non-existent/permissions/fake? -> 404 (72.424 ms)
+...............................Test cache debug logging enabled
+..
+19:49:37.932 [error] POST https://api.mistral.ai/v1/chat/completions -> 400 (19.829 ms)
+
+
+ 16) test stream/4 via public API streams chat responses (ExLLM.Providers.MistralPublicAPITest)
+     test/ex_llm/providers/mistral_public_api_test.exs:7
+     No content received in streaming chunks
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :mistral
+     stacktrace:
+       test/ex_llm/providers/mistral_public_api_test.exs:7: (test)
+
+.
+19:49:40.432 [error] POST https://api.mistral.ai/v1/chat/completions -> 400 (28.913 ms)
+
+
+ 17) test mistral-specific features via public API streaming with Mistral models (ExLLM.Providers.MistralPublicAPITest)
+     test/ex_llm/providers/mistral_public_api_test.exs:39
+     Assertion with > failed, both sides are exactly equal
+     code: assert String.length(full_content) > 0
+     left: 0
+     stacktrace:
+       test/ex_llm/providers/mistral_public_api_test.exs:63: (test)
+
+.
+19:49:41.784 [error] POST https://api.mistral.ai/v1/chat/completions -> 401 (336.995 ms)
+......
+
+ 18) test instructor with real providers handles lists and arrays with real provider (ExLLM.InstructorIntegrationTest)
+     test/integration/ex_llm_instructor_integration_test.exs:117
+     ** (CaseClauseError) no case clause matching: nil
+     code: case ExLLM.chat(:openai, messages,
+     stacktrace:
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:208: Instructor.Adapters.OpenAI.api_key/1
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:218: Instructor.Adapters.OpenAI.auth_header/1
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:134: Instructor.Adapters.OpenAI.do_chat_completion/3
+       (instructor 0.1.0) lib/instructor.ex:480: Instructor.do_adapter_chat_completion/2
+       (instructor 0.1.0) lib/instructor.ex:433: Instructor.do_chat_completion/3
+       (ex_llm 1.0.0-rc1) lib/ex_llm/core/structured_outputs.ex:278: ExLLM.Core.StructuredOutputs.call_instructor/2
+       (ex_llm 1.0.0-rc1) lib/ex_llm/infrastructure/telemetry.ex:143: ExLLM.Infrastructure.Telemetry.span/3
+       (ex_llm 1.0.0-rc1) lib/ex_llm.ex:116: ExLLM.chat/3
+       test/integration/ex_llm_instructor_integration_test.exs:138: (test)
+
+
+
+ 19) test instructor with real providers handles validation and retries with real provider (ExLLM.InstructorIntegrationTest)
+     test/integration/ex_llm_instructor_integration_test.exs:87
+     Math calculation failed: "LLM Adapter Error: \"Unexpected HTTP response code: 401\\n%{\\\"error\\\" => %{\\\"message\\\" => \\\"x-api-key header is required\\\", \\\"type\\\" => \\\"authentication_error\\\"}, \\\"type\\\" => \\\"error\\\"}\""
+     code: flunk("Math calculation failed: #{inspect(reason)}")
+     stacktrace:
+       test/integration/ex_llm_instructor_integration_test.exs:113: (test)
+
+
+
+ 20) test instructor with real providers extracts structured data using response_model with Anthropic (ExLLM.InstructorIntegrationTest)
+     test/integration/ex_llm_instructor_integration_test.exs:31
+     Instructor extraction failed: "LLM Adapter Error: \"Unexpected HTTP response code: 401\\n%{\\\"error\\\" => %{\\\"message\\\" => \\\"x-api-key header is required\\\", \\\"type\\\" => \\\"authentication_error\\\"}, \\\"type\\\" => \\\"error\\\"}\""
+     code: flunk("Instructor extraction failed: #{inspect(reason)}")
+     stacktrace:
+       test/integration/ex_llm_instructor_integration_test.exs:55: (test)
+
+
+
+ 21) test instructor with real providers falls back to JSON mode when needed with real provider (ExLLM.InstructorIntegrationTest)
+     test/integration/ex_llm_instructor_integration_test.exs:159
+     JSON response failed: :unauthorized
+     code: flunk("JSON response failed: #{inspect(reason)}")
+     stacktrace:
+       test/integration/ex_llm_instructor_integration_test.exs:193: (test)
+
+
+
+ 22) test instructor with real providers extracts structured data using response_model with OpenAI (ExLLM.InstructorIntegrationTest)
+     test/integration/ex_llm_instructor_integration_test.exs:59
+     ** (CaseClauseError) no case clause matching: nil
+     code: case ExLLM.chat(:openai, messages,
+     stacktrace:
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:208: Instructor.Adapters.OpenAI.api_key/1
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:218: Instructor.Adapters.OpenAI.auth_header/1
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:134: Instructor.Adapters.OpenAI.do_chat_completion/3
+       (instructor 0.1.0) lib/instructor.ex:480: Instructor.do_adapter_chat_completion/2
+       (instructor 0.1.0) lib/instructor.ex:433: Instructor.do_chat_completion/3
+       (ex_llm 1.0.0-rc1) lib/ex_llm/core/structured_outputs.ex:278: ExLLM.Core.StructuredOutputs.call_instructor/2
+       (ex_llm 1.0.0-rc1) lib/ex_llm/infrastructure/telemetry.ex:143: ExLLM.Infrastructure.Telemetry.span/3
+       (ex_llm 1.0.0-rc1) lib/ex_llm.ex:116: ExLLM.chat/3
+       test/integration/ex_llm_instructor_integration_test.exs:69: (test)
+
+Test cache debug logging enabled
+
+
+ 23) test instructor with real providers handles complex nested structures with real provider (ExLLM.InstructorIntegrationTest)
+     test/integration/ex_llm_instructor_integration_test.exs:197
+     ** (CaseClauseError) no case clause matching: nil
+     code: case ExLLM.chat(:openai, messages,
+     stacktrace:
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:208: Instructor.Adapters.OpenAI.api_key/1
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:218: Instructor.Adapters.OpenAI.auth_header/1
+       (instructor 0.1.0) lib/instructor/adapters/openai.ex:134: Instructor.Adapters.OpenAI.do_chat_completion/3
+       (instructor 0.1.0) lib/instructor.ex:480: Instructor.do_adapter_chat_completion/2
+       (instructor 0.1.0) lib/instructor.ex:433: Instructor.do_chat_completion/3
+       (ex_llm 1.0.0-rc1) lib/ex_llm/core/structured_outputs.ex:278: ExLLM.Core.StructuredOutputs.call_instructor/2
+       (ex_llm 1.0.0-rc1) lib/ex_llm/infrastructure/telemetry.ex:143: ExLLM.Infrastructure.Telemetry.span/3
+       (ex_llm 1.0.0-rc1) lib/ex_llm.ex:116: ExLLM.chat/3
+       test/integration/ex_llm_instructor_integration_test.exs:223: (test)
+
+.
+
+ 24) test cost calculation via public API calculates costs accurately (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :openai
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:7: (test)
+
+
+
+ 25) test stream/4 via public API streams chat responses (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:7
+     Stream failed with error: [%{error: :unauthorized, message: "Authentication failed for openai. Check your API key.", status: 401, body: nil, provider: :openai}]
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :openai
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:7: (test)
+
+
+
+ 26) test chat/3 via public API sends chat completion request (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :openai
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:7: (test)
+
+
+
+ 27) test openai-specific features via public API handles GPT-4 vision capabilities (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:35
+     match (=) failed
+     code:  assert {:ok, response} = ExLLM.chat(:openai, messages, model: "gpt-4o", max_tokens: 50)
+     left:  {:ok, response}
+     right: {:error, :unauthorized}
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:57: (test)
+
+
+
+ 28) test openai-specific features via public API o1 model behavior (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:144
+     match (=) failed
+     code:  assert {:ok, response} = ExLLM.chat(:openai, messages, model: "o1-mini", max_tokens: 500)
+     left:  {:ok, response}
+     right: {:error, :unauthorized}
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:151: (test)
+
+
+19:49:46.414 [error] POST https://api.openai.com/v1/chat/completions -> 401 (57.933 ms)
+.
+
+ 29) test openai-specific features via public API streaming includes proper finish reasons (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:120
+     match (=) failed
+     code:  assert :ok = ExLLM.stream(:openai, messages, collector, max_tokens: 10, timeout: 10000)
+     left:  :ok
+     right: {:error,
+             %ExLLM.Pipeline.Request{
+               id: "617888e799fbe60cd92b4ee52b8d806b",
+               provider: :openai,
+               messages: [%{content: "Say hello", role: "user"}],
+               options: %{
+                 timeout: 10000,
+                 stream: true,
+                 max_tokens: 10,
+                 on_chunk: #Function<2.4433970/1 in ExLLM.Providers.OpenAIPublicAPITest."test openai-specific features via public API streaming includes proper finish reasons"/1>
+               },
+               config: %{},
+               halted: true,
+               state: :error,
+               tesla_client: nil,
+               provider_request: nil,
+               response: nil,
+               result: nil,
+               assigns: %{provider_validated: true},
+               private: %{},
+               metadata: %{
+                 provider: :openai,
+                 cost: nil,
+                 duration_ms: 0,
+                 end_time: -576460709184353822,
+                 start_time: -576460709184363989,
+                 tokens_used: %{}
+               },
+               errors: [
+                 %{
+                   error: :unauthorized,
+                   message: "Authentication failed for openai. Check your API key.",
+                   status: 401,
+                   body: nil,
+                   provider: :openai
+                 }
+               ],
+               stream_pid: nil,
+               stream_ref: nil
+             }}
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:132: (test)
+
+
+
+ 30) test openai-specific features via public API streaming with function calls (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:65
+     match (=) failed
+     code:  assert :ok = ExLLM.stream(:openai, messages, collector, tools: tools, max_tokens: 100, timeout: 10000)
+     left:  :ok
+     right: {:error,
+             %ExLLM.Pipeline.Request{
+               id: "02c7b23516a7c7052e96e282886fc31d",
+               provider: :openai,
+               messages: [
+                 %{
+                   content: "What's the weather in Boston?",
+                   role: "user"
+                 }
+               ],
+               options: %{
+                 timeout: 10000,
+                 stream: true,
+                 tools: [
+                   %{
+                     function: %{
+                       name: "get_weather",
+                       description: "Get the weather for a location",
+                       parameters: %{
+                         type: "object",
+                         required: ["location"],
+                         properties: %{location: %{type: "string"}}
+                       }
+                     },
+                     type: "function"
+                   }
+                 ],
+                 max_tokens: 100,
+                 on_chunk: #Function<3.4433970/1 in ExLLM.Providers.OpenAIPublicAPITest."test openai-specific features via public API streaming with function calls"/1>
+               },
+               config: %{},
+               halted: true,
+               state: :error,
+               tesla_client: nil,
+               provider_request: nil,
+               response: nil,
+               result: nil,
+               assigns: %{provider_validated: true},
+               private: %{},
+               metadata: %{
+                 provider: :openai,
+                 cost: nil,
+                 duration_ms: 0,
+                 end_time: -576460709177583697,
+                 start_time: -576460709177595822,
+                 tokens_used: %{}
+               },
+               errors: [
+                 %{
+                   error: :unauthorized,
+                   message: "Authentication failed for openai. Check your API key.",
+                   status: 401,
+                   body: nil,
+                   provider: :openai
+                 }
+               ],
+               stream_pid: nil,
+               stream_ref: nil
+             }}
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:94: (test)
+
+
+
+ 31) test chat/3 via public API handles system messages (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:7
+     Chat request failed: :unauthorized
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :openai
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:7: (test)
+
+
+
+ 32) test openai-specific features via public API handles JSON mode (ExLLM.Providers.OpenAIPublicAPITest)
+     test/ex_llm/providers/openai_public_api_test.exs:12
+     match (=) failed
+     code:  assert {:ok, response} =
+              ExLLM.chat(:openai, messages, response_format: %{type: "json_object"}, max_tokens: 100)
+     left:  {:ok, response}
+     right: {:error, :unauthorized}
+     stacktrace:
+       test/ex_llm/providers/openai_public_api_test.exs:22: (test)
+
+.
+
+ 33) test chat pipeline integration via public API streaming pipeline integration (ExLLM.Core.ChatPipelineIntegrationTest)
+     test/ex_llm/core/chat_pipeline_integration_test.exs:104
+     Streaming failed: %ExLLM.Pipeline.Request{id: "7dbe06ef9975d6cfcbdd9d3e48385f55", provider: :openai, messages: [%{content: "Count to 3", role: "user"}], options: %{timeout: 10000, stream: true, max_tokens: 20, on_chunk: #Function<2.102717738/1 in ExLLM.Core.ChatPipelineIntegrationTest."test chat pipeline integration via public API streaming pipeline integration"/1>}, config: %{}, halted: true, state: :error, tesla_client: nil, provider_request: nil, response: nil, result: nil, assigns: %{provider_validated: true}, private: %{}, metadata: %{provider: :openai, cost: nil, duration_ms: 0, end_time: -576460707967679947, start_time: -576460707967703864, tokens_used: %{}}, errors: [%{error: :unauthorized, message: "Authentication failed for openai. Check your API key.", status: 401, body: nil, provider: :openai}], stream_pid: nil, stream_ref: nil}
+     code: flunk("Streaming failed: #{inspect(reason)}")
+     stacktrace:
+       test/ex_llm/core/chat_pipeline_integration_test.exs:129: (test)
+
+
+
+ 34) test chat pipeline integration via public API provider-specific features work through public API (ExLLM.Core.ChatPipelineIntegrationTest)
+     test/ex_llm/core/chat_pipeline_integration_test.exs:62
+     Vision test failed: :unauthorized
+     code: flunk("Vision test failed: #{inspect(reason)}")
+     stacktrace:
+       test/ex_llm/core/chat_pipeline_integration_test.exs:100: (test)
+
+
+
+ 35) test chat pipeline integration via public API provider routing works correctly (ExLLM.Core.ChatPipelineIntegrationTest)
+     test/ex_llm/core/chat_pipeline_integration_test.exs:8
+     Provider anthropic failed: :unauthorized
+     code: for provider <- providers do
+     stacktrace:
+       (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+       test/ex_llm/core/chat_pipeline_integration_test.exs:14: (test)
+
+.
+
+ 36) test chat pipeline integration via public API different models work through public API (ExLLM.Core.ChatPipelineIntegrationTest)
+     test/ex_llm/core/chat_pipeline_integration_test.exs:36
+     Model gpt-4o-mini failed: :unauthorized
+     code: for model <- models do
+     stacktrace:
+       (elixir 1.18.4) lib/enum.ex:1714: Enum."-map/2-lists^map/1-1-"/2
+       test/ex_llm/core/chat_pipeline_integration_test.exs:42: (test)
+
+............
+
+ 37) test chat_with_session maintains conversation context across multiple chats (ExLLM.SessionIntegrationTest)
+     test/integration/ex_llm_session_integration_test.exs:102
+     First chat failed: :unauthorized
+     code: flunk("First chat failed: #{inspect(reason)}")
+     stacktrace:
+       test/integration/ex_llm_session_integration_test.exs:126: (test)
+
+
+
+ 38) test session integration with ExLLM tracks token usage through ExLLM interface (ExLLM.SessionIntegrationTest)
+     test/integration/ex_llm_session_integration_test.exs:27
+     ** (CaseClauseError) no case clause matching: {:error, :unauthorized}
+     code: case ExLLM.chat_with_session(session, "Hello") do
+     stacktrace:
+       test/integration/ex_llm_session_integration_test.exs:32: (test)
+
+...
+
+ 39) test chat_with_session performs chat with session tracking (ExLLM.SessionIntegrationTest)
+     test/integration/ex_llm_session_integration_test.exs:71
+     Chat failed: :unauthorized
+     code: flunk("Chat failed: #{inspect(reason)}")
+     stacktrace:
+       test/integration/ex_llm_session_integration_test.exs:98: (test)
+
+
+19:49:48.845 [error] GET https://api.openai.com/v1/models -> 401 (63.882 ms)
+.
+19:49:48.961 [error] POST https://api.openai.com/v1/assistants -> 401 (106.145 ms)
+..
+19:49:49.060 [error] POST https://api.openai.com/v1/embeddings -> 401 (98.455 ms)
+..
+19:49:49.172 [error] POST https://api.openai.com/v1/chat/completions -> 401 (111.557 ms)
+.
+19:49:49.292 [error] POST https://api.openai.com/v1/threads/thread_123/messages -> 401 (119.926 ms)
+..
+19:49:49.381 [error] POST https://api.openai.com/v1/moderations -> 401 (76.263 ms)
+.
+19:49:49.453 [error] POST https://api.openai.com/v1/audio/speech -> 401 (71.179 ms)
+..
+19:49:49.535 [error] POST https://api.openai.com/v1/threads/thread_123/runs -> 401 (81.820 ms)
+
+19:49:49.638 [error] POST https://api.openai.com/v1/vector_stores -> 401 (102.769 ms)
+...
+19:49:49.768 [error] POST https://api.openai.com/v1/images/generations -> 401 (128.990 ms)
+........Test cache debug logging enabled
+..
+
+ 40) test stream/4 via public API streams chat responses (ExLLM.Providers.LMStudioPublicAPITest)
+     test/ex_llm/providers/lmstudio_public_api_test.exs:7
+     No content received in streaming chunks
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :lmstudio
+     stacktrace:
+       test/ex_llm/providers/lmstudio_public_api_test.exs:7: (test)
+
+.....
+
+ 41) test lmstudio-specific features via public API streaming with LM Studio (ExLLM.Providers.LMStudioPublicAPITest)
+     test/ex_llm/providers/lmstudio_public_api_test.exs:66
+     Assertion with > failed, both sides are exactly equal
+     code: assert String.length(full_content) > 0
+     left: 0
+     stacktrace:
+       test/ex_llm/providers/lmstudio_public_api_test.exs:89: (test)
+
+................Test cache debug logging enabled
+..Note: bumblebee streaming requires ModelLoader - skipping streaming test
+.......
+
+ 42) test bumblebee model management via public API lists available models (ExLLM.Providers.BumblebeePublicAPITest)
+     test/ex_llm/providers/bumblebee_public_api_test.exs:147
+     Assertion with =~ failed
+     code:  assert model.id =~ ~r/Qwen|Phi|gpt2/
+     left:  "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+     right: ~r/Qwen|Phi|gpt2/
+     stacktrace:
+       test/ex_llm/providers/bumblebee_public_api_test.exs:154: (test)
+
+....................Test cache debug logging enabled
+..
+19:50:01.626 [error] POST https://openrouter.ai -> 400 (23.076 ms)
+
+
+ 43) test stream/4 via public API streams chat responses (ExLLM.Providers.OpenRouterPublicAPITest)
+     test/ex_llm/providers/openrouter_public_api_test.exs:7
+     No content received in streaming chunks
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :openrouter
+     stacktrace:
+       test/ex_llm/providers/openrouter_public_api_test.exs:7: (test)
+
+...
+19:50:05.182 [error] POST https://openrouter.ai/api/v1/chat/completions -> 401 (76.444 ms)
+..
+19:50:05.819 [error] POST https://openrouter.ai -> 400 (25.961 ms)
+
+
+ 44) test openrouter-specific features via public API streaming across different provider models (ExLLM.Providers.OpenRouterPublicAPITest)
+     test/ex_llm/providers/openrouter_public_api_test.exs:66
+     Assertion with != failed, both sides are exactly equal
+     code: assert full_content != ""
+     left: ""
+     stacktrace:
+       test/ex_llm/providers/openrouter_public_api_test.exs:93: (test)
+
+.
+19:50:08.254 [error] POST https://openrouter.ai/api/v1/chat/completions -> 404 (91.895 ms)
+..Test cache debug logging enabled
+..
+19:50:10.421 [error] POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:streamGenerateContent -> 400 (24.503 ms)
+
+
+ 45) test stream/4 via public API streams chat responses (ExLLM.Providers.GeminiPublicAPITest)
+     test/ex_llm/providers/gemini_public_api_test.exs:7
+     No content received in streaming chunks
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :gemini
+     stacktrace:
+       test/ex_llm/providers/gemini_public_api_test.exs:7: (test)
+
+.
+19:50:12.896 [error] POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent -> 404 (35.269 ms)
+..
+19:50:13.174 [error] POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent -> 400 (22.959 ms)
+.
+19:50:13.208 [error] POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:generateContent -> 404 (32.074 ms)
+.
+19:50:13.236 [error] POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro-exp-03-25:streamGenerateContent -> 400 (26.446 ms)
+
+
+ 46) test gemini-specific features via public API streaming with Gemini-specific finish reasons (ExLLM.Providers.GeminiPublicAPITest)
+     test/ex_llm/providers/gemini_public_api_test.exs:73
+     Assertion with in failed
+     code:  assert last_chunk.finish_reason in ["STOP", "MAX_TOKENS", "SAFETY", nil]
+     left:  "error"
+     right: ["STOP", "MAX_TOKENS", "SAFETY", nil]
+     stacktrace:
+       test/ex_llm/providers/gemini_public_api_test.exs:92: (test)
+
+.
+19:50:14.840 [error] POST https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent -> 400 (28.033 ms)
+Vision test failed: :http_error
+..Test cache debug logging enabled
+....*..........Test cache debug logging enabled
+..
+19:50:21.181 [error] POST https://api.perplexity.ai/ -> 400 (22.437 ms)
+
+
+ 47) test stream/4 via public API streams chat responses (ExLLM.Providers.PerplexityPublicAPITest)
+     test/ex_llm/providers/perplexity_public_api_test.exs:7
+     No content received in streaming chunks
+     code: use ExLLM.Shared.ProviderIntegrationTest, provider: :perplexity
+     stacktrace:
+       test/ex_llm/providers/perplexity_public_api_test.exs:7: (test)
+
+.
+19:50:27.960 [error] POST https://api.perplexity.ai/chat/completions -> 400 (103.631 ms)
+..
+19:50:29.623 [error] POST https://api.perplexity.ai/chat/completions -> 401 (70.503 ms)
+..
+19:50:33.508 [error] POST https://api.perplexity.ai/ -> 400 (23.857 ms)
+
+
+ 48) test perplexity-specific features via public API streaming with Perplexity models (ExLLM.Providers.PerplexityPublicAPITest)
+     test/ex_llm/providers/perplexity_public_api_test.exs:61
+     Assertion with > failed, both sides are exactly equal
+     code: assert String.length(full_content) > 0
+     left: 0
+     stacktrace:
+       test/ex_llm/providers/perplexity_public_api_test.exs:89: (test)
+
+...
+19:50:39.460 [error] POST http://localhost:57144/v1/chat/completions -> 401 (0.620 ms)
+............
+19:50:39.468 [error] POST http://localhost:57170/v1/chat/completions -> 429 (0.381 ms)
+
+19:50:40.354 [error] POST http://localhost:57170/v1/chat/completions -> 429 (1.792 ms)
+
+19:50:41.973 [error] POST http://localhost:57170/v1/chat/completions -> 429 (1.643 ms)
+
+19:50:45.177 [error] POST http://localhost:57170/v1/chat/completions -> 429 (1.598 ms)
+.
+19:50:45.182 [error] POST http://localhost:57199/v1/chat/completions -> 500 (1.934 ms)
+
+19:50:46.157 [error] POST http://localhost:57199/v1/chat/completions -> 500 (1.761 ms)
+
+19:50:47.853 [error] POST http://localhost:57199/v1/chat/completions -> 500 (1.850 ms)
+
+19:50:51.655 [error] POST http://localhost:57199/v1/chat/completions -> 500 (1.254 ms)
+.....
+19:50:51.665 [error] POST http://localhost:57237/v1/chat/completions -> 500 (1.510 ms)
+
+19:50:52.705 [error] POST http://localhost:57237/v1/chat/completions -> 500 (0.947 ms)
+
+19:50:54.865 [error] POST http://localhost:57237/v1/chat/completions -> 500 (1.339 ms)
+
+19:50:59.214 [error] POST http://localhost:57237/v1/chat/completions -> 500 (1.500 ms)
+..
+19:50:59.221 [error] POST http://localhost:57280/v1/chat/completions -> 500 (1.827 ms)
+
+19:51:00.079 [error] POST http://localhost:57280/v1/chat/completions -> 500 (1.877 ms)
+
+19:51:01.905 [error] POST http://localhost:57280/v1/chat/completions -> 500 (1.148 ms)

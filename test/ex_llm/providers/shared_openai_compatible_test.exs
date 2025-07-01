@@ -8,6 +8,33 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
 
   use ExUnit.Case, async: false
 
+  # Helper function to get env var name for a provider
+  def get_env_var_name(provider_atom) do
+    case provider_atom do
+      :xai -> "XAI_API_KEY"
+      :groq -> "GROQ_API_KEY"
+      :mistral -> "MISTRAL_API_KEY"
+      :perplexity -> "PERPLEXITY_API_KEY"
+      :openrouter -> "OPENROUTER_API_KEY"
+      _ -> String.upcase(to_string(provider_atom)) <> "_API_KEY"
+    end
+  end
+
+  # Helper macro to run test with temporarily removed env var
+  defmacro with_env_var_removed(provider_atom, do: block) do
+    quote do
+      env_var_name = ExLLM.Providers.SharedOpenAICompatibleTest.get_env_var_name(unquote(provider_atom))
+      original_key = System.get_env(env_var_name)
+
+      try do
+        System.delete_env(env_var_name)
+        unquote(block)
+      after
+        if original_key, do: System.put_env(env_var_name, original_key)
+      end
+    end
+  end
+
   defmacro run_standard_tests(provider_module, provider_atom) do
     quote do
       describe "#{unquote(provider_atom)} standard contract" do
@@ -42,24 +69,7 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
 
         @tag :unit
         test "list_models returns proper format" do
-          # Get the appropriate env var name for this provider
-          env_var_name =
-            case unquote(provider_atom) do
-              :xai -> "XAI_API_KEY"
-              :groq -> "GROQ_API_KEY"
-              :mistral -> "MISTRAL_API_KEY"
-              :perplexity -> "PERPLEXITY_API_KEY"
-              :openrouter -> "OPENROUTER_API_KEY"
-              _ -> String.upcase(to_string(unquote(provider_atom))) <> "_API_KEY"
-            end
-
-          # Save current env var
-          original_key = System.get_env(env_var_name)
-
-          try do
-            # Ensure we have no API key from environment
-            System.delete_env(env_var_name)
-
+          with_env_var_removed unquote(provider_atom) do
             # Create a static config provider with empty config
             {:ok, config_provider} =
               ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{
@@ -79,32 +89,12 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
                 # OK if it fails due to missing API key
                 :ok
             end
-          after
-            # Restore env var if it existed
-            if original_key, do: System.put_env(env_var_name, original_key)
           end
         end
 
         @tag :unit
         test "configured? works without API key" do
-          # Get the appropriate env var name for this provider
-          env_var_name =
-            case unquote(provider_atom) do
-              :xai -> "XAI_API_KEY"
-              :groq -> "GROQ_API_KEY"
-              :mistral -> "MISTRAL_API_KEY"
-              :perplexity -> "PERPLEXITY_API_KEY"
-              :openrouter -> "OPENROUTER_API_KEY"
-              _ -> String.upcase(to_string(unquote(provider_atom))) <> "_API_KEY"
-            end
-
-          # Save current env var
-          original_key = System.get_env(env_var_name)
-
-          try do
-            # Temporarily unset the env var
-            System.delete_env(env_var_name)
-
+          with_env_var_removed unquote(provider_atom) do
             # Create a static config provider instance with no API key
             {:ok, config_provider} =
               ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{
@@ -112,9 +102,6 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
               })
 
             refute unquote(provider_module).configured?(config_provider: config_provider)
-          after
-            # Restore env var if it existed
-            if original_key, do: System.put_env(env_var_name, original_key)
           end
         end
       end
@@ -163,23 +150,7 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
       describe "#{unquote(provider_atom)} error handling" do
         @tag :unit
         test "handles missing API key" do
-          # Get the appropriate env var name for this provider
-          env_var_name =
-            case unquote(provider_atom) do
-              :xai -> "XAI_API_KEY"
-              :groq -> "GROQ_API_KEY"
-              :mistral -> "MISTRAL_API_KEY"
-              :perplexity -> "PERPLEXITY_API_KEY"
-              :openrouter -> "OPENROUTER_API_KEY"
-              _ -> String.upcase(to_string(unquote(provider_atom))) <> "_API_KEY"
-            end
-
-          # Save and unset environment variable
-          original_key = System.get_env(env_var_name)
-
-          try do
-            System.delete_env(env_var_name)
-
+          with_env_var_removed unquote(provider_atom) do
             # Create a static config provider instance with no API key
             {:ok, config_provider} =
               ExLLM.Infrastructure.ConfigProvider.Static.start_link(%{
@@ -191,8 +162,6 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
             result = unquote(provider_module).chat(messages, config_provider: config_provider)
 
             assert {:error, _} = result
-          after
-            if original_key, do: System.put_env(env_var_name, original_key)
           end
         end
 

@@ -116,10 +116,11 @@ defmodule ExLLM.Pipelines.StandardProvider do
       end
 
     # Wrap stream parser in conditional to only run for streaming requests
-    stream_parse_response_plug = 
+    stream_parse_response_plug =
       case Keyword.get(provider_plugs, :stream_parse_response) do
-        nil -> 
+        nil ->
           nil
+
         plug ->
           {Plugs.ConditionalPlug,
            [

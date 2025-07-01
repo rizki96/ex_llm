@@ -152,21 +152,22 @@ defmodule ExLLM.Testing.Config do
   end
 
   # Helper to extract provider from API key variable name
+  @api_key_to_provider %{
+    "ANTHROPIC_API_KEY" => :anthropic,
+    "OPENAI_API_KEY" => :openai,
+    "GEMINI_API_KEY" => :gemini,
+    "GOOGLE_API_KEY" => :gemini,
+    "GROQ_API_KEY" => :groq,
+    "MISTRAL_API_KEY" => :mistral,
+    "OPENROUTER_API_KEY" => :openrouter,
+    "PERPLEXITY_API_KEY" => :perplexity,
+    "XAI_API_KEY" => :xai,
+    "OLLAMA_HOST" => :ollama,
+    "LMSTUDIO_HOST" => :lmstudio
+  }
+
   defp provider_from_api_key_var(var) do
-    case var do
-      "ANTHROPIC_API_KEY" -> :anthropic
-      "OPENAI_API_KEY" -> :openai
-      "GEMINI_API_KEY" -> :gemini
-      "GOOGLE_API_KEY" -> :gemini
-      "GROQ_API_KEY" -> :groq
-      "MISTRAL_API_KEY" -> :mistral
-      "OPENROUTER_API_KEY" -> :openrouter
-      "PERPLEXITY_API_KEY" -> :perplexity
-      "XAI_API_KEY" -> :xai
-      "OLLAMA_HOST" -> :ollama
-      "LMSTUDIO_HOST" -> :lmstudio
-      _ -> nil
-    end
+    Map.get(@api_key_to_provider, var)
   end
 
   @doc """
