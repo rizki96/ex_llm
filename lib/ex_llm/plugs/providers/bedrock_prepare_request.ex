@@ -20,7 +20,7 @@ defmodule ExLLM.Plugs.Providers.BedrockPrepareRequest do
     body = build_request_body(request, model)
 
     # Set the endpoint based on the model
-    endpoint = determine_endpoint(model, config[:stream] || false)
+    endpoint = determine_endpoint(model, Map.get(request.options, :stream, false))
 
     request
     |> Map.put(:provider_request, body)

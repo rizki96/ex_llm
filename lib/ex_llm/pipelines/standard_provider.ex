@@ -105,7 +105,7 @@ defmodule ExLLM.Pipelines.StandardProvider do
           # Default: use conditional plug to switch between stream/non-stream
           {Plugs.ConditionalPlug,
            [
-             condition: fn request -> request.config[:stream] == true end,
+             condition: fn request -> Map.get(request.options, :stream, false) == true end,
              if_true: {Plugs.ExecuteStreamRequest, []},
              if_false: {Plugs.ExecuteRequest, []}
            ]}
@@ -115,7 +115,19 @@ defmodule ExLLM.Pipelines.StandardProvider do
           custom_plug
       end
 
-    stream_parse_response_plug = Keyword.get(provider_plugs, :stream_parse_response)
+    # Wrap stream parser in conditional to only run for streaming requests
+    stream_parse_response_plug = 
+      case Keyword.get(provider_plugs, :stream_parse_response) do
+        nil -> 
+          nil
+        plug ->
+          {Plugs.ConditionalPlug,
+           [
+             condition: fn request -> Map.get(request.options, :stream, false) == true end,
+             if_true: plug,
+             if_false: {__MODULE__.PassThrough, []}
+           ]}
+      end
 
     # Get authentication plug if provided
     auth_plug = Keyword.get(provider_plugs, :auth_request)
@@ -133,7 +145,7 @@ defmodule ExLLM.Pipelines.StandardProvider do
     prepare_streaming_plug =
       {Plugs.ConditionalPlug,
        [
-         condition: fn request -> request.config[:stream] == true end,
+         condition: fn request -> Map.get(request.options, :stream, false) == true end,
          if_true: {__MODULE__.PrepareStreaming, []},
          if_false: {__MODULE__.PassThrough, []}
        ]}

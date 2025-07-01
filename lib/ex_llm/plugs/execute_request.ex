@@ -217,11 +217,14 @@ defmodule ExLLM.Plugs.ExecuteRequest do
               body
           end
 
-        request
-        |> Map.put(:response, env)
-        |> Request.assign(:http_response, parsed_body)
-        |> Request.put_state(:completed)
-        |> Request.put_metadata(:http_status, status)
+        result = 
+          request
+          |> Map.put(:response, env)
+          |> Request.assign(:http_response, parsed_body)
+          |> Request.put_state(:completed)
+          |> Request.put_metadata(:http_status, status)
+        
+        result
         |> Request.put_metadata(:response_headers, headers)
 
       # Handle error Tesla responses with status

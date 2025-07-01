@@ -40,8 +40,14 @@ defmodule ExLLM.Plugs.FetchConfiguration do
 
     config_provider = ConfigHelper.get_config_provider(options_kw)
     base_config = ConfigHelper.get_config(provider, config_provider)
-    # Merge options into config so they're available as configuration
-    config = Map.merge(base_config, options)
+    
+    # Filter out certain keys that should not be in config
+    # :stream is used for pipeline routing and should remain in options
+    config_keys_to_exclude = [:stream, :on_chunk]
+    filtered_options = Map.drop(options, config_keys_to_exclude)
+    
+    # Merge filtered options into config so they're available as configuration
+    config = Map.merge(base_config, filtered_options)
 
     case api_key_env_var(provider) do
       nil ->

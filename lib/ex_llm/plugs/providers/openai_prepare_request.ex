@@ -26,7 +26,9 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
   @impl true
   def call(%Request{messages: messages, config: config, provider: provider} = request, _opts) do
     try do
-      body = build_request_body(messages, config, provider)
+      # Pass the stream option from request.options to the config for build_request_body
+      config_with_stream = Map.put(config, :stream, Map.get(request.options, :stream, false))
+      body = build_request_body(messages, config_with_stream, provider)
 
       request
       |> Map.put(:provider_request, body)

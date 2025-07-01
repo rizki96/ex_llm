@@ -11,7 +11,9 @@ defmodule ExLLM.Plugs.Providers.OllamaPrepareRequest do
 
   @impl true
   def call(%Request{} = request, _opts) do
-    body = build_request_body(request)
+    # Pass the stream option from request.options to the config for build_request_body
+    request_with_stream = %{request | config: Map.put(request.config, :stream, Map.get(request.options, :stream, false))}
+    body = build_request_body(request_with_stream)
 
     request
     |> Map.put(:provider_request, body)

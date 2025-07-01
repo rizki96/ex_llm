@@ -82,6 +82,21 @@ defmodule ExLLM.ExampleApp do
     mock: %{
       name: "Mock (Testing)",
       setup: "No setup required - uses mock responses"
+    },
+    mistral: %{
+      name: "Mistral AI",
+      env_var: "MISTRAL_API_KEY",
+      setup: "Set MISTRAL_API_KEY environment variable"
+    },
+    perplexity: %{
+      name: "Perplexity AI",
+      env_var: "PERPLEXITY_API_KEY",
+      setup: "Set PERPLEXITY_API_KEY environment variable"
+    },
+    lmstudio: %{
+      name: "LM Studio (Local)",
+      env_var: nil,
+      setup: "Ensure LM Studio server is running on http://localhost:1234"
     }
   }
   

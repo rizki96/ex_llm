@@ -13,7 +13,7 @@ defmodule ExLLM.Plugs.Providers.BumblebeeHandler do
   @impl true
   def call(%Request{messages: messages, config: config} = request, _opts) do
     # Check if this is a streaming request
-    is_streaming = config[:stream] || Map.get(request, :stream, false)
+    is_streaming = Map.get(request.options, :stream, false)
 
     if is_streaming do
       handle_streaming_request(request, messages, config)

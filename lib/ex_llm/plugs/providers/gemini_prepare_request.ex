@@ -19,7 +19,7 @@ defmodule ExLLM.Plugs.Providers.GeminiPrepareRequest do
 
     # Set the dynamic endpoint based on the model and streaming
     model = config[:model] || "gemini-2.0-flash"
-    is_streaming = config[:stream] == true
+    is_streaming = Map.get(request.options, :stream, false) == true
 
     endpoint =
       if is_streaming do
