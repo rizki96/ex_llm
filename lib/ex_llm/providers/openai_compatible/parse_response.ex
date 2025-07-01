@@ -81,7 +81,7 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
 
       defp extract_first_choice_from_response(response) do
         choices = response["choices"] || []
-        
+
         if is_list(choices) and length(choices) > 0 do
           Enum.at(choices, 0)
         else
@@ -95,7 +95,7 @@ defmodule ExLLM.Providers.OpenAICompatible.ParseResponse do
 
       defp calculate_response_cost(cost_provider, model, enhanced_usage) do
         full_model_name = "#{cost_provider}/#{model}"
-        
+
         ExLLM.Core.Cost.calculate(cost_provider, full_model_name, %{
           input_tokens: enhanced_usage.input_tokens,
           output_tokens: enhanced_usage.output_tokens

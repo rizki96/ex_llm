@@ -189,7 +189,7 @@ defmodule ExLLM.FunctionCallingTest do
     test "parses function arguments as JSON" do
       # Ensure clean mock state
       :ok = ExLLM.Providers.Mock.reset()
-      
+
       messages = [%{role: "user", content: "Calculate 15% tip on $45.50"}]
 
       :ok =
@@ -205,7 +205,9 @@ defmodule ExLLM.FunctionCallingTest do
 
       # Ensure function call exists
       assert response.function_call != nil, "Expected function_call to be present in response"
-      assert response.function_call.arguments != nil, "Expected function_call.arguments to be present"
+
+      assert response.function_call.arguments != nil,
+             "Expected function_call.arguments to be present"
 
       # Parse the arguments
       {:ok, args} = Jason.decode(response.function_call.arguments)

@@ -389,7 +389,7 @@ defmodule ExLLM.Providers.Shared.ResponseBuilder do
 
   defp extract_gemini_candidate_content(candidate) do
     parts = get_in(candidate, ["content", "parts"])
-    
+
     if is_list(parts) and length(parts) > 0 do
       Enum.at(parts, 0)["text"]
     else

@@ -344,10 +344,10 @@ defmodule ExLLM.Providers.OpenAICompatible do
       defp send_request_with_client(url, body, headers, method, config, api_key) do
         provider_name = get_provider_name()
         {base_url, path} = parse_url_and_path(url, config)
-        
+
         client = create_http_client(provider_name, api_key, base_url)
         result = execute_http_request(client, method, path, body)
-        
+
         format_http_response(result)
       end
 
@@ -367,19 +367,19 @@ defmodule ExLLM.Providers.OpenAICompatible do
       end
 
       defp build_base_url(uri) do
-        port_suffix = 
+        port_suffix =
           if uri.port && uri.port not in [80, 443] do
             ":#{uri.port}"
           else
             ""
           end
-        
+
         "#{uri.scheme}://#{uri.host}#{port_suffix}"
       end
 
       defp build_path_with_query(uri) do
         path_with_query = uri.path || "/"
-        
+
         if uri.query do
           "#{path_with_query}?#{uri.query}"
         else
@@ -394,18 +394,22 @@ defmodule ExLLM.Providers.OpenAICompatible do
 
       defp create_http_client(provider_name, api_key, base_url) do
         client_opts = [provider: provider_name]
-        
+
         client_opts = maybe_add_api_key(client_opts, api_key)
         client_opts = maybe_add_base_url(client_opts, base_url)
-        
+
         Core.client(client_opts)
       end
 
       defp maybe_add_api_key(client_opts, nil), do: client_opts
-      defp maybe_add_api_key(client_opts, api_key), do: Keyword.put(client_opts, :api_key, api_key)
+
+      defp maybe_add_api_key(client_opts, api_key),
+        do: Keyword.put(client_opts, :api_key, api_key)
 
       defp maybe_add_base_url(client_opts, nil), do: client_opts
-      defp maybe_add_base_url(client_opts, base_url), do: Keyword.put(client_opts, :base_url, base_url)
+
+      defp maybe_add_base_url(client_opts, base_url),
+        do: Keyword.put(client_opts, :base_url, base_url)
 
       defp execute_http_request(client, method, path, body) do
         case method do

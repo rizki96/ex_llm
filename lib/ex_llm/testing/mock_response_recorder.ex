@@ -576,7 +576,7 @@ defmodule ExLLM.Testing.MockResponseRecorder do
 
   defp extract_first_choice(response) do
     choices = response["choices"] || response[:choices] || []
-    
+
     if is_list(choices) and length(choices) > 0 do
       Enum.at(choices, 0)
     else

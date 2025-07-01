@@ -23,7 +23,9 @@ defmodule ExLLM.Providers.SharedOpenAICompatibleTest do
   # Helper macro to run test with temporarily removed env var
   defmacro with_env_var_removed(provider_atom, do: block) do
     quote do
-      env_var_name = ExLLM.Providers.SharedOpenAICompatibleTest.get_env_var_name(unquote(provider_atom))
+      env_var_name =
+        ExLLM.Providers.SharedOpenAICompatibleTest.get_env_var_name(unquote(provider_atom))
+
       original_key = System.get_env(env_var_name)
 
       try do

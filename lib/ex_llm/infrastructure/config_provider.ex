@@ -150,7 +150,7 @@ defmodule ExLLM.Infrastructure.ConfigProvider do
         :ollama ->
           System.get_env("OLLAMA_BASE_URL") || System.get_env("OLLAMA_HOST") ||
             "http://localhost:11434"
-        
+
         _ ->
           case ExLLM.Environment.base_url_var(provider) do
             {var, default} -> System.get_env(var, default)
