@@ -117,6 +117,10 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
       stream_timeout = Keyword.get(opts, :timeout, 300_000)
       Logger.debug("HTTP.Core using stream timeout: #{stream_timeout}ms")
 
+      Logger.debug(
+        "HTTP.Core Tesla.post: path=#{inspect(path)}, client_middleware=#{inspect(client.pre)}"
+      )
+
       case Tesla.post(client, path, streaming_body,
              headers: headers,
              opts: [adapter: [recv_timeout: stream_timeout, stream_to: self(), async: true]]
@@ -348,7 +352,13 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   end
 
   defp get_base_url(provider, opts) do
-    Keyword.get(opts, :base_url) || get_default_base_url(provider)
+    result = Keyword.get(opts, :base_url) || get_default_base_url(provider)
+
+    Logger.debug(
+      "HTTP.Core get_base_url: provider=#{provider}, base_url_opt=#{inspect(Keyword.get(opts, :base_url))}, result=#{result}"
+    )
+
+    result
   end
 
   defp get_default_base_url(provider) do

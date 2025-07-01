@@ -59,13 +59,18 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     method = opts[:method] || request.assigns[:http_method] || :post
 
     # Log the request in debug mode
-    if request.config[:debug] do
-      Logger.debug("""
-      ExLLM Request:
-      Provider: #{request.provider}
-      Endpoint: #{endpoint}
-      Model: #{request.config[:model]}
-      """)
+    Logger.debug("""
+    ExLLM ExecuteRequest:
+    Provider: #{request.provider}
+    Endpoint: #{endpoint}
+    Model: #{request.config[:model]}
+    Method: #{method}
+    Tesla client middleware: #{inspect(request.tesla_client.pre)}
+    """)
+
+    # Debug log specifically for streaming
+    if request.options[:stream] do
+      Logger.debug("ExecuteRequest: This is a STREAMING request")
     end
 
     # Update state to executing

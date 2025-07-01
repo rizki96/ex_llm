@@ -106,6 +106,7 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
 
         # Add extra headers if defined
         extra_headers_func = @extra_headers
+
         if extra_headers_func && function_exported?(__MODULE__, extra_headers_func, 2) do
           apply(__MODULE__, extra_headers_func, [base_headers, config])
         else
@@ -115,6 +116,7 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
 
       defp get_base_url(config) do
         base_url_env = @base_url_env
+
         Map.get(config, :base_url) ||
           (base_url_env && System.get_env(base_url_env)) ||
           @default_base_url

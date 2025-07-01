@@ -80,6 +80,9 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Extract base URL and path from the request URL to prevent double /v1 issues
     {base_url, path} = extract_base_url_and_path(url)
 
+    # Debug logging for URL parsing
+    Logger.debug("StreamingCoordinator: URL=#{url}, base_url=#{base_url}, path=#{path}")
+
     # Extract provider from options, required for proper auth headers
     provider = Keyword.get(options, :provider, :unknown)
     api_key = Keyword.get(options, :api_key)
@@ -96,6 +99,12 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinator do
     # Create the streaming callback that processes SSE data
     stream_callback =
       create_stream_collector(enhanced_callback, parse_chunk_fn, stream_context, options)
+
+    Logger.debug(
+      "StreamingCoordinator calling Core.stream with path: #{inspect(path)}, base_url: #{inspect(base_url)}"
+    )
+
+    Logger.debug("StreamingCoordinator client middleware: #{inspect(client.pre)}")
 
     result =
       case Core.stream(client, path, request, stream_callback,
