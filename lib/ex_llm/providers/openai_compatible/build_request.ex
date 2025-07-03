@@ -99,27 +99,32 @@ defmodule ExLLM.Providers.OpenAICompatible.BuildRequest do
         |> maybe_add_system_prompt(options)
       end
 
-      defp build_headers(api_key, config) do
-        base_headers = [
-          {"authorization", "Bearer #{api_key}"}
-        ]
+      if @extra_headers do
+        defp build_headers(api_key, config) do
+          base_headers = [
+            {"authorization", "Bearer #{api_key}"}
+          ]
 
-        # Add extra headers if defined
-        extra_headers_func = @extra_headers
-
-        if extra_headers_func && function_exported?(__MODULE__, extra_headers_func, 2) do
-          apply(__MODULE__, extra_headers_func, [base_headers, config])
-        else
-          base_headers
+          apply(__MODULE__, @extra_headers, [base_headers, config])
+        end
+      else
+        defp build_headers(api_key, _config) do
+          [
+            {"authorization", "Bearer #{api_key}"}
+          ]
         end
       end
 
-      defp get_base_url(config) do
-        base_url_env = @base_url_env
-
-        Map.get(config, :base_url) ||
-          (base_url_env && System.get_env(base_url_env)) ||
-          @default_base_url
+      if @base_url_env do
+        defp get_base_url(config) do
+          Map.get(config, :base_url) ||
+            System.get_env(@base_url_env) ||
+            @default_base_url
+        end
+      else
+        defp get_base_url(config) do
+          Map.get(config, :base_url) || @default_base_url
+        end
       end
 
       defp maybe_add_system_prompt(body, options) do
