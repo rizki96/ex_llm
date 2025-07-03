@@ -23,7 +23,6 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
   alias ExLLM.Infrastructure.Logger
   alias ExLLM.Pipeline.Request
 
-
   @default_timeout 30_000
   @default_receive_timeout 60_000
 
@@ -48,6 +47,10 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     body = request.private[:provider_request_body] || request.provider_request
 
     if body do
+      Logger.debug(
+        "ExecuteStreamRequest: provider=#{request.provider}, stream_callback=#{inspect(request.config[:stream_callback])}, coordinator=#{inspect(request.assigns[:stream_coordinator] || request.stream_pid)}"
+      )
+
       execute_stream_request(request, body, opts)
     else
       Request.halt_with_error(request, %{
@@ -154,90 +157,110 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     # Extract headers from the client's middleware  
     headers = extract_headers_from_client(client)
 
-    # For pipeline streaming, we need to create a stream that works with the mocked responses
-    # The tests use Tesla.Mock which returns a body with event-stream data
-    # Let's create a simple stream that processes the mock response
+    # Create a lazy stream that will perform HTTP streaming when consumed
     response_stream =
-      case Tesla.post(client, endpoint, body, headers: headers, opts: [timeout: stream_timeout]) do
-        {:ok, %{body: body, status: 200}} when is_binary(body) ->
-          # Parse the event-stream data into chunks
-          body
-          |> String.split("\n\n")
-          |> Enum.reject(&(&1 == "" or String.starts_with?(&1, "data: [DONE]")))
-          |> Enum.filter(&String.starts_with?(&1, "data: "))
-          |> Enum.map(fn line ->
-            line
-            |> String.replace("data: ", "")
-            |> String.trim()
-            |> Jason.decode!()
-          end)
-          |> Stream.map(fn chunk_data ->
-            # Convert to StreamChunk format based on provider
-            case request.provider do
-              :openai ->
-                choice = List.first(chunk_data["choices"] || [])
-                delta = choice["delta"] || %{}
+      Stream.resource(
+        fn ->
+          # Setup: start streaming task and create communication channels
+          parent = self()
+          stream_ref = make_ref()
+          chunk_buffer = :queue.new()
 
-                %ExLLM.Types.StreamChunk{
-                  content: delta["content"],
-                  finish_reason: choice["finish_reason"],
-                  id: chunk_data["id"],
-                  model: chunk_data["model"],
-                  metadata: %{provider: :openai, raw: chunk_data}
+          # Create callback to send chunks to parent
+          callback = fn chunk ->
+            Logger.debug(
+              "ExecuteStreamRequest callback received chunk: #{inspect(chunk, limit: 100)}"
+            )
+
+            send(parent, {stream_ref, {:chunk, chunk}})
+          end
+
+          # Start streaming task
+          {:ok, stream_pid} =
+            Task.start(fn ->
+              case request.provider do
+                :ollama ->
+                  # For Ollama, use async streaming to handle NDJSON in real-time
+                  stream_ollama_ndjson(
+                    client,
+                    endpoint,
+                    body,
+                    headers,
+                    stream_timeout,
+                    callback,
+                    parent,
+                    stream_ref
+                  )
+
+                _ ->
+                  # For other providers, use HTTP.Core.stream with SSE parsing
+                  parse_chunk_fn = &parse_openai_raw_chunk/1
+
+                  # Don't pass headers - the client already has them configured via middleware
+                  case ExLLM.Providers.Shared.HTTP.Core.stream(
+                         client,
+                         endpoint,
+                         body,
+                         callback,
+                         timeout: stream_timeout,
+                         parse_chunk: parse_chunk_fn
+                       ) do
+                    {:ok, _response} ->
+                      send(parent, {stream_ref, :stream_complete})
+
+                    {:error, reason} ->
+                      send(parent, {stream_ref, {:stream_error, reason}})
+                  end
+              end
+            end)
+
+          # Return initial state
+          {stream_ref, stream_pid, chunk_buffer, false}
+        end,
+        fn {stream_ref, stream_pid, buffer, done} ->
+          if done do
+            {:halt, {stream_ref, stream_pid, buffer, done}}
+          else
+            # Receive chunks or completion
+            receive do
+              {^stream_ref, {:chunk, chunk}} ->
+                new_buffer = :queue.in(chunk, buffer)
+
+                case :queue.out(new_buffer) do
+                  {{:value, next_chunk}, remaining_buffer} ->
+                    {[next_chunk], {stream_ref, stream_pid, remaining_buffer, false}}
+
+                  {:empty, empty_buffer} ->
+                    {[], {stream_ref, stream_pid, empty_buffer, false}}
+                end
+
+              {^stream_ref, :stream_complete} ->
+                # Drain any remaining chunks from buffer
+                remaining_chunks = :queue.to_list(buffer)
+                {remaining_chunks, {stream_ref, stream_pid, :queue.new(), true}}
+
+              {^stream_ref, {:stream_error, reason}} ->
+                error_chunk = %ExLLM.Types.StreamChunk{
+                  content: nil,
+                  finish_reason: "error",
+                  metadata: %{provider: request.provider, raw: %{error: reason}}
                 }
 
-              :anthropic ->
-                case chunk_data["type"] do
-                  "content_block_delta" ->
-                    %ExLLM.Types.StreamChunk{
-                      content: get_in(chunk_data, ["delta", "text"]),
-                      finish_reason: nil,
-                      metadata: %{provider: :anthropic, raw: chunk_data}
-                    }
-
-                  "message_delta" ->
-                    %ExLLM.Types.StreamChunk{
-                      content: nil,
-                      finish_reason: get_in(chunk_data, ["delta", "stop_reason"]),
-                      metadata: %{provider: :anthropic, raw: chunk_data}
-                    }
-
-                  _ ->
-                    %ExLLM.Types.StreamChunk{
-                      content: nil,
-                      finish_reason: nil,
-                      metadata: %{provider: :anthropic, raw: chunk_data}
-                    }
-                end
+                {[error_chunk], {stream_ref, stream_pid, :queue.new(), true}}
+            after
+              100 ->
+                # No chunk received in 100ms, yield empty and continue
+                {[], {stream_ref, stream_pid, buffer, false}}
             end
-          end)
-          # Remove nils
-          |> Enum.filter(& &1)
-
-        {:error, reason} ->
-          Stream.take(
-            [
-              %ExLLM.Types.StreamChunk{
-                content: nil,
-                finish_reason: "error",
-                metadata: %{provider: request.provider, raw: %{error: reason}}
-              }
-            ],
-            1
-          )
-
-        _ ->
-          Stream.take(
-            [
-              %ExLLM.Types.StreamChunk{
-                content: nil,
-                finish_reason: "error",
-                metadata: %{provider: request.provider, raw: %{error: "unknown_response"}}
-              }
-            ],
-            1
-          )
-      end
+          end
+        end,
+        fn {_stream_ref, stream_pid, _buffer, _done} ->
+          # Cleanup: ensure task is killed if stream is stopped early
+          if Process.alive?(stream_pid) do
+            Process.exit(stream_pid, :kill)
+          end
+        end
+      )
 
     # Set the response stream in assigns and mark as streaming
     request
@@ -259,30 +282,78 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
 
     Logger.debug("ExecuteStreamRequest direct stream using timeout: #{stream_timeout}ms")
 
-    {:ok, stream_pid} =
-      Task.start(fn ->
-        stream_response(
-          client,
-          endpoint,
-          body,
-          callback,
-          parent,
-          stream_ref,
-          opts ++ [provider: request.provider, timeout: stream_timeout]
-        )
-      end)
+    # For callback-based streaming, create a minimal stream that just signals completion
+    # The actual streaming happens via the callback in the task
+    response_stream =
+      Stream.resource(
+        fn ->
+          # Start the streaming task
+          {:ok, stream_pid} =
+            Task.start(fn ->
+              # This will handle the streaming and invoke callbacks
+              result =
+                stream_response(
+                  client,
+                  endpoint,
+                  body,
+                  callback,
+                  parent,
+                  stream_ref,
+                  opts ++ [provider: request.provider, timeout: stream_timeout]
+                )
 
-    %{request | stream_pid: stream_pid, stream_ref: stream_ref}
+              # Signal completion or error
+              case result do
+                {:ok, _response} -> send(parent, {:stream_complete, stream_ref})
+                {:error, reason} -> send(parent, {:stream_error, stream_ref, reason})
+              end
+            end)
+
+          {stream_ref, stream_pid, false}
+        end,
+        fn {ref, pid, done} ->
+          if done do
+            {:halt, {ref, pid, done}}
+          else
+            # Wait for streaming to complete
+            # Don't expect individual chunks - they're handled by the callback
+            receive do
+              {:stream_complete, ^ref} ->
+                # Streaming completed successfully, halt the stream
+                {:halt, {ref, pid, true}}
+
+              {:stream_error, ^ref, reason} ->
+                # Return error chunk and halt
+                error_chunk = %ExLLM.Types.StreamChunk{
+                  content: nil,
+                  finish_reason: "error",
+                  metadata: %{error: reason}
+                }
+
+                {[error_chunk], {ref, pid, true}}
+            after
+              100 ->
+                # Check periodically but don't timeout yet
+                {[], {ref, pid, false}}
+            end
+          end
+        end,
+        fn {_ref, pid, _done} ->
+          # Cleanup
+          if Process.alive?(pid) do
+            Process.exit(pid, :kill)
+          end
+        end
+      )
+
+    %{request | stream_pid: parent, stream_ref: stream_ref}
     |> Request.assign(:streaming_started, true)
+    |> Request.assign(:response_stream, response_stream)
     |> Request.put_metadata(:stream_start_time, System.monotonic_time(:millisecond))
+    |> Request.put_state(:streaming)
   end
 
   defp stream_to_coordinator(client, endpoint, body, coordinator, ref, opts) do
-    # Extract headers from the client's middleware
-    Logger.debug("Original client: #{inspect(client)}")
-    headers = extract_headers_from_client(client)
-    Logger.debug("Extracted headers: #{inspect(headers)}")
-
     # Create a callback that forwards chunks to coordinator
     callback = fn chunk ->
       send(coordinator, {:stream_chunk, ref, chunk})
@@ -291,12 +362,12 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     Logger.debug("Starting stream request to #{endpoint}")
 
     # Use HTTP.Core for streaming
+    # Note: Don't pass headers - the client already has them configured
     case ExLLM.Providers.Shared.HTTP.Core.stream(
            client,
            endpoint,
            body,
            callback,
-           headers: headers,
            timeout: opts[:timeout] || @default_timeout
          ) do
       {:ok, _response} ->
@@ -307,31 +378,25 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     end
   end
 
-  defp stream_response(client, endpoint, body, callback, parent, ref, opts) do
-    # Extract headers from the client's middleware
-    headers = extract_headers_from_client(client)
-
+  defp stream_response(client, endpoint, body, callback, _parent, _ref, opts) do
     # Use HTTP.Core for streaming
-    case ExLLM.Providers.Shared.HTTP.Core.stream(
-           client,
-           endpoint,
-           body,
-           callback,
-           headers: headers,
-           timeout: opts[:timeout] || @default_timeout
-         ) do
-      {:ok, _response} ->
-        send(parent, {:stream_complete, ref})
-
-      {:error, reason} ->
-        send(parent, {:stream_error, ref, reason})
-    end
+    # Note: Don't pass headers - the client already has them configured
+    # Return the result directly - the caller will handle signaling
+    ExLLM.Providers.Shared.HTTP.Core.stream(
+      client,
+      endpoint,
+      body,
+      callback,
+      timeout: opts[:timeout] || @default_timeout
+    )
   end
 
   defp get_endpoint(%Request{provider: provider, config: config}) do
     case provider do
-      :gemini -> build_gemini_endpoint(config)
-      _ -> 
+      :gemini ->
+        build_gemini_endpoint(config)
+
+      _ ->
         # For streaming, we need just the path, not the full URL
         # The Tesla client already has BaseUrl middleware configured
         config[:endpoint] || get_provider_path(provider)
@@ -358,5 +423,188 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       {Tesla.Middleware.Headers, :call, [headers]} -> headers
       _ -> nil
     end)
+  end
+
+  defp extract_ollama_usage(%{
+         "prompt_eval_count" => prompt_tokens,
+         "eval_count" => completion_tokens
+       }) do
+    %{
+      prompt_tokens: prompt_tokens,
+      completion_tokens: completion_tokens,
+      total_tokens: prompt_tokens + completion_tokens
+    }
+  end
+
+  defp extract_ollama_usage(_), do: %{}
+
+  # Real-time NDJSON streaming for Ollama using Tesla async
+  defp stream_ollama_ndjson(
+         client,
+         endpoint,
+         body,
+         _headers,
+         stream_timeout,
+         callback,
+         parent,
+         stream_ref
+       ) do
+    Logger.debug("Starting real-time Ollama NDJSON streaming")
+
+    # Use Tesla with async streaming - this returns immediately
+    # Note: Don't pass headers - the client already has them configured
+    case Tesla.post(client, endpoint, body,
+           opts: [adapter: [recv_timeout: stream_timeout, stream_to: self(), async: true]]
+         ) do
+      {:ok, _env} ->
+        Logger.debug("Ollama async stream initiated")
+        # Now handle the streaming response
+        handle_ollama_stream(callback, parent, stream_ref, stream_timeout, "")
+
+      {:error, reason} ->
+        Logger.error("Failed to initiate Ollama stream: #{inspect(reason)}")
+        send(parent, {stream_ref, {:stream_error, reason}})
+    end
+  end
+
+  # Handle incoming stream chunks from Ollama
+  defp handle_ollama_stream(callback, parent, stream_ref, timeout, buffer) do
+    receive do
+      {:hackney_response, _ref, {:status, _code, _reason}} ->
+        # Status received, continue
+        handle_ollama_stream(callback, parent, stream_ref, timeout, buffer)
+
+      {:hackney_response, _ref, {:headers, _headers}} ->
+        # Headers received, continue
+        handle_ollama_stream(callback, parent, stream_ref, timeout, buffer)
+
+      {:hackney_response, _ref, chunk} when is_binary(chunk) ->
+        # Process the chunk - Ollama sends NDJSON
+        new_buffer = buffer <> chunk
+        {complete_lines, remaining_buffer} = extract_ndjson_lines(new_buffer)
+
+        # Parse and send each complete line immediately
+        Enum.each(complete_lines, fn line ->
+          case parse_ollama_raw_chunk(line) do
+            {:ok, parsed_chunk} ->
+              callback.(parsed_chunk)
+
+            _ ->
+              :skip
+          end
+        end)
+
+        # Continue with remaining buffer
+        handle_ollama_stream(callback, parent, stream_ref, timeout, remaining_buffer)
+
+      {:hackney_response, _ref, :done} ->
+        # Stream completed
+        if buffer != "" do
+          # Process any remaining data
+          case parse_ollama_raw_chunk(buffer) do
+            {:ok, parsed_chunk} -> callback.(parsed_chunk)
+            _ -> :skip
+          end
+        end
+
+        send(parent, {stream_ref, :stream_complete})
+
+      {:hackney_response, _ref, {:error, reason}} ->
+        Logger.error("Ollama stream error: #{inspect(reason)}")
+        send(parent, {stream_ref, {:stream_error, reason}})
+
+      other ->
+        Logger.warn("Unexpected message in Ollama stream: #{inspect(other)}")
+        handle_ollama_stream(callback, parent, stream_ref, timeout, buffer)
+    after
+      timeout ->
+        Logger.error("Ollama stream timeout")
+        send(parent, {stream_ref, {:stream_error, :timeout}})
+    end
+  end
+
+  # Extract complete NDJSON lines from buffer
+  defp extract_ndjson_lines(buffer) do
+    case String.split(buffer, "\n", parts: 2) do
+      [complete_line, rest] ->
+        # Found a newline, extract the line and continue
+        {lines, final_buffer} = extract_ndjson_lines(rest)
+        {[complete_line | lines], final_buffer}
+
+      [incomplete] ->
+        # No newline found, this is the remaining buffer
+        {[], incomplete}
+    end
+  end
+
+  # Parse raw chunk data for Ollama (NDJSON format)
+  defp parse_ollama_raw_chunk(data) when is_binary(data) do
+    case Jason.decode(data) do
+      {:ok, %{"done" => true} = chunk_data} ->
+        # Final chunk with usage stats
+        {:ok,
+         %ExLLM.Types.StreamChunk{
+           content: "",
+           finish_reason: chunk_data["done_reason"] || "stop",
+           model: chunk_data["model"],
+           metadata: %{
+             provider: :ollama,
+             raw: chunk_data,
+             usage: extract_ollama_usage(chunk_data)
+           }
+         }}
+
+      {:ok, %{"message" => %{"content" => content}} = chunk_data} ->
+        {:ok,
+         %ExLLM.Types.StreamChunk{
+           content: content || "",
+           finish_reason: nil,
+           model: chunk_data["model"],
+           metadata: %{provider: :ollama, raw: chunk_data}
+         }}
+
+      {:ok, %{"response" => content} = chunk_data} ->
+        # Alternative format for some Ollama models
+        {:ok,
+         %ExLLM.Types.StreamChunk{
+           content: content || "",
+           finish_reason: nil,
+           model: chunk_data["model"],
+           metadata: %{provider: :ollama, raw: chunk_data}
+         }}
+
+      {:error, _} ->
+        {:error, :invalid_json}
+
+      _ ->
+        {:error, :unrecognized_format}
+    end
+  end
+
+  # Parse raw chunk data for OpenAI-compatible providers (SSE format)
+  defp parse_openai_raw_chunk(data) when is_binary(data) do
+    case Jason.decode(data) do
+      {:ok, parsed} ->
+        choices = parsed["choices"] || []
+
+        first_choice =
+          if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
+
+        delta = first_choice["delta"] || %{}
+        content = delta["content"] || delta["reasoning_content"]
+        finish_reason = first_choice["finish_reason"]
+
+        {:ok,
+         %ExLLM.Types.StreamChunk{
+           content: content,
+           finish_reason: finish_reason,
+           id: parsed["id"],
+           model: parsed["model"],
+           metadata: %{provider: :openai, raw: parsed}
+         }}
+
+      {:error, _} ->
+        {:error, :invalid_json}
+    end
   end
 end

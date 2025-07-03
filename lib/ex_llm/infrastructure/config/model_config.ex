@@ -247,7 +247,7 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
   ## Examples
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:openai)
-      {:ok, "gpt-4.1-mini"}
+      {:ok, "gpt-4o-mini"}
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model(:anthropic)
       {:ok, "claude-sonnet-4-20250514"}
@@ -292,7 +292,7 @@ defmodule ExLLM.Infrastructure.Config.ModelConfig do
   ## Examples
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model!(:openai)
-      "gpt-4.1-mini"
+      "gpt-4.1-nano"
 
       iex> ExLLM.Infrastructure.Config.ModelConfig.get_default_model!(:anthropic)
       "claude-sonnet-4-20250514"

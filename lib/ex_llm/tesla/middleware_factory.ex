@@ -103,8 +103,19 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   # Adds Headers middleware with provider-specific headers.
-  defp add_headers(middleware, provider, config, _opts) do
-    [{Tesla.Middleware.Headers, build_headers(provider, config)} | middleware]
+  defp add_headers(middleware, provider, config, opts) do
+    is_streaming = Keyword.get(opts, :is_streaming, false)
+    base_headers = build_headers(provider, config)
+
+    # Add streaming-specific headers if this is a streaming request
+    headers =
+      if is_streaming do
+        [{"accept", "text/event-stream"}, {"cache-control", "no-cache"} | base_headers]
+      else
+        base_headers
+      end
+
+    [{Tesla.Middleware.Headers, headers} | middleware]
   end
 
   # Adds CircuitBreaker middleware unless disabled or for streaming.
@@ -144,8 +155,16 @@ defmodule ExLLM.Tesla.MiddlewareFactory do
   end
 
   # Adds Timeout middleware.
-  defp add_timeout(middleware, _provider, config, _opts) do
-    [{Tesla.Middleware.Timeout, timeout: config[:timeout] || 60_000} | middleware]
+  defp add_timeout(middleware, _provider, config, opts) do
+    is_streaming = Keyword.get(opts, :is_streaming, false)
+
+    # Don't add timeout middleware for streaming requests
+    # as they use recv_timeout in the adapter instead
+    if is_streaming do
+      middleware
+    else
+      [{Tesla.Middleware.Timeout, timeout: config[:timeout] || 60_000} | middleware]
+    end
   end
 
   # Adds Telemetry middleware unless disabled.

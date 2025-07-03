@@ -20,97 +20,32 @@ defmodule ExLLM.Plugs.Providers.OllamaParseStreamResponse do
          String.contains?(request.response.body, "\n{") do
       create_stream_from_ndjson_body(request)
     else
-      # Set up stream parser configuration for real streaming
-      parser_config = %{
-        parse_chunk: &parse_ollama_chunk/1,
-        accumulator: %{
-          content: "",
-          role: "assistant",
-          model: nil,
-          done: false
+      # Check if ExecuteStreamRequest already set up streaming
+      if request.state == :streaming && request.assigns[:response_stream] do
+        # Streaming is already set up, just pass through
+        request
+      else
+        # Set up stream parser configuration for real streaming
+        parser_config = %{
+          parse_chunk: fn data -> parse_ollama_ndjson_chunk(data) end,
+          accumulator: %{
+            content: "",
+            role: nil,
+            finish_reason: nil,
+            model: nil
+          }
         }
-      }
 
-      # CRITICAL FIX: Set streaming state to halt pipeline for ALL streaming requests
-      request
-      |> Request.put_private(:stream_parser, parser_config)
-      |> Request.assign(:stream_parser_configured, true)
-      |> Request.put_state(:streaming)
+        # Store parser config but DON'T set streaming state yet
+        # Let ExecuteStreamRequest handle the actual streaming setup
+        request
+        |> Request.put_private(:stream_parser, parser_config)
+        |> Request.assign(:stream_parser_configured, true)
+      end
     end
   end
 
   def call(request, _opts), do: request
-
-  defp parse_ollama_chunk(chunk) when is_binary(chunk) do
-    # Ollama sends newline-delimited JSON
-    chunk
-    |> String.trim()
-    |> String.split("\n")
-    |> Enum.reduce({:continue, nil}, fn line, acc ->
-      case acc do
-        {:done, _} -> acc
-        _ -> parse_single_line(line)
-      end
-    end)
-  end
-
-  defp parse_single_line(""), do: {:continue, nil}
-
-  defp parse_single_line(line) do
-    case Jason.decode(line) do
-      {:ok, data} ->
-        parse_ollama_data(data)
-
-      {:error, _} ->
-        {:continue, nil}
-    end
-  end
-
-  defp parse_ollama_data(%{"done" => true} = data) do
-    # Final response with usage stats
-    usage = extract_usage(data)
-
-    {:done,
-     %{
-       content: "",
-       done: true,
-       model: data["model"],
-       usage: usage
-     }}
-  end
-
-  defp parse_ollama_data(%{"message" => %{"content" => content}} = data) do
-    {:continue,
-     %{
-       content: content || "",
-       role: data["message"]["role"] || "assistant",
-       model: data["model"]
-     }}
-  end
-
-  defp parse_ollama_data(%{"response" => content} = data) do
-    # Alternative format for some Ollama models
-    {:continue,
-     %{
-       content: content || "",
-       model: data["model"]
-     }}
-  end
-
-  defp parse_ollama_data(_), do: {:continue, nil}
-
-  defp extract_usage(%{
-         "prompt_eval_count" => prompt_tokens,
-         "eval_count" => completion_tokens
-       }) do
-    %{
-      prompt_tokens: prompt_tokens,
-      completion_tokens: completion_tokens,
-      total_tokens: prompt_tokens + completion_tokens
-    }
-  end
-
-  defp extract_usage(_), do: %{}
 
   defp create_stream_from_ndjson_body(request) do
     # Parse NDJSON lines from the response body
@@ -167,4 +102,76 @@ defmodule ExLLM.Plugs.Providers.OllamaParseStreamResponse do
   end
 
   defp parse_chunk_data(_), do: nil
+
+  defp parse_ollama_ndjson_chunk(data) when is_binary(data) do
+    # Ollama sends NDJSON (newline-delimited JSON)
+    # Each line is a complete JSON object
+    data
+    |> String.split("\n")
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.map(fn line ->
+      case Jason.decode(line) do
+        {:ok, json_data} ->
+          parse_ollama_json_chunk(json_data)
+
+        {:error, _} ->
+          nil
+      end
+    end)
+    |> Enum.reject(&is_nil/1)
+    |> case do
+      [] -> nil
+      [chunk] -> chunk
+      # Multiple chunks in one data packet
+      chunks -> chunks
+    end
+  end
+
+  defp parse_ollama_json_chunk(%{"done" => true} = data) do
+    # Final chunk with usage stats
+    %ExLLM.Types.StreamChunk{
+      content: "",
+      finish_reason: data["done_reason"] || "stop",
+      model: data["model"],
+      metadata: %{
+        provider: :ollama,
+        raw: data,
+        usage: extract_ollama_usage(data)
+      }
+    }
+  end
+
+  defp parse_ollama_json_chunk(%{"message" => %{"content" => content}} = data) do
+    %ExLLM.Types.StreamChunk{
+      content: content || "",
+      finish_reason: nil,
+      model: data["model"],
+      metadata: %{provider: :ollama, raw: data}
+    }
+  end
+
+  defp parse_ollama_json_chunk(%{"response" => content} = data) do
+    # Alternative format for some Ollama models
+    %ExLLM.Types.StreamChunk{
+      content: content || "",
+      finish_reason: nil,
+      model: data["model"],
+      metadata: %{provider: :ollama, raw: data}
+    }
+  end
+
+  defp parse_ollama_json_chunk(_), do: nil
+
+  defp extract_ollama_usage(%{
+         "prompt_eval_count" => prompt_tokens,
+         "eval_count" => completion_tokens
+       }) do
+    %{
+      prompt_tokens: prompt_tokens,
+      completion_tokens: completion_tokens,
+      total_tokens: prompt_tokens + completion_tokens
+    }
+  end
+
+  defp extract_ollama_usage(_), do: %{}
 end

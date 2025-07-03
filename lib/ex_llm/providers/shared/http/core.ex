@@ -75,26 +75,18 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
           {:ok, Tesla.Env.t()} | {:error, term()}
   def stream(client, path, body, callback, opts \\ []) do
     parse_chunk_fn = Keyword.get(opts, :parse_chunk, &default_parse_chunk/1)
-    user_headers = Keyword.get(opts, :headers, [])
-    normalized_headers = normalize_headers(user_headers)
 
     # Prepare streaming body (ensure stream: true is set)
     streaming_body =
       body
       |> ensure_map()
-      |> Map.put("stream", true)
-
-    # Use the existing client's middleware but ensure we have proper headers for streaming
-    headers =
-      [
-        {"accept", "text/event-stream"},
-        {"cache-control", "no-cache"}
-      ] ++ normalized_headers
+      |> ensure_stream_flag()
 
     # Check if we're in test mode
     if Application.get_env(:ex_llm, :use_tesla_mock, false) do
       # Test mode: Use regular post and simulate streaming
-      case Tesla.post(client, path, streaming_body, headers: headers) do
+      # Don't pass headers - the client already has them configured via middleware
+      case Tesla.post(client, path, streaming_body) do
         {:ok, response} ->
           # Check if response contains SSE data and simulate streaming
           if is_binary(response.body) && String.contains?(response.body, "data:") do
@@ -109,28 +101,64 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
     else
       # Production mode: Use direct streaming without blocking tasks
       Logger.debug("HTTP.Core starting streaming POST to path: #{path}")
-      Logger.debug("Client: #{inspect(client)}")
-      Logger.debug("Headers: #{inspect(headers)}")
       Logger.debug("Body keys: #{inspect(Map.keys(streaming_body))}")
 
       # Get configurable timeout from opts
       stream_timeout = Keyword.get(opts, :timeout, 300_000)
       Logger.debug("HTTP.Core using stream timeout: #{stream_timeout}ms")
 
-      Logger.debug(
-        "HTTP.Core Tesla.post: path=#{inspect(path)}, client_middleware=#{inspect(client.pre)}"
-      )
+      # For streaming, we need to create a new client with specific adapter options
+      # The original client may not have async streaming configured
+      streaming_client = build_streaming_client(client, stream_timeout)
 
-      case Tesla.post(client, path, streaming_body,
-             headers: headers,
-             opts: [adapter: [recv_timeout: stream_timeout, stream_to: self(), async: true]]
-           ) do
-        {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
-          Logger.debug("HTTP.Core got initial response, status: #{status}")
-          # Handle streaming chunks with configurable timeout
-          result = handle_stream_chunks(callback, parse_chunk_fn, stream_timeout)
-          Logger.debug("HTTP.Core streaming result: #{inspect(result)}")
-          {:ok, env}
+      # Don't pass headers - the client already has them configured via middleware
+      case Tesla.post(streaming_client, path, streaming_body) do
+        {:ok, %Tesla.Env{status: status, body: body} = env} when status in 200..299 ->
+          Logger.debug(
+            "HTTP.Core got initial async response, status: #{status}, body type: #{inspect(body) |> String.slice(0, 100)}"
+          )
+
+          # Check if body is a reference (true async) or if we got the full body
+          cond do
+            is_reference(body) ->
+              # True async streaming - body is a reference
+              Logger.debug("HTTP.Core using async streaming with reference")
+              result = handle_stream_chunks(callback, parse_chunk_fn, stream_timeout)
+              Logger.debug("HTTP.Core streaming result: #{inspect(result)}")
+              {:ok, env}
+
+            is_binary(body) ->
+              # Got full body - adapter didn't stream. Check if it's SSE.
+              if String.contains?(body, "data:") do
+                Logger.debug("HTTP.Core received full SSE body, processing...")
+                simulate_streaming_from_body(body, callback, parse_chunk_fn)
+                {:ok, env}
+              else
+                # Received a binary body that is not SSE. This is unexpected for a 2xx streaming response.
+                Logger.error(
+                  "HTTP.Core received non-SSE binary body for 2xx response: #{inspect(body)}"
+                )
+
+                {:error, {:unexpected_streaming_body, body}}
+              end
+
+            true ->
+              # Unexpected body type (neither reference nor binary)
+              Logger.error(
+                "HTTP.Core received unexpected body type for 2xx response: #{inspect(body)}"
+              )
+
+              {:error, {:unexpected_streaming_body_type, body}}
+          end
+
+        {:ok, %Tesla.Env{body: {:error, :req_timedout}}} ->
+          # Handle timeout from async request
+          {:error, :timeout}
+
+        {:ok, %Tesla.Env{} = env} ->
+          # Non-200 status or other response
+          Logger.debug("HTTP.Core got non-streaming response: #{inspect(env.status)}")
+          {:error, {:api_error, env.status}}
 
         {:ok, response} ->
           {:error, {:api_error, response.status}}
@@ -403,7 +431,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
           if is_list(choices) and length(choices) > 0, do: Enum.at(choices, 0), else: %{}
 
         delta = first_choice["delta"] || %{}
-        content = delta["content"] || ""
+        content = delta["content"] || delta["reasoning_content"] || ""
         finish_reason = first_choice["finish_reason"]
 
         chunk = %ExLLM.Types.StreamChunk{
@@ -435,16 +463,46 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   defp ensure_map(data) when is_map(data), do: data
   defp ensure_map(data), do: %{"data" => data}
 
-  defp normalize_headers(headers) when is_list(headers) do
-    Enum.map(headers, fn
-      {key, value} -> {to_string(key), to_string(value)}
-      header -> header
-    end)
+  defp ensure_stream_flag(body) do
+    # Check if stream flag already exists with either atom or string key
+    if Map.has_key?(body, :stream) || Map.has_key?(body, "stream") do
+      # Ensure we have atom key and remove any string key
+      body
+      |> Map.delete("stream")
+      |> Map.put(:stream, true)
+    else
+      # No stream flag exists, add it
+      Map.put(body, :stream, true)
+    end
   end
 
-  defp normalize_headers(headers) when is_map(headers) do
-    Enum.map(headers, fn {key, value} ->
-      {to_string(key), to_string(value)}
-    end)
+  defp build_streaming_client(
+         %Tesla.Client{pre: middleware, adapter: _original_adapter} = _client,
+         timeout
+       ) do
+    # Create a new client specifically for streaming
+    # We need to copy the middleware but use a streaming-enabled adapter
+    streaming_adapter = {
+      ExLLM.Providers.Shared.HTTP.SafeHackneyAdapter,
+      [
+        recv_timeout: timeout,
+        stream_to: self(),
+        async: true,
+        with_body: false,
+        follow_redirect: true,
+        max_redirect: 3
+      ]
+    }
+
+    # Convert middleware from runtime format to builder format
+    # Tesla stores middleware as {module, :call, [args]} in runtime format
+    builder_middleware =
+      Enum.map(middleware, fn
+        {module, :call, []} -> module
+        {module, :call, [args]} -> {module, args}
+        other -> other
+      end)
+
+    Tesla.client(builder_middleware, streaming_adapter)
   end
 end

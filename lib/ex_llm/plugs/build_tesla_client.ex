@@ -26,11 +26,24 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
 
   use ExLLM.Plug
   alias ExLLM.Tesla.MiddlewareFactory
+  require Logger
 
   @impl true
-  def call(%Request{provider: provider, config: config} = request, _opts) do
+  def call(%Request{provider: provider, config: config, options: options} = request, _opts) do
     # Check if this is a streaming request
-    is_streaming = config[:stream] == true
+    # Check in both config and options for stream flags
+    is_streaming =
+      config[:stream] == true ||
+        config[:streaming] == true ||
+        options[:stream] == true ||
+        options[:streaming] == true ||
+        is_function(config[:stream_callback], 1) ||
+        is_function(options[:stream_callback], 1)
+
+    Logger.debug(
+      "BuildTeslaClient: provider=#{provider}, is_streaming=#{is_streaming}, config.stream=#{config[:stream]}, options.stream=#{options[:stream]}, has_callback=#{is_function(config[:stream_callback], 1) || is_function(options[:stream_callback], 1)}"
+    )
+
     client = build_client(provider, config, is_streaming)
     %{request | tesla_client: client}
   end

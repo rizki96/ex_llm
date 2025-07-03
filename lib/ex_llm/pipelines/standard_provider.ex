@@ -189,19 +189,21 @@ defmodule ExLLM.Pipelines.StandardProvider do
 
     @impl true
     def call(request, _opts) do
-      Logger.debug("PrepareStreaming called, config: #{inspect(request.config)}")
+      Logger.debug("PrepareStreaming called, options: #{inspect(request.options)}")
 
-      # Move on_chunk callback to stream_callback in config
-      config =
-        if callback = request.config[:on_chunk] do
-          Logger.debug("Found on_chunk callback, moving to stream_callback")
-          Map.put(request.config, :stream_callback, callback)
-        else
+      # Move on_chunk callback from options to stream_callback in config
+      case Map.get(request.options, :on_chunk) do
+        callback when is_function(callback, 1) ->
+          Logger.debug("Found on_chunk callback in options, moving to stream_callback in config")
+          updated_config = Map.put(request.config, :stream_callback, callback)
+          # Remove from options to avoid confusion
+          updated_options = Map.delete(request.options, :on_chunk)
+          %{request | config: updated_config, options: updated_options}
+
+        _ ->
           Logger.debug("No on_chunk callback found")
-          request.config
-        end
-
-      %{request | config: config}
+          request
+      end
     end
   end
 
