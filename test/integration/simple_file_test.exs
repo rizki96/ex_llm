@@ -1,5 +1,9 @@
 defmodule SimpleFileTest do
   use ExUnit.Case
+  
+  @moduletag :integration
+  @moduletag :file_management
+  @moduletag timeout: 30_000
 
   test "direct provider call" do
     # Test if we can call the provider directly
