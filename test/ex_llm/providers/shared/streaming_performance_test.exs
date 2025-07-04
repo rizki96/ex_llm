@@ -120,10 +120,17 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
       IO.puts("StreamingCoordinator: #{coordinator_latency}ms")
 
       # Latency should not increase significantly
-      # Max 50% higher latency
-      assert new_latency <= legacy_latency * 1.5
-      # Max 2x latency (due to extra abstraction)
-      assert coordinator_latency <= legacy_latency * 2
+      # Handle zero latency case and allow reasonable thresholds
+      if legacy_latency > 0 do
+        # Max 50% higher latency when there's measurable baseline
+        assert new_latency <= legacy_latency * 1.5
+        # Max 2x latency (due to extra abstraction)
+        assert coordinator_latency <= legacy_latency * 2
+      else
+        # For zero latency baseline, allow reasonable absolute thresholds
+        assert new_latency <= 10  # Max 10ms when baseline is unmeasurable
+        assert coordinator_latency <= 20  # Max 20ms for coordinator
+      end
     end
   end
 
