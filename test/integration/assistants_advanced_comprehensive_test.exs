@@ -923,7 +923,10 @@ defmodule ExLLM.Integration.AssistantsAdvancedComprehensiveTest do
                                               assert length(tool_steps) >= 1
 
                                             {:error, error} ->
-                                              IO.puts("Run steps listing failed: #{inspect(error)}")
+                                              IO.puts(
+                                                "Run steps listing failed: #{inspect(error)}"
+                                              )
+
                                               assert is_map(error)
                                           end
 

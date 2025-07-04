@@ -1,6 +1,6 @@
 defmodule SimpleFileTest do
   use ExUnit.Case
-  
+
   @moduletag :integration
   @moduletag :file_management
   @moduletag timeout: 30_000

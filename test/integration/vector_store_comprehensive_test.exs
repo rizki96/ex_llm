@@ -310,7 +310,9 @@ defmodule ExLLM.Integration.VectorStoreComprehensiveTest do
           assert Map.has_key?(response, "embedding") or Map.has_key?(response, "embeddings")
 
         {:error, error} ->
-          IO.puts("Gemini embedding generation failed (may require different auth): #{inspect(error)}")
+          IO.puts(
+            "Gemini embedding generation failed (may require different auth): #{inspect(error)}"
+          )
 
           assert is_map(error) or is_atom(error) or is_binary(error)
       end

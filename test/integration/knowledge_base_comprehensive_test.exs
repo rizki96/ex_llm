@@ -230,7 +230,10 @@ defmodule ExLLM.Integration.KnowledgeBaseComprehensiveTest do
           cleanup_knowledge_base(kb["name"])
 
         {:error, error} ->
-          IO.puts("Knowledge base creation failed (skipping document list test): #{inspect(error)}")
+          IO.puts(
+            "Knowledge base creation failed (skipping document list test): #{inspect(error)}"
+          )
+
           assert is_map(error)
       end
     end
@@ -279,7 +282,10 @@ defmodule ExLLM.Integration.KnowledgeBaseComprehensiveTest do
           cleanup_knowledge_base(kb["name"])
 
         {:error, error} ->
-          IO.puts("Knowledge base creation failed (skipping document get test): #{inspect(error)}")
+          IO.puts(
+            "Knowledge base creation failed (skipping document get test): #{inspect(error)}"
+          )
+
           assert is_map(error)
       end
     end
@@ -333,7 +339,9 @@ defmodule ExLLM.Integration.KnowledgeBaseComprehensiveTest do
           cleanup_knowledge_base(kb["name"])
 
         {:error, error} ->
-          IO.puts("Knowledge base creation failed (skipping document delete test): #{inspect(error)}")
+          IO.puts(
+            "Knowledge base creation failed (skipping document delete test): #{inspect(error)}"
+          )
 
           assert is_map(error)
       end
@@ -476,7 +484,9 @@ defmodule ExLLM.Integration.KnowledgeBaseComprehensiveTest do
           cleanup_knowledge_base(kb["name"])
 
         {:error, error} ->
-          IO.puts("Knowledge base creation failed (skipping filtered search test): #{inspect(error)}")
+          IO.puts(
+            "Knowledge base creation failed (skipping filtered search test): #{inspect(error)}"
+          )
 
           assert is_map(error)
       end
