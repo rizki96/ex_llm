@@ -19,24 +19,25 @@ defmodule ExLLM.Integration.FileManagementTest do
         assert {:ok, file} =
                  ExLLM.FileManager.upload_file(:openai, file_path, purpose: "assistants")
 
-        assert file.id
-        assert file.filename == "sample.txt"
-        assert file.purpose == "assistants"
-        assert file.bytes == byte_size(minimal_text_content())
+        assert file["id"]
+        assert file["filename"] == "sample.txt"
+        assert file["purpose"] == "assistants"
+        assert file["bytes"] == byte_size(minimal_text_content())
 
         # Track tokens for cost (estimate: 10 tokens each way)
         track_tokens(:openai, "gpt-3.5-turbo", 10, 10)
 
         # Retrieve file
-        assert {:ok, retrieved} = ExLLM.FileManager.get_file(:openai, file.id)
-        assert retrieved.id == file.id
-        assert retrieved.filename == file.filename
+        assert {:ok, retrieved} = ExLLM.FileManager.get_file(:openai, file["id"])
+        assert retrieved["id"] == file["id"]
+        assert retrieved["filename"] == file["filename"]
 
         # Delete file
-        assert {:ok, _} = ExLLM.FileManager.delete_file(:openai, file.id)
+        assert {:ok, _} = ExLLM.FileManager.delete_file(:openai, file["id"])
 
         # Verify deletion
-        assert {:error, %{status: 404}} = ExLLM.FileManager.get_file(:openai, file.id)
+        assert {:error, error} = ExLLM.FileManager.get_file(:openai, file["id"])
+        assert error.status_code == 404 or error.status == 404
       end)
     end
   end
@@ -59,7 +60,7 @@ defmodule ExLLM.Integration.FileManagementTest do
 
             # Cleanup on exit
             on_exit(fn ->
-              ExLLM.FileManager.delete_file(:openai, file.id)
+              ExLLM.FileManager.delete_file(:openai, file["id"])
             end)
 
             file
@@ -98,15 +99,15 @@ defmodule ExLLM.Integration.FileManagementTest do
         {:ok, uploaded} = ExLLM.FileManager.upload_file(:openai, file_path, purpose: "assistants")
 
         on_exit(fn ->
-          ExLLM.FileManager.delete_file(:openai, uploaded.id)
+          ExLLM.FileManager.delete_file(:openai, uploaded["id"])
         end)
 
         # List files
         assert {:ok, files} = ExLLM.FileManager.list_files(:openai)
-        assert is_list(files.data)
+        assert is_list(files["data"])
 
         # Our file should be in the list
-        assert Enum.any?(files.data, &(&1.id == uploaded.id))
+        assert Enum.any?(files["data"], &(&1["id"] == uploaded["id"]))
 
         track_tokens(:openai, "gpt-3.5-turbo", 20, 20)
       end)
@@ -120,16 +121,16 @@ defmodule ExLLM.Integration.FileManagementTest do
           ExLLM.FileManager.upload_file(:openai, text_file_path(), purpose: "assistants")
 
         on_exit(fn ->
-          ExLLM.FileManager.delete_file(:openai, file.id)
+          ExLLM.FileManager.delete_file(:openai, file["id"])
         end)
 
         # Get metadata
-        assert {:ok, metadata} = ExLLM.FileManager.get_file(:openai, file.id)
+        assert {:ok, metadata} = ExLLM.FileManager.get_file(:openai, file["id"])
 
-        assert metadata.id == file.id
-        assert metadata.object == "file"
-        assert metadata.created_at
-        assert metadata.purpose == "assistants"
+        assert metadata["id"] == file["id"]
+        assert metadata["object"] == "file"
+        assert metadata["created_at"]
+        assert metadata["purpose"] == "assistants"
 
         track_tokens(:openai, "gpt-3.5-turbo", 10, 10)
       end)
@@ -145,12 +146,13 @@ defmodule ExLLM.Integration.FileManagementTest do
           ExLLM.FileManager.upload_file(:openai, text_file_path(), purpose: "assistants")
 
         # Delete it
-        assert {:ok, deleted} = ExLLM.FileManager.delete_file(:openai, file.id)
-        assert deleted.id == file.id
-        assert deleted.deleted == true
+        assert {:ok, deleted} = ExLLM.FileManager.delete_file(:openai, file["id"])
+        assert deleted["id"] == file["id"]
+        assert deleted["deleted"] == true
 
         # Verify it's gone
-        assert {:error, %{status: 404}} = ExLLM.FileManager.get_file(:openai, file.id)
+        assert {:error, error} = ExLLM.FileManager.get_file(:openai, file["id"])
+        assert error.status_code == 404 or error.status == 404
 
         track_tokens(:openai, "gpt-3.5-turbo", 10, 10)
       end)
@@ -207,10 +209,10 @@ defmodule ExLLM.Integration.FileManagementTest do
 
           assert {:ok, file} = ExLLM.FileManager.upload_file(:openai, file_path, purpose: purpose)
 
-          assert file.purpose == purpose
+          assert file["purpose"] == purpose
 
           # Cleanup
-          ExLLM.FileManager.delete_file(:openai, file.id)
+          ExLLM.FileManager.delete_file(:openai, file["id"])
         end
 
         track_tokens(:openai, "gpt-3.5-turbo", 20, 20)
@@ -234,17 +236,17 @@ defmodule ExLLM.Integration.FileManagementTest do
                  ExLLM.FileManager.upload_file(:gemini, file_path, display_name: "Test File")
 
         # Gemini returns name instead of id
-        assert file.name
-        assert file.display_name == "Test File"
+        assert file["name"]
+        assert file["display_name"] == "Test File"
 
         on_exit(fn ->
           # Gemini file cleanup
-          ExLLM.FileManager.delete_file(:gemini, file.name)
+          ExLLM.FileManager.delete_file(:gemini, file["name"])
         end)
 
         # Verify file exists
-        assert {:ok, retrieved} = ExLLM.FileManager.get_file(:gemini, file.name)
-        assert retrieved.name == file.name
+        assert {:ok, retrieved} = ExLLM.FileManager.get_file(:gemini, file["name"])
+        assert retrieved["name"] == file["name"]
 
         track_tokens(:gemini, "gemini-2.0-flash", 10, 10)
       end)
@@ -256,24 +258,24 @@ defmodule ExLLM.Integration.FileManagementTest do
     test "concurrent upload test" do
       with_provider(:openai, fn ->
         # Upload 3 files concurrently
-        tasks =
+        # Create files upfront for cleanup
+        temp_files =
           for i <- 1..3 do
+            content = "Test file #{i}"
+            path = Path.join(System.tmp_dir!(), "concurrent_#{i}.txt")
+            File.write!(path, content)
+            on_exit(fn -> File.rm(path) end)
+            path
+          end
+
+        tasks =
+          for path <- temp_files do
             Task.async(fn ->
-              # Create unique content for each file
-              content = "Test file #{i}"
-              path = Path.join(System.tmp_dir!(), "concurrent_#{i}.txt")
-              File.write!(path, content)
-
-              on_exit(fn -> File.rm(path) end)
-
               result = ExLLM.FileManager.upload_file(:openai, path, purpose: "assistants")
 
               case result do
                 {:ok, file} ->
-                  on_exit(fn ->
-                    ExLLM.FileManager.delete_file(:openai, file.id)
-                  end)
-
+                  # Return file for cleanup outside task
                   {:ok, file}
 
                 error ->
@@ -283,6 +285,13 @@ defmodule ExLLM.Integration.FileManagementTest do
           end
 
         results = Task.await_many(tasks, 10_000)
+
+        # Cleanup uploaded files
+        for {:ok, file} <- results do
+          on_exit(fn ->
+            ExLLM.FileManager.delete_file(:openai, file["id"])
+          end)
+        end
 
         # All should succeed
         assert Enum.all?(results, fn

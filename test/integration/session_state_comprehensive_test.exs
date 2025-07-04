@@ -216,7 +216,7 @@ defmodule ExLLM.Integration.SessionStateComprehensiveTest do
       # Calculate cumulative values
       cumulative_prompt_tokens = Enum.sum(Enum.map(cost_data, & &1.prompt_tokens))
       cumulative_completion_tokens = Enum.sum(Enum.map(cost_data, & &1.completion_tokens))
-      cumulative_cost = Enum.sum(Enum.map(cost_data, & &1.total_cost))
+      _cumulative_cost = Enum.sum(Enum.map(cost_data, & &1.total_cost))
 
       IO.puts("\nToken & Cost Tracking Test:")
       IO.puts("Turn-by-turn breakdown:")

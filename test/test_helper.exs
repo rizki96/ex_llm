@@ -44,6 +44,83 @@ Enum.each(logger_config, fn {key, value} ->
   Application.put_env(:logger, key, value)
 end)
 
+# Add cost report callback for integration tests
+defmodule ExLLM.Testing.CostReportCallback do
+  @moduledoc """
+  ExUnit callback to display cost reports after test suite completion.
+  """
+
+  use GenServer
+
+  def start_link do
+    GenServer.start_link(__MODULE__, %{}, name: __MODULE__)
+  end
+
+  def init(state) do
+    # Register for ExUnit completion events
+    ExUnit.after_suite(&generate_cost_report/1)
+    {:ok, state}
+  end
+
+  defp generate_cost_report(%{failures: _failures}) do
+    try do
+      report = ExLLM.Testing.CostTracker.generate_report()
+
+      if report.total_cost > 0 do
+        IO.puts("\n" <> String.duplicate("=", 60))
+        IO.puts("🏷️  API COST REPORT")
+        IO.puts(String.duplicate("=", 60))
+        IO.puts("📊 Total Cost: $#{report.total_cost}")
+        IO.puts("📡 Total Requests: #{report.total_requests}")
+        IO.puts("🧪 Tests with API Usage: #{report.test_count}")
+
+        if length(report.top_expensive_tests) > 0 do
+          IO.puts("\n💰 Most Expensive Tests:")
+
+          report.top_expensive_tests
+          |> Enum.take(5)
+          |> Enum.with_index(1)
+          |> Enum.each(fn {%{test: test, cost: cost}, index} ->
+            IO.puts("   #{index}. #{test}: $#{cost}")
+          end)
+        end
+
+        if length(report.cost_by_provider) > 0 do
+          IO.puts("\n🔌 Cost by Provider:")
+
+          report.cost_by_provider
+          |> Enum.sort_by(& &1.cost, :desc)
+          |> Enum.each(fn %{provider: provider, cost: cost} ->
+            IO.puts("   #{provider}: $#{cost}")
+          end)
+        end
+
+        # Warn if approaching budget limits
+        cond do
+          report.total_cost > 40.0 ->
+            IO.puts("\n⚠️  WARNING: Approaching total budget limit ($50.00)")
+
+          report.total_cost > 25.0 ->
+            IO.puts("\n💡 INFO: 50% of budget used ($50.00 total)")
+
+          true ->
+            :ok
+        end
+
+        IO.puts(String.duplicate("=", 60) <> "\n")
+      end
+    rescue
+      error ->
+        IO.puts("\n⚠️  Failed to generate cost report: #{inspect(error)}")
+    end
+
+    :ok
+  end
+end
+
+# Start cost report callback
+{:ok, _} = ExLLM.Testing.CostReportCallback.start_link()
+
 # Load environment variables from .env file if available
 # Try loading from .env file
 env_result =

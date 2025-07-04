@@ -1,5 +1,5 @@
 defmodule ExLLM.InputValidationTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   @moduledoc """
   Tests input validation and boundary conditions for user-configurable parameters

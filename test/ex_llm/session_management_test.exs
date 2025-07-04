@@ -18,7 +18,7 @@ defmodule ExLLM.SessionManagementTest do
       assert %Types.Session{} = session
       assert session.id
       assert session.messages == []
-      assert session.context == %{}
+      assert session.context == %{config: %{}}
       assert session.token_usage == %{input_tokens: 0, output_tokens: 0}
       assert session.created_at
     end
@@ -244,7 +244,7 @@ defmodule ExLLM.SessionManagementTest do
       assert session.llm_backend == "anthropic"
       assert session.name == "Test Chat"
       assert session.messages == []
-      assert session.context == %{}
+      assert session.context == %{config: %{}}
       assert session.created_at
       assert session.updated_at
       assert session.token_usage
