@@ -184,6 +184,10 @@ defmodule ExLLM.Pipelines.StandardProvider do
 
   # Helper plug to prepare streaming configuration
   defmodule PrepareStreaming do
+    @moduledoc """
+    Prepares streaming configuration by extracting the on_chunk callback
+    from options and setting appropriate config values.
+    """
     use ExLLM.Plug
     alias ExLLM.Infrastructure.Logger
 
@@ -209,6 +213,10 @@ defmodule ExLLM.Pipelines.StandardProvider do
 
   # Pass-through plug for non-streaming requests
   defmodule PassThrough do
+    @moduledoc """
+    A no-op plug that passes requests through unchanged.
+    Useful for testing pipeline behavior.
+    """
     use ExLLM.Plug
 
     @impl true

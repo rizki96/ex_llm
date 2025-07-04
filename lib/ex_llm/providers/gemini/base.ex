@@ -180,10 +180,18 @@ defmodule ExLLM.Providers.Gemini.Base do
 
   # Core HTTP client helper for Gemini API
   defp gemini_core_request(method, url, body, _headers, opts) do
+    client = build_gemini_client(url, opts)
+    path = get_path_from_url(url)
+    timeout = Keyword.get(opts, :timeout, 60_000)
+
+    result = execute_request(client, method, path, body, timeout)
+    handle_response(result)
+  end
+
+  defp build_gemini_client(url, opts) do
     # Extract configuration from opts
     api_key = get_api_key_from_opts(opts)
     oauth_token = get_oauth_token_from_opts(opts)
-    timeout = Keyword.get(opts, :timeout, 60_000)
 
     # Create client with Gemini-specific configuration  
     client_opts = [
@@ -191,52 +199,61 @@ defmodule ExLLM.Providers.Gemini.Base do
       base_url: get_base_url_from_full_url(url)
     ]
 
-    client_opts =
-      cond do
-        oauth_token -> Keyword.put(client_opts, :oauth_token, oauth_token)
-        api_key -> Keyword.put(client_opts, :api_key, api_key)
-        true -> client_opts
-      end
+    client_opts = add_auth_to_client_opts(client_opts, api_key, oauth_token)
+    Core.client(client_opts)
+  end
 
-    client = Core.client(client_opts)
+  defp add_auth_to_client_opts(client_opts, _api_key, oauth_token) when not is_nil(oauth_token) do
+    Keyword.put(client_opts, :oauth_token, oauth_token)
+  end
 
-    # Extract path from full URL
-    path = get_path_from_url(url)
+  defp add_auth_to_client_opts(client_opts, api_key, _oauth_token) when not is_nil(api_key) do
+    Keyword.put(client_opts, :api_key, api_key)
+  end
 
-    # Execute request
-    result =
-      case method do
-        :get -> Tesla.get(client, path, opts: [timeout: timeout])
-        :post -> Tesla.post(client, path, body || %{}, opts: [timeout: timeout])
-        :patch -> Tesla.patch(client, path, body || %{}, opts: [timeout: timeout])
-        :delete -> Tesla.delete(client, path, opts: [timeout: timeout])
-      end
+  defp add_auth_to_client_opts(client_opts, _api_key, _oauth_token) do
+    client_opts
+  end
 
-    # Convert Tesla response to expected format
-    case result do
-      {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
-        # Try to decode JSON if it's a string
-        parsed_body =
-          case body do
-            body when is_binary(body) ->
-              case Jason.decode(body) do
-                {:ok, parsed} -> parsed
-                {:error, _} -> body
-              end
+  defp execute_request(client, :get, path, _body, timeout) do
+    Tesla.get(client, path, opts: [timeout: timeout])
+  end
 
-            body ->
-              body
-          end
+  defp execute_request(client, :post, path, body, timeout) do
+    Tesla.post(client, path, body || %{}, opts: [timeout: timeout])
+  end
 
-        {:ok, parsed_body}
+  defp execute_request(client, :patch, path, body, timeout) do
+    Tesla.patch(client, path, body || %{}, opts: [timeout: timeout])
+  end
 
-      {:ok, %Tesla.Env{status: status, body: body}} ->
+  defp execute_request(client, :delete, path, _body, timeout) do
+    Tesla.delete(client, path, opts: [timeout: timeout])
+  end
+
+  defp handle_response({:ok, env}) do
+    case ExLLM.HTTP.handle_response(env) do
+      {:ok, body} ->
+        {:ok, parse_response_body(body)}
+
+      {:error, _env} ->
+        {status, body} = ExLLM.HTTP.get_error_info(env)
         {:error, %{status: status, body: body}}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
+
+  defp handle_response({:error, reason}) do
+    {:error, reason}
+  end
+
+  defp parse_response_body(body) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, parsed} -> parsed
+      {:error, _} -> body
+    end
+  end
+
+  defp parse_response_body(body), do: body
 
   # Helper to extract API key from opts (could be in nested structure)
   defp get_api_key_from_opts(opts) do

@@ -860,71 +860,70 @@ defmodule ExLLM.Providers.Anthropic do
   # HTTP client helper functions using HTTP.Core
 
   defp anthropic_request(method, url, body, headers, api_key, opts \\ []) do
-    # Create client with Anthropic-specific configuration
+    client = build_anthropic_client(url, api_key)
+    path = get_path_from_url(url)
+    timeout = Keyword.get(opts, :timeout, 60_000)
+
+    result = execute_anthropic_request(client, method, path, body, headers, timeout)
+    handle_anthropic_response(result, method)
+  end
+
+  defp build_anthropic_client(url, api_key) do
     client_opts = [
       provider: :anthropic,
       base_url: get_base_url_from_full_url(url)
     ]
 
     client_opts = if api_key, do: Keyword.put(client_opts, :api_key, api_key), else: client_opts
-    client = Core.client(client_opts)
+    Core.client(client_opts)
+  end
 
-    # Extract path from full URL
-    path = get_path_from_url(url)
+  defp execute_anthropic_request(client, :get, path, _body, _headers, timeout) do
+    Tesla.get(client, path, opts: [timeout: timeout])
+  end
 
-    # Set default timeout
-    timeout = Keyword.get(opts, :timeout, 60_000)
+  defp execute_anthropic_request(client, :post, path, body, _headers, timeout) do
+    Tesla.post(client, path, body, opts: [timeout: timeout])
+  end
 
-    # Execute request
-    result =
-      case method do
-        :get ->
-          Tesla.get(client, path, opts: [timeout: timeout])
+  defp execute_anthropic_request(client, :delete, path, _body, _headers, timeout) do
+    Tesla.delete(client, path, opts: [timeout: timeout])
+  end
 
-        :post ->
-          Tesla.post(client, path, body, opts: [timeout: timeout])
+  defp execute_anthropic_request(client, :post_multipart, path, body, headers, timeout) do
+    Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
+  end
 
-        :delete ->
-          Tesla.delete(client, path, opts: [timeout: timeout])
+  defp execute_anthropic_request(client, :get_binary, path, _body, _headers, timeout) do
+    Tesla.get(client, path, opts: [timeout: timeout])
+  end
 
-        :post_multipart ->
-          # For multipart, we'll need special handling
-          Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
-
-        :get_binary ->
-          # For binary downloads, similar to get but preserve binary response
-          Tesla.get(client, path, opts: [timeout: timeout])
-      end
-
-    # Convert Tesla response to the expected format
-    case result do
-      {:ok, %Tesla.Env{status: status, body: body}} when status in 200..299 ->
-        # For JSON responses, try to decode if it's a string
-        parsed_body =
-          case {method, body} do
-            {method, body} when method in [:get_binary] ->
-              # Keep binary responses as-is
-              body
-
-            {_, body} when is_binary(body) ->
-              case Jason.decode(body) do
-                {:ok, parsed} -> parsed
-                {:error, _} -> body
-              end
-
-            {_, body} ->
-              body
-          end
-
+  defp handle_anthropic_response({:ok, env}, method) do
+    case ExLLM.HTTP.handle_response(env) do
+      {:ok, body} ->
+        parsed_body = parse_anthropic_response_body(body, method)
         {:ok, parsed_body}
 
-      {:ok, %Tesla.Env{status: status, body: body}} ->
+      {:error, _env} ->
+        {status, body} = ExLLM.HTTP.get_error_info(env)
         {:error, {:api_error, %{status: status, body: body}}}
-
-      {:error, reason} ->
-        {:error, reason}
     end
   end
+
+  defp handle_anthropic_response({:error, reason}, _method) do
+    {:error, reason}
+  end
+
+  defp parse_anthropic_response_body(body, :get_binary), do: body
+
+  defp parse_anthropic_response_body(body, _method) when is_binary(body) do
+    case Jason.decode(body) do
+      {:ok, parsed} -> parsed
+      {:error, _} -> body
+    end
+  end
+
+  defp parse_anthropic_response_body(body, _method), do: body
 
   # Helper to extract base URL from full URL
   defp get_base_url_from_full_url(url) do

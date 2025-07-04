@@ -177,90 +177,64 @@ defmodule ExLLM.Plugs.ExecuteRequest do
   defp maybe_save_response(_request, _response), do: :ok
 
   defp make_request(client, :post, endpoint, body) do
-    case Tesla.post(client, endpoint, body) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, reason}
-      %Tesla.Env{} = response -> {:ok, response}
-    end
+    Tesla.post(client, endpoint, body)
   end
 
   defp make_request(client, :get, endpoint, _body) do
-    case Tesla.get(client, endpoint) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, reason}
-      %Tesla.Env{} = response -> {:ok, response}
-    end
+    Tesla.get(client, endpoint)
   end
 
   defp make_request(client, :put, endpoint, body) do
-    case Tesla.put(client, endpoint, body) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, reason}
-      %Tesla.Env{} = response -> {:ok, response}
-    end
+    Tesla.put(client, endpoint, body)
   end
 
   defp make_request(client, :patch, endpoint, body) do
-    case Tesla.patch(client, endpoint, body) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, reason}
-      %Tesla.Env{} = response -> {:ok, response}
-    end
+    Tesla.patch(client, endpoint, body)
   end
 
   defp make_request(client, :delete, endpoint, _body) do
-    case Tesla.delete(client, endpoint) do
-      {:ok, response} -> {:ok, response}
-      {:error, reason} -> {:error, reason}
-      %Tesla.Env{} = response -> {:ok, response}
-    end
+    Tesla.delete(client, endpoint)
   end
 
-  defp handle_tesla_response(%Request{} = request, %Tesla.Env{} = response) do
-    case response do
+  defp handle_tesla_response(%Request{} = request, response) do
+    if ExLLM.HTTP.successful?(response) do
       # Handle successful Tesla responses
-      %Tesla.Env{status: status, headers: headers} = env when status in 200..299 ->
-        # Handle response body (may already be parsed by Tesla middleware)
-        parsed_body =
-          case env.body do
-            body when is_binary(body) ->
-              case Jason.decode(body) do
-                {:ok, parsed} -> parsed
-                {:error, _} -> body
-              end
+      status = ExLLM.HTTP.get_status(response)
+      headers = ExLLM.HTTP.get_headers(response)
+      body = ExLLM.HTTP.get_body(response)
+      
+      # Handle response body (may already be parsed by Tesla middleware)
+      parsed_body =
+        case body do
+          body when is_binary(body) ->
+            case Jason.decode(body) do
+              {:ok, parsed} -> parsed
+              {:error, _} -> body
+            end
 
-            body ->
-              # Already parsed (e.g., by Tesla JSON middleware)
-              body
-          end
+          body ->
+            # Already parsed (e.g., by Tesla JSON middleware)
+            body
+        end
 
-        result =
-          request
-          |> Map.put(:response, env)
-          |> Request.assign(:http_response, parsed_body)
-          |> Request.put_state(:completed)
-          |> Request.put_metadata(:http_status, status)
-
-        result
-        |> Request.put_metadata(:response_headers, headers)
-
-      # Handle error Tesla responses with status
-      %Tesla.Env{status: status} = env when is_integer(status) ->
-        body = env.body
-        error = build_http_error(status, body, request.provider)
-
+      result =
         request
-        |> Map.put(:response, env)
-        |> Request.halt_with_error(error)
+        |> Map.put(:response, response)
+        |> Request.assign(:http_response, parsed_body)
+        |> Request.put_state(:completed)
         |> Request.put_metadata(:http_status, status)
 
-      # Handle responses without status (connection errors, etc.)
-      %Tesla.Env{} = env ->
-        error = build_http_error(nil, env.body, request.provider)
+      result
+      |> Request.put_metadata(:response_headers, headers)
+    else
+      # Handle error Tesla responses with status
+      status = ExLLM.HTTP.get_status(response)
+      body = ExLLM.HTTP.get_body(response)
+      error = build_http_error(status, body, request.provider)
 
-        request
-        |> Map.put(:response, env)
-        |> Request.halt_with_error(error)
+      request
+      |> Map.put(:response, response)
+      |> Request.halt_with_error(error)
     end
   end
 

@@ -66,18 +66,9 @@
   # start_stream function returns {:ok, id} but dialyzer can't trace through defensive code
   {"lib/ex_llm/providers/shared/streaming/compatibility.ex", :pattern_match},
   
-  # === TESLA ENV TYPE WARNINGS (False Positives) ===
-  # These warnings occur because Tesla's Env type has complex recursive specifications
-  # that dialyzer cannot properly analyze. The code is functionally correct.
-  
-  # HTTP.Core pattern matches on Tesla.Env responses
-  {"lib/ex_llm/providers/shared/http/core.ex", :pattern_match},
-  
-  # ExecuteStreamRequest pattern matches on Tesla streaming responses
-  {"lib/ex_llm/plugs/execute_stream_request.ex", :pattern_match},
-  
-  # ExecuteRequest pattern matches on Tesla responses
-  {"lib/ex_llm/plugs/execute_request.ex", :pattern_match},
+  # === TESLA ENV TYPE WARNINGS RESOLVED ===
+  # These warnings were resolved by using ExLLM.HTTP wrapper module
+  # instead of pattern matching directly on Tesla.Env structs.
   
   # === OPENAI-COMPATIBLE MACRO EXPANSIONS (False Positives) ===
   # The OpenAICompatible macro generates code that dialyzer can't properly analyze

@@ -216,47 +216,58 @@ defmodule ExLLM.Core.Chat do
 
     # Use cache wrapper
     Cache.with_cache(cache_key, cache_options, fn ->
-      # Check if function calling is requested
-      options = prepare_function_calling(provider, options)
-
-      # Create pipeline request and execute
-      request = Request.new(provider, messages, options)
-      result = Pipeline.run(request, pipeline)
-
-      # Extract response from pipeline result
-      case result.state do
-        :completed ->
-          response = result.result
-
-          # Track costs if enabled
-          if Keyword.get(options, :track_cost, true) do
-            cost_info = track_response_cost(provider, response, options)
-            # If cost_info is a map with total_cost, extract just the float value
-            cost_value =
-              case cost_info do
-                %{total_cost: total} -> total
-                cost when is_float(cost) -> cost
-                _ -> nil
-              end
-
-            response_with_cost = Map.put(response, :cost, cost_value)
-            {:ok, response_with_cost}
-          else
-            {:ok, response}
-          end
-
-        :error ->
-          case result.errors do
-            [%{error: error} | _] -> {:error, error}
-            [%{reason: reason} | _] -> {:error, reason}
-            [%{message: message} | _] -> {:error, message}
-            [] -> {:error, :pipeline_failed}
-          end
-
-        _other ->
-          {:error, :unexpected_pipeline_state}
-      end
+      execute_pipeline_with_cache(pipeline, provider, messages, options)
     end)
+  end
+
+  defp execute_pipeline_with_cache(pipeline, provider, messages, options) do
+    # Check if function calling is requested
+    options = prepare_function_calling(provider, options)
+
+    # Create pipeline request and execute
+    request = Request.new(provider, messages, options)
+    result = Pipeline.run(request, pipeline)
+
+    # Extract response from pipeline result
+    handle_pipeline_result(result, provider, options)
+  end
+
+  defp handle_pipeline_result(result, provider, options) do
+    case result.state do
+      :completed ->
+        handle_completed_result(result.result, provider, options)
+
+      :error ->
+        handle_error_result(result.errors)
+
+      _other ->
+        {:error, :unexpected_pipeline_state}
+    end
+  end
+
+  defp handle_completed_result(response, provider, options) do
+    # Track costs if enabled
+    if Keyword.get(options, :track_cost, true) do
+      cost_info = track_response_cost(provider, response, options)
+      cost_value = extract_cost_value(cost_info)
+      response_with_cost = Map.put(response, :cost, cost_value)
+      {:ok, response_with_cost}
+    else
+      {:ok, response}
+    end
+  end
+
+  defp extract_cost_value(%{total_cost: total}), do: total
+  defp extract_cost_value(cost) when is_float(cost), do: cost
+  defp extract_cost_value(_), do: nil
+
+  defp handle_error_result(errors) do
+    case errors do
+      [%{error: error} | _] -> {:error, error}
+      [%{reason: reason} | _] -> {:error, reason}
+      [%{message: message} | _] -> {:error, message}
+      [] -> {:error, :pipeline_failed}
+    end
   end
 
   defp prepare_function_calling(provider, options) do

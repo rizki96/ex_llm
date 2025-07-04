@@ -52,12 +52,12 @@ defmodule ExLLM.Providers.OpenAI do
 
   alias ExLLM.Providers.Shared.{
     ConfigHelper,
+    EnhancedStreamingCoordinator,
     ErrorHandler,
     MessageFormatter,
     ModelUtils,
     StreamingBehavior,
-    Validation,
-    EnhancedStreamingCoordinator
+    Validation
   }
 
   alias ExLLM.Providers.Shared.HTTP.Core
@@ -3462,74 +3462,82 @@ defmodule ExLLM.Providers.OpenAI do
   # HTTP client helper functions using HTTP.Core
 
   defp openai_request(method, url, body, headers, api_key, opts) do
-    # Create client with OpenAI-specific configuration
+    client = build_openai_client(url, api_key)
+    path = get_path_from_url(url)
+    timeout = Keyword.get(opts, :timeout, 60_000)
+
+    result = execute_openai_request(client, method, path, body, headers, timeout)
+    handle_openai_response(result, opts)
+  end
+
+  defp build_openai_client(url, api_key) do
     client_opts = [
       provider: :openai,
       base_url: get_base_url_from_full_url(url)
     ]
 
     client_opts = if api_key, do: Keyword.put(client_opts, :api_key, api_key), else: client_opts
-    client = Core.client(client_opts)
+    Core.client(client_opts)
+  end
 
-    # Extract path from full URL
-    path = get_path_from_url(url)
+  defp execute_openai_request(client, :get, path, _body, _headers, timeout) do
+    Tesla.get(client, path, opts: [timeout: timeout])
+  end
 
-    # Set default timeout
-    timeout = Keyword.get(opts, :timeout, 60_000)
+  defp execute_openai_request(client, :post, path, body, _headers, timeout) do
+    Tesla.post(client, path, body, opts: [timeout: timeout])
+  end
 
-    # Execute request
-    result =
-      case method do
-        :get ->
-          Tesla.get(client, path, opts: [timeout: timeout])
+  defp execute_openai_request(client, :delete, path, _body, _headers, timeout) do
+    Tesla.delete(client, path, opts: [timeout: timeout])
+  end
 
-        :post ->
-          Tesla.post(client, path, body, opts: [timeout: timeout])
+  defp execute_openai_request(client, :post_multipart, path, body, headers, timeout) do
+    Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
+  end
 
-        :delete ->
-          Tesla.delete(client, path, opts: [timeout: timeout])
+  defp handle_openai_response({:ok, env}, opts) do
+    if ExLLM.HTTP.successful?(env) do
+      body = ExLLM.HTTP.get_body(env)
+      headers = ExLLM.HTTP.get_headers(env)
+      expect_binary = Keyword.get(opts, :expect_binary, false)
+      parsed_body = parse_openai_response_body(body, headers, expect_binary)
+      {:ok, parsed_body}
+    else
+      {status, body} = ExLLM.HTTP.get_error_info(env)
+      {:error, {:api_error, %{status: status, body: body}}}
+    end
+  end
 
-        :post_multipart ->
-          # For multipart, we'll need special handling
-          Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
+  defp handle_openai_response({:error, reason}, _opts) do
+    {:error, reason}
+  end
+
+  defp parse_openai_response_body(body, headers, expect_binary) do
+    if is_binary(body) && !expect_binary do
+      content_type = get_content_type(headers)
+      
+      if String.starts_with?(content_type, "application/json") do
+        decode_json_body(body)
+      else
+        body
       end
+    else
+      body
+    end
+  end
 
-    # Convert Tesla response to the expected format
-    case result do
-      {:ok, %Tesla.Env{status: status, body: body, headers: response_headers}}
-      when status in 200..299 ->
-        # Check if binary response is expected
-        expect_binary = Keyword.get(opts, :expect_binary, false)
+  defp get_content_type(headers) do
+    case List.keyfind(headers, "content-type", 0) do
+      {"content-type", ct} -> ct
+      _ -> "application/json"
+    end
+  end
 
-        # For JSON responses, try to decode if it's a string and not binary content
-        parsed_body =
-          if is_binary(body) && !expect_binary do
-            # Check content-type header
-            content_type =
-              case List.keyfind(response_headers, "content-type", 0) do
-                {"content-type", ct} -> ct
-                _ -> "application/json"
-              end
-
-            if String.starts_with?(content_type, "application/json") do
-              case Jason.decode(body) do
-                {:ok, parsed} -> parsed
-                {:error, _} -> body
-              end
-            else
-              body
-            end
-          else
-            body
-          end
-
-        {:ok, parsed_body}
-
-      {:ok, %Tesla.Env{status: status, body: body}} ->
-        {:error, {:api_error, %{status: status, body: body}}}
-
-      {:error, reason} ->
-        {:error, reason}
+  defp decode_json_body(body) do
+    case Jason.decode(body) do
+      {:ok, parsed} -> parsed
+      {:error, _} -> body
     end
   end
 

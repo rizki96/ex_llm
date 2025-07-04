@@ -176,42 +176,21 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
           end
 
           # Start streaming task
+          stream_context = %{
+            provider: request.provider,
+            client: client,
+            endpoint: endpoint,
+            body: body,
+            headers: headers,
+            timeout: stream_timeout,
+            callback: callback,
+            parent: parent,
+            stream_ref: stream_ref
+          }
+
           {:ok, stream_pid} =
             Task.start(fn ->
-              case request.provider do
-                :ollama ->
-                  # For Ollama, use async streaming to handle NDJSON in real-time
-                  stream_ollama_ndjson(
-                    client,
-                    endpoint,
-                    body,
-                    headers,
-                    stream_timeout,
-                    callback,
-                    parent,
-                    stream_ref
-                  )
-
-                _ ->
-                  # For other providers, use HTTP.Core.stream with SSE parsing
-                  parse_chunk_fn = &parse_openai_raw_chunk/1
-
-                  # Don't pass headers - the client already has them configured via middleware
-                  case ExLLM.Providers.Shared.HTTP.Core.stream(
-                         client,
-                         endpoint,
-                         body,
-                         callback,
-                         timeout: stream_timeout,
-                         parse_chunk: parse_chunk_fn
-                       ) do
-                    {:ok, _response} ->
-                      send(parent, {stream_ref, :stream_complete})
-
-                    {:error, reason} ->
-                      send(parent, {stream_ref, {:stream_error, reason}})
-                  end
-              end
+              handle_streaming_task(stream_context)
             end)
 
           # Return initial state
@@ -423,6 +402,60 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
       {Tesla.Middleware.Headers, :call, [headers]} -> headers
       _ -> nil
     end)
+  end
+
+  defp handle_streaming_task(context) do
+    case context.provider do
+      :ollama ->
+        stream_ollama_ndjson(
+          context.client,
+          context.endpoint,
+          context.body,
+          context.headers,
+          context.timeout,
+          context.callback,
+          context.parent,
+          context.stream_ref
+        )
+
+      _ ->
+        handle_non_ollama_streaming(
+          context.client,
+          context.endpoint,
+          context.body,
+          context.callback,
+          context.timeout,
+          context.parent,
+          context.stream_ref
+        )
+    end
+  end
+
+  defp handle_non_ollama_streaming(
+         client,
+         endpoint,
+         body,
+         callback,
+         stream_timeout,
+         parent,
+         stream_ref
+       ) do
+    parse_chunk_fn = &parse_openai_raw_chunk/1
+
+    case ExLLM.Providers.Shared.HTTP.Core.stream(
+           client,
+           endpoint,
+           body,
+           callback,
+           timeout: stream_timeout,
+           parse_chunk: parse_chunk_fn
+         ) do
+      {:ok, _response} ->
+        send(parent, {stream_ref, :stream_complete})
+
+      {:error, reason} ->
+        send(parent, {stream_ref, {:stream_error, reason}})
+    end
   end
 
   defp extract_ollama_usage(%{

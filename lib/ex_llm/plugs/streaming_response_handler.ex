@@ -8,8 +8,8 @@ defmodule ExLLM.Plugs.StreamingResponseHandler do
 
   use ExLLM.Plug
   alias ExLLM.Pipeline.Request
-  alias ExLLM.Types.StreamChunk
   alias ExLLM.Providers.Shared.HTTP.Core
+  alias ExLLM.Types.StreamChunk
 
   @impl true
   def call(%Request{config: %{stream: true}} = request, _opts) do

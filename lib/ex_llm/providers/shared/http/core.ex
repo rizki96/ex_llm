@@ -75,98 +75,90 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
           {:ok, Tesla.Env.t()} | {:error, term()}
   def stream(client, path, body, callback, opts \\ []) do
     parse_chunk_fn = Keyword.get(opts, :parse_chunk, &default_parse_chunk/1)
+    streaming_body = prepare_streaming_body(body)
 
-    # Prepare streaming body (ensure stream: true is set)
-    streaming_body =
-      body
-      |> ensure_map()
-      |> ensure_stream_flag()
-
-    # Check if we're in test mode
     if Application.get_env(:ex_llm, :use_tesla_mock, false) do
-      # Test mode: Use regular post and simulate streaming
-      # Don't pass headers - the client already has them configured via middleware
-      case Tesla.post(client, path, streaming_body) do
-        {:ok, response} ->
-          # Check if response contains SSE data and simulate streaming
-          if is_binary(response.body) && String.contains?(response.body, "data:") do
-            simulate_streaming_from_body(response.body, callback, parse_chunk_fn)
-          end
-
-          {:ok, response}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      handle_test_mode_streaming(client, path, streaming_body, callback, parse_chunk_fn)
     else
-      # Production mode: Use direct streaming without blocking tasks
-      Logger.debug("HTTP.Core starting streaming POST to path: #{path}")
-      Logger.debug("Body keys: #{inspect(Map.keys(streaming_body))}")
-
-      # Get configurable timeout from opts
-      stream_timeout = Keyword.get(opts, :timeout, 300_000)
-      Logger.debug("HTTP.Core using stream timeout: #{stream_timeout}ms")
-
-      # For streaming, we need to create a new client with specific adapter options
-      # The original client may not have async streaming configured
-      streaming_client = build_streaming_client(client, stream_timeout)
-
-      # Don't pass headers - the client already has them configured via middleware
-      case Tesla.post(streaming_client, path, streaming_body) do
-        {:ok, %Tesla.Env{status: status, body: body} = env} when status in 200..299 ->
-          Logger.debug(
-            "HTTP.Core got initial async response, status: #{status}, body type: #{inspect(body) |> String.slice(0, 100)}"
-          )
-
-          # Check if body is a reference (true async) or if we got the full body
-          cond do
-            is_reference(body) ->
-              # True async streaming - body is a reference
-              Logger.debug("HTTP.Core using async streaming with reference")
-              result = handle_stream_chunks(callback, parse_chunk_fn, stream_timeout)
-              Logger.debug("HTTP.Core streaming result: #{inspect(result)}")
-              {:ok, env}
-
-            is_binary(body) ->
-              # Got full body - adapter didn't stream. Check if it's SSE.
-              if String.contains?(body, "data:") do
-                Logger.debug("HTTP.Core received full SSE body, processing...")
-                simulate_streaming_from_body(body, callback, parse_chunk_fn)
-                {:ok, env}
-              else
-                # Received a binary body that is not SSE. This is unexpected for a 2xx streaming response.
-                Logger.error(
-                  "HTTP.Core received non-SSE binary body for 2xx response: #{inspect(body)}"
-                )
-
-                {:error, {:unexpected_streaming_body, body}}
-              end
-
-            true ->
-              # Unexpected body type (neither reference nor binary)
-              Logger.error(
-                "HTTP.Core received unexpected body type for 2xx response: #{inspect(body)}"
-              )
-
-              {:error, {:unexpected_streaming_body_type, body}}
-          end
-
-        {:ok, %Tesla.Env{body: {:error, :req_timedout}}} ->
-          # Handle timeout from async request
-          {:error, :timeout}
-
-        {:ok, %Tesla.Env{} = env} ->
-          # Non-200 status or other response
-          Logger.debug("HTTP.Core got non-streaming response: #{inspect(env.status)}")
-          {:error, {:api_error, env.status}}
-
-        {:ok, response} ->
-          {:error, {:api_error, response.status}}
-
-        {:error, reason} ->
-          {:error, reason}
-      end
+      handle_production_streaming(client, path, streaming_body, callback, parse_chunk_fn, opts)
     end
+  end
+
+  defp prepare_streaming_body(body) do
+    body
+    |> ensure_map()
+    |> ensure_stream_flag()
+  end
+
+  defp handle_test_mode_streaming(client, path, body, callback, parse_chunk_fn) do
+    case Tesla.post(client, path, body) do
+      {:ok, response} ->
+        if is_binary(response.body) && String.contains?(response.body, "data:") do
+          simulate_streaming_from_body(response.body, callback, parse_chunk_fn)
+        end
+        {:ok, response}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  defp handle_production_streaming(client, path, body, callback, parse_chunk_fn, opts) do
+    Logger.debug("HTTP.Core starting streaming POST to path: #{path}")
+    Logger.debug("Body keys: #{inspect(Map.keys(body))}")
+
+    stream_timeout = Keyword.get(opts, :timeout, 300_000)
+    Logger.debug("HTTP.Core using stream timeout: #{stream_timeout}ms")
+
+    streaming_client = build_streaming_client(client, stream_timeout)
+    
+    case Tesla.post(streaming_client, path, body) do
+      {:ok, env} -> handle_streaming_response(env, callback, parse_chunk_fn, stream_timeout)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp handle_streaming_response(env, callback, parse_chunk_fn, timeout) do
+    cond do
+      ExLLM.HTTP.successful?(env) ->
+        status = ExLLM.HTTP.get_status(env)
+        body = ExLLM.HTTP.get_body(env)
+        Logger.debug(
+          "HTTP.Core got initial async response, status: #{status}, body type: #{inspect(body) |> String.slice(0, 100)}"
+        )
+        handle_response_body(body, env, callback, parse_chunk_fn, timeout)
+
+      ExLLM.HTTP.timeout_error?(env) ->
+        {:error, :timeout}
+
+      true ->
+        status = ExLLM.HTTP.get_status(env)
+        Logger.debug("HTTP.Core got non-streaming response: #{inspect(status)}")
+        {:error, {:api_error, status}}
+    end
+  end
+
+  defp handle_response_body(body, env, callback, parse_chunk_fn, timeout) when is_reference(body) do
+    Logger.debug("HTTP.Core using async streaming with reference")
+    result = handle_stream_chunks(callback, parse_chunk_fn, timeout)
+    Logger.debug("HTTP.Core streaming result: #{inspect(result)}")
+    {:ok, env}
+  end
+
+  defp handle_response_body(body, env, callback, parse_chunk_fn, _timeout) when is_binary(body) do
+    if String.contains?(body, "data:") do
+      Logger.debug("HTTP.Core received full SSE body, processing...")
+      simulate_streaming_from_body(body, callback, parse_chunk_fn)
+      {:ok, env}
+    else
+      Logger.error("HTTP.Core received non-SSE binary body for 2xx response: #{inspect(body)}")
+      {:error, {:unexpected_streaming_body, body}}
+    end
+  end
+
+  defp handle_response_body(body, _env, _callback, _parse_chunk_fn, _timeout) do
+    Logger.error("HTTP.Core received unexpected body type for 2xx response: #{inspect(body)}")
+    {:error, {:unexpected_streaming_body_type, body}}
   end
 
   @doc """
