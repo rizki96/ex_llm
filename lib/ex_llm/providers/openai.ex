@@ -2479,20 +2479,22 @@ defmodule ExLLM.Providers.OpenAI do
     api_key = ConfigHelper.get_api_key(config, "OPENAI_API_KEY")
 
     with {:ok, _} <- Validation.validate_api_key(api_key),
-         {:ok, _} <- validate_file_purpose(purpose) do
-      headers = build_headers(api_key, config)
-      url = "#{get_base_url(config)}/v1/files"
+         {:ok, _} <- validate_file_purpose(purpose),
+         {:ok, _} <- validate_file_exists(file_path) do
+      # Build multipart form using Tesla.Multipart
+      multipart =
+        Tesla.Multipart.new()
+        |> Tesla.Multipart.add_field("purpose", purpose)
+        |> Tesla.Multipart.add_file(file_path, name: "file")
 
-      form_data = [
-        purpose: purpose,
-        file: {:file, file_path}
-      ]
+      # Build client without JSON middleware for multipart
+      client = build_openai_client_for_multipart("#{get_base_url(config)}/v1/files", api_key)
 
-      case openai_request(:post_multipart, url, form_data, headers, api_key, timeout: 60_000) do
-        {:ok, response} ->
-          {:ok, response}
+      case Tesla.post(client, "/v1/files", multipart) do
+        {:ok, %Tesla.Env{status: status} = env} when status in 200..299 ->
+          {:ok, Jason.decode!(env.body)}
 
-        {:error, {:api_error, %{status: status, body: body}}} ->
+        {:ok, %Tesla.Env{status: status, body: body}} ->
           ErrorHandler.handle_provider_error(:openai, status, body)
 
         {:error, reason} ->
@@ -2689,6 +2691,19 @@ defmodule ExLLM.Providers.OpenAI do
       :purpose,
       "Invalid purpose '#{purpose}'. Must be one of: fine-tune, fine-tune-results, assistants, assistants_output, batch, batch_output, vision, user_data, evals"
     )
+  end
+
+  defp validate_file_exists(file_path) do
+    if File.exists?(file_path) do
+      {:ok, file_path}
+    else
+      {:error,
+       %{
+         message: "File not found: #{file_path}",
+         type: :file_not_found,
+         provider: nil
+       }}
+    end
   end
 
   # Upload API functions
@@ -3462,7 +3477,13 @@ defmodule ExLLM.Providers.OpenAI do
   # HTTP client helper functions using HTTP.Core
 
   defp openai_request(method, url, body, headers, api_key, opts) do
-    client = build_openai_client(url, api_key)
+    client =
+      if method == :post_multipart do
+        build_openai_client_for_multipart(url, api_key)
+      else
+        build_openai_client(url, api_key)
+      end
+
     path = get_path_from_url(url)
     timeout = Keyword.get(opts, :timeout, 60_000)
 
@@ -3480,20 +3501,35 @@ defmodule ExLLM.Providers.OpenAI do
     Core.client(client_opts)
   end
 
-  defp execute_openai_request(client, :get, path, _body, _headers, timeout) do
-    Tesla.get(client, path, opts: [timeout: timeout])
+  defp build_openai_client_for_multipart(url, api_key) do
+    # For multipart requests, we need a client without JSON middleware
+    client_opts = [
+      provider: :openai,
+      base_url: get_base_url_from_full_url(url),
+      # Disable JSON middleware for multipart
+      json_enabled: false
+    ]
+
+    client_opts = if api_key, do: Keyword.put(client_opts, :api_key, api_key), else: client_opts
+    Core.client(client_opts)
   end
 
-  defp execute_openai_request(client, :post, path, body, _headers, timeout) do
-    Tesla.post(client, path, body, opts: [timeout: timeout])
+  defp execute_openai_request(client, :get, path, _body, headers, timeout) do
+    Tesla.get(client, path, headers: headers, opts: [timeout: timeout])
   end
 
-  defp execute_openai_request(client, :delete, path, _body, _headers, timeout) do
-    Tesla.delete(client, path, opts: [timeout: timeout])
-  end
-
-  defp execute_openai_request(client, :post_multipart, path, body, headers, timeout) do
+  defp execute_openai_request(client, :post, path, body, headers, timeout) do
     Tesla.post(client, path, body, headers: headers, opts: [timeout: timeout])
+  end
+
+  defp execute_openai_request(client, :delete, path, _body, headers, timeout) do
+    Tesla.delete(client, path, headers: headers, opts: [timeout: timeout])
+  end
+
+  defp execute_openai_request(client, :post_multipart, path, form_data, headers, timeout) do
+    # Tesla will handle multipart data automatically when it sees {:multipart, [...]}
+    # The client has JSON middleware disabled for multipart requests
+    Tesla.post(client, path, {:multipart, form_data}, headers: headers, opts: [timeout: timeout])
   end
 
   defp handle_openai_response({:ok, env}, opts) do

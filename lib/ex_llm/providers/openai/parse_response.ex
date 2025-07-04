@@ -17,15 +17,26 @@ defmodule ExLLM.Providers.OpenAI.ParseResponse do
     if request.state == :streaming do
       request
     else
-      response = request.assigns.http_response
-      model = Map.get(request.assigns, :model) || request.assigns.config.model
+      response = request.assigns[:http_response]
 
-      parsed_response = parse_response(response, model)
+      if response do
+        model =
+          Map.get(request.assigns, :model) || request.config[:model] || request.options[:model]
 
-      request
-      |> Request.assign(:llm_response, parsed_response)
-      |> Map.put(:result, parsed_response)
-      |> Request.put_state(:completed)
+        parsed_response = parse_response(response, model)
+
+        request
+        |> Request.assign(:llm_response, parsed_response)
+        |> Map.put(:result, parsed_response)
+        |> Request.put_state(:completed)
+      else
+        request
+        |> Request.halt_with_error(%{
+          plug: __MODULE__,
+          error: :no_response,
+          message: "No HTTP response to parse"
+        })
+      end
     end
   end
 

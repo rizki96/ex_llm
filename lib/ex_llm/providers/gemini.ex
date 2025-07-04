@@ -642,33 +642,87 @@ defmodule ExLLM.Providers.Gemini do
     end
   end
 
-  # Context Caching API placeholder functions
+  # Context Caching API - delegates to Caching module
+  alias ExLLM.Providers.Gemini.Caching
+
   @doc """
-  Lists cached contents (placeholder - not yet implemented).
+  Lists cached contents.
+
+  ## Options
+  - `:page_size` - Maximum number of cached contents to return (1-1000, default 50)
+  - `:page_token` - Token for pagination
+  - `:config_provider` - Configuration provider
+
+  ## Returns
+  - `{:ok, %{cached_contents: [CachedContent.t()], next_page_token: String.t() | nil}}`
+  - `{:error, term()}`
   """
-  def list_cached_contents(_options \\ []) do
-    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  def list_cached_contents(options \\ []) do
+    Caching.list_cached_contents(options)
   end
 
   @doc """
-  Creates cached content (placeholder - not yet implemented).
+  Creates cached content for reuse across multiple requests.
+
+  ## Parameters
+  - `content` - Map with content to cache (model, contents, system_instruction, etc.)
+  - `model` - Model name (will be merged into content if provided separately)
+  - `options` - Additional options
+
+  ## Returns
+  - `{:ok, CachedContent.t()}`
+  - `{:error, term()}`
   """
-  def create_cached_content(_content, _model, _options \\ []) do
-    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  def create_cached_content(content, model \\ nil, options \\ []) do
+    # If model is provided separately, merge it into content
+    request = if model, do: Map.put(content, :model, model), else: content
+    Caching.create_cached_content(request, options)
   end
 
   @doc """
-  Gets cached content (placeholder - not yet implemented).
+  Gets cached content by name.
+
+  ## Parameters
+  - `cached_name` - Name of the cached content (e.g., "cachedContents/abc-123")
+  - `options` - Additional options
+
+  ## Returns
+  - `{:ok, CachedContent.t()}`
+  - `{:error, term()}`
   """
-  def get_cached_content(_cached_name, _options \\ []) do
-    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  def get_cached_content(cached_name, options \\ []) do
+    Caching.get_cached_content(cached_name, options)
   end
 
   @doc """
-  Deletes cached content (placeholder - not yet implemented).
+  Updates cached content TTL or expiration time.
+
+  ## Parameters
+  - `cached_name` - Name of the cached content
+  - `updates` - Map with updates (ttl and/or expire_time)
+  - `options` - Additional options
+
+  ## Returns
+  - `{:ok, CachedContent.t()}`
+  - `{:error, term()}`
   """
-  def delete_cached_content(_cached_name, _options \\ []) do
-    {:error, {:function_not_implemented, "Context Caching API not yet implemented"}}
+  def update_cached_content(cached_name, updates, options \\ []) do
+    Caching.update_cached_content(cached_name, updates, options)
+  end
+
+  @doc """
+  Deletes cached content.
+
+  ## Parameters
+  - `cached_name` - Name of the cached content
+  - `options` - Additional options
+
+  ## Returns
+  - `:ok`
+  - `{:error, term()}`
+  """
+  def delete_cached_content(cached_name, options \\ []) do
+    Caching.delete_cached_content(cached_name, options)
   end
 
   @doc """
