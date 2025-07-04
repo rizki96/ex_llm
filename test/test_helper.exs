@@ -11,6 +11,9 @@ Code.require_file("support/config_provider_helper.ex", __DIR__)
 Code.require_file("support/oauth2_test_case.ex", __DIR__)
 Code.require_file("support/capability_helpers.ex", __DIR__)
 Code.require_file("support/service_helpers.ex", __DIR__)
+Code.require_file("support/cost_tracker.ex", __DIR__)
+Code.require_file("support/fixtures.ex", __DIR__)
+Code.require_file("support/integration_case.ex", __DIR__)
 Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
 
 # Start hackney for tests that use Bypass
@@ -18,6 +21,9 @@ Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
 
 # Ensure ExLLM application is started (this initializes circuit breaker ETS table)
 {:ok, _} = Application.ensure_all_started(:ex_llm)
+
+# Start test support GenServers
+{:ok, _} = ExLLM.Testing.CostTracker.start_link()
 
 # Apply centralized test configuration
 tesla_config = ExLLM.Testing.Config.tesla_config()

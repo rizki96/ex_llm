@@ -79,7 +79,8 @@ defmodule ExLLM.Providers.OpenAI.CoreTest do
   end
 
   describe "headers and base URL" do
-    # TODO: Fix hackney adapter compatibility issue
+    # Skipped: This test was for hackney adapter which is no longer used.
+    # The project has standardized on Tesla with Finch adapter.
     @tag :skip
     test "uses custom base URL from config" do
       config = %{
