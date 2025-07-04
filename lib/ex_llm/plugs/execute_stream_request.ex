@@ -487,7 +487,14 @@ defmodule ExLLM.Plugs.ExecuteStreamRequest do
     # Use Tesla with async streaming - this returns immediately
     # Note: Don't pass headers - the client already has them configured
     case Tesla.post(client, endpoint, body,
-           opts: [adapter: [recv_timeout: stream_timeout, stream_to: self(), async: true]]
+           opts: [
+             adapter: [
+               recv_timeout: stream_timeout,
+               stream_to: self(),
+               async: true,
+               with_body: false
+             ]
+           ]
          ) do
       {:ok, _env} ->
         Logger.debug("Ollama async stream initiated")

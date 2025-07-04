@@ -43,6 +43,7 @@ defmodule ExLLM.Core.Session do
   """
 
   alias ExLLM.Types
+  require Logger
 
   @doc """
   Create a new session with the specified backend.
@@ -64,11 +65,14 @@ defmodule ExLLM.Core.Session do
     name = Keyword.get(opts, :name)
     session_id = generate_session_id()
 
+    # Store configuration options in context for later use
+    config = opts |> Keyword.drop([:name]) |> Enum.into(%{})
+
     session = %Types.Session{
       id: session_id,
       llm_backend: backend,
       messages: [],
-      context: %{},
+      context: %{config: config},
       created_at: DateTime.utc_now(),
       updated_at: DateTime.utc_now(),
       token_usage: %{input_tokens: 0, output_tokens: 0},
@@ -341,7 +345,7 @@ defmodule ExLLM.Core.Session do
          {:ok, updated_at} <- parse_datetime(data["updated_at"]) do
       session = %Types.Session{
         id: data["id"],
-        llm_backend: data["llm_backend"],
+        llm_backend: normalize_backend(data["llm_backend"]),
         messages: normalize_messages(data["messages"] || []),
         context: data["context"] || %{},
         created_at: created_at,
@@ -522,4 +526,61 @@ defmodule ExLLM.Core.Session do
       _ -> key
     end
   end
+
+  # Helper function to safely convert backend string to atom during JSON deserialization
+  defp normalize_backend(backend) when is_atom(backend), do: backend
+
+  defp normalize_backend(backend) when is_binary(backend) do
+    # Safely convert known provider strings to atoms
+    case backend do
+      "openai" ->
+        :openai
+
+      "anthropic" ->
+        :anthropic
+
+      "gemini" ->
+        :gemini
+
+      "groq" ->
+        :groq
+
+      "mistral" ->
+        :mistral
+
+      "openrouter" ->
+        :openrouter
+
+      "perplexity" ->
+        :perplexity
+
+      "xai" ->
+        :xai
+
+      "ollama" ->
+        :ollama
+
+      "lmstudio" ->
+        :lmstudio
+
+      "bedrock" ->
+        :bedrock
+
+      "bumblebee" ->
+        :bumblebee
+
+      "mock" ->
+        :mock
+
+      # Fallback for unknown providers - keep as string
+      _ ->
+        Logger.warning(
+          "Unknown LLM backend '#{backend}' encountered during deserialization. Keeping as string."
+        )
+
+        backend
+    end
+  end
+
+  defp normalize_backend(backend), do: backend
 end

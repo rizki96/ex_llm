@@ -343,8 +343,19 @@ defmodule ExLLM.Session do
     # Get current messages for the chat
     messages = get_messages(updated_session)
 
+    # Merge session config with provided options (opts take precedence)
+    # Handle both atom and string keys (from JSON deserialization)
+    session_config =
+      (Map.get(session.context, :config) || Map.get(session.context, "config", %{}))
+      |> Enum.map(fn
+        {k, v} when is_binary(k) -> {String.to_existing_atom(k), v}
+        {k, v} -> {k, v}
+      end)
+
+    merged_opts = Keyword.merge(session_config, opts)
+
     # Perform the chat with the session's provider (stored in llm_backend)
-    case ExLLM.chat(session.llm_backend, messages, opts) do
+    case ExLLM.chat(session.llm_backend, messages, merged_opts) do
       {:ok, response} ->
         # Add assistant response to session
         session_with_message = add_message(updated_session, "assistant", response.content)
