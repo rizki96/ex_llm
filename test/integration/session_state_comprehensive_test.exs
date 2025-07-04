@@ -276,7 +276,7 @@ defmodule ExLLM.Integration.SessionStateComprehensiveTest do
       # Clear session
       cleared_session = ExLLM.clear_session(final_session)
       cleared_messages = ExLLM.get_messages(cleared_session)
-      assert length(cleared_messages) == 0
+      assert Enum.empty?(cleared_messages)
 
       # Token usage should be preserved (historical usage)
       cleared_total_tokens = ExLLM.session_token_usage(cleared_session)
