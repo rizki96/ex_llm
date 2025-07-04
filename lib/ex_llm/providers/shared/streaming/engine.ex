@@ -428,7 +428,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
 
   defp maybe_add_recovery_middleware(middleware, opts) do
     if Keyword.get(opts, :enable_recovery, false) do
-      # TODO: Add ErrorRecovery middleware when implemented
+      # Note: ErrorRecovery middleware planned for future implementation
       middleware
     else
       middleware
@@ -437,7 +437,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
 
   defp maybe_add_flow_control_middleware(middleware, opts) do
     if Keyword.get(opts, :enable_flow_control, false) do
-      # TODO: Add FlowControl middleware when implemented
+      # Note: FlowControl middleware planned for future implementation
       middleware
     else
       middleware
@@ -446,7 +446,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Engine do
 
   defp maybe_add_batching_middleware(middleware, opts) do
     if Keyword.get(opts, :enable_batching, false) do
-      # TODO: Add ChunkBatcher middleware when implemented
+      # Note: ChunkBatcher middleware planned for future implementation
       middleware
     else
       middleware

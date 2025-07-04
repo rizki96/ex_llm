@@ -6,8 +6,8 @@ defmodule ExLLM.Integration.ContextCachingComprehensiveTest do
   use ExUnit.Case
 
   alias ExLLM.Providers.Gemini
-  alias ExLLM.Providers.Gemini.Content.{Content, Part}
   alias ExLLM.Providers.Gemini.Caching.CachedContent
+  alias ExLLM.Providers.Gemini.Content.{Content, Part}
 
   # Test helper to create test content
   defp create_test_content(text \\ "This is test content for caching") do

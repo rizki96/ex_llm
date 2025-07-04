@@ -41,24 +41,7 @@ defmodule ExLLM.Integration.AssistantsAdvancedComprehensiveTest do
     wait_loop = fn wait_loop_fn ->
       case ExLLM.Providers.OpenAI.get_run(thread_id, run_id) do
         {:ok, run} ->
-          case run["status"] do
-            status when status in ["completed", "failed", "cancelled", "expired"] ->
-              {:ok, run}
-
-            "requires_action" ->
-              {:requires_action, run}
-
-            _ ->
-              current_time = :os.system_time(:millisecond)
-
-              if current_time - start_time > timeout do
-                {:error, :timeout}
-              else
-                # Poll every second
-                Process.sleep(1000)
-                wait_loop_fn.(wait_loop_fn)
-              end
-          end
+          handle_run_status(run, wait_loop_fn, start_time, timeout)
 
         {:error, error} ->
           {:error, error}
@@ -66,6 +49,31 @@ defmodule ExLLM.Integration.AssistantsAdvancedComprehensiveTest do
     end
 
     wait_loop.(wait_loop)
+  end
+
+  defp handle_run_status(run, wait_loop_fn, start_time, timeout) do
+    case run["status"] do
+      status when status in ["completed", "failed", "cancelled", "expired"] ->
+        {:ok, run}
+
+      "requires_action" ->
+        {:requires_action, run}
+
+      _ ->
+        check_timeout_and_continue(wait_loop_fn, start_time, timeout)
+    end
+  end
+
+  defp check_timeout_and_continue(wait_loop_fn, start_time, timeout) do
+    current_time = :os.system_time(:millisecond)
+
+    if current_time - start_time > timeout do
+      {:error, :timeout}
+    else
+      # Poll every second
+      Process.sleep(1000)
+      wait_loop_fn.(wait_loop_fn)
+    end
   end
 
   describe "Assistant Runs" do

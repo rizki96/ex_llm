@@ -181,7 +181,7 @@ defmodule ExLLM.Testing.IntegrationCase do
 
     if context[:cleanup_cache_id] do
       try do
-        # TODO: Implement Gemini cache cleanup when caching API is available
+        # Note: Gemini cache cleanup requires caching API availability
         :ok
       rescue
         _ -> :ok

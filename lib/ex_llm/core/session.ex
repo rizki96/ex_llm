@@ -532,53 +532,30 @@ defmodule ExLLM.Core.Session do
 
   defp normalize_backend(backend) when is_binary(backend) do
     # Safely convert known provider strings to atoms
-    case backend do
-      "openai" ->
-        :openai
+    known_providers = %{
+      "openai" => :openai,
+      "anthropic" => :anthropic,
+      "gemini" => :gemini,
+      "groq" => :groq,
+      "mistral" => :mistral,
+      "openrouter" => :openrouter,
+      "perplexity" => :perplexity,
+      "xai" => :xai,
+      "ollama" => :ollama,
+      "lmstudio" => :lmstudio,
+      "bedrock" => :bedrock,
+      "bumblebee" => :bumblebee,
+      "mock" => :mock
+    }
 
-      "anthropic" ->
-        :anthropic
-
-      "gemini" ->
-        :gemini
-
-      "groq" ->
-        :groq
-
-      "mistral" ->
-        :mistral
-
-      "openrouter" ->
-        :openrouter
-
-      "perplexity" ->
-        :perplexity
-
-      "xai" ->
-        :xai
-
-      "ollama" ->
-        :ollama
-
-      "lmstudio" ->
-        :lmstudio
-
-      "bedrock" ->
-        :bedrock
-
-      "bumblebee" ->
-        :bumblebee
-
-      "mock" ->
-        :mock
-
-      # Fallback for unknown providers - keep as string
-      _ ->
+    case Map.get(known_providers, backend) do
+      nil ->
         Logger.warning(
           "Unknown LLM backend '#{backend}' encountered during deserialization. Keeping as string."
         )
-
         backend
+
+      atom -> atom
     end
   end
 
