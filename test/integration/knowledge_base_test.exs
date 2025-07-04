@@ -21,7 +21,7 @@ defmodule ExLLM.Integration.KnowledgeBaseTest do
 
   describe "knowledge base lifecycle" do
     test "creates a knowledge base successfully" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # {:ok, kb} = ExLLM.create_knowledge_base(:gemini, "test-kb", 
       #   display_name: "Test Knowledge Base"
       # )
@@ -29,52 +29,52 @@ defmodule ExLLM.Integration.KnowledgeBaseTest do
     end
 
     test "lists available knowledge bases" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # {:ok, kbs} = ExLLM.list_knowledge_bases(:gemini)
       # assert is_list(kbs)
     end
 
     test "retrieves specific knowledge base" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # {:ok, kb} = ExLLM.get_knowledge_base(:gemini, "test-kb")
       # assert kb.name == "test-kb"
     end
 
     test "deletes a knowledge base" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # :ok = ExLLM.delete_knowledge_base(:gemini, "test-kb")
     end
   end
 
   describe "document management" do
     test "adds a document to knowledge base" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # document = create_test_document("Test content", title: "Test Doc")
       # {:ok, doc} = ExLLM.add_document(:gemini, "test-kb", document)
       # assert doc.id
     end
 
     test "lists documents in knowledge base" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # {:ok, docs} = ExLLM.list_documents(:gemini, "test-kb")
       # assert is_list(docs)
     end
 
     test "retrieves specific document" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # {:ok, doc} = ExLLM.get_document(:gemini, "test-kb", "doc-123")
       # assert doc.id == "doc-123"
     end
 
     test "deletes a document from knowledge base" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # :ok = ExLLM.delete_document(:gemini, "test-kb", "doc-123")
     end
   end
 
   describe "semantic search functionality" do
     test "performs semantic search on knowledge base" do
-      # TODO: Implement test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # results = ExLLM.semantic_search(:gemini, "test-kb", "search query",
       #   result_count: 5
       # )
@@ -83,17 +83,17 @@ defmodule ExLLM.Integration.KnowledgeBaseTest do
     end
 
     test "handles empty search results" do
-      # TODO: Test when no matches found
+      # Implemented in knowledge_base_comprehensive_test.exs (error handling)
     end
 
     test "supports advanced search options" do
-      # TODO: Test filters, metadata queries, etc.
+      # Implemented in knowledge_base_comprehensive_test.exs (metadata filters)
     end
   end
 
   describe "complete knowledge base workflow" do
     test "create KB -> add docs -> search -> delete workflow" do
-      # TODO: Implement comprehensive workflow test
+      # Implemented in knowledge_base_comprehensive_test.exs
       # 1. Create knowledge base
       # 2. Add multiple documents
       # 3. Perform searches
@@ -106,12 +106,12 @@ defmodule ExLLM.Integration.KnowledgeBaseTest do
   describe "provider-specific features" do
     @tag provider: :gemini
     test "Gemini corpus management with permissions" do
-      # TODO: Test Gemini-specific features like permissions
+      # Gemini-specific features - needs implementation
     end
 
     @tag provider: :openai
     test "OpenAI vector stores for assistants" do
-      # TODO: Test OpenAI's vector store implementation
+      # Implemented in vector_store_comprehensive_test.exs
     end
   end
 end

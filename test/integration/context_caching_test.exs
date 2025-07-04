@@ -22,7 +22,7 @@ defmodule ExLLM.Integration.ContextCachingTest do
 
   describe "cached context lifecycle" do
     test "creates a cached context successfully" do
-      # TODO: Implement test
+      # Implemented in context_caching_comprehensive_test.exs
       # content = [
       #   %{role: "system", content: "You are a helpful coding assistant."},
       #   %{role: "user", content: "Common context about the project..."}
@@ -35,14 +35,14 @@ defmodule ExLLM.Integration.ContextCachingTest do
     end
 
     test "retrieves cached context by name" do
-      # TODO: Implement test
+      # Implemented in context_caching_comprehensive_test.exs
       # {:ok, cached} = ExLLM.get_cached_context(:anthropic, "project-context")
       # assert cached.name == "project-context"
       # assert is_list(cached.content)
     end
 
     test "updates existing cached context" do
-      # TODO: Implement test
+      # Implemented in context_caching_comprehensive_test.exs
       # updates = [
       #   %{role: "user", content: "Additional context..."}
       # ]
@@ -51,12 +51,12 @@ defmodule ExLLM.Integration.ContextCachingTest do
     end
 
     test "deletes cached context" do
-      # TODO: Implement test
+      # Implemented in context_caching_comprehensive_test.exs
       # :ok = ExLLM.delete_cached_context(:anthropic, "project-context")
     end
 
     test "lists all cached contexts" do
-      # TODO: Implement test
+      # Implemented in context_caching_comprehensive_test.exs
       # {:ok, contexts} = ExLLM.list_cached_contexts(:anthropic)
       # assert is_list(contexts)
     end
@@ -64,21 +64,21 @@ defmodule ExLLM.Integration.ContextCachingTest do
 
   describe "cache expiration and management" do
     test "respects TTL settings" do
-      # TODO: Test cache expiration behavior
+      # Implemented in context_caching_comprehensive_test.exs
     end
 
     test "handles cache eviction gracefully" do
-      # TODO: Test behavior when cache is full
+      # Needs implementation - cache capacity testing
     end
 
     test "supports cache refresh operations" do
-      # TODO: Test refreshing cache before expiration
+      # Needs implementation - cache refresh mechanisms
     end
   end
 
   describe "using cached contexts in chat" do
     test "chat request with cached context" do
-      # TODO: Implement test
+      # Implemented in context_caching_comprehensive_test.exs
       # {:ok, cached} = ExLLM.create_cached_context(:anthropic, base_context)
       # 
       # {:ok, response} = ExLLM.chat(:anthropic, 
@@ -91,14 +91,14 @@ defmodule ExLLM.Integration.ContextCachingTest do
     end
 
     test "combines cached context with new messages" do
-      # TODO: Test message merging behavior
+      # Implemented in context_caching_comprehensive_test.exs
     end
   end
 
   describe "provider-specific caching features" do
     @tag provider: :anthropic
     test "Anthropic prompt caching" do
-      # TODO: Test Anthropic's specific caching implementation
+      # Implemented in context_caching_comprehensive_test.exs
       # - Cache creation tokens
       # - Cache read tokens
       # - Billing implications
@@ -106,17 +106,17 @@ defmodule ExLLM.Integration.ContextCachingTest do
 
     @tag provider: :openai
     test "OpenAI context caching patterns" do
-      # TODO: Test OpenAI caching if/when available
+      # Needs implementation when OpenAI adds caching support
     end
   end
 
   describe "performance optimization" do
     test "measures token savings with caching" do
-      # TODO: Compare token usage with and without caching
+      # Implemented in context_caching_comprehensive_test.exs
     end
 
     test "benchmarks response time improvements" do
-      # TODO: Measure latency improvements with cached contexts
+      # Implemented in context_caching_comprehensive_test.exs
     end
   end
 end

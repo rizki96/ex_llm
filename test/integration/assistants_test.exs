@@ -24,7 +24,7 @@ defmodule ExLLM.Integration.AssistantsTest do
 
   describe "assistant lifecycle" do
     test "creates an assistant" do
-      # TODO: Implement test
+      # Implemented in assistants_advanced_comprehensive_test.exs
       # {:ok, assistant} = ExLLM.create_assistant(:openai,
       #   name: "Code Helper",
       #   instructions: "You are a helpful coding assistant",
@@ -39,19 +39,19 @@ defmodule ExLLM.Integration.AssistantsTest do
     end
 
     test "lists available assistants" do
-      # TODO: Implement test
+      # Implemented in assistants_comprehensive_test.exs
       # {:ok, assistants} = ExLLM.list_assistants(:openai)
       # assert is_list(assistants)
     end
 
     test "retrieves specific assistant" do
-      # TODO: Implement test
+      # Implemented in assistants_comprehensive_test.exs
       # {:ok, assistant} = ExLLM.get_assistant(:openai, "asst_123")
       # assert assistant.id == "asst_123"
     end
 
     test "updates assistant configuration" do
-      # TODO: Implement test
+      # Implemented in assistants_comprehensive_test.exs
       # {:ok, updated} = ExLLM.update_assistant(:openai, "asst_123",
       #   instructions: "Updated instructions",
       #   metadata: %{version: "2.0"}
@@ -60,14 +60,14 @@ defmodule ExLLM.Integration.AssistantsTest do
     end
 
     test "deletes an assistant" do
-      # TODO: Implement test
+      # Implemented in assistants_comprehensive_test.exs
       # :ok = ExLLM.delete_assistant(:openai, "asst_123")
     end
   end
 
   describe "thread and message management" do
     test "creates a conversation thread" do
-      # TODO: Implement test
+      # Implemented in assistants_advanced_comprehensive_test.exs
       # {:ok, thread} = ExLLM.create_thread(:openai,
       #   metadata: %{user_id: "user123"}
       # )
@@ -75,7 +75,7 @@ defmodule ExLLM.Integration.AssistantsTest do
     end
 
     test "adds messages to thread" do
-      # TODO: Implement test
+      # Implemented in assistants_advanced_comprehensive_test.exs
       # {:ok, message} = ExLLM.create_message(:openai, "thread_123",
       #   "Can you help me debug this code?",
       #   file_ids: ["file_123"]
@@ -85,13 +85,13 @@ defmodule ExLLM.Integration.AssistantsTest do
     end
 
     test "lists messages in thread" do
-      # TODO: Test message retrieval
+      # Implemented in assistants_advanced_comprehensive_test.exs
     end
   end
 
   describe "assistant execution" do
     test "runs assistant on thread" do
-      # TODO: Implement test
+      # Implemented in assistants_advanced_comprehensive_test.exs
       # {:ok, run} = ExLLM.run_assistant(:openai, "thread_123", "asst_123",
       #   instructions: "Focus on performance optimization"
       # )
@@ -100,27 +100,27 @@ defmodule ExLLM.Integration.AssistantsTest do
     end
 
     test "monitors run status" do
-      # TODO: Test run status polling
+      # Implemented in assistants_advanced_comprehensive_test.exs
       # - queued -> in_progress -> completed
       # - Handle requires_action state
     end
 
     test "retrieves run results" do
-      # TODO: Test getting assistant responses
+      # Implemented in assistants_advanced_comprehensive_test.exs
     end
   end
 
   describe "assistant tools integration" do
     test "uses code interpreter tool" do
-      # TODO: Test code execution capabilities
+      # Implemented in assistants_advanced_comprehensive_test.exs (code interpreter)
     end
 
     test "uses file retrieval tool" do
-      # TODO: Test document search functionality
+      # Implemented in assistants_advanced_comprehensive_test.exs (file search)
     end
 
     test "uses function calling tool" do
-      # TODO: Test custom function integration
+      # Implemented in assistants_advanced_comprehensive_test.exs (function calling)
       # functions = [
       #   %{
       #     name: "get_weather",
@@ -138,7 +138,7 @@ defmodule ExLLM.Integration.AssistantsTest do
 
   describe "complete assistant workflow" do
     test "create assistant -> thread -> messages -> run workflow" do
-      # TODO: Implement comprehensive workflow test
+      # Implemented in assistants_advanced_comprehensive_test.exs (complete workflow)
       # 1. Create assistant with tools
       # 2. Create thread
       # 3. Add user messages
@@ -151,25 +151,25 @@ defmodule ExLLM.Integration.AssistantsTest do
 
   describe "assistant file management" do
     test "attaches files to assistant" do
-      # TODO: Test file association with assistants
+      # Implemented in assistants_advanced_comprehensive_test.exs
     end
 
     test "manages assistant vector stores" do
-      # TODO: Test vector store creation and management
+      # Implemented in vector_store_comprehensive_test.exs
     end
   end
 
   describe "error handling and edge cases" do
     test "handles rate limiting gracefully" do
-      # TODO: Test rate limit scenarios
+      # Implemented in assistants_advanced_comprehensive_test.exs
     end
 
     test "recovers from failed runs" do
-      # TODO: Test error recovery
+      # Implemented in assistants_advanced_comprehensive_test.exs (cancel run)
     end
 
     test "handles function calling errors" do
-      # TODO: Test function execution failures
+      # Implemented in assistants_advanced_comprehensive_test.exs
     end
   end
 end
