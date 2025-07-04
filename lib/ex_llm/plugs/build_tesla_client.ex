@@ -70,9 +70,11 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
       if Application.get_env(:ex_llm, :use_tesla_mock, false) do
         Tesla.Mock
       else
-        {Tesla.Adapter.Hackney, adapter_opts}
+        # Tesla.client expects the adapter in a specific format
+        # Using Tesla.Adapter.Hackney directly instead of tuple format
+        Tesla.Adapter.Hackney
       end
 
-    Tesla.client(middleware, adapter)
+    Tesla.client(middleware, {adapter, adapter_opts})
   end
 end

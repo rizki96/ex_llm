@@ -41,5 +41,4 @@ defmodule ExLLM.Tesla.Middleware.CircuitBreaker do
     # CircuitBreaker.call already returns the correct {:ok, Tesla.Env} or {:error, reason} format
     CircuitBreaker.call(circuit_name, fn -> Tesla.run(env, next) end, cb_opts)
   end
-
 end
