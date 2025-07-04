@@ -11,7 +11,7 @@ defmodule ExLLM.SessionStreamingCostTest do
   costs across streaming conversations within sessions.
   """
 
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias ExLLM.Core.Session
 
