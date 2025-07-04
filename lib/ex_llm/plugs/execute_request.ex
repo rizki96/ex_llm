@@ -78,7 +78,7 @@ defmodule ExLLM.Plugs.ExecuteRequest do
 
     # Intercept request if caching is enabled
     case maybe_intercept_request(request, endpoint, method) do
-      {:cached, final_request, cached_response} ->
+      {:cached, final_request, %Tesla.Env{} = cached_response} ->
         # Cache hit, response is already prepared.
         handle_tesla_response(final_request, cached_response)
 
@@ -146,10 +146,16 @@ defmodule ExLLM.Plugs.ExecuteRequest do
             end
 
           # Create a fake Tesla.Env with status 200.
+          # We need to match the expected Tesla.Env structure more closely
+          # to satisfy dialyzer
           fake_response = %Tesla.Env{
             status: 200,
             body: enhanced_body,
-            headers: []
+            headers: [],
+            method: :post,
+            url: url,
+            query: [],
+            opts: opts
           }
 
           # Also set the metadata on the request for consistency
@@ -196,13 +202,13 @@ defmodule ExLLM.Plugs.ExecuteRequest do
     Tesla.delete(client, endpoint)
   end
 
-  defp handle_tesla_response(%Request{} = request, response) do
+  defp handle_tesla_response(%Request{} = request, %Tesla.Env{} = response) do
     if ExLLM.HTTP.successful?(response) do
       # Handle successful Tesla responses
       status = ExLLM.HTTP.get_status(response)
       headers = ExLLM.HTTP.get_headers(response)
       body = ExLLM.HTTP.get_body(response)
-      
+
       # Handle response body (may already be parsed by Tesla middleware)
       parsed_body =
         case body do
@@ -304,17 +310,6 @@ defmodule ExLLM.Plugs.ExecuteRequest do
       error: :server_error,
       message: "Internal server error from #{provider}.",
       status: 500,
-      body: body,
-      provider: provider
-    }
-  end
-
-  defp build_http_error(nil, body, provider) do
-    %{
-      plug: __MODULE__,
-      error: :connection_error,
-      message: "Connection error to #{provider}. No HTTP status received.",
-      status: nil,
       body: body,
       provider: provider
     }

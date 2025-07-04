@@ -96,6 +96,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
         if is_binary(response.body) && String.contains?(response.body, "data:") do
           simulate_streaming_from_body(response.body, callback, parse_chunk_fn)
         end
+
         {:ok, response}
 
       {:error, reason} ->
@@ -111,7 +112,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
     Logger.debug("HTTP.Core using stream timeout: #{stream_timeout}ms")
 
     streaming_client = build_streaming_client(client, stream_timeout)
-    
+
     case Tesla.post(streaming_client, path, body) do
       {:ok, env} -> handle_streaming_response(env, callback, parse_chunk_fn, stream_timeout)
       {:error, reason} -> {:error, reason}
@@ -123,9 +124,11 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
       ExLLM.HTTP.successful?(env) ->
         status = ExLLM.HTTP.get_status(env)
         body = ExLLM.HTTP.get_body(env)
+
         Logger.debug(
           "HTTP.Core got initial async response, status: #{status}, body type: #{inspect(body) |> String.slice(0, 100)}"
         )
+
         handle_response_body(body, env, callback, parse_chunk_fn, timeout)
 
       ExLLM.HTTP.timeout_error?(env) ->
@@ -138,7 +141,8 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
     end
   end
 
-  defp handle_response_body(body, env, callback, parse_chunk_fn, timeout) when is_reference(body) do
+  defp handle_response_body(body, env, callback, parse_chunk_fn, timeout)
+       when is_reference(body) do
     Logger.debug("HTTP.Core using async streaming with reference")
     result = handle_stream_chunks(callback, parse_chunk_fn, timeout)
     Logger.debug("HTTP.Core streaming result: #{inspect(result)}")

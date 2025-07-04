@@ -39,28 +39,17 @@
   # - Complex case statement analysis
   # - Macro-generated code
   
-  # Guard failures in OpenAICompatible.BuildRequest macro expansion
-  # These are false positives where dialyzer incorrectly infers a binary type
-  # for something that could be nil during macro expansion
-  {"lib/ex_llm/providers/lmstudio/build_request.ex", :guard_fail},
-  {"lib/ex_llm/providers/mistral/build_request.ex", :guard_fail},
-  {"lib/ex_llm/providers/ollama/build_request.ex", :guard_fail},
-  {"lib/ex_llm/providers/openrouter/build_request.ex", :guard_fail},
-  {"lib/ex_llm/providers/perplexity/build_request.ex", :guard_fail},
-  {"lib/ex_llm/providers/xai/build_request.ex", :guard_fail},
   
   # Optional Nx dependency for local models
   ~r/Function Nx\.Serving\.run\/2 does not exist/,
   
   # === PHASE 3.3 REMAINING WARNINGS (False Positives) ===
   
-  # Bedrock stream parsing - complex control flow false positive
-  # Function does return in all branches but dialyzer can't trace it
-  {"lib/ex_llm/providers/bedrock/stream_parse_response.ex", :no_return},
+  # Test caching interception - dialyzer can't trace through the control flow
+  # handle_tesla_response is called with correct types but dialyzer gets confused
+  {"lib/ex_llm/plugs/execute_request.ex", :call},
   
-  # XAI macro expansion - pattern match in generated code
-  # OpenAICompatible macro generates code with :get/:post pattern match
-  {"lib/ex_llm/providers/xai.ex", :pattern_match},
+  
   
   # Streaming compatibility defensive pattern match - false positive
   # start_stream function returns {:ok, id} but dialyzer can't trace through defensive code

@@ -3516,7 +3516,7 @@ defmodule ExLLM.Providers.OpenAI do
   defp parse_openai_response_body(body, headers, expect_binary) do
     if is_binary(body) && !expect_binary do
       content_type = get_content_type(headers)
-      
+
       if String.starts_with?(content_type, "application/json") do
         decode_json_body(body)
       else

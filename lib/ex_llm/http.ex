@@ -1,7 +1,7 @@
 defmodule ExLLM.HTTP do
   @moduledoc """
   Type-safe wrapper around Tesla responses.
-  
+
   This module provides a clean interface for handling Tesla.Env responses
   while avoiding dialyzer warnings about the polymorphic body field.
   It also decouples the rest of the codebase from Tesla internals.
@@ -10,7 +10,7 @@ defmodule ExLLM.HTTP do
   @type ok_response(body_type) :: %Tesla.Env{status: 200..299, body: body_type}
   @type error_response :: %Tesla.Env{status: 300..599}
   @type streaming_response :: %Tesla.Env{body: reference()}
-  
+
   @doc """
   Check if a response was successful (2xx status code).
   """
