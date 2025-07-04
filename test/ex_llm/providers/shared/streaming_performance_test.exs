@@ -128,8 +128,10 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
         assert coordinator_latency <= legacy_latency * 2
       else
         # For zero latency baseline, allow reasonable absolute thresholds
-        assert new_latency <= 10  # Max 10ms when baseline is unmeasurable
-        assert coordinator_latency <= 20  # Max 20ms for coordinator
+        # Max 10ms when baseline is unmeasurable
+        assert new_latency <= 10
+        # Max 20ms for coordinator
+        assert coordinator_latency <= 20
       end
     end
   end
