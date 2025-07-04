@@ -553,9 +553,11 @@ defmodule ExLLM.Core.Session do
         Logger.warning(
           "Unknown LLM backend '#{backend}' encountered during deserialization. Keeping as string."
         )
+
         backend
 
-      atom -> atom
+      atom ->
+        atom
     end
   end
 

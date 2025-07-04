@@ -99,6 +99,18 @@ defmodule ExLLM.Testing.OAuth2.Helper do
             context
         end
 
+      {:ok, _token_data} ->
+        # Token was refreshed successfully, now get the valid token
+        case get_valid_token(provider) do
+          {:ok, token} ->
+            Logger.debug("✅ OAuth2 setup successful for #{provider} (after refresh)")
+            Map.put(context, :oauth_token, token)
+
+          {:error, reason} ->
+            Logger.warning("⚠️  OAuth2 token unavailable for #{provider}: #{reason}")
+            context
+        end
+
       {:error, reason} ->
         Logger.warning("⚠️  OAuth2 refresh failed for #{provider}: #{reason}")
 
