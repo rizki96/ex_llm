@@ -341,7 +341,8 @@ defmodule ExLLM.Providers.Shared.HTTP.Cache.Disk do
     case File.read(cache_file) do
       {:ok, binary} ->
         try do
-          {:ok, :erlang.binary_to_term(binary)}
+          # Use safe option to prevent code execution from untrusted data
+          {:ok, :erlang.binary_to_term(binary, [:safe])}
         rescue
           ArgumentError -> :error
         end

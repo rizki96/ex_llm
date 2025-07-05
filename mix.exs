@@ -135,6 +135,7 @@ defmodule ExLLM.MixProject do
       {:dialyxir, "~> 1.4", only: [:dev], runtime: false},
       {:git_hooks, "~> 0.7", only: [:dev], runtime: false},
       {:sobelow, "~> 0.13", only: [:dev, :test], runtime: false},
+      {:mix_audit, "~> 2.0", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.18", only: :test},
 
       # HTTP testing mock server
