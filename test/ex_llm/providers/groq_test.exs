@@ -54,8 +54,7 @@ defmodule ExLLM.Providers.GroqTest do
       messages = [%{role: "user", content: "Hello"}]
 
       {:ok, response} =
-        ExLLM.chat(:mock, messages,
-          model: "groq/llama3-70b-8192",
+        ExLLM.chat("groq/llama3-70b-8192", messages,
           mock_response: "Test response"
         )
 
