@@ -1,5 +1,5 @@
 defmodule ExLLM.Providers.GroqTest do
-  use ExUnit.Case
+  use ExUnit.Case, async: false
   alias ExLLM.Providers.Groq
   alias ExLLM.Testing.ConfigProviderHelper
 

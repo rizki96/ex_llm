@@ -1,5 +1,5 @@
 defmodule ExLLM.PipelineAPITest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias ExLLM.Pipeline.Request
   alias ExLLM.Plugs
