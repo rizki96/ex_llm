@@ -52,15 +52,17 @@ defmodule ExLLM.Providers.GroqTest do
     test "model string correctly identifies groq provider" do
       # Test that groq/model strings are correctly parsed
       # This is a unit test that doesn't make API calls
-      
+
       # We can test this by checking if the model is recognized in the Groq provider
       # The model should be in the groq.yml config
       assert Groq.filter_model(%{"id" => "llama3-70b-8192"}) == true
       assert Groq.filter_model(%{"id" => "llama3-8b-8192"}) == true
-      
+
       # Non-Groq models should be filtered out
-      assert Groq.filter_model(%{"id" => "gpt-4"}) == true  # Actually most models pass filter
-      assert Groq.filter_model(%{"id" => "whisper-large-v3"}) == false  # But whisper is filtered
+      # Actually most models pass filter
+      assert Groq.filter_model(%{"id" => "gpt-4"}) == true
+      # But whisper is filtered
+      assert Groq.filter_model(%{"id" => "whisper-large-v3"}) == false
     end
   end
 end
