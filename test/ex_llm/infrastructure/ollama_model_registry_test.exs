@@ -3,6 +3,9 @@ defmodule ExLLM.Infrastructure.OllamaModelRegistryTest do
 
   alias ExLLM.Infrastructure.OllamaModelRegistry
 
+  @moduletag :requires_service
+  @moduletag provider: :ollama
+
   setup do
     # Clear cache before each test
     OllamaModelRegistry.clear_cache()

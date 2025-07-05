@@ -11,6 +11,9 @@ defmodule ExLLM.OAuth2Test do
   providers and handles various error scenarios appropriately.
   """
 
+  @moduletag :oauth2
+  @moduletag :requires_oauth
+
   describe "OAuth2 provider support" do
     test "lists supported providers" do
       providers = Helper.supported_providers()

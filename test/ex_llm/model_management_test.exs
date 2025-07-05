@@ -8,6 +8,10 @@ defmodule ExLLM.ModelManagementTest do
 
   use ExUnit.Case, async: true
 
+  # This test module calls Models.list_all() which attempts to connect to all providers
+  @moduletag :requires_service
+  @moduletag :local_only
+
   alias ExLLM.Core.Models
 
   describe "model listing and discovery" do
