@@ -227,7 +227,7 @@ defmodule ExLLM.MixProject do
 
       # CI/CD pipeline tests
       "test.ci": [
-        "test --exclude wip --exclude flaky --exclude quota_sensitive --exclude very_slow --exclude requires_api_key --exclude integration --exclude external --exclude live_api"
+        "test --exclude wip --exclude flaky --exclude quota_sensitive --exclude very_slow --exclude requires_api_key --exclude integration --exclude external --exclude live_api --exclude requires_service --exclude local_only"
       ],
 
       # === CACHE MANAGEMENT ===

@@ -35,6 +35,7 @@ defmodule ExLLM.Testing.Config do
   - `:requires_oauth` - Tests needing OAuth2 authentication
   - `:requires_service` - Tests needing local services (Ollama, LM Studio)
   - `:requires_resource` - Tests needing specific resources (tuned models, etc.)
+  - `:local_only` - Tests that can only run with local models (Bumblebee)
   """
 
   @doc """
@@ -123,7 +124,9 @@ defmodule ExLLM.Testing.Config do
       requires_api_key: true,
       integration: true,
       external: true,
-      live_api: true
+      live_api: true,
+      requires_service: true,
+      local_only: true
     ]
   end
 
