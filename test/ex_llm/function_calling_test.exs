@@ -1,5 +1,5 @@
 defmodule ExLLM.FunctionCallingTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   @moduledoc """
   Tests for function calling functionality in ExLLM.

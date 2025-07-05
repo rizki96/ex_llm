@@ -25,6 +25,9 @@ Code.require_file("support/shared/provider_integration_test.exs", __DIR__)
 # Start test support GenServers
 {:ok, _} = ExLLM.Testing.CostTracker.start_link()
 
+# Start Mock provider for tests
+{:ok, _} = ExLLM.Providers.Mock.start_link()
+
 # Apply centralized test configuration
 tesla_config = ExLLM.Testing.Config.tesla_config()
 app_config = ExLLM.Testing.Config.app_config()

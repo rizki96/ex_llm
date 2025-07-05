@@ -570,6 +570,7 @@ defmodule ExLLM.Providers.Mock do
         case start_link() do
           {:ok, _pid} -> :ok
           {:error, {:already_started, _pid}} -> :ok
+          {:error, reason} -> {:error, reason}
         end
 
       _pid ->
