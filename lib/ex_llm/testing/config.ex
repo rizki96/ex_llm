@@ -119,7 +119,11 @@ defmodule ExLLM.Testing.Config do
       wip: true,
       flaky: true,
       quota_sensitive: true,
-      very_slow: true
+      very_slow: true,
+      requires_api_key: true,
+      integration: true,
+      external: true,
+      live_api: true
     ]
   end
 
