@@ -8,6 +8,12 @@ defmodule ExLLM.FunctionCallingTest do
   when they want to call specific functions with structured arguments.
   """
 
+  setup do
+    # Reset mock provider to ensure clean state for each test
+    ExLLM.Providers.Mock.reset()
+    :ok
+  end
+
   describe "function definitions" do
     test "accepts function definitions in chat options" do
       messages = [%{role: "user", content: "What's the weather in Paris?"}]
