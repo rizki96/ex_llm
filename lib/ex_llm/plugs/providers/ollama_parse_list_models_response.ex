@@ -200,7 +200,8 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
 
       _ ->
         # Check if this is an embedding model based on the name
-        default = if is_embedding_model?(model_name), do: ["embeddings", "streaming"], else: ["chat"]
+        default =
+          if is_embedding_model?(model_name), do: ["embeddings", "streaming"], else: ["chat"]
 
         Logger.warning(
           "Could not find capabilities for Ollama model '#{model_name}'. Falling back to default of #{inspect(default)}."

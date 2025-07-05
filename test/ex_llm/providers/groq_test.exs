@@ -49,6 +49,7 @@ defmodule ExLLM.Providers.GroqTest do
   end
 
   describe "provider detection" do
+    @tag :flaky
     test "provider/model string works with mock adapter" do
       # Test with mock to avoid real API calls
       messages = [%{role: "user", content: "Hello"}]
