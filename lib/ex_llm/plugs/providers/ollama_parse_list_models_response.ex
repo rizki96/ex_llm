@@ -199,7 +199,8 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
         |> Enum.uniq()
 
       _ ->
-        default = ["chat"]
+        # Check if this is an embedding model based on the name
+        default = if is_embedding_model?(model_name), do: ["embeddings", "streaming"], else: ["chat"]
 
         Logger.warning(
           "Could not find capabilities for Ollama model '#{model_name}'. Falling back to default of #{inspect(default)}."
@@ -207,5 +208,12 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
 
         default
     end
+  end
+
+  defp is_embedding_model?(model_name) do
+    String.contains?(model_name, "embed") ||
+      String.contains?(model_name, "embedding") ||
+      String.contains?(model_name, "e5") ||
+      String.contains?(model_name, "bge")
   end
 end
