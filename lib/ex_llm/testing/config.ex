@@ -126,7 +126,9 @@ defmodule ExLLM.Testing.Config do
       external: true,
       live_api: true,
       requires_service: true,
-      local_only: true
+      local_only: true,
+      oauth2: true,
+      requires_oauth: true
     ]
   end
 
