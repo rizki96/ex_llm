@@ -9,6 +9,12 @@ defmodule ExLLM.InputValidationTest do
   rather than obscure FunctionClauseErrors.
   """
 
+  setup do
+    # Reset mock provider to ensure clean state for each test
+    ExLLM.Providers.Mock.reset()
+    :ok
+  end
+
   describe "temperature validation" do
     test "accepts valid temperature range 0.0 to 2.0" do
       messages = [%{role: "user", content: "test"}]
