@@ -57,7 +57,7 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
       ]
 
       case ExLLM.chat(:gemini, messages,
-             model: "gemini-2.5-pro-exp-03-25",
+             model: "gemini-2.0-flash-exp",
              safety_settings: safety_settings,
              max_tokens: 100
            ) do
@@ -81,12 +81,13 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
       end
 
       case ExLLM.stream(:gemini, messages, collector,
-             model: "gemini-2.5-pro-exp-03-25",
+             model: "gemini-2.0-flash-exp",
              max_tokens: 20,
              timeout: 10_000
            ) do
         :ok ->
           chunks = collect_stream_chunks([], 1000)
+          assert length(chunks) > 0, "No chunks received from Gemini streaming"
           last_chunk = List.last(chunks)
           # Gemini uses different finish reasons
           assert last_chunk.finish_reason in ["STOP", "MAX_TOKENS", "SAFETY", nil]
@@ -104,7 +105,7 @@ defmodule ExLLM.Providers.GeminiPublicAPITest do
         %{role: "user", content: "How are you?"}
       ]
 
-      case ExLLM.chat(:gemini, messages, model: "gemini-2.5-pro-exp-03-25", max_tokens: 50) do
+      case ExLLM.chat(:gemini, messages, model: "gemini-2.0-flash-exp", max_tokens: 50) do
         {:ok, response} ->
           assert is_binary(response.content)
           assert response.metadata.provider == :gemini

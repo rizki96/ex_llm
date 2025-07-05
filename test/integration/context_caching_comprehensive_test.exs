@@ -22,7 +22,7 @@ defmodule ExLLM.Integration.ContextCachingComprehensiveTest do
     content = create_test_content(content_text)
 
     %{
-      model: Keyword.get(opts, :model, "gemini-1.5-flash"),
+      model: Keyword.get(opts, :model, "gemini-1.5-flash-002"),
       contents: [content],
       ttl: Keyword.get(opts, :ttl, "3600s"),
       display_name: Keyword.get(opts, :display_name)
@@ -40,7 +40,7 @@ defmodule ExLLM.Integration.ContextCachingComprehensiveTest do
         {:ok, cached} ->
           assert %CachedContent{} = cached
           assert cached.name =~ ~r/^cachedContents\//
-          assert cached.model == "models/gemini-1.5-flash"
+          assert cached.model == "models/gemini-1.5-flash-002"
           assert cached.usage_metadata.total_token_count > 0
 
           # Cleanup
