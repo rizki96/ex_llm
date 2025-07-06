@@ -1,6 +1,8 @@
 defmodule ExLLM.Providers.Groq.PipelinePlugsTest do
   use ExUnit.Case, async: false
 
+  @moduletag provider: :groq
+  @moduletag :unit
   alias ExLLM.Pipeline.Request
   alias ExLLM.Providers.Groq.{BuildRequest, ParseResponse}
 

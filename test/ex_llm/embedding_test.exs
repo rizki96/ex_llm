@@ -8,6 +8,7 @@ defmodule ExLLM.EmbeddingTest do
 
   use ExUnit.Case, async: true
 
+  @moduletag capability: :embeddings
   alias ExLLM.Core.Embeddings
 
   @simple_text "Hello, world!"

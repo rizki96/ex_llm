@@ -1,6 +1,8 @@
 defmodule ExLLM.MockTest do
   use ExUnit.Case, async: false
 
+  @moduletag :mock
+  @moduletag provider: :mock
   alias ExLLM.Providers.Mock
   alias ExLLM.Types
 

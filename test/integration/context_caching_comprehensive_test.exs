@@ -5,6 +5,8 @@ defmodule ExLLM.Integration.ContextCachingComprehensiveTest do
   """
   use ExUnit.Case
 
+  @moduletag :integration
+  @moduletag :comprehensive
   alias ExLLM.Providers.Gemini
   alias ExLLM.Providers.Gemini.Caching.CachedContent
   alias ExLLM.Providers.Gemini.Content.{Content, Part}

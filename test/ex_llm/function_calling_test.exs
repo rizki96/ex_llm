@@ -1,6 +1,7 @@
 defmodule ExLLM.FunctionCallingTest do
   use ExUnit.Case, async: false
 
+  @moduletag capability: :function_calling
   @moduledoc """
   Tests for function calling functionality in ExLLM.
 

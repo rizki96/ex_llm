@@ -5,6 +5,8 @@ defmodule ExLLM.Integration.AssistantsComprehensiveTest do
   """
   use ExUnit.Case
 
+  @moduletag :integration
+  @moduletag :comprehensive
   # Test helpers
   defp unique_name(base) when is_binary(base) do
     timestamp = :os.system_time(:millisecond)

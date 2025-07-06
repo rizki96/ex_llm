@@ -1,6 +1,7 @@
 defmodule ExLLM.Core.VisionTest do
   use ExUnit.Case, async: true
 
+  @moduletag capability: :vision
   alias ExLLM.Core.Vision
 
   @moduledoc """

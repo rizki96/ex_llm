@@ -1,6 +1,8 @@
 defmodule ExLLM.Providers.OpenAI.PipelinePlugsTest do
   use ExUnit.Case, async: false
 
+  @moduletag provider: :openai
+  @moduletag :unit
   alias ExLLM.Pipeline.Request
   alias ExLLM.Pipelines.StandardProvider
   alias ExLLM.Providers.OpenAI.{BuildRequest, ParseResponse}

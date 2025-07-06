@@ -249,17 +249,65 @@ defmodule ExLLM.MixProject do
         "test --exclude wip --exclude flaky --exclude quota_sensitive --exclude very_slow --exclude requires_api_key --exclude integration --exclude external --exclude live_api --exclude requires_service --exclude local_only --exclude oauth2 --exclude requires_oauth"
       ],
 
+      # === CAPABILITY-SPECIFIC TESTING ===
+      
+      # Core chat functionality
+      "test.capability.chat": ["test --only capability:chat"],
+      
+      # Streaming responses
+      "test.capability.streaming": ["test --only capability:streaming"],
+      
+      # Model listing
+      "test.capability.list_models": ["test --only capability:list_models"],
+      
+      # Function calling / Tool use
+      "test.capability.function_calling": ["test --only capability:function_calling"],
+      
+      # Vision / Image understanding
+      "test.capability.vision": ["test --only capability:vision"],
+      
+      # Text embeddings
+      "test.capability.embeddings": ["test --only capability:embeddings"],
+      
+      # Cost tracking
+      "test.capability.cost_tracking": ["test --only capability:cost_tracking"],
+      
+      # JSON mode / Structured outputs
+      "test.capability.json_mode": ["test --only capability:json_mode"],
+      
+      # System prompt support
+      "test.capability.system_prompt": ["test --only capability:system_prompt"],
+      
+      # Temperature control
+      "test.capability.temperature": ["test --only capability:temperature"],
+
       # === CACHE MANAGEMENT ===
 
       "cache.clear": ["cmd rm -rf test/cache/*"],
       "cache.status": ["run -e ExLLM.Testing.Cache.status()"],
-      
+
       # === RESPONSE CAPTURE ===
-      
+
       "captures.list": ["ex_llm.captures list"],
       "captures.show": ["ex_llm.captures show"],
       "captures.clear": ["ex_llm.captures clear"],
-      "captures.stats": ["ex_llm.captures stats"]
+      "captures.stats": ["ex_llm.captures stats"],
+
+      # === TEST MATRIX ===
+      
+      # Run tests across all configured providers
+      "test.matrix": ["ex_llm.test_matrix"],
+      
+      # Run tests across major providers
+      "test.matrix.major": ["ex_llm.test_matrix --providers openai,anthropic,gemini,groq"],
+      
+      # Test specific capability across all providers
+      "test.matrix.vision": ["ex_llm.test_matrix --capability vision"],
+      "test.matrix.streaming": ["ex_llm.test_matrix --capability streaming"],
+      "test.matrix.function_calling": ["ex_llm.test_matrix --capability function_calling"],
+      
+      # Run integration tests across providers
+      "test.matrix.integration": ["ex_llm.test_matrix --only integration"]
     ]
   end
 end

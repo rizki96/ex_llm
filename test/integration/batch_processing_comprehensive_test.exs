@@ -5,6 +5,8 @@ defmodule ExLLM.Integration.BatchProcessingComprehensiveTest do
   """
   use ExUnit.Case
 
+  @moduletag :integration
+  @moduletag :comprehensive
   # Test helpers
   defp unique_batch_name(base) do
     timestamp = :os.system_time(:millisecond)

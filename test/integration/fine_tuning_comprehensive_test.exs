@@ -5,6 +5,8 @@ defmodule ExLLM.Integration.FineTuningComprehensiveTest do
   Note: Most tests use mocking/simulation since fine-tuning is expensive and time-consuming.
   """
   use ExUnit.Case
+  @moduletag :integration
+  @moduletag :comprehensive
   import ExUnit.CaptureLog
   require Logger
 

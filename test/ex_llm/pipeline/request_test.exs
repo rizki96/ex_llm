@@ -1,5 +1,6 @@
 defmodule ExLLM.Pipeline.RequestTest do
   use ExUnit.Case, async: true
+  @moduletag :unit
   alias ExLLM.Pipeline.Request
 
   describe "new/3" do

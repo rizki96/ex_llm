@@ -1,481 +1,470 @@
-# ExLLM Testing Strategy
+# ExLLM Comprehensive Testing Strategy
+
+This document describes the comprehensive testing strategy implemented for ExLLM, providing a unified framework for testing across multiple LLM providers while maintaining fast development cycles.
 
 ## Overview
 
-This document outlines a comprehensive testing strategy for ExLLM to address current challenges with integration testing, provider visibility, and test execution time. The strategy was developed through consensus between multiple AI models and represents industry best practices for SDK testing.
+ExLLM's testing strategy consists of five integrated components designed to provide comprehensive test coverage while enabling fast development iterations:
 
-## Current Challenges
+1. **Test Tagging System** - Semantic categorization of tests
+2. **Directory Structure** - Organized test hierarchy
+3. **Provider Capability Matrix** - Visual representation of provider support
+4. **Selective Test Execution** - Mix aliases for targeted testing
+5. **Response Capture System** - API response debugging and analysis
 
-1. **Performance**: Integration tests take several minutes, exceeding development tool timeout limits
-2. **Clarity**: Unclear which tests hit live APIs vs mocks/errors
-3. **Visibility**: No easy way to see which providers pass/fail for specific functionality
-4. **Reporting**: Linear test output doesn't show cross-provider comparisons
+## 1. Test Tagging System
 
-## Proposed Solution
+All tests in ExLLM are tagged to enable selective execution based on various criteria.
 
-### Core Components
+### Tag Categories
 
-1. **Test Tagging System**: Clear categorization using ExUnit tags
-2. **Directory Structure**: Logical separation of test types
-3. **Provider Capability Matrix**: Visual reporting of provider support
-4. **Selective Execution**: Run specific test subsets quickly
-5. **Response Capture**: Optional debugging with actual API responses
+#### Test Type Tags
+- `:unit` - Pure logic tests with no external dependencies
+- `:integration` - Tests requiring API calls or external services  
+- `:comprehensive` - Full end-to-end tests of complex features
+- `:performance` - Performance benchmarks and stress tests
+- `:mock` - Tests using the mock provider
 
-## Implementation Plan
+#### Provider Tags
+- `provider:openai` - OpenAI-specific tests
+- `provider:anthropic` - Anthropic Claude tests
+- `provider:gemini` - Google Gemini tests
+- `provider:groq` - Groq tests
+- `provider:ollama` - Ollama local model tests
+- `provider:mistral` - Mistral AI tests
+- `provider:xai` - X.AI Grok tests
+- `provider:perplexity` - Perplexity tests
+- `provider:openrouter` - OpenRouter tests
+- `provider:lmstudio` - LM Studio tests
+- `provider:bumblebee` - Bumblebee (Elixir ML) tests
+- `provider:mock` - Mock provider tests
 
-### Phase 1: Test Organization (Days 1-2)
+#### Capability Tags
+- `capability:chat` - Basic chat completion
+- `capability:streaming` - Streaming responses
+- `capability:list_models` - Model enumeration
+- `capability:function_calling` - Tool use / function calling
+- `capability:vision` - Image understanding
+- `capability:embeddings` - Text embeddings
+- `capability:cost_tracking` - Usage and cost tracking
+- `capability:json_mode` - Structured outputs
+- `capability:system_prompt` - System message support
+- `capability:temperature` - Temperature control
 
-#### Tag Structure
+#### Requirement Tags
+- `:requires_api_key` - Needs provider API key
+- `:requires_service` - Needs running service (e.g., Ollama)
+- `:requires_oauth` - OAuth2 authentication required
+- `:live_api` - Makes actual API calls
+- `:external` - Requires external resources
+
+#### CI/CD Tags
+- `:wip` - Work in progress, skip in CI
+- `:flaky` - Known flaky tests
+- `:quota_sensitive` - May hit rate limits
+- `:slow` - Takes >5 seconds
+- `:very_slow` - Takes >30 seconds
+
+### Example Test Tagging
+
 ```elixir
-# Test type tags
-@tag :unit                    # Pure logic tests, no external dependencies
-@tag :integration            # All integration tests
-@tag :live                   # Real API calls
-@tag :mock                   # Mocked responses
-
-# Capability tags
-@tag capability: :chat       # Basic chat functionality
-@tag capability: :streaming  # Streaming responses
-@tag capability: :models     # Model listing
-@tag capability: :functions  # Function calling
-@tag capability: :vision     # Image processing
-@tag capability: :tools      # Tool use
-
-# Provider tags
-@tag provider: :openai       # OpenAI-specific
-@tag provider: :anthropic    # Anthropic-specific
-@tag provider: :gemini       # Google Gemini
-@tag provider: :groq         # Groq
-@tag provider: :ollama       # Local Ollama
-@tag provider: :mistral      # Mistral AI
+defmodule ExLLM.VisionTest do
+  use ExUnit.Case, async: false
+  
+  @moduletag :capability:vision
+  @moduletag :integration
+  
+  describe "image understanding" do
+    @tag provider: :openai
+    @tag :requires_api_key
+    test "analyzes image content" do
+      # Test implementation
+    end
+  end
+end
 ```
 
-#### Directory Structure
+## 2. Directory Structure
+
 ```
 test/
-├── unit/                    # Pure unit tests
-│   ├── core/               # Core functionality
-│   ├── utils/              # Utility functions
-│   └── types/              # Type validation
-├── integration/
-│   ├── live/               # Real API calls
-│   │   ├── providers/      # Provider-specific tests
-│   │   └── capabilities/   # Capability-focused tests
-│   └── mock/               # Mocked integration tests
-│       ├── providers/      # Provider behavior mocks
-│       └── error_cases/    # Error scenario testing
-└── support/
-    ├── matrix_reporter.ex   # Custom reporting
-    ├── response_capture.ex  # Response debugging
-    └── test_helpers.ex      # Common test utilities
+├── ex_llm/                      # Core functionality tests
+│   ├── core/                    # Core modules (session, context, etc.)
+│   ├── providers/               # Provider-specific tests
+│   │   ├── anthropic/
+│   │   ├── openai/
+│   │   └── ...
+│   ├── chat_test.exs           # Main chat API tests
+│   ├── embedding_test.exs      # Embedding tests
+│   └── function_calling_test.exs
+├── integration/                 # Integration tests
+│   ├── comprehensive/          # Full feature tests
+│   └── cross_provider/         # Cross-provider compatibility
+├── performance/                # Performance benchmarks
+└── support/                    # Test helpers and utilities
 ```
 
-### Phase 2: Mix Aliases & Configuration (Day 3)
+## 3. Provider Capability Matrix
 
-#### Mix Aliases
-```elixir
-# mix.exs
-def project do
-  [
-    # ... existing config ...
-    aliases: [
-      # Basic test categories
-      "test.unit": "test --only unit",
-      "test.mock": "test --only mock",
-      "test.live": "test --only live --max-cases 4",
-      
-      # Provider-specific live tests
-      "test.live.openai": "test --only live --only provider:openai",
-      "test.live.anthropic": "test --only live --only provider:anthropic",
-      "test.live.gemini": "test --only live --only provider:gemini",
-      "test.live.groq": "test --only live --only provider:groq",
-      "test.live.ollama": "test --only live --only provider:ollama",
-      
-      # Capability-specific tests
-      "test.capability": &test_capability/1,
-      
-      # Quick smoke test
-      "test.smoke": "test --only unit --only mock",
-      
-      # Full matrix report
-      "test.matrix": ["test.live", "test.matrix.report"],
-      
-      # CI-specific aliases
-      "test.ci.pr": "test --exclude live --exclude slow",
-      "test.ci.nightly": "test --only live"
-    ]
-  ]
-end
+The capability matrix provides a visual overview of which providers support which features.
 
-# Custom capability testing function
-defp test_capability(args) do
-  capability = List.first(args) || raise "Specify a capability"
-  Mix.Task.run("test", ["--only", "capability:#{capability}"])
-end
-```
-
-#### Test Configuration
-```elixir
-# config/test.exs
-config :ex_llm, :test,
-  # Parallel execution for live tests
-  max_cases: System.schedulers_online() * 2,
-  
-  # Response capture
-  capture_responses: System.get_env("CAPTURE_RESPONSES") == "true",
-  capture_dir: "test/responses",
-  
-  # Timeout configurations
-  live_test_timeout: 30_000,  # 30 seconds per live test
-  mock_test_timeout: 5_000,   # 5 seconds per mock test
-  
-  # Rate limit protection
-  rate_limit_delay: 1_000,    # 1 second between provider requests
-  
-  # Matrix reporter settings
-  show_response_samples: System.get_env("SHOW_RESPONSES") == "true"
-```
-
-### Phase 3: Matrix Reporter (Days 4-5)
-
-```elixir
-defmodule ExLLM.Testing.MatrixReporter do
-  @moduledoc """
-  Generates a provider capability matrix from test results
-  """
-  
-  @capabilities [:chat, :streaming, :models, :functions, :vision, :tools]
-  @providers [:openai, :anthropic, :gemini, :groq, :ollama, :mistral, :xai, :perplexity]
-  
-  def generate_report(test_results) do
-    matrix = build_matrix(test_results)
-    
-    # Console output
-    print_console_matrix(matrix)
-    
-    # Markdown file output
-    save_markdown_report(matrix)
-    
-    # JSON output for CI
-    save_json_report(matrix)
-    
-    # Optional response samples
-    if show_responses?() do
-      print_sample_responses(test_results)
-    end
-  end
-  
-  defp print_console_matrix(matrix) do
-    IO.puts("\n#{IO.ANSI.bright()}=== Provider Capability Matrix ===#{IO.ANSI.reset()}\n")
-    
-    # Header row
-    IO.write(String.pad_trailing("Capability", 15))
-    Enum.each(@providers, &IO.write(String.pad_trailing("#{&1}", 12)))
-    IO.puts("\n" <> String.duplicate("-", 15 + length(@providers) * 12))
-    
-    # Data rows
-    Enum.each(@capabilities, fn cap ->
-      IO.write(String.pad_trailing("#{cap}", 15))
-      Enum.each(@providers, fn provider ->
-        status = matrix[{provider, cap}]
-        {symbol, color} = format_status(status)
-        IO.write(color <> String.pad_trailing(symbol, 12) <> IO.ANSI.reset())
-      end)
-      IO.puts("")
-    end)
-    
-    # Legend
-    IO.puts("\n#{IO.ANSI.light_black()}Legend: ✅ Pass | ❌ Fail | ⏭️ Skip | ❓ Unknown#{IO.ANSI.reset()}")
-  end
-  
-  defp format_status(status) do
-    case status do
-      :pass -> {"✅", IO.ANSI.green()}
-      :fail -> {"❌", IO.ANSI.red()}
-      :skip -> {"⏭️", IO.ANSI.yellow()}
-      _     -> {"❓", IO.ANSI.light_black()}
-    end
-  end
-  
-  defp save_markdown_report(matrix) do
-    content = """
-    # Provider Capability Matrix
-    
-    Generated: #{DateTime.utc_now() |> DateTime.to_string()}
-    
-    | Capability | #{Enum.map_join(@providers, " | ", &"#{&1}")} |
-    |------------|#{String.duplicate("------|", length(@providers))}
-    #{generate_markdown_rows(matrix)}
-    
-    ## Legend
-    - ✅ Fully supported and tested
-    - ❌ Not working or failing tests
-    - ⏭️ Skipped (no API key or disabled)
-    - ❓ Unknown or not tested
-    """
-    
-    File.write!("test/reports/capability_matrix.md", content)
-  end
-end
-```
-
-### Phase 4: Response Capture System
-
-```elixir
-defmodule ExLLM.Testing.ResponseCapture do
-  @moduledoc """
-  Captures actual API responses for debugging and analysis
-  """
-  
-  def capture(provider, capability, request, response, metadata \\ %{}) do
-    if capture_enabled?() do
-      data = %{
-        timestamp: DateTime.utc_now(),
-        provider: provider,
-        capability: capability,
-        request: sanitize_request(request),
-        response: response,
-        metadata: Map.merge(metadata, %{
-          duration_ms: metadata[:duration_ms],
-          tokens_used: metadata[:tokens_used],
-          cost: metadata[:cost]
-        })
-      }
-      
-      save_capture(provider, capability, data)
-    end
-  end
-  
-  defp sanitize_request(request) do
-    # Remove API keys and sensitive data
-    request
-    |> Map.drop([:api_key, :authorization])
-    |> Map.update(:headers, [], &sanitize_headers/1)
-  end
-  
-  defp save_capture(provider, capability, data) do
-    dir = "test/responses/#{Date.utc_today()}"
-    File.mkdir_p!(dir)
-    
-    filename = "#{dir}/#{provider}_#{capability}_#{timestamp()}.json"
-    File.write!(filename, Jason.encode!(data, pretty: true))
-    
-    # Also append to daily summary
-    append_to_summary(provider, capability, data)
-  end
-end
-```
-
-### Phase 5: CI/CD Configuration
-
-```yaml
-# .github/workflows/test.yml
-name: Test Suite
-
-on:
-  push:
-    branches: [main]
-  pull_request:
-  schedule:
-    - cron: '0 2 * * *'  # Nightly at 2 AM UTC
-  workflow_dispatch:
-    inputs:
-      provider:
-        description: 'Specific provider to test'
-        required: false
-        type: choice
-        options:
-          - all
-          - openai
-          - anthropic
-          - gemini
-          - groq
-          - ollama
-
-jobs:
-  unit-tests:
-    name: Unit Tests
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: '1.17'
-          otp-version: '26'
-      - run: mix deps.get
-      - run: mix test.unit
-      - uses: actions/upload-artifact@v3
-        if: failure()
-        with:
-          name: unit-test-logs
-          path: _build/test/logs
-
-  integration-mocked:
-    name: Integration Tests (Mocked)
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: '1.17'
-          otp-version: '26'
-      - run: mix deps.get
-      - run: mix test.mock
-      
-  integration-live:
-    name: Integration Tests (Live)
-    runs-on: ubuntu-latest
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    strategy:
-      fail-fast: false
-      matrix:
-        provider: [openai, anthropic, gemini, groq, ollama]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: erlef/setup-beam@v1
-        with:
-          elixir-version: '1.17'
-          otp-version: '26'
-      - run: mix deps.get
-      - name: Run Provider Tests
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
-          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: |
-          if [ "${{ github.event.inputs.provider }}" = "all" ] || [ "${{ github.event.inputs.provider }}" = "${{ matrix.provider }}" ]; then
-            mix test.live.${{ matrix.provider }}
-          fi
-      - run: mix test.matrix.report
-      - uses: actions/upload-artifact@v3
-        with:
-          name: capability-matrix-${{ matrix.provider }}
-          path: test/reports/capability_matrix.md
-```
-
-## Usage Examples
-
-### Developer Workflow
+### Viewing the Matrix
 
 ```bash
-# Quick unit tests during development
+# Display in console
+mix ex_llm.capability_matrix
+
+# Show extended capabilities
+mix ex_llm.capability_matrix --extended
+
+# Filter by providers
+mix ex_llm.capability_matrix --providers openai,anthropic,gemini
+
+# Filter by capabilities  
+mix ex_llm.capability_matrix --capabilities vision,streaming
+
+# Export to markdown
+mix ex_llm.capability_matrix --export markdown --output matrix.md
+
+# Export to HTML
+mix ex_llm.capability_matrix --export html --output matrix.html
+
+# Include test results
+mix ex_llm.capability_matrix --with-tests
+```
+
+### Matrix Legend
+- ✅ Pass - Verified by tests
+- ✓ Configured - Available per configuration
+- ❌ Fail - Test failed
+- ⏭️ Skip - Test skipped
+- ○ Not configured - Provider not set up
+- - Not supported - Feature not available
+- ❓ Unknown - Status unclear
+
+## 4. Selective Test Execution
+
+ExLLM provides numerous Mix aliases for running specific subsets of tests.
+
+### Core Testing Aliases
+
+```bash
+# Fast development tests (no API calls)
+mix test.fast
+
+# Unit tests only
 mix test.unit
 
-# Test specific capability across all providers
-mix test.capability chat
+# Integration tests
+mix test.integration
 
-# Test specific provider
-mix test.live.openai
+# All tests including slow ones
+mix test.all
 
-# Run smoke tests before commit
+# Mock tests only (offline)
+mix test.mock
+
+# Quick smoke tests
 mix test.smoke
 
-# Generate full capability matrix
-mix test.matrix
+# All live API tests
+mix test.live.all
 
-# Debug with response capture
-CAPTURE_RESPONSES=true mix test.live.anthropic
+# Force live API calls (refresh cache)
+mix test.live
 ```
 
-### CI Workflow
+### Provider-Specific Testing
 
 ```bash
-# PR validation (fast)
-mix test.ci.pr
+# Test specific providers
+mix test.openai
+mix test.anthropic
+mix test.gemini
+mix test.groq
+mix test.mistral
+mix test.xai
+mix test.perplexity
+mix test.openrouter
 
-# Nightly full validation
-mix test.ci.nightly
-
-# Generate and publish matrix
-mix test.matrix
+# Test local providers
+mix test.local        # Ollama + LM Studio
+mix test.ollama
+mix test.lmstudio
+mix test.bumblebee   # Requires model download
 ```
 
-## Migration Path
+### Capability-Specific Testing
 
-### Week 1: Foundation
-1. Tag all existing tests
-2. Create directory structure
-3. Implement basic mix aliases
+```bash
+# Test specific capabilities
+mix test.capability.chat
+mix test.capability.streaming
+mix test.capability.list_models
+mix test.capability.function_calling
+mix test.capability.vision
+mix test.capability.embeddings
+mix test.capability.cost_tracking
+mix test.capability.json_mode
+mix test.capability.system_prompt
+mix test.capability.temperature
+```
 
-### Week 2: Reporting
-1. Implement matrix reporter
-2. Add response capture
-3. Update CI configuration
+### Cross-Provider Test Matrix
 
-### Week 3: Optimization
-1. Add parallel execution
-2. Implement rate limiting
-3. Add retry logic
+```bash
+# Run tests across all configured providers
+mix test.matrix
 
-### Week 4: Polish
-1. Documentation
-2. Contributor guide
-3. Performance tuning
+# Test major providers only
+mix test.matrix.major
+
+# Test specific capability across providers
+mix test.matrix.vision
+mix test.matrix.streaming
+mix test.matrix.function_calling
+
+# Run integration tests across providers
+mix test.matrix.integration
+
+# Run in parallel with summary
+mix test.matrix --parallel --summary
+
+# Stop on first failure
+mix test.matrix --stop-on-failure
+```
+
+### Special Testing Modes
+
+```bash
+# OAuth2 tests
+mix test.oauth2
+
+# CI pipeline tests (excludes problematic tests)
+mix test.ci
+
+# Cache management
+mix cache.clear
+mix cache.status
+```
+
+## 5. Response Capture System
+
+The response capture system helps debug API interactions by capturing and displaying responses.
+
+### Enabling Response Capture
+
+```bash
+# Enable capture
+export EX_LLM_CAPTURE_RESPONSES=true
+
+# Enable display
+export EX_LLM_SHOW_CAPTURED=true
+
+# Run with capture
+EX_LLM_CAPTURE_RESPONSES=true mix test
+```
+
+### Managing Captures
+
+```bash
+# List captured responses
+mix captures.list
+mix ex_llm.captures list --provider openai --limit 10
+
+# Show specific capture
+mix captures.show <capture_id>
+mix ex_llm.captures show <capture_id> --format json
+
+# View capture statistics
+mix captures.stats
+mix ex_llm.captures stats --provider anthropic
+
+# Clear captures
+mix captures.clear
+mix ex_llm.captures clear --older-than 7d
+mix ex_llm.captures clear --provider gemini
+```
+
+### Capture Output Format
+
+When display is enabled, captures show:
+- Provider and endpoint
+- Timestamp and duration
+- Token usage (input/output/total)
+- Cost calculation
+- Full response content
+
+## Test Caching System
+
+ExLLM includes an intelligent test caching system that provides 25x faster integration tests.
+
+### Cache Behavior
+
+**Default**: Integration tests hit live APIs
+```bash
+mix test --include integration    # Calls live APIs
+```
+
+**With Caching**: Uses cached responses when available
+```bash
+export EX_LLM_TEST_CACHE_ENABLED=true
+mix test --include integration    # Uses cache if fresh
+```
+
+**Force Live**: Always use live APIs
+```bash
+MIX_RUN_LIVE=true mix test --include integration
+```
+
+### Cache Management
+
+```bash
+# View cache statistics
+mix ex_llm.cache stats
+
+# Clean old cache entries
+mix ex_llm.cache clean --older-than 7d
+
+# Clear entire cache
+mix ex_llm.cache clear
+
+# Show cache for specific provider
+mix ex_llm.cache show anthropic
+```
 
 ## Best Practices
 
-### Writing Tests
+### 1. Tag Your Tests Appropriately
 
-1. **Always tag appropriately**
-   ```elixir
-   @tag :live
-   @tag provider: :openai
-   @tag capability: :streaming
-   test "OpenAI streaming chat" do
-     # test implementation
-   end
+Always add relevant tags to new tests:
+```elixir
+@moduletag :unit
+@moduletag provider: :openai
+@moduletag capability: :streaming
+```
+
+### 2. Use Fast Tests During Development
+
+```bash
+# Quick iteration
+mix test.fast
+
+# Specific provider
+mix test.anthropic
+
+# Specific capability
+mix test.capability.vision
+```
+
+### 3. Run Comprehensive Tests Before Commits
+
+```bash
+# Run full test suite
+mix test.all
+
+# Check cross-provider compatibility
+mix test.matrix --providers openai,anthropic,gemini
+```
+
+### 4. Debug with Response Capture
+
+```bash
+# Enable capture for debugging
+export EX_LLM_CAPTURE_RESPONSES=true
+export EX_LLM_SHOW_CAPTURED=true
+mix test failing_test.exs
+```
+
+### 5. Monitor Test Performance
+
+```bash
+# Run with timing
+mix test --trace
+
+# Check slow tests
+mix test --slowest 10
+```
+
+## CI/CD Integration
+
+### GitHub Actions Configuration
+
+```yaml
+# Fast CI tests (no API calls)
+- run: mix test.ci
+
+# Release validation (with cache)
+- run: |
+    export EX_LLM_TEST_CACHE_ENABLED=true
+    mix test.integration
+```
+
+### Pre-commit Hooks
+
+```bash
+# Add to .git/hooks/pre-commit
+mix test.fast
+mix format --check-formatted
+mix credo
+```
+
+## Troubleshooting
+
+### Common Issues
+
+1. **Tests failing due to missing API keys**
+   ```bash
+   export OPENAI_API_KEY=your_key
+   # Or use mock tests
+   mix test.mock
    ```
 
-2. **Use consistent naming**
-   ```elixir
-   # Good
-   test "provider can list available models"
-   test "provider handles streaming responses"
+2. **Rate limit errors**
+   ```bash
+   # Use cached tests
+   export EX_LLM_TEST_CACHE_ENABLED=true
+   mix test
+   ```
+
+3. **Slow test execution**
+   ```bash
+   # Run fast tests only
+   mix test.fast
    
-   # Bad
-   test "test models"
-   test "streaming"
+   # Run specific provider
+   mix test.gemini
    ```
 
-3. **Capture meaningful data**
-   ```elixir
-   response = ExLLM.chat(messages, model: "gpt-4")
+4. **Finding specific tests**
+   ```bash
+   # By capability
+   mix test.capability.vision
    
-   ResponseCapture.capture(
-     :openai,
-     :chat,
-     %{messages: messages, model: "gpt-4"},
-     response,
-     %{duration_ms: duration}
-   )
+   # By provider
+   mix test.anthropic
+   
+   # By file pattern
+   mix test test/ex_llm/chat_test.exs
    ```
 
-### Maintaining Tests
+### Debug Mode
 
-1. **Regular cleanup**: Remove obsolete tests
-2. **Update tags**: When capabilities change
-3. **Monitor flaky tests**: Add to quarantine if needed
-4. **Review matrix**: Ensure accuracy monthly
+Enable detailed logging:
+```bash
+export EX_LLM_LOG_LEVEL=debug
+mix test
+```
 
-## Metrics & Monitoring
+## Summary
 
-### Key Metrics
-- Test execution time by category
-- Provider success rates
-- Capability coverage percentage
-- Flaky test frequency
+ExLLM's comprehensive testing strategy provides:
 
-### Dashboards
-- GitHub Actions summary
-- Capability matrix trends
-- Cost per test run
-- API error rates
+- **Fast Development** - Run only relevant tests during development
+- **Comprehensive Coverage** - 72% capability coverage across 12 providers
+- **Selective Execution** - Target specific providers, capabilities, or test types
+- **Cross-Provider Validation** - Ensure consistency across providers
+- **Debugging Support** - Capture and analyze API responses
+- **CI/CD Integration** - Optimized for continuous integration
 
-## Future Enhancements
-
-1. **Record/Playback System**: Cache expensive API calls
-2. **Contract Testing**: Provider API compatibility
-3. **Performance Benchmarks**: Track response times
-4. **Cost Optimization**: Minimize API usage
-5. **Automated Alerts**: Provider degradation detection
+This strategy enables confident development while maintaining compatibility across the diverse landscape of LLM providers.

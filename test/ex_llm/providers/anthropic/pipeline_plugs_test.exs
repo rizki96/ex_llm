@@ -1,6 +1,8 @@
 defmodule ExLLM.Providers.Anthropic.PipelinePlugsTest do
   use ExUnit.Case, async: false
 
+  @moduletag provider: :anthropic
+  @moduletag :unit
   alias ExLLM.Pipeline.Request
   alias ExLLM.Providers.Anthropic.{BuildRequest, ParseResponse}
 
