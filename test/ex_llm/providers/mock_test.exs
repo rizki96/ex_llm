@@ -150,10 +150,10 @@ defmodule ExLLM.MockTest do
           name: "get_weather",
           description: "Get weather",
           parameters: %{
-            "type" => "object",
             "properties" => %{
-              "location" => %{"type" => "string"}
-            }
+              "location" => %{type: "string"}
+            },
+            type: "object"
           }
         }
       ]

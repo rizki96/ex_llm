@@ -266,7 +266,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.RecoveryPlugTest do
         stream_id: "test_openai",
         provider: :openai,
         callback: callback,
-        request: %{"messages" => [%{"role" => "user", "content" => "Hello"}]}
+        request: %{"messages" => [%{role: "user", content: "Hello"}]}
       }
 
       # Gemini format
@@ -274,7 +274,7 @@ defmodule ExLLM.Providers.Shared.Streaming.Middleware.RecoveryPlugTest do
         stream_id: "test_gemini",
         provider: :gemini,
         callback: callback,
-        request: %{"contents" => [%{"role" => "user", "parts" => [%{"text" => "Hello"}]}]}
+        request: %{"contents" => [%{"parts" => [%{text: "Hello"}], role: "user"}]}
       }
 
       opts1 = [stream_context: stream_context1, enabled: true]

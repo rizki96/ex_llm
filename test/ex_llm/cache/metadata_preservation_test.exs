@@ -60,8 +60,7 @@ defmodule ExLLM.Cache.MetadataPreservationTest do
       response_data = %{
         "id" => "test-123",
         "object" => "test.response",
-        "data" => %{
-          "content" => "Cached test response"
+        "data" => %{content: "Cached test response"
         }
       }
 

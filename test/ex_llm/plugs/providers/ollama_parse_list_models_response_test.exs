@@ -13,9 +13,9 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponseTest do
         body: %{
           "models" => [
             %{
-              "name" => "llama2:latest",
               "size" => 3_826_793_344,
-              "modified_at" => "2024-01-15T10:30:00Z"
+              "modified_at" => "2024-01-15T10:30:00Z",
+              name: "llama2:latest"
             }
           ]
         }
@@ -48,9 +48,9 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponseTest do
         body: %{
           "models" => [
             %{
-              "name" => "unknown-model:v1",
               "size" => 1_000_000_000,
-              "modified_at" => "2024-01-15T10:30:00Z"
+              "modified_at" => "2024-01-15T10:30:00Z",
+              name: "unknown-model:v1"
             }
           ]
         }
@@ -83,9 +83,9 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponseTest do
         body: %{
           "models" => [
             %{
-              "name" => "codegemma",
               "size" => 5_000_000_000,
-              "modified_at" => "2024-01-15T10:30:00Z"
+              "modified_at" => "2024-01-15T10:30:00Z",
+              name: "codegemma"
             }
           ]
         }
@@ -117,9 +117,9 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponseTest do
         body: %{
           "models" => [
             %{
-              "name" => "nomic-embed-text:latest",
               "size" => 274_000_000,
-              "modified_at" => "2024-01-15T10:30:00Z"
+              "modified_at" => "2024-01-15T10:30:00Z",
+              name: "nomic-embed-text:latest"
             }
           ]
         }

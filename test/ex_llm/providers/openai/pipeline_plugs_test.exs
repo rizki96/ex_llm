@@ -38,7 +38,7 @@ defmodule ExLLM.Providers.OpenAI.PipelinePlugsTest do
       assert body.model == "gpt-4"
       assert body.temperature == 0.5
       assert body.max_tokens == 100
-      assert body.messages == [%{"role" => "user", "content" => "Hello"}]
+      assert body.messages == [%{role: "user", content: "Hello"}]
 
       headers = result.assigns.request_headers
       assert {"authorization", "Bearer test-key-12345"} in headers
@@ -48,10 +48,7 @@ defmodule ExLLM.Providers.OpenAI.PipelinePlugsTest do
       raw_response = %{
         "choices" => [
           %{
-            "message" => %{
-              "content" => "Hello there!",
-              "role" => "assistant"
-            },
+            "message" => %{content: "Hello there!", role: "assistant"},
             "finish_reason" => "stop",
             "logprobs" => nil
           }
@@ -98,7 +95,7 @@ defmodule ExLLM.Providers.OpenAI.PipelinePlugsTest do
         mock_response = %{
           "choices" => [
             %{
-              "message" => %{"content" => "Mock response", "role" => "assistant"},
+              "message" => %{content: "Mock response", role: "assistant"},
               "finish_reason" => "stop"
             }
           ],

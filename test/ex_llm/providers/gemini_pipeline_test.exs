@@ -49,7 +49,7 @@ defmodule ExLLM.Providers.GeminiPipelineTest do
         "candidates" => [
           %{
             "content" => %{
-              "parts" => [%{"text" => "Hello there!"}],
+              "parts" => [%{text: "Hello there!"}],
               "role" => "model"
             },
             "finishReason" => "STOP",
@@ -119,11 +119,11 @@ defmodule ExLLM.Providers.GeminiPipelineTest do
           %{
             "content" => %{
               "parts" => [
-                %{"text" => "I'll help you with that."},
+                %{text: "I'll help you with that."},
                 %{
                   "functionCall" => %{
-                    "name" => "get_weather",
-                    "args" => %{"location" => "San Francisco"}
+                    "args" => %{"location" => "San Francisco"},
+                    name: "get_weather"
                   }
                 }
               ],

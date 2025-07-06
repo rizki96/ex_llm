@@ -16,6 +16,12 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
   - Circuit breaker integration
   - Telemetry and logging
 
+  ## Caching
+
+  This plug uses the Tesla ClientCache to avoid reconstructing middleware
+  on every request. Clients are cached based on provider and configuration
+  that affects the middleware stack.
+
   ## Examples
 
       plug ExLLM.Plugs.BuildTeslaClient
@@ -25,7 +31,7 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
   """
 
   use ExLLM.Plug
-  alias ExLLM.Tesla.MiddlewareFactory
+  alias ExLLM.Tesla.{MiddlewareFactory, ClientCache}
   require Logger
 
   @impl true
@@ -44,7 +50,14 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
       "BuildTeslaClient: provider=#{provider}, is_streaming=#{is_streaming}, config.stream=#{config[:stream]}, options.stream=#{options[:stream]}, has_callback=#{is_function(config[:stream_callback], 1) || is_function(options[:stream_callback], 1)}"
     )
 
-    client = build_client(provider, config, is_streaming)
+    # Include streaming flag in config for cache key
+    cache_config = Map.put(config, :is_streaming, is_streaming)
+    
+    # Use cache to get or create client
+    client = ClientCache.get_or_create(provider, cache_config, fn ->
+      build_client(provider, config, is_streaming)
+    end)
+    
     %{request | tesla_client: client}
   end
 

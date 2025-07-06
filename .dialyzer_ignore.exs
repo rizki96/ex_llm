@@ -46,8 +46,8 @@
   # === PHASE 3.3 REMAINING WARNINGS (False Positives) ===
   
   # Test caching interception - dialyzer can't trace through the control flow
-  # handle_tesla_response is called with correct types but dialyzer gets confused
-  {"lib/ex_llm/plugs/execute_request.ex", :call},
+  # REMOVED: handle_tesla_response now uses ExLLM.HTTP wrapper, no longer needed
+  # {"lib/ex_llm/plugs/execute_request.ex", :call},
   
   
   

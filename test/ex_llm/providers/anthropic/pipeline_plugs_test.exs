@@ -53,18 +53,18 @@ defmodule ExLLM.Providers.Anthropic.PipelinePlugsTest do
 
     test "ParseResponse plug correctly transforms Anthropic response" do
       raw_response = %{
-        "content" => [
-          %{
-            "text" => "Hello there!",
-            "type" => "text"
-          }
-        ],
         "model" => "claude-3-haiku-20240307",
         "stop_reason" => "end_turn",
         "usage" => %{
           "input_tokens" => 10,
           "output_tokens" => 5
-        }
+        },
+        content: [
+          %{
+            text: "Hello there!",
+            type: "text"
+          }
+        ]
       }
 
       request =

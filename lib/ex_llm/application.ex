@@ -20,6 +20,8 @@ defmodule ExLLM.Application do
         ExLLM.Core.Streaming.Recovery,
         # Start StreamingEngine with stream tracking
         ExLLM.Providers.Shared.StreamingEngine,
+        # Start Tesla Client Cache
+        ExLLM.Tesla.ClientCache,
         # Start Cache if enabled
         cache_child_spec(),
         # Start Circuit Breaker Configuration Manager

@@ -24,9 +24,14 @@ defmodule ExLLM.Plugs.ValidateMessages do
 
   @impl true
   def call(%Request{messages: messages} = request, _opts) do
-    case MessageFormatter.validate_messages(messages) do
+    # First normalize message keys to atoms
+    normalized_messages = MessageFormatter.normalize_message_keys(messages)
+    
+    # Then validate the normalized messages
+    case MessageFormatter.validate_messages(normalized_messages) do
       :ok ->
-        request
+        # Update the request with normalized messages
+        %{request | messages: normalized_messages}
 
       {:error, {:validation, field, reason}} ->
         error = %{

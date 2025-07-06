@@ -37,7 +37,7 @@ defmodule ExLLM.Providers.Groq.PipelinePlugsTest do
       assert body.model == "llama-3.1-8b-instant"
       assert body.temperature == 0.5
       assert body.max_tokens == 100
-      assert body.messages == [%{"role" => "user", "content" => "Hello"}]
+      assert body.messages == [%{role: "user", content: "Hello"}]
 
       headers = result.assigns.request_headers
       assert {"authorization", "Bearer test-key-12345"} in headers
@@ -47,10 +47,7 @@ defmodule ExLLM.Providers.Groq.PipelinePlugsTest do
       raw_response = %{
         "choices" => [
           %{
-            "message" => %{
-              "content" => "Hello there!",
-              "role" => "assistant"
-            },
+            "message" => %{content: "Hello there!", role: "assistant"},
             "finish_reason" => "stop",
             "logprobs" => nil
           }
@@ -95,8 +92,8 @@ defmodule ExLLM.Providers.Groq.PipelinePlugsTest do
       body = result.assigns.request_body
 
       expected_messages = [
-        %{"role" => "system", "content" => "You are helpful"},
-        %{"role" => "user", "content" => "Hello"}
+        %{role: "system", content: "You are helpful"},
+        %{role: "user", content: "Hello"}
       ]
 
       assert body.messages == expected_messages

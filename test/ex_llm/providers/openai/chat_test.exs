@@ -165,9 +165,7 @@ defmodule ExLLM.Providers.OpenAI.ChatTest do
         "model" => "gpt-4",
         "choices" => [
           %{
-            "message" => %{
-              "role" => "assistant",
-              "content" => "Hello!"
+            "message" => %{role: "assistant", content: "Hello!"
             },
             "finish_reason" => "stop"
           }
@@ -193,9 +191,9 @@ defmodule ExLLM.Providers.OpenAI.ChatTest do
         "choices" => [
           %{
             "message" => %{
-              "role" => "assistant",
-              "content" => nil,
-              "refusal" => "I can't help with that"
+              "refusal" => "I can't help with that",
+              role: "assistant", 
+              content: nil
             },
             "finish_reason" => "stop"
           }
@@ -217,16 +215,16 @@ defmodule ExLLM.Providers.OpenAI.ChatTest do
         "choices" => [
           %{
             "message" => %{
-              "role" => "assistant",
-              "content" => nil,
-              "tool_calls" => [
+              role: "assistant", 
+              content: nil,
+              tool_calls: [
                 %{
                   "id" => "call_123",
-                  "type" => "function",
                   "function" => %{
-                    "name" => "get_weather",
-                    "arguments" => ~s({"location": "Boston"})
-                  }
+                    "arguments" => ~s({"location": "Boston"}),
+                    name: "get_weather"
+                  },
+                  type: "function"
                 }
               ]
             },

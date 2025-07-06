@@ -36,7 +36,7 @@ defmodule ExLLM.Providers.Ollama.PipelinePlugsTest do
       assert body.model == "llama3:latest"
       assert body.temperature == 0.5
       assert body.options.num_predict == 100
-      assert body.messages == [%{"role" => "user", "content" => "Hello"}]
+      assert body.messages == [%{role: "user", content: "Hello"}]
 
       headers = result.assigns.request_headers
       # Ollama doesn't require authorization headers
@@ -46,7 +46,7 @@ defmodule ExLLM.Providers.Ollama.PipelinePlugsTest do
 
     test "ParseResponse plug correctly transforms Ollama response" do
       raw_response = %{
-        "message" => %{"content" => "Hello there!", "role" => "assistant"},
+        "message" => %{content: "Hello there!", role: "assistant"},
         "done" => true,
         "done_reason" => "stop",
         "prompt_eval_count" => 10,
@@ -87,8 +87,8 @@ defmodule ExLLM.Providers.Ollama.PipelinePlugsTest do
       body = result.assigns.request_body
 
       expected_messages = [
-        %{"role" => "system", "content" => "You are helpful"},
-        %{"role" => "user", "content" => "Hello"}
+        %{role: "system", content: "You are helpful"},
+        %{role: "user", content: "Hello"}
       ]
 
       assert body.messages == expected_messages

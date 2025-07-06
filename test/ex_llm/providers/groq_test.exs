@@ -25,7 +25,7 @@ defmodule ExLLM.Providers.GroqTest do
     test "transform_request/2 handles Groq-specific parameters" do
       request = %{
         "model" => "llama-3.1-8b-instant",
-        "messages" => [%{"role" => "user", "content" => "test"}],
+        "messages" => [%{role: "user", content: "test"}],
         "stop" => ["stop1", "stop2", "stop3", "stop4", "stop5"],
         "temperature" => 3.0
       }

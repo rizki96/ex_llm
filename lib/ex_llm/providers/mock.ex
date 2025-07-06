@@ -379,7 +379,12 @@ defmodule ExLLM.Providers.Mock do
     {:ok,
      Stream.map(chunks, fn
        {:error, reason} ->
-         raise "Stream error: #{inspect(reason)}"
+         # Instead of raising, return an error chunk
+         %ExLLM.Types.StreamChunk{
+           content: nil,
+           finish_reason: "error",
+           metadata: %{error: reason}
+         }
 
        chunk when is_map(chunk) ->
          # Convert raw map to StreamChunk struct

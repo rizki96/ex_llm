@@ -186,7 +186,7 @@ defmodule ExLLM.InputValidationTest do
 
       # String keys should be normalized to atoms internally
       # but for now they cause errors - this is a known limitation
-      # assert {:ok, _} = ExLLM.chat(:mock, [%{"role" => "user", "content" => "Hello"}])
+      # assert {:ok, _} = ExLLM.chat(:mock, [%{role: "user", content: "Hello"}])
     end
 
     test "validates message role values" do

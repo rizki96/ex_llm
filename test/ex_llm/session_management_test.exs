@@ -1,5 +1,5 @@
 defmodule ExLLM.SessionManagementTest do
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
   alias ExLLM.Core.Session
   alias ExLLM.Types
@@ -10,6 +10,11 @@ defmodule ExLLM.SessionManagementTest do
   Sessions allow maintaining conversation state across multiple
   interactions with automatic context management.
   """
+
+  setup do
+    ExLLM.Providers.Mock.reset()
+    :ok
+  end
 
   describe "session creation" do
     test "creates a new session with default options" do
@@ -277,6 +282,41 @@ defmodule ExLLM.SessionManagementTest do
       assert reconstructed.id == original.id
       assert reconstructed.messages == original.messages
       assert reconstructed.token_usage == original.token_usage
+    end
+
+    test "deserializes session from JSON with string keys to atom keys" do
+      json_string = """
+      {
+        "id": "test_id",
+        "llm_backend": "openai",
+        "messages": [
+          {"role": "user", "content": "Hello from JSON", "timestamp": "2023-01-01T12:00:00Z"},
+          {"role": "assistant", "content": "Hi there!", "metadata": {"source": "mock"}}
+        ],
+        "context": {"config": {"model": "gpt-4"}},
+        "created_at": "2023-01-01T10:00:00Z",
+        "updated_at": "2023-01-01T11:00:00Z",
+        "token_usage": {"input_tokens": 50, "output_tokens": 75},
+        "name": "JSON Test Session"
+      }
+      """
+
+      {:ok, session} = ExLLM.Core.Session.from_json(json_string)
+
+      assert session.id == "test_id"
+      assert session.llm_backend == :openai # Assert atom conversion
+      assert session.name == "JSON Test Session"
+
+      assert length(session.messages) == 2
+      assert session.messages |> List.first() |> Map.get(:role) == "user" # Role remains string
+      assert session.messages |> List.first() |> Map.get(:content) == "Hello from JSON"
+      assert session.messages |> List.first() |> Map.get(:timestamp) |> is_struct(DateTime)
+
+      assert session.messages |> List.last() |> Map.get(:role) == "assistant"
+      assert session.messages |> List.last() |> Map.get(:metadata) == %{"source" => "mock"} # Metadata keys remain strings
+
+      assert session.context["config"] == %{"model" => "gpt-4"} # Context keys remain as strings
+      assert session.token_usage == %{input_tokens: 50, output_tokens: 75} # Assert atom conversion for token_usage keys
     end
   end
 

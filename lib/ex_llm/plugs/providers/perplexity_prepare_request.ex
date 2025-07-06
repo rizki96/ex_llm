@@ -56,7 +56,7 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
     model = get_option(options, :model) || config[:model] || "sonar"
 
     body = %{
-      "messages" => messages,
+      "messages" => format_messages(messages),
       "model" => model
     }
 
@@ -70,5 +70,42 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
     |> add_optional_param(options, :n, "n")
     |> add_optional_param(options, :stop, "stop")
     |> add_optional_param(options, :stream, "stream")
+  end
+
+  defp format_messages(messages) do
+    Enum.map(messages, &format_message/1)
+  end
+
+  defp format_message(%{role: role, content: content} = message) do
+    base = %{
+      "role" => to_string(role),
+      "content" => format_content(content)
+    }
+
+    # Add optional fields if present
+    maybe_add_field(base, message, :name, "name")
+  end
+
+  defp format_content(content) when is_binary(content), do: content
+  
+  defp format_content(content) when is_list(content) do
+    # Handle multimodal content by converting atom keys to string keys
+    Enum.map(content, fn
+      item when is_map(item) ->
+        item
+        |> Enum.map(fn {k, v} -> {to_string(k), v} end)
+        |> Map.new()
+      
+      other -> other
+    end)
+  end
+  
+  defp format_content(content), do: content
+
+  defp maybe_add_field(map, source, field_atom, field_string) do
+    case Map.get(source, field_atom) do
+      nil -> map
+      value -> Map.put(map, field_string, value)
+    end
   end
 end

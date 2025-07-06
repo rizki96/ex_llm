@@ -86,7 +86,8 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
   end
 
   defp format_message(message) when is_map(message) do
-    # Handle both atom and string keys
+    # After normalization in ValidateMessages, we should only have atom keys
+    # This clause is kept for backward compatibility during transition
     role = message[:role] || message["role"]
     content = message[:content] || message["content"]
 
@@ -96,7 +97,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
   defp format_content(content) when is_binary(content), do: content
 
   defp format_content(content) when is_list(content) do
-    # Handle multimodal content
+    # Handle multimodal content - now expecting atom keys after normalization
     Enum.map(content, fn
       %{type: "text", text: text} ->
         %{"type" => "text", "text" => text}
@@ -110,7 +111,7 @@ defmodule ExLLM.Plugs.Providers.OpenAIPrepareRequest do
       %{type: "image_url", image_url: url} when is_binary(url) ->
         %{"type" => "image_url", "image_url" => %{"url" => url}}
 
-      # Handle string keys too
+      # Handle string keys for backward compatibility
       %{"type" => _type} = item ->
         item
 

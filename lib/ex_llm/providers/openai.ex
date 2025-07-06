@@ -538,35 +538,8 @@ defmodule ExLLM.Providers.OpenAI do
   end
 
   defp validate_unsupported_parameters(options) do
-    # Special case for parallel_tool_calls - if tools are provided, give specific message
-    # This is now supported!
-    # if Keyword.has_key?(options, :parallel_tool_calls) and Keyword.has_key?(options, :tools) do
-    #   raise RuntimeError, "parallel tool calls are not yet supported"
-    # end
-
-    unsupported_params = [
-      # Modern request parameters are now supported!
-      # {:max_completion_tokens, "max_completion_tokens parameter is not yet supported"},
-      # {:n, "n parameter for multiple completions is not yet supported"},
-      # {:top_p, "top_p nucleus sampling parameter is not yet supported"},
-      # {:frequency_penalty, "frequency_penalty parameter is not yet supported"},
-      # {:presence_penalty, "presence_penalty parameter is not yet supported"},
-      # {:seed, "seed parameter for deterministic sampling is not yet supported"},
-      # {:stop, "stop sequences parameter is not yet supported"},
-      # {:service_tier, "service_tier parameter is not yet supported"},
-      # {:logprobs, "logprobs parameter is not yet supported"},
-      # {:top_logprobs, "top_logprobs parameter is not yet supported"},
-
-      # {:response_format, "response_format JSON mode and JSON schema are not yet supported"},
-      # {:tools, "modern tools API is not yet supported (use 'functions' for legacy support)"},
-      # {:tool_choice, "tool_choice parameter is not yet supported"},
-      # {:parallel_tool_calls, "parallel tool calls are not yet supported"},
-      # {:audio, "audio output is not yet supported"},  # Audio output is now supported!
-      # {:web_search_options, "web search integration is not yet supported"},  # Web search is now supported!
-      # {:reasoning_effort, "reasoning_effort parameter is not yet supported"},  # Reasoning effort is now supported!
-      # {:prediction, "predicted outputs are not yet supported"}  # Predicted outputs are now supported!,
-      # {:stream_options, "advanced stream_options are not yet supported"}  # Now supported!
-    ]
+    # All modern request parameters are now supported
+    unsupported_params = []
 
     Enum.each(unsupported_params, fn {param, message} ->
       if Keyword.has_key?(options, param) do
@@ -611,11 +584,8 @@ defmodule ExLLM.Providers.OpenAI do
   end
 
   defp validate_streaming_specific_options(options) do
-    # Check for streaming-specific unsupported features
-    streaming_unsupported = [
-      # {:tools, "streaming tool calls are not yet supported"},  # Now supported!
-      # {:stream_options, "advanced stream_options are not yet supported"}  # Now supported!
-    ]
+    # All streaming-specific features are now supported
+    streaming_unsupported = []
 
     Enum.each(streaming_unsupported, fn {param, message} ->
       if Keyword.has_key?(options, param) do

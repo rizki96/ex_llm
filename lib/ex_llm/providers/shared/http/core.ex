@@ -47,10 +47,15 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
   def client(opts \\ []) do
     provider = Keyword.get(opts, :provider, :openai)
 
-    middleware = build_middleware_stack(provider, opts)
-    adapter = build_adapter(opts)
-
-    Tesla.client(middleware, adapter)
+    # Build cache config from opts
+    cache_config = Enum.into(opts, %{})
+    
+    # Use cache to get or create client
+    ExLLM.Tesla.ClientCache.get_or_create(provider, cache_config, fn ->
+      middleware = build_middleware_stack(provider, opts)
+      adapter = build_adapter(opts)
+      Tesla.client(middleware, adapter)
+    end)
   end
 
   @doc """

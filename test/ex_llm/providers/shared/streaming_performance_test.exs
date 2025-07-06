@@ -209,7 +209,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
     parse_chunk = fn data ->
       case Jason.decode(data) do
-        {:ok, %{"content" => content}} ->
+        {:ok, %{content: content}} ->
           {:ok, %StreamChunk{content: content}}
 
         _ ->
@@ -251,7 +251,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
     parse_chunk_fn = fn data ->
       case Jason.decode(data) do
-        {:ok, %{"content" => content}} ->
+        {:ok, %{content: content}} ->
           {:ok, %StreamChunk{content: content}}
 
         _ ->
@@ -302,7 +302,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
     parse_chunk_fn = fn data ->
       case Jason.decode(data) do
-        {:ok, %{"content" => content}} ->
+        {:ok, %{content: content}} ->
           {:ok, %StreamChunk{content: content}}
 
         _ ->
@@ -385,7 +385,7 @@ defmodule ExLLM.Providers.Shared.StreamingPerformanceTest do
 
       "data: " <> json ->
         case Jason.decode(json) do
-          {:ok, %{"content" => content}} -> {:ok, content}
+          {:ok, %{content: content}} -> {:ok, content}
           _ -> {:error, :parse_error}
         end
 

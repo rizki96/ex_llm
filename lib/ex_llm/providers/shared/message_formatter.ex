@@ -35,6 +35,111 @@ defmodule ExLLM.Providers.Shared.MessageFormatter do
   def validate_messages(_), do: {:error, {:validation, :messages, "must be a list"}}
 
   @doc """
+  Normalize message keys to atoms for internal consistency.
+
+  This function converts string keys to atom keys and handles both formats
+  transparently. It also issues deprecation warnings when string keys are used.
+
+  ## Examples
+
+      MessageFormatter.normalize_message_keys([
+        %{"role" => "user", "content" => "Hello"}
+      ])
+      # => [%{role: "user", content: "Hello"}]
+
+      MessageFormatter.normalize_message_keys([
+        %{role: "user", content: "Hello"}
+      ])
+      # => [%{role: "user", content: "Hello"}]
+  """
+  @spec normalize_message_keys(list(map())) :: list(map())
+  def normalize_message_keys(messages) do
+    {normalized, has_string_keys} = 
+      Enum.map_reduce(messages, false, fn message, acc ->
+        if is_map(message) do
+          {normalized, used_strings} = normalize_single_message(message)
+          {normalized, acc || used_strings}
+        else
+          # Non-map elements are passed through unchanged
+          # The validation will catch these and report proper errors
+          {message, acc}
+        end
+      end)
+    
+    if has_string_keys do
+      # Log deprecation warning once per request
+      ExLLM.Infrastructure.Logger.warning(
+        "String keys in messages are deprecated and will be removed in v2.0. " <>
+        "Please use atom keys: %{role: \"user\", content: \"...\"}"
+      )
+    end
+    
+    normalized
+  end
+
+  defp normalize_single_message(message) when is_map(message) do
+    # Check if we have string keys
+    has_string_keys = Map.has_key?(message, "role") || Map.has_key?(message, "content")
+    
+    # Convert to atom keys
+    try do
+      normalized = 
+        message
+        |> Enum.map(fn
+          {"role", value} -> {:role, value}
+          {"content", value} -> {:content, normalize_content_value(value)}
+          {"name", value} -> {:name, value}
+          {"function_call", value} -> {:function_call, value}
+          {"tool_calls", value} -> {:tool_calls, value}
+          {key, value} when is_atom(key) -> {key, normalize_content_value(value)}
+          {key, value} when is_binary(key) -> {String.to_existing_atom(key), value}
+        end)
+        |> Map.new()
+      
+      {normalized, has_string_keys}
+    rescue
+      ArgumentError ->
+        # If we can't convert a string key to an existing atom, keep it as is
+        {message, has_string_keys}
+    end
+  end
+
+  defp normalize_content_value(content) when is_list(content) do
+    Enum.map(content, &normalize_content_item/1)
+  end
+  defp normalize_content_value(content), do: content
+
+  defp normalize_content_item(item) when is_map(item) do
+    item
+    |> Enum.map(fn
+      {"type", value} -> {:type, value}
+      {"text", value} -> {:text, value}
+      {"image", value} -> {:image, value}
+      {"image_url", value} when is_map(value) -> {:image_url, normalize_content_item(value)}
+      {"image_url", value} -> {:image_url, value}
+      {"url", value} -> {:url, value}
+      {"detail", value} -> {:detail, value}
+      {"media_type", value} -> {:media_type, value}
+      {"data", value} -> {:data, value}
+      {key, value} when is_atom(key) and is_map(value) -> {key, normalize_content_item(value)}
+      {key, value} when is_atom(key) -> {key, value}
+      {key, value} when is_binary(key) -> 
+        try do
+          atom_key = String.to_existing_atom(key)
+          if is_map(value) do
+            {atom_key, normalize_content_item(value)}
+          else
+            {atom_key, value}
+          end
+        rescue
+          ArgumentError -> {key, value}
+        end
+    end)
+    |> Map.new()
+  end
+  defp normalize_content_item(item), do: item
+
+  @doc """
   Ensure all messages have string keys (some providers require this).
 
   ## Examples

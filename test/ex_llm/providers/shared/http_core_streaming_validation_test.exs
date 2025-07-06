@@ -59,7 +59,7 @@ defmodule ExLLM.Providers.Shared.HTTPCoreStreamingValidationTest do
         Jason.encode!(%{
           "choices" => [
             %{
-              "delta" => %{"content" => "Hello"},
+              "delta" => %{content: "Hello"},
               "finish_reason" => nil
             }
           ]
