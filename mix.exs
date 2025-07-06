@@ -221,7 +221,25 @@ defmodule ExLLM.MixProject do
         "cmd EX_LLM_START_MODELLOADER=true mix test --only provider:bumblebee --include requires_deps"
       ],
 
+      # Additional cloud providers
+      "test.groq": ["test --only provider:groq"],
+      "test.mistral": ["test --only provider:mistral"],
+      "test.xai": ["test --only provider:xai"],
+      "test.perplexity": ["test --only provider:perplexity"],
+      "test.openrouter": ["test --only provider:openrouter"],
+
       # === SPECIALIZED TESTING ===
+
+      # Mock tests (offline, no external dependencies)
+      "test.mock": [
+        "test --exclude live_api --exclude external --exclude requires_api_key --exclude requires_service"
+      ],
+
+      # Smoke tests (quick validation)
+      "test.smoke": ["test --only unit --max-cases 10"],
+
+      # All live API tests
+      "test.live.all": ["test --only live_api --include external"],
 
       # OAuth2 authentication tests
       "test.oauth2": ["test --only requires_oauth"],
