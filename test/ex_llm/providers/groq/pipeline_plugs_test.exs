@@ -14,25 +14,25 @@ defmodule ExLLM.Providers.Groq.PipelinePlugsTest do
   describe "Groq pipeline plugs integration" do
     test "BuildRequest plug correctly transforms request" do
       messages = [%{role: "user", content: "Hello"}]
-      options = [model: "llama3-70b-8192", temperature: 0.5, max_tokens: 100]
+      options = [model: "llama-3.1-8b-instant", temperature: 0.5, max_tokens: 100]
 
       request = Request.new(:groq, messages, options)
 
       # Simulate FetchConfiguration assigns
       request =
         request
-        |> Request.assign(:config, %{model: "llama3-8b-8192"})
+        |> Request.assign(:config, %{model: "llama-3.1-8b-instant"})
         |> Request.assign(:api_key, "test-key-12345")
 
       result = BuildRequest.call(request, [])
 
       # options override config
-      assert result.assigns.model == "llama3-70b-8192"
+      assert result.assigns.model == "llama-3.1-8b-instant"
       assert result.assigns.request_url == "https://api.groq.com/openai/v1/chat/completions"
       assert result.assigns.timeout == 60_000
 
       body = result.assigns.request_body
-      assert body.model == "llama3-70b-8192"
+      assert body.model == "llama-3.1-8b-instant"
       assert body.temperature == 0.5
       assert body.max_tokens == 100
       assert body.messages == [%{"role" => "user", "content" => "Hello"}]

@@ -1,0 +1,11 @@
+{
+  "last_updated": "2025-07-05T04:28:10.729280Z",
+  "test_costs": {
+    "Elixir.ExLLM.Integration.FileManagementTest.test OpenAI-specific file management file purposes (assistants, fine-tune)": 4.0e-5,
+    "Elixir.ExLLM.Integration.FileManagementTest.test concurrent operations concurrent upload test": 5.9999999999999995e-5,
+    "Elixir.ExLLM.Integration.FileManagementTest.test file deletion delete file and verify removal": 2.0e-5,
+    "Elixir.ExLLM.Integration.FileManagementTest.test file lifecycle upload, retrieve, and delete a file": 2.0e-5,
+    "Elixir.ExLLM.Integration.FileManagementTest.test file operations list uploaded files": 4.0e-5
+  },
+  "total_cost": 1.8e-4
+}

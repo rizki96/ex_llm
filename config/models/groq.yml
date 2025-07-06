@@ -288,4 +288,4 @@ models:
     mode: audio_transcription
   groq/distil-whisper-large-v3-en:
     mode: audio_transcription
-default_model: groq/deepseek-r1-distill-llama-70b
+default_model: groq/llama-3.1-8b-instant

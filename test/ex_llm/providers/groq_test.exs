@@ -24,7 +24,7 @@ defmodule ExLLM.Providers.GroqTest do
 
     test "transform_request/2 handles Groq-specific parameters" do
       request = %{
-        "model" => "llama3-70b",
+        "model" => "llama-3.1-8b-instant",
         "messages" => [%{"role" => "user", "content" => "test"}],
         "stop" => ["stop1", "stop2", "stop3", "stop4", "stop5"],
         "temperature" => 3.0
@@ -41,7 +41,7 @@ defmodule ExLLM.Providers.GroqTest do
     end
 
     test "filter_model/1 filters out whisper models" do
-      assert Groq.filter_model(%{"id" => "llama3-70b"})
+      assert Groq.filter_model(%{"id" => "llama-3.1-8b-instant"})
       assert Groq.filter_model(%{"id" => "mixtral-8x7b"})
       refute Groq.filter_model(%{"id" => "whisper-large-v3"})
       refute Groq.filter_model(%{"id" => "distil-whisper-large-v3-en"})
@@ -55,8 +55,8 @@ defmodule ExLLM.Providers.GroqTest do
 
       # We can test this by checking if the model is recognized in the Groq provider
       # The model should be in the groq.yml config
-      assert Groq.filter_model(%{"id" => "llama3-70b-8192"}) == true
-      assert Groq.filter_model(%{"id" => "llama3-8b-8192"}) == true
+      assert Groq.filter_model(%{"id" => "llama-3.1-8b-instant"}) == true
+      assert Groq.filter_model(%{"id" => "llama-3.1-8b-instant"}) == true
 
       # Non-Groq models should be filtered out
       # Actually most models pass filter

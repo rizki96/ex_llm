@@ -16,7 +16,7 @@ defmodule ExLLM.Providers.GroqPublicAPITest do
       # Measure response time
       start_time = System.monotonic_time(:millisecond)
 
-      case ExLLM.chat(:groq, messages, model: "llama-3.2-1b-preview", max_tokens: 10) do
+      case ExLLM.chat(:groq, messages, model: "llama-3.1-8b-instant", max_tokens: 10) do
         {:ok, response} ->
           end_time = System.monotonic_time(:millisecond)
           duration = end_time - start_time
@@ -43,7 +43,7 @@ defmodule ExLLM.Providers.GroqPublicAPITest do
       end
 
       case ExLLM.stream(:groq, messages, collector,
-             model: "mixtral-8x7b-32768",
+             model: "llama-3.1-8b-instant",
              max_tokens: 50,
              timeout: 10_000
            ) do
