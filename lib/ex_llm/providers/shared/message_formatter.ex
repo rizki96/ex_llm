@@ -54,7 +54,7 @@ defmodule ExLLM.Providers.Shared.MessageFormatter do
   """
   @spec normalize_message_keys(list(map())) :: list(map())
   def normalize_message_keys(messages) do
-    {normalized, has_string_keys} = 
+    {normalized, has_string_keys} =
       Enum.map_reduce(messages, false, fn message, acc ->
         if is_map(message) do
           {normalized, used_strings} = normalize_single_message(message)
@@ -65,25 +65,25 @@ defmodule ExLLM.Providers.Shared.MessageFormatter do
           {message, acc}
         end
       end)
-    
+
     if has_string_keys do
       # Log deprecation warning once per request
       ExLLM.Infrastructure.Logger.warning(
         "String keys in messages are deprecated and will be removed in v2.0. " <>
-        "Please use atom keys: %{role: \"user\", content: \"...\"}"
+          "Please use atom keys: %{role: \"user\", content: \"...\"}"
       )
     end
-    
+
     normalized
   end
 
   defp normalize_single_message(message) when is_map(message) do
     # Check if we have string keys
     has_string_keys = Map.has_key?(message, "role") || Map.has_key?(message, "content")
-    
+
     # Convert to atom keys
     try do
-      normalized = 
+      normalized =
         message
         |> Enum.map(fn
           {"role", value} -> {:role, value}
@@ -95,7 +95,7 @@ defmodule ExLLM.Providers.Shared.MessageFormatter do
           {key, value} when is_binary(key) -> {String.to_existing_atom(key), value}
         end)
         |> Map.new()
-      
+
       {normalized, has_string_keys}
     rescue
       ArgumentError ->
@@ -107,25 +107,49 @@ defmodule ExLLM.Providers.Shared.MessageFormatter do
   defp normalize_content_value(content) when is_list(content) do
     Enum.map(content, &normalize_content_item/1)
   end
+
   defp normalize_content_value(content), do: content
 
   defp normalize_content_item(item) when is_map(item) do
     item
     |> Enum.map(fn
-      {"type", value} -> {:type, value}
-      {"text", value} -> {:text, value}
-      {"image", value} -> {:image, value}
-      {"image_url", value} when is_map(value) -> {:image_url, normalize_content_item(value)}
-      {"image_url", value} -> {:image_url, value}
-      {"url", value} -> {:url, value}
-      {"detail", value} -> {:detail, value}
-      {"media_type", value} -> {:media_type, value}
-      {"data", value} -> {:data, value}
-      {key, value} when is_atom(key) and is_map(value) -> {key, normalize_content_item(value)}
-      {key, value} when is_atom(key) -> {key, value}
-      {key, value} when is_binary(key) -> 
+      {"type", value} ->
+        {:type, value}
+
+      {"text", value} ->
+        {:text, value}
+
+      {"image", value} ->
+        {:image, value}
+
+      {"image_url", value} when is_map(value) ->
+        {:image_url, normalize_content_item(value)}
+
+      {"image_url", value} ->
+        {:image_url, value}
+
+      {"url", value} ->
+        {:url, value}
+
+      {"detail", value} ->
+        {:detail, value}
+
+      {"media_type", value} ->
+        {:media_type, value}
+
+      {"data", value} ->
+        {:data, value}
+
+      {key, value} when is_atom(key) and is_map(value) ->
+        {key, normalize_content_item(value)}
+
+      {key, value} when is_atom(key) ->
+        {key, value}
+
+      {key, value} when is_binary(key) ->
         try do
           atom_key = String.to_existing_atom(key)
+
           if is_map(value) do
             {atom_key, normalize_content_item(value)}
           else
@@ -137,6 +161,7 @@ defmodule ExLLM.Providers.Shared.MessageFormatter do
     end)
     |> Map.new()
   end
+
   defp normalize_content_item(item), do: item
 
   @doc """

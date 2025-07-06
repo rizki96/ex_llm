@@ -165,8 +165,7 @@ defmodule ExLLM.Providers.OpenAI.ChatTest do
         "model" => "gpt-4",
         "choices" => [
           %{
-            "message" => %{role: "assistant", content: "Hello!"
-            },
+            "message" => %{role: "assistant", content: "Hello!"},
             "finish_reason" => "stop"
           }
         ],
@@ -192,7 +191,7 @@ defmodule ExLLM.Providers.OpenAI.ChatTest do
           %{
             "message" => %{
               "refusal" => "I can't help with that",
-              role: "assistant", 
+              role: "assistant",
               content: nil
             },
             "finish_reason" => "stop"
@@ -215,7 +214,7 @@ defmodule ExLLM.Providers.OpenAI.ChatTest do
         "choices" => [
           %{
             "message" => %{
-              role: "assistant", 
+              role: "assistant",
               content: nil,
               tool_calls: [
                 %{

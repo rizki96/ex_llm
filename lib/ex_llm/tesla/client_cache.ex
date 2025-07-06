@@ -66,28 +66,29 @@ defmodule ExLLM.Tesla.ClientCache do
       [] ->
         # Use a lock to ensure only one process creates the client
         lock_key = {:lock, key}
-        
+
         case :ets.insert_new(@lock_table_name, {lock_key, self()}) do
           true ->
             # We got the lock, create the client
             Logger.debug("ClientCache: Cache miss for #{provider}, creating new client")
             client = create_fn.()
-            
+
             # Insert into cache and remove lock
             :ets.insert(@table_name, {key, client})
             :ets.delete(@lock_table_name, lock_key)
             client
-            
+
           false ->
             # Another process has the lock, wait for them to finish
             # Small delay to let the other process complete
             Process.sleep(1)
-            
+
             # Try to get from cache again
             case :ets.lookup(@table_name, key) do
               [{^key, client}] ->
                 Logger.debug("ClientCache: Found client after waiting")
                 client
+
               [] ->
                 # Still not there, recursively try again
                 get_or_create(provider, config, create_fn)
@@ -115,22 +116,24 @@ defmodule ExLLM.Tesla.ClientCache do
   @impl true
   def init(_opts) do
     # Create ETS table with read concurrency for performance
-    table = :ets.new(@table_name, [
-      :set,
-      :public,
-      :named_table,
-      read_concurrency: true,
-      write_concurrency: true
-    ])
-    
+    table =
+      :ets.new(@table_name, [
+        :set,
+        :public,
+        :named_table,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
+
     # Create lock table for concurrent access control
-    lock_table = :ets.new(@lock_table_name, [
-      :set,
-      :public,
-      :named_table,
-      read_concurrency: true,
-      write_concurrency: true
-    ])
+    lock_table =
+      :ets.new(@lock_table_name, [
+        :set,
+        :public,
+        :named_table,
+        read_concurrency: true,
+        write_concurrency: true
+      ])
 
     {:ok, %{table: table, lock_table: lock_table}}
   end
@@ -148,6 +151,7 @@ defmodule ExLLM.Tesla.ClientCache do
       size: :ets.info(@table_name, :size),
       memory: :ets.info(@table_name, :memory)
     }
+
     {:reply, stats, state}
   end
 
@@ -166,7 +170,7 @@ defmodule ExLLM.Tesla.ClientCache do
       anthropic_version: config[:anthropic_version],
       site_url: config[:site_url],
       app_name: config[:app_name],
-      
+
       # Middleware-affecting options
       is_streaming: config[:is_streaming] || config[:stream] || config[:streaming],
       timeout: config[:timeout],
@@ -176,20 +180,20 @@ defmodule ExLLM.Tesla.ClientCache do
       circuit_breaker_timeout: config[:circuit_breaker_timeout],
       debug: config[:debug],
       compression: config[:compression],
-      
+
       # OAuth token for Gemini
       oauth_token: config[:oauth_token]
     }
-    
+
     # Remove nil values to ensure consistent hashing
-    relevant_config = 
+    relevant_config =
       relevant_config
       |> Enum.reject(fn {_k, v} -> is_nil(v) end)
       |> Map.new()
 
     # Create a stable hash of the configuration
     config_hash = :erlang.phash2(relevant_config)
-    
+
     {provider, config_hash}
   end
 end

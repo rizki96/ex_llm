@@ -52,12 +52,13 @@ defmodule ExLLM.Plugs.BuildTeslaClient do
 
     # Include streaming flag in config for cache key
     cache_config = Map.put(config, :is_streaming, is_streaming)
-    
+
     # Use cache to get or create client
-    client = ClientCache.get_or_create(provider, cache_config, fn ->
-      build_client(provider, config, is_streaming)
-    end)
-    
+    client =
+      ClientCache.get_or_create(provider, cache_config, fn ->
+        build_client(provider, config, is_streaming)
+      end)
+
     %{request | tesla_client: client}
   end
 

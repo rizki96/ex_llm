@@ -81,15 +81,15 @@ defmodule ExLLM.Providers.Shared.MessageFormatterNormalizationTest do
       ]
 
       result = MessageFormatter.normalize_message_keys(messages)
-      
+
       assert result == [
-        %{
-          role: "assistant",
-          content: "I'll help you",
-          name: "Claude",
-          function_call: %{"name" => "get_weather", "arguments" => "{}"}
-        }
-      ]
+               %{
+                 role: "assistant",
+                 content: "I'll help you",
+                 name: "Claude",
+                 function_call: %{"name" => "get_weather", "arguments" => "{}"}
+               }
+             ]
     end
 
     test "handles tool_calls field" do
@@ -104,41 +104,41 @@ defmodule ExLLM.Providers.Shared.MessageFormatterNormalizationTest do
       ]
 
       result = MessageFormatter.normalize_message_keys(messages)
-      
+
       assert result == [
-        %{
-          role: "assistant",
-          content: nil,
-          tool_calls: [
-            %{"id" => "call_123", "type" => "function", "function" => %{"name" => "test"}}
-          ]
-        }
-      ]
+               %{
+                 role: "assistant",
+                 content: nil,
+                 tool_calls: [
+                   %{"id" => "call_123", "type" => "function", "function" => %{"name" => "test"}}
+                 ]
+               }
+             ]
     end
 
     test "logs deprecation warning for string keys" do
       # Since Logger uses :logger directly, we'll test the behavior
       # by verifying the correct messages are returned
       messages = [%{"role" => "user", "content" => "Hello"}]
-      
+
       result = MessageFormatter.normalize_message_keys(messages)
-      
+
       # Verify the conversion happened
       assert result == [%{role: "user", content: "Hello"}]
-      
+
       # The warning is logged but we can't capture it in tests
       # due to :logger usage. The important behavior is the conversion.
     end
 
     test "does not normalize when already using atom keys" do
       messages = [%{role: "user", content: "Hello"}]
-      
+
       result = MessageFormatter.normalize_message_keys(messages)
-      
+
       # Should return the same messages unchanged
       assert result == messages
     end
-    
+
     test "returns normalized messages with mixed string/atom content" do
       messages = [
         %{
@@ -149,9 +149,9 @@ defmodule ExLLM.Providers.Shared.MessageFormatterNormalizationTest do
           ]
         }
       ]
-      
+
       result = MessageFormatter.normalize_message_keys(messages)
-      
+
       expected = [
         %{
           role: "user",
@@ -161,7 +161,7 @@ defmodule ExLLM.Providers.Shared.MessageFormatterNormalizationTest do
           ]
         }
       ]
-      
+
       assert result == expected
     end
   end

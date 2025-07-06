@@ -131,8 +131,8 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
       message = %{
         "serverContent" => %{
           "modelTurnContent" => %{
-            "parts" => [%{text: "Hello! I'm doing well, thank you."}],
-            role: "model"
+            "parts" => [%{"text" => "Hello! I'm doing well, thank you."}],
+            "role" => "model"
           },
           "turnComplete" => true,
           "generationComplete" => true
@@ -143,7 +143,7 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
 
       assert {:server_content, content} = result
       assert content.model_turn_content.role == "model"
-      assert content.model_turn_content.parts == [%{text: "Hello! I'm doing well, thank you."}]
+      assert content.model_turn_content.parts == [%{"text" => "Hello! I'm doing well, thank you."}]
       assert content.turn_complete == true
       assert content.generation_complete == true
     end
@@ -156,7 +156,7 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
             %{
               "id" => "call_123",
               "args" => %{"location" => "San Francisco"},
-              name: "get_weather"
+              "name" => "get_weather"
             }
           ]
         }
@@ -176,7 +176,7 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
       message = %{
         "serverContent" => %{
           "inputTranscription" => %{
-            text: "Hello there"
+            "text" => "Hello there"
           }
         }
       }

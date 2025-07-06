@@ -87,7 +87,7 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
   end
 
   defp format_content(content) when is_binary(content), do: content
-  
+
   defp format_content(content) when is_list(content) do
     # Handle multimodal content by converting atom keys to string keys
     Enum.map(content, fn
@@ -95,11 +95,12 @@ defmodule ExLLM.Plugs.Providers.PerplexityPrepareRequest do
         item
         |> Enum.map(fn {k, v} -> {to_string(k), v} end)
         |> Map.new()
-      
-      other -> other
+
+      other ->
+        other
     end)
   end
-  
+
   defp format_content(content), do: content
 
   defp maybe_add_field(map, source, field_atom, field_string) do

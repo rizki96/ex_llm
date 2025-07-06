@@ -36,7 +36,7 @@ defmodule ExLLM.Providers.LocalProvidersTest do
       body = result.assigns.request_body
       assert body.model == "llama-3.1-8b-instruct"
       assert body.temperature == 0.7
-      assert body.messages == [%{role: "user", content: "Hello"}]
+      assert body.messages == [%{"content" => "Hello", "role" => "user"}]
     end
 
     test "ParseResponse plug works correctly" do
@@ -45,7 +45,7 @@ defmodule ExLLM.Providers.LocalProvidersTest do
       raw_response = %{
         "choices" => [
           %{
-            "message" => %{content: "Hello there!", role: "assistant"},
+            "message" => %{"content" => "Hello there!", "role" => "assistant"},
             "finish_reason" => "stop"
           }
         ],
@@ -92,14 +92,14 @@ defmodule ExLLM.Providers.LocalProvidersTest do
       body = result.assigns.request_body
       assert body.model == "llama3.2"
       assert body.temperature == 0.5
-      assert body.messages == [%{role: "user", content: "Hello"}]
+      assert body.messages == [%{"content" => "Hello", "role" => "user"}]
     end
 
     test "ParseResponse plug works correctly" do
       alias ExLLM.Providers.Ollama.ParseResponse
 
       raw_response = %{
-        "message" => %{content: "Hello there!", role: "assistant"},
+        "message" => %{"content" => "Hello there!", "role" => "assistant"},
         "done" => true,
         "done_reason" => "stop",
         "prompt_eval_count" => 8,
@@ -140,8 +140,8 @@ defmodule ExLLM.Providers.LocalProvidersTest do
       body = result.assigns.request_body
 
       expected_messages = [
-        %{role: "system", content: "You are a helpful assistant"},
-        %{role: "user", content: "Hello"}
+        %{"content" => "You are a helpful assistant", "role" => "system"},
+        %{"content" => "Hello", "role" => "user"}
       ]
 
       assert body.messages == expected_messages
@@ -163,8 +163,8 @@ defmodule ExLLM.Providers.LocalProvidersTest do
       body = result.assigns.request_body
 
       expected_messages = [
-        %{role: "system", content: "You are a helpful assistant"},
-        %{role: "user", content: "Hello"}
+        %{"content" => "You are a helpful assistant", "role" => "system"},
+        %{"content" => "Hello", "role" => "user"}
       ]
 
       assert body.messages == expected_messages

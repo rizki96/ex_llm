@@ -78,8 +78,7 @@ defmodule ExLLM.ResponseCaptureTest do
         "choices" => [
           %{
             "index" => 0,
-            "message" => %{role: "assistant", content: "Hello! How can I help you today?"
-            },
+            "message" => %{"role" => "assistant", "content" => "Hello! How can I help you today?"},
             "finish_reason" => "stop"
           }
         ],

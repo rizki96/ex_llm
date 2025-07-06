@@ -59,10 +59,10 @@ defmodule ExLLM.Providers.Anthropic.PipelinePlugsTest do
           "input_tokens" => 10,
           "output_tokens" => 5
         },
-        content: [
+        "content" => [
           %{
-            text: "Hello there!",
-            type: "text"
+            "text" => "Hello there!",
+            "type" => "text"
           }
         ]
       }

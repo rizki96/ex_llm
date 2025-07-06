@@ -49,7 +49,7 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
 
     # Build cache config from opts
     cache_config = Enum.into(opts, %{})
-    
+
     # Use cache to get or create client
     ExLLM.Tesla.ClientCache.get_or_create(provider, cache_config, fn ->
       middleware = build_middleware_stack(provider, opts)

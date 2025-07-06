@@ -304,19 +304,24 @@ defmodule ExLLM.SessionManagementTest do
       {:ok, session} = ExLLM.Core.Session.from_json(json_string)
 
       assert session.id == "test_id"
-      assert session.llm_backend == :openai # Assert atom conversion
+      # Assert atom conversion
+      assert session.llm_backend == :openai
       assert session.name == "JSON Test Session"
 
       assert length(session.messages) == 2
-      assert session.messages |> List.first() |> Map.get(:role) == "user" # Role remains string
+      # Role remains string
+      assert session.messages |> List.first() |> Map.get(:role) == "user"
       assert session.messages |> List.first() |> Map.get(:content) == "Hello from JSON"
       assert session.messages |> List.first() |> Map.get(:timestamp) |> is_struct(DateTime)
 
       assert session.messages |> List.last() |> Map.get(:role) == "assistant"
-      assert session.messages |> List.last() |> Map.get(:metadata) == %{"source" => "mock"} # Metadata keys remain strings
+      # Metadata keys remain strings
+      assert session.messages |> List.last() |> Map.get(:metadata) == %{"source" => "mock"}
 
-      assert session.context["config"] == %{"model" => "gpt-4"} # Context keys remain as strings
-      assert session.token_usage == %{input_tokens: 50, output_tokens: 75} # Assert atom conversion for token_usage keys
+      # Context keys remain as strings
+      assert session.context["config"] == %{"model" => "gpt-4"}
+      # Assert atom conversion for token_usage keys
+      assert session.token_usage == %{input_tokens: 50, output_tokens: 75}
     end
   end
 

@@ -11,7 +11,7 @@ defmodule ExLLM.Tesla.ClientCacheTest do
   describe "get_or_create/3" do
     test "creates new client on cache miss" do
       create_count = :counters.new(1, [])
-      
+
       create_fn = fn ->
         :counters.add(create_count, 1, 1)
         Tesla.client([], Tesla.Mock)
@@ -24,23 +24,25 @@ defmodule ExLLM.Tesla.ClientCacheTest do
       # Second call with same config should use cache
       client2 = ClientCache.get_or_create(:openai, %{api_key: "test"}, create_fn)
       assert :counters.get(create_count, 1) == 1
-      
+
       # Clients should be the same
       assert client1 == client2
     end
 
     test "creates different clients for different providers" do
       create_count = :counters.new(1, [])
-      
-      _client1 = ClientCache.get_or_create(:openai, %{api_key: "test"}, fn ->
-        :counters.add(create_count, 1, 1)
-        Tesla.client([], Tesla.Mock)
-      end)
-      
-      _client2 = ClientCache.get_or_create(:anthropic, %{api_key: "test"}, fn ->
-        :counters.add(create_count, 1, 1)
-        Tesla.client([], Tesla.Mock)
-      end)
+
+      _client1 =
+        ClientCache.get_or_create(:openai, %{api_key: "test"}, fn ->
+          :counters.add(create_count, 1, 1)
+          Tesla.client([], Tesla.Mock)
+        end)
+
+      _client2 =
+        ClientCache.get_or_create(:anthropic, %{api_key: "test"}, fn ->
+          :counters.add(create_count, 1, 1)
+          Tesla.client([], Tesla.Mock)
+        end)
 
       # Different providers should create new clients
       assert :counters.get(create_count, 1) == 2
@@ -48,16 +50,18 @@ defmodule ExLLM.Tesla.ClientCacheTest do
 
     test "creates different clients for different configs" do
       create_count = :counters.new(1, [])
-      
-      _client1 = ClientCache.get_or_create(:openai, %{api_key: "test1"}, fn ->
-        :counters.add(create_count, 1, 1)
-        Tesla.client([], Tesla.Mock)
-      end)
-      
-      _client2 = ClientCache.get_or_create(:openai, %{api_key: "test2"}, fn ->
-        :counters.add(create_count, 1, 1)
-        Tesla.client([], Tesla.Mock)
-      end)
+
+      _client1 =
+        ClientCache.get_or_create(:openai, %{api_key: "test1"}, fn ->
+          :counters.add(create_count, 1, 1)
+          Tesla.client([], Tesla.Mock)
+        end)
+
+      _client2 =
+        ClientCache.get_or_create(:openai, %{api_key: "test2"}, fn ->
+          :counters.add(create_count, 1, 1)
+          Tesla.client([], Tesla.Mock)
+        end)
 
       # Different configs should create new clients
       assert :counters.get(create_count, 1) == 2
@@ -65,7 +69,7 @@ defmodule ExLLM.Tesla.ClientCacheTest do
 
     test "caches based on relevant config only" do
       create_count = :counters.new(1, [])
-      
+
       create_fn = fn ->
         :counters.add(create_count, 1, 1)
         Tesla.client([], Tesla.Mock)
@@ -84,7 +88,7 @@ defmodule ExLLM.Tesla.ClientCacheTest do
 
     test "handles streaming flag in cache key" do
       create_count = :counters.new(1, [])
-      
+
       create_fn = fn ->
         :counters.add(create_count, 1, 1)
         Tesla.client([], Tesla.Mock)
@@ -136,7 +140,7 @@ defmodule ExLLM.Tesla.ClientCacheTest do
       initial_size = initial_stats.size
 
       ClientCache.get_or_create(:openai, %{api_key: "test"}, create_fn)
-      
+
       new_stats = ClientCache.stats()
       assert new_stats.size == initial_size + 1
     end
@@ -145,7 +149,7 @@ defmodule ExLLM.Tesla.ClientCacheTest do
   describe "concurrent access" do
     test "handles concurrent cache access safely" do
       create_count = :counters.new(1, [])
-      
+
       create_fn = fn ->
         # Add small delay to increase chance of race condition
         Process.sleep(10)
@@ -154,11 +158,12 @@ defmodule ExLLM.Tesla.ClientCacheTest do
       end
 
       # Spawn multiple processes trying to get the same client
-      tasks = for _ <- 1..10 do
-        Task.async(fn ->
-          ClientCache.get_or_create(:openai, %{api_key: "concurrent"}, create_fn)
-        end)
-      end
+      tasks =
+        for _ <- 1..10 do
+          Task.async(fn ->
+            ClientCache.get_or_create(:openai, %{api_key: "concurrent"}, create_fn)
+          end)
+        end
 
       # Wait for all tasks
       clients = Enum.map(tasks, &Task.await/1)

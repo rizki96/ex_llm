@@ -66,7 +66,7 @@ defmodule ExLLM.Providers.OpenAICompatiblePlugsTest do
       raw_response = %{
         "choices" => [
           %{
-            "message" => %{content: "Hello there!", role: "assistant"},
+            "message" => %{"content" => "Hello there!", "role" => "assistant"},
             "finish_reason" => "stop"
           }
         ],
