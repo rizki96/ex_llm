@@ -252,7 +252,14 @@ defmodule ExLLM.MixProject do
       # === CACHE MANAGEMENT ===
 
       "cache.clear": ["cmd rm -rf test/cache/*"],
-      "cache.status": ["run -e ExLLM.Testing.Cache.status()"]
+      "cache.status": ["run -e ExLLM.Testing.Cache.status()"],
+      
+      # === RESPONSE CAPTURE ===
+      
+      "captures.list": ["ex_llm.captures list"],
+      "captures.show": ["ex_llm.captures show"],
+      "captures.clear": ["ex_llm.captures clear"],
+      "captures.stats": ["ex_llm.captures stats"]
     ]
   end
 end

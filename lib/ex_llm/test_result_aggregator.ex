@@ -111,5 +111,4 @@ defmodule ExLLM.TestResultAggregator do
         acc
     end
   end
-
 end

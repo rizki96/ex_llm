@@ -343,12 +343,21 @@ defmodule ExLLM.Providers.Shared.HTTP.Core do
         []
       end
 
+    # Add response capture middleware if enabled
+    capture_middleware =
+      if ExLLM.ResponseCapture.enabled?() do
+        [{HTTP.ResponseCapture, [provider: provider]}]
+      else
+        []
+      end
+
     # Assemble middleware stack in execution order
     base_middleware ++
       auth_middleware ++
       cache_middleware ++
       error_middleware ++
-      logging_middleware
+      logging_middleware ++
+      capture_middleware
   end
 
   defp build_adapter(opts) do
