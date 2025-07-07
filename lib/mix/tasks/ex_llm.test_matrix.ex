@@ -187,9 +187,9 @@ defmodule Mix.Tasks.ExLlm.TestMatrix do
         env: test_config.env,
         stderr_to_stdout: true
       )
-    
+
     # Filter out telemetry warnings from output
-    output = 
+    output =
       raw_output
       |> String.split("\n")
       |> Enum.reject(&String.contains?(&1, "Failed to lookup telemetry handlers"))

@@ -70,24 +70,27 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Telemetry do
   def attach_default_handlers do
     init_metrics()
 
-    try do
-      :telemetry.attach_many(
-        "ex_llm_circuit_breaker_logger",
-        @events,
-        &handle_telemetry_event/4,
-        %{handler_type: :logger}
-      )
+    # Check if telemetry is available before trying to attach
+    if Code.ensure_loaded?(:telemetry) and function_exported?(:telemetry, :attach_many, 4) do
+      try do
+        :telemetry.attach_many(
+          "ex_llm_circuit_breaker_logger",
+          @events,
+          &handle_telemetry_event/4,
+          %{handler_type: :logger}
+        )
 
-      :telemetry.attach_many(
-        "ex_llm_circuit_breaker_metrics",
-        @events,
-        &handle_telemetry_event/4,
-        %{handler_type: :metrics}
-      )
-    rescue
-      ArgumentError ->
-        # Telemetry application not started yet, ignore
-        :ok
+        :telemetry.attach_many(
+          "ex_llm_circuit_breaker_metrics",
+          @events,
+          &handle_telemetry_event/4,
+          %{handler_type: :metrics}
+        )
+      rescue
+        ArgumentError ->
+          # Telemetry application not started yet, ignore
+          :ok
+      end
     end
 
     :ok

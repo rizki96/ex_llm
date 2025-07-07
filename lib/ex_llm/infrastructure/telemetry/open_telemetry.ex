@@ -182,19 +182,23 @@ if Code.ensure_loaded?(OpenTelemetry) and Code.ensure_loaded?(OpenTelemetry.Trac
         {[:ex_llm, :provider, :request, :exception], &handle_exception/4}
       ]
 
-      try do
-        for {event, handler} <- handlers do
-          :telemetry.attach(
-            "otel-#{Enum.join(event, "-")}",
-            event,
-            handler,
-            nil
-          )
+      if Code.ensure_loaded?(:telemetry) and function_exported?(:telemetry, :attach, 4) do
+        try do
+          for {event, handler} <- handlers do
+            :telemetry.attach(
+              "otel-#{Enum.join(event, "-")}",
+              event,
+              handler,
+              nil
+            )
+          end
+        rescue
+          ArgumentError ->
+            # Telemetry application not started yet, ignore
+            :ok
         end
-      rescue
-        ArgumentError ->
-          # Telemetry application not started yet, ignore
-          :ok
+      else
+        :ok
       end
 
       :ok

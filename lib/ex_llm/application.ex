@@ -5,9 +5,15 @@ defmodule ExLLM.Application do
 
   @impl true
   def start(_type, _args) do
-    # Ensure telemetry is started first
-    Application.ensure_all_started(:telemetry)
-    
+    # Ensure telemetry is started first - check if already started
+    case Application.ensure_all_started(:telemetry) do
+      {:ok, _apps} ->
+        :ok
+      {:error, _} ->
+        # Telemetry might not be available, continue anyway
+        :ok
+    end
+
     # Run startup configuration validation
     ExLLM.Infrastructure.StartupValidator.run_startup_validation()
 
@@ -78,5 +84,4 @@ defmodule ExLLM.Application do
       nil
     end
   end
-
 end

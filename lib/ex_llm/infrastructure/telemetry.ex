@@ -31,9 +31,12 @@ defmodule ExLLM.Infrastructure.Telemetry do
 
   alias ExLLM.Infrastructure.Logger
 
+  # Suppress telemetry warnings at compile time
+  @compile {:no_warn_undefined, [:telemetry]}
+
   @doc """
   Safely execute telemetry events, suppressing warnings if telemetry is not started.
-  
+
   This wrapper prevents the "Failed to lookup telemetry handlers" warning that can
   occur during early application startup or in test environments.
   """
@@ -222,19 +225,24 @@ defmodule ExLLM.Infrastructure.Telemetry do
   This is useful during development to see all telemetry events.
   """
   def attach_default_logger(level \\ :debug) do
-    events = events()
+    # Check if telemetry is available before trying to attach
+    if Code.ensure_loaded?(:telemetry) and function_exported?(:telemetry, :attach_many, 4) do
+      events = events()
 
-    try do
-      :telemetry.attach_many(
-        "ex-llm-default-logger",
-        events,
-        &handle_event/4,
-        %{log_level: level}
-      )
-    rescue
-      ArgumentError ->
-        # Telemetry application not started yet, ignore
-        :ok
+      try do
+        :telemetry.attach_many(
+          "ex-llm-default-logger",
+          events,
+          &handle_event/4,
+          %{log_level: level}
+        )
+      rescue
+        ArgumentError ->
+          # Telemetry application not started yet, ignore
+          :ok
+      end
+    else
+      :ok
     end
   end
 

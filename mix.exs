@@ -47,7 +47,9 @@ defmodule ExLLM.MixProject do
           :ex_llm
         ],
         ignore_warnings: ".dialyzer_ignore.exs"
-      ]
+      ],
+      # Suppress compilation warnings in dev and test
+      elixirc_options: elixirc_options(Mix.env())
     ]
   end
 
@@ -56,6 +58,7 @@ defmodule ExLLM.MixProject do
       extra_applications:
         [
           :logger,
+          :runtime_tools,
           :telemetry,
           :jason,
           :req,
@@ -82,6 +85,11 @@ defmodule ExLLM.MixProject do
       false -> apps
     end
   end
+
+  # Compiler options to suppress warnings
+  defp elixirc_options(:test), do: [warnings_as_errors: false]
+  defp elixirc_options(:dev), do: [warnings_as_errors: false]
+  defp elixirc_options(_), do: []
 
   defp package do
     [

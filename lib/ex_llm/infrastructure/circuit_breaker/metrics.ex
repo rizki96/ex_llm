@@ -481,26 +481,32 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
   end
 
   defp attach_telemetry_handlers do
-    events = [
-      [:ex_llm, :circuit_breaker, :call_success],
-      [:ex_llm, :circuit_breaker, :call_failure],
-      [:ex_llm, :circuit_breaker, :call_timeout],
-      [:ex_llm, :circuit_breaker, :state_change],
-      [:ex_llm, :circuit_breaker, :bulkhead, :metrics_updated],
-      [:ex_llm, :circuit_breaker, :health_check, :completed]
-    ]
+    # Check if telemetry is available before trying to attach
+    if Code.ensure_loaded?(:telemetry) and function_exported?(:telemetry, :attach_many, 4) do
+      events = [
+        [:ex_llm, :circuit_breaker, :call_success],
+        [:ex_llm, :circuit_breaker, :call_failure],
+        [:ex_llm, :circuit_breaker, :call_timeout],
+        [:ex_llm, :circuit_breaker, :state_change],
+        [:ex_llm, :circuit_breaker, :bulkhead, :metrics_updated],
+        [:ex_llm, :circuit_breaker, :health_check, :completed]
+      ]
 
-    try do
-      :telemetry.attach_many(
-        "circuit_breaker_metrics_handler",
-        events,
-        &handle_telemetry_event/4,
-        %{}
-      )
-    rescue
-      ArgumentError ->
-        # Telemetry application not started yet, ignore
-        :ok
+      try do
+        :telemetry.attach_many(
+          "circuit_breaker_metrics_handler",
+          events,
+          &handle_telemetry_event/4,
+          %{}
+        )
+      rescue
+        ArgumentError ->
+          # Telemetry application not started yet, ignore
+          :ok
+      end
+    else
+      # Telemetry not available, skip
+      :ok
     end
   end
 
