@@ -12,7 +12,7 @@ config :ex_llm,
   cache_persist_disk: false,
   cache_disk_path: "~/.cache/ex_llm_cache",
   # Debug logging configuration
-  log_level: :info,
+  log_level: :warning,
   log_components: %{
     requests: true,
     responses: true,
@@ -42,10 +42,15 @@ config :logger, :console,
     :body
   ]
 
+# Set default logger level to warning in development
+if Mix.env() == :dev do
+  config :logger, level: :warning
+end
+
 if Mix.env() == :dev do
   # Enhanced logging for development
   config :ex_llm,
-    log_level: :debug,
+    log_level: :warning,
     log_components: %{
       requests: true,
       responses: true,
