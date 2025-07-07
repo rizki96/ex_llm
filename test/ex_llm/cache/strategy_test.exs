@@ -81,6 +81,9 @@ defmodule ExLLM.Cache.StrategyTest do
       result1 = Test.with_cache(cache_key, [cache: true], fun)
       assert {:ok, %{value: 1}} = result1
 
+      # Small delay to ensure async cache put completes
+      Process.sleep(10)
+
       result2 = Test.with_cache(cache_key, [cache: true], fun)
       # Cached value
       assert {:ok, %{value: 1}} = result2
