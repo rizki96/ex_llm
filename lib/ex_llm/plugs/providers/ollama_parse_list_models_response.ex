@@ -108,7 +108,7 @@ defmodule ExLLM.Plugs.Providers.OllamaParseListModelsResponse do
   end
 
   defp extract_base_model_name(nil), do: "unknown"
-  
+
   defp extract_base_model_name(full_name) do
     # Extract base model name from tags like "llama3.2:3b-instruct-q4_K_M"
     case String.split(full_name, ":") do

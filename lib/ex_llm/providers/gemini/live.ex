@@ -728,7 +728,7 @@ defmodule ExLLM.Providers.Gemini.Live do
   defp parse_transcription(nil), do: nil
 
   defp parse_transcription(transcription) do
-    %{text: transcription["text"]}
+    %{"text" => transcription["text"]}
   end
 
   defp parse_content(nil), do: nil
@@ -742,7 +742,7 @@ defmodule ExLLM.Providers.Gemini.Live do
         parts when is_list(parts) ->
           Enum.map(parts, fn part ->
             if is_map(part) and Map.has_key?(part, "text") do
-              %{text: part["text"]}
+              %{"text" => part["text"]}
             else
               part
             end

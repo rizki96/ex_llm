@@ -27,7 +27,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
       # Mock parse function that creates test chunks
       parse_chunk_fn = fn data ->
         case Jason.decode(data) do
-          {:ok, %{"choices" => [%{"delta" => %{content: content}}]}} ->
+          {:ok, %{"choices" => [%{"delta" => %{"content" => content}}]}} ->
             {:ok, %StreamChunk{content: content, finish_reason: nil}}
 
           {:ok, %{"choices" => [%{"finish_reason" => reason}]}} ->
@@ -95,7 +95,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
 
       parse_chunk_fn = fn data ->
         case Jason.decode(data) do
-          {:ok, %{"choices" => [%{"delta" => %{content: content}}]}} ->
+          {:ok, %{"choices" => [%{"delta" => %{"content" => content}}]}} ->
             {:ok, %StreamChunk{content: content, finish_reason: nil}}
 
           _ ->
@@ -155,7 +155,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
       # OpenAI-style parser
       openai_parser = fn data ->
         case Jason.decode(data) do
-          {:ok, %{"choices" => [%{"delta" => %{content: content}}]}} ->
+          {:ok, %{"choices" => [%{"delta" => %{"content" => content}}]}} ->
             {:ok, %StreamChunk{content: content, finish_reason: nil}}
 
           {:ok, %{"choices" => [%{"finish_reason" => reason}]}} ->
@@ -355,7 +355,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
 
       parser = fn data ->
         case Jason.decode(data) do
-          {:ok, %{"choices" => [%{"delta" => %{content: content}}]}} ->
+          {:ok, %{"choices" => [%{"delta" => %{"content" => content}}]}} ->
             {:ok, %StreamChunk{content: content, finish_reason: nil}}
 
           _ ->
@@ -448,7 +448,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
 
       parser = fn data ->
         case Jason.decode(data) do
-          {:ok, %{content: content}} ->
+          {:ok, %{"content" => content}} ->
             {:ok, %StreamChunk{content: content, finish_reason: nil}}
 
           _ ->
@@ -507,7 +507,7 @@ defmodule ExLLM.Providers.Shared.StreamingCoordinatorCharacterizationTest do
       # OpenAI-specific parser
       openai_parser = fn data ->
         case Jason.decode(data) do
-          {:ok, %{"choices" => [%{"delta" => %{content: content}}]}}
+          {:ok, %{"choices" => [%{"delta" => %{"content" => content}}]}}
           when is_binary(content) ->
             {:ok, %StreamChunk{content: content, finish_reason: nil}}
 

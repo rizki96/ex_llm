@@ -143,7 +143,11 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
 
       assert {:server_content, content} = result
       assert content.model_turn_content.role == "model"
-      assert content.model_turn_content.parts == [%{"text" => "Hello! I'm doing well, thank you."}]
+
+      assert content.model_turn_content.parts == [
+               %{"text" => "Hello! I'm doing well, thank you."}
+             ]
+
       assert content.turn_complete == true
       assert content.generation_complete == true
     end
@@ -184,7 +188,7 @@ defmodule ExLLM.Providers.Gemini.LiveTest do
       result = Live.parse_server_message(message)
 
       assert {:server_content, content} = result
-      assert content.input_transcription.text == "Hello there"
+      assert content.input_transcription["text"] == "Hello there"
     end
 
     test "parse_server_message/1 parses go away message" do

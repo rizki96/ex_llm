@@ -226,8 +226,8 @@ defmodule ExLLM.Providers.Gemini.RetrievalPermissionsTest do
       json = %{
         "granteeType" => "GROUP",
         "emailAddress" => "group@example.com",
-        name: "corpora/test-corpus/permissions/permission-456",
-        role: "WRITER"
+        "name" => "corpora/test-corpus/permissions/permission-456",
+        "role" => "WRITER"
       }
 
       permission = Permission.from_json(json)
@@ -257,13 +257,13 @@ defmodule ExLLM.Providers.Gemini.RetrievalPermissionsTest do
           %{
             "granteeType" => "USER",
             "emailAddress" => "user1@example.com",
-            name: "corpora/test-corpus/permissions/perm-1",
-            role: "READER"
+            "name" => "corpora/test-corpus/permissions/perm-1",
+            "role" => "READER"
           },
           %{
             "granteeType" => "EVERYONE",
-            name: "corpora/test-corpus/permissions/perm-2",
-            role: "READER"
+            "name" => "corpora/test-corpus/permissions/perm-2",
+            "role" => "READER"
           }
         ],
         "nextPageToken" => "next-token"

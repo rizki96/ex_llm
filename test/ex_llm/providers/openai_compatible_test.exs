@@ -241,7 +241,7 @@ defmodule ExLLM.Providers.OpenAICompatibleTest do
         assert path == "/v1/chat/completions"
         assert {"authorization", "Bearer test-key"} in headers
         assert Map.get(body, "model") == model_name
-        assert Map.get(body, "messages") == [%{role: "user", content: "Hi"}]
+        assert Map.get(body, "messages") == [%{"role" => "user", "content" => "Hi"}]
       end
 
       test "chat/2 with common options sends correct request body", %{

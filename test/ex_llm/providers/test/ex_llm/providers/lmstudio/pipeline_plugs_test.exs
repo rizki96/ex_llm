@@ -36,7 +36,7 @@ defmodule ExLLM.Providers.LMStudio.PipelinePlugsTest do
       assert body.model == "local-model/gguf-v2-q8_0"
       assert body.temperature == 0.5
       assert body.max_tokens == 100
-      assert body.messages == [%{role: "user", content: "Hello"}]
+      assert body.messages == [%{"role" => "user", "content" => "Hello"}]
 
       headers = result.assigns.request_headers
       assert {"authorization", "Bearer test-key-not-required"} in headers
@@ -46,7 +46,7 @@ defmodule ExLLM.Providers.LMStudio.PipelinePlugsTest do
       raw_response = %{
         "choices" => [
           %{
-            "message" => %{content: "Hello there!", role: "assistant"},
+            "message" => %{"content" => "Hello there!", "role" => "assistant"},
             "finish_reason" => "stop",
             "logprobs" => nil
           }
@@ -91,8 +91,8 @@ defmodule ExLLM.Providers.LMStudio.PipelinePlugsTest do
       body = result.assigns.request_body
 
       expected_messages = [
-        %{role: "system", content: "You are helpful"},
-        %{role: "user", content: "Hello"}
+        %{"role" => "system", "content" => "You are helpful"},
+        %{"role" => "user", "content" => "Hello"}
       ]
 
       assert body.messages == expected_messages
