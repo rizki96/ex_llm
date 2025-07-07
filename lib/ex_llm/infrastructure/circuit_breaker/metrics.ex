@@ -490,12 +490,18 @@ defmodule ExLLM.Infrastructure.CircuitBreaker.Metrics do
       [:ex_llm, :circuit_breaker, :health_check, :completed]
     ]
 
-    :telemetry.attach_many(
-      "circuit_breaker_metrics_handler",
-      events,
-      &handle_telemetry_event/4,
-      %{}
-    )
+    try do
+      :telemetry.attach_many(
+        "circuit_breaker_metrics_handler",
+        events,
+        &handle_telemetry_event/4,
+        %{}
+      )
+    rescue
+      ArgumentError ->
+        # Telemetry application not started yet, ignore
+        :ok
+    end
   end
 
   defp handle_telemetry_event(

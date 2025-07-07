@@ -106,6 +106,9 @@ defmodule ExLLM.MixProject do
 
       # HTTP client with middleware support
       {:tesla, "~> 1.8"},
+      
+      # Telemetry instrumentation
+      {:telemetry, "~> 1.0"},
 
       # WebSocket client for Live API
       {:gun, "~> 2.1"},
