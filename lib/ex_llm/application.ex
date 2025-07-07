@@ -5,14 +5,25 @@ defmodule ExLLM.Application do
 
   @impl true
   def start(_type, _args) do
+    # Ensure telemetry is started first
+    Application.ensure_all_started(:telemetry)
+    
     # Run startup configuration validation
     ExLLM.Infrastructure.StartupValidator.run_startup_validation()
 
     # Initialize circuit breaker ETS table
     ExLLM.Infrastructure.CircuitBreaker.init()
 
-    # Initialize metrics system
-    ExLLM.Infrastructure.CircuitBreaker.Metrics.setup()
+    # Delay metrics setup to avoid telemetry warnings
+    if Mix.env() in [:dev, :test] do
+      spawn(fn ->
+        Process.sleep(100)
+        ExLLM.Infrastructure.CircuitBreaker.Metrics.setup()
+      end)
+    else
+      # In production, set up immediately
+      ExLLM.Infrastructure.CircuitBreaker.Metrics.setup()
+    end
 
     children =
       [
@@ -67,4 +78,5 @@ defmodule ExLLM.Application do
       nil
     end
   end
+
 end

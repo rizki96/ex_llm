@@ -39,13 +39,15 @@ defmodule ExLLM.Tesla.Middleware.Telemetry do
 
   # @behaviour Tesla.Middleware  # Commented to avoid dialyzer callback_info_missing warnings
 
+  alias ExLLM.Infrastructure.Telemetry
+
   # @impl Tesla.Middleware
   def call(env, next, opts) do
     start_time = System.monotonic_time()
     start_metadata = build_start_metadata(env, opts)
 
-    # Emit start event
-    :telemetry.execute(
+    # Emit start event only if telemetry application is running
+    Telemetry.safe_execute(
       [:ex_llm, :http, :start],
       %{time: start_time},
       start_metadata
@@ -71,7 +73,7 @@ defmodule ExLLM.Tesla.Middleware.Telemetry do
           })
 
         # Emit stop event
-        :telemetry.execute(
+        Telemetry.safe_execute(
           [:ex_llm, :http, :stop],
           measurements,
           stop_metadata
@@ -91,7 +93,7 @@ defmodule ExLLM.Tesla.Middleware.Telemetry do
           })
 
         # Emit error event
-        :telemetry.execute(
+        Telemetry.safe_execute(
           [:ex_llm, :http, :error],
           %{duration: duration},
           error_metadata

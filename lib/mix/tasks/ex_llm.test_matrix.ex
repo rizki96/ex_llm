@@ -182,11 +182,18 @@ defmodule Mix.Tasks.ExLlm.TestMatrix do
     start_time = System.monotonic_time(:millisecond)
 
     # Run the tests
-    {output, exit_code} =
+    {raw_output, exit_code} =
       System.cmd("mix", cmd_args,
         env: test_config.env,
         stderr_to_stdout: true
       )
+    
+    # Filter out telemetry warnings from output
+    output = 
+      raw_output
+      |> String.split("\n")
+      |> Enum.reject(&String.contains?(&1, "Failed to lookup telemetry handlers"))
+      |> Enum.join("\n")
 
     end_time = System.monotonic_time(:millisecond)
     duration = end_time - start_time

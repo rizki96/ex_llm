@@ -1,3 +1,21 @@
+# Ensure telemetry is started first to avoid warnings
+Application.ensure_all_started(:telemetry)
+
+# Configure logger to suppress telemetry warnings
+Logger.configure(
+  filter_default: :pass,
+  filters: [
+    telemetry_warning: {fn
+      {_level, _group_leader, {Logger, msg, _timestamp, _metadata}} ->
+        msg_str = IO.iodata_to_binary(msg)
+        not String.contains?(msg_str, "Failed to lookup telemetry handlers")
+      
+      _ ->
+        true
+    end, nil}
+  ]
+)
+
 # Ensure critical lib modules are available before loading support files
 Code.ensure_loaded(ExLLM.Testing.Config)
 Code.ensure_loaded(ExLLM.Environment)

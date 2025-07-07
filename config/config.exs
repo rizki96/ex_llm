@@ -93,4 +93,10 @@ if Mix.env() == :test do
   # Minimal config here to avoid duplication
   config :logger, level: :error
   config :ex_llm, startup_validation: %{enabled: false}
+  
+  # Filter out telemetry warnings in test
+  config :logger,
+    compile_time_purge_matching: [
+      [message: "Failed to lookup telemetry handlers"]
+    ]
 end

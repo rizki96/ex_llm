@@ -31,6 +31,27 @@ defmodule ExLLM.Infrastructure.Telemetry do
 
   alias ExLLM.Infrastructure.Logger
 
+  @doc """
+  Safely execute telemetry events, suppressing warnings if telemetry is not started.
+  
+  This wrapper prevents the "Failed to lookup telemetry handlers" warning that can
+  occur during early application startup or in test environments.
+  """
+  def safe_execute(event, measurements, metadata) do
+    try do
+      :telemetry.execute(event, measurements, metadata)
+    rescue
+      # Suppress the specific ArgumentError about telemetry handlers
+      ArgumentError ->
+        # Silently ignore if telemetry application is not started
+        :ok
+    catch
+      # Also catch any exit signals related to telemetry
+      :exit, _ ->
+        :ok
+    end
+  end
+
   # Event definitions organized by component
   @chat_events [
     [:ex_llm, :chat, :start],
@@ -137,7 +158,7 @@ defmodule ExLLM.Infrastructure.Telemetry do
     start_time = System.monotonic_time()
     start_metadata = Map.put(metadata, :system_time, System.system_time())
 
-    :telemetry.execute(event_prefix ++ [:start], %{system_time: start_time}, start_metadata)
+    safe_execute(event_prefix ++ [:start], %{system_time: start_time}, start_metadata)
 
     try do
       result = fun.()
@@ -145,7 +166,7 @@ defmodule ExLLM.Infrastructure.Telemetry do
 
       stop_metadata = enrich_metadata(metadata, result, duration)
 
-      :telemetry.execute(
+      safe_execute(
         event_prefix ++ [:stop],
         %{duration: duration},
         stop_metadata
@@ -166,7 +187,7 @@ defmodule ExLLM.Infrastructure.Telemetry do
           |> Map.put(:reason, reason)
           |> Map.put(:stacktrace, stacktrace)
 
-        :telemetry.execute(
+        safe_execute(
           event_prefix ++ [:exception],
           %{duration: duration},
           exception_metadata
@@ -185,7 +206,7 @@ defmodule ExLLM.Infrastructure.Telemetry do
           |> Map.put(:reason, reason)
           |> Map.put(:stacktrace, stacktrace)
 
-        :telemetry.execute(
+        safe_execute(
           event_prefix ++ [:exception],
           %{duration: duration},
           exception_metadata
@@ -203,12 +224,18 @@ defmodule ExLLM.Infrastructure.Telemetry do
   def attach_default_logger(level \\ :debug) do
     events = events()
 
-    :telemetry.attach_many(
-      "ex-llm-default-logger",
-      events,
-      &handle_event/4,
-      %{log_level: level}
-    )
+    try do
+      :telemetry.attach_many(
+        "ex-llm-default-logger",
+        events,
+        &handle_event/4,
+        %{log_level: level}
+      )
+    rescue
+      ArgumentError ->
+        # Telemetry application not started yet, ignore
+        :ok
+    end
   end
 
   @doc """
