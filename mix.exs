@@ -119,7 +119,7 @@ defmodule ExLLM.MixProject do
       {:telemetry, "~> 1.0"},
 
       # WebSocket client for Live API
-      {:gun, "~> 2.1"},
+      {:gun, "~> 2.2"},
 
       # HTTP client for streaming (Tesla adapter)
       {:hackney, "~> 1.20"},
